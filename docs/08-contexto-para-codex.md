@@ -11,7 +11,10 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 ## Estado actual
 
 - Ya existe estructura técnica inicial de backend, frontend y pruebas.
+- La API usa EF Core + SQL Server por defecto y conserva fallback en memoria configurable para desarrollo.
+- Existe migracion inicial EF Core y seed de desarrollo.
 - El estado de implementación inicial está documentado en `docs/13-estado-implementacion-inicial.md`.
+- La persistencia EF Core está documentada en `docs/14-persistencia-ef-core-sql-server.md`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -81,9 +84,8 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 
 Continuar con persistencia real y flujo vertical mínimo:
 
-- Crear migración EF Core inicial cuando se confirme SQL Server local/dev.
-- Sustituir repositorios en memoria por repositorios EF Core.
-- Conectar Angular con la API inicial.
+- Aplicar migracion inicial en SQL Server local/dev y validar endpoints contra base real.
+- Completar integracion Angular para enviar pedido y marcar "No pedir hoy".
 - Agregar autenticación piloto sin implementar roles completos todavía.
 - Agregar auditoría persistente mínima para pedido creado, no pedido y decisión administrativa.
 
@@ -100,6 +102,7 @@ Al iniciar una nueva sesión, leer siempre:
 - `docs/03-requerimientos-funcionales.md`
 - `docs/07-backlog-mvp.md`
 - `docs/13-estado-implementacion-inicial.md`
+- `docs/14-persistencia-ef-core-sql-server.md`
 
 Al terminar una sesión, dejar documentado:
 

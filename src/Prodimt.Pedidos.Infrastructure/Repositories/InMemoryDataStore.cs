@@ -1,17 +1,19 @@
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
+using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
 namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class InMemoryDataStore
 {
-    public static readonly Guid ExampleCustomerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    public static readonly Guid ProductNinePointFiveId = Guid.Parse("22222222-2222-2222-2222-222222222201");
-    public static readonly Guid ProductTenId = Guid.Parse("22222222-2222-2222-2222-222222222202");
-    public static readonly Guid ProductFlautaId = Guid.Parse("22222222-2222-2222-2222-222222222203");
-    public static readonly Guid CustomerChannelId = Guid.Parse("33333333-3333-3333-3333-333333333301");
-    public static readonly Guid CounterChannelId = Guid.Parse("33333333-3333-3333-3333-333333333302");
-    public static readonly Guid AdminManualChannelId = Guid.Parse("33333333-3333-3333-3333-333333333303");
+    public static readonly Guid ExampleCustomerId = DevelopmentSeedIds.GranTakitoCustomerId;
+    public static readonly Guid ProductNineAndHalfId = DevelopmentSeedIds.ProductNineAndHalfId;
+    public static readonly Guid ProductTenAndHalfId = DevelopmentSeedIds.ProductTenAndHalfId;
+    public static readonly Guid ProductElevenId = DevelopmentSeedIds.ProductElevenId;
+    public static readonly Guid ProductFifteenId = DevelopmentSeedIds.ProductFifteenId;
+    public static readonly Guid CustomerChannelId = DevelopmentSeedIds.CustomerChannelId;
+    public static readonly Guid CounterChannelId = DevelopmentSeedIds.CounterChannelId;
+    public static readonly Guid AdminManualChannelId = DevelopmentSeedIds.AdminManualChannelId;
 
     public object SyncRoot { get; } = new();
 
@@ -20,8 +22,8 @@ public sealed class InMemoryDataStore
         new()
         {
             Id = ExampleCustomerId,
-            Name = "Cliente de ejemplo",
-            PhoneNumber = "0000000000",
+            Name = "Gran Takito",
+            PhoneNumber = "0000000001",
             IsActive = true,
             PreferredDeliveryWindowStart = new TimeOnly(12, 0),
             PreferredDeliveryWindowEnd = new TimeOnly(14, 0),
@@ -33,16 +35,16 @@ public sealed class InMemoryDataStore
 
     public List<Product> Products { get; } =
     [
-        new() { Id = ProductNinePointFiveId, Name = "#9.5", Description = "Molde frecuente", IsActive = true },
-        new() { Id = ProductTenId, Name = "#10", Description = "Molde frecuente", IsActive = true },
-        new() { Id = ProductFlautaId, Name = "Flauta", Description = "Producto frecuente", IsActive = true }
+        new() { Id = ProductNineAndHalfId, Name = "#9 1/2", Description = "Producto demo", IsActive = true },
+        new() { Id = ProductTenAndHalfId, Name = "#10 1/2", Description = "Producto demo", IsActive = true },
+        new() { Id = ProductElevenId, Name = "#11", Description = "Producto demo", IsActive = true },
+        new() { Id = ProductFifteenId, Name = "#15", Description = "Producto demo", IsActive = true }
     ];
 
     public List<CustomerFrequentProduct> CustomerFrequentProducts { get; } =
     [
-        new() { CustomerId = ExampleCustomerId, ProductId = ProductNinePointFiveId, DefaultQuantity = 12, SortOrder = 1, IsActive = true },
-        new() { CustomerId = ExampleCustomerId, ProductId = ProductTenId, DefaultQuantity = 8, SortOrder = 2, IsActive = true },
-        new() { CustomerId = ExampleCustomerId, ProductId = ProductFlautaId, DefaultQuantity = 6, SortOrder = 3, IsActive = true }
+        new() { CustomerId = ExampleCustomerId, ProductId = ProductNineAndHalfId, DefaultQuantity = 20, SortOrder = 1, IsActive = true },
+        new() { CustomerId = ExampleCustomerId, ProductId = ProductTenAndHalfId, DefaultQuantity = 10, SortOrder = 2, IsActive = true }
     ];
 
     public List<SalesChannel> SalesChannels { get; } =

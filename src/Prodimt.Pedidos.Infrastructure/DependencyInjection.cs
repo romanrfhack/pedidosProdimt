@@ -11,17 +11,29 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var persistenceProvider = configuration["Persistence:Provider"] ?? "SqlServer";
+
+        services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+
+        if (string.Equals(persistenceProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<InMemoryDataStore>();
+            services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
+            services.AddSingleton<IProductRepository, InMemoryProductRepository>();
+            services.AddSingleton<ISalesChannelRepository, InMemorySalesChannelRepository>();
+            services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+
+            return services;
+        }
+
         var connectionString = configuration.GetConnectionString("Pedidos")
             ?? "Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCAL_ONLY;TrustServerCertificate=True";
 
         services.AddDbContext<PedidosDbContext>(options => options.UseSqlServer(connectionString));
-
-        services.AddSingleton<InMemoryDataStore>();
-        services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
-        services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
-        services.AddSingleton<IProductRepository, InMemoryProductRepository>();
-        services.AddSingleton<ISalesChannelRepository, InMemorySalesChannelRepository>();
-        services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+        services.AddScoped<ICustomerRepository, EfCustomerRepository>();
+        services.AddScoped<IProductRepository, EfProductRepository>();
+        services.AddScoped<ISalesChannelRepository, EfSalesChannelRepository>();
+        services.AddScoped<IOrderRepository, EfOrderRepository>();
 
         return services;
     }

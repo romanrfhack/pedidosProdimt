@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
+using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,15 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ProdimtWeb", policy =>
+    {
+        policy.WithOrigins("http://127.0.0.1:4200", "http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -19,9 +29,19 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    try
+    {
+        await app.Services.ApplyDevelopmentSeedAsync(builder.Configuration, app.Logger);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Development seed could not be applied. Verify SQL Server and migrations.");
+    }
 }
 
 app.UseHttpsRedirection();
+app.UseCors("ProdimtWeb");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");

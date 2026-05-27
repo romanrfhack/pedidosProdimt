@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { OrderDataService } from './order-data.service';
+import { FrequentProduct, OrderDataService } from './order-data.service';
 
 @Component({
   selector: 'app-customer-today',
@@ -8,12 +8,12 @@ import { OrderDataService } from './order-data.service';
   template: `
     <section class="page stack" data-testid="customer-today">
       <div class="page-title">
-        <p class="eyebrow">{{ data.customerName }}</p>
+        <p class="eyebrow">{{ customerName }}</p>
         <h2>Mi pedido de hoy</h2>
       </div>
 
       <div class="product-list">
-        @for (product of data.frequentProducts; track product.id) {
+        @for (product of frequentProducts; track product.id) {
           <label class="product-row">
             <span>
               <strong>{{ product.name }}</strong>
@@ -38,5 +38,16 @@ import { OrderDataService } from './order-data.service';
   `
 })
 export class CustomerTodayComponent {
-  protected readonly data = inject(OrderDataService);
+  private readonly data = inject(OrderDataService);
+
+  protected customerName = this.data.customerName;
+
+  protected frequentProducts: FrequentProduct[] = this.data.frequentProducts.map((product) => ({ ...product }));
+
+  constructor() {
+    this.data.loadCustomerToday().subscribe((today) => {
+      this.customerName = today.customerName;
+      this.frequentProducts = today.frequentProducts;
+    });
+  }
 }

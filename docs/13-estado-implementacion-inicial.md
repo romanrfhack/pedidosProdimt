@@ -24,6 +24,13 @@ Fecha: 2026-05-27
 - Se agregaron pruebas unitarias xUnit para reglas criticas.
 - Se agrego Playwright E2E para validar acciones principales y que la vista de cliente no muestre informacion de maquina.
 - Se agregaron `.gitignore` y `.editorconfig`.
+- Se reemplazo la configuracion default de repositorios en memoria por repositorios EF Core.
+- Se agregaron configuraciones Fluent API separadas para las entidades principales.
+- Se creo migracion inicial `InitialCreate`.
+- Se agrego seed de desarrollo con clientes, productos, maquinas, canales, productos frecuentes y asignaciones internas.
+- Se mantuvo fallback `InMemory` configurable solo para desarrollo sin SQL Server.
+- Se agregaron pruebas de persistencia con SQLite in-memory.
+- Se agrego servicio Angular `CustomerOrdersApiService` con fallback mock si la API no esta disponible.
 
 ## Decisiones tomadas
 
@@ -32,7 +39,9 @@ Fecha: 2026-05-27
 - El CLI global `ng` queda colgado en este WSL; la app Angular se scaffoldo manualmente con dependencias Angular 21 y `@angular/build`.
 - Tailwind no se uso; el frontend usa CSS estandar mobile first para evitar configuracion innecesaria en esta fase.
 - La API usa repositorios en memoria para el arranque inicial, pero `Infrastructure` ya contiene `DbContext` y configuracion para SQL Server.
-- No se creo migracion inicial todavia; debe generarse cuando se confirme el SQL Server local/dev.
+- La API usa EF Core + SQL Server por defecto; los repositorios en memoria quedan solo como fallback configurable.
+- El seed se aplica solo en ambiente `Development`.
+- Las pruebas de persistencia usan SQLite in-memory para no depender de SQL Server local.
 
 ## Validacion ejecutada
 
@@ -43,22 +52,23 @@ Fecha: 2026-05-27
 - `npm run build` en `apps/prodimt-pedidos-web`
 - `npm install --save-dev @playwright/test` en `tests/e2e`
 - `npm test` en `tests/e2e`
-- Verificacion local de API para `/health` y `/api/customer-orders/{customerId}/today`
+- Verificacion local de API con fallback `InMemory` para `/health` y `/api/customer-orders/{customerId}/today`
+- `dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations`
 
 ## Resultado
 
 - Backend build: exitoso.
-- Pruebas unitarias backend: 6 pruebas exitosas.
+- Pruebas unitarias backend: 10 pruebas exitosas.
 - Angular build: exitoso.
 - Playwright E2E: 2 pruebas exitosas.
 - API `/health`: responde `{"status":"ok"}`.
 - API de cliente de ejemplo no expone maquina.
+- Migracion inicial EF Core: creada.
 
 ## Pendiente
 
-- Crear migracion EF Core inicial cuando se confirme la base SQL Server local/dev.
-- Sustituir repositorios en memoria por repositorios EF Core reales.
+- Aplicar migracion a SQL Server local/dev y validar endpoint completo contra SQL Server.
 - Agregar autenticacion piloto.
 - Agregar auditoria persistente.
 - Implementar CRUD interno de catalogos.
-- Integrar frontend con API real.
+- Completar integracion frontend para enviar pedido y marcar "No pedir hoy".

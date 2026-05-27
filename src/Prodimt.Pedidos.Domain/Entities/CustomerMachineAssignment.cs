@@ -8,5 +8,7 @@ public sealed class CustomerMachineAssignment
 
     public bool IsDefault { get; set; }
 
+    public bool IsActive { get; set; } = true;
+
     public string? Notes { get; set; }
 }

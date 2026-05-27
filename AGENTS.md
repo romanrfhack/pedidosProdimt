@@ -69,6 +69,18 @@ dotnet build src/Prodimt.Pedidos.sln
 dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
 ```
 
+Aplicar migraciones EF Core:
+
+```bash
+dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+```
+
+Fallback temporal sin SQL Server:
+
+```bash
+Persistence__Provider=InMemory dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
+```
+
 Frontend:
 
 ```bash

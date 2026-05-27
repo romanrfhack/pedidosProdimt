@@ -56,18 +56,42 @@ dotnet build src/Prodimt.Pedidos.sln
 dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
 ```
 
+La API usa EF Core + SQL Server por defecto. La cadena local de ejemplo esta en `src/Prodimt.Pedidos.Api/appsettings.Development.json`:
+
+```text
+Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCAL_ONLY;TrustServerCertificate=True
+```
+
+`CHANGE_ME_LOCAL_ONLY` debe reemplazarse solo en configuracion local o variables de entorno. No agregar credenciales reales al repositorio.
+
 Endpoints iniciales:
 
 - `GET http://127.0.0.1:5088/health`
 - `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today`
 
-La cadena local de ejemplo está en `src/Prodimt.Pedidos.Api/appsettings.Development.json` y no contiene credenciales reales. Cuando se confirme SQL Server local/dev, generar migración con:
+Si no hay SQL Server local disponible y solo se quiere levantar la API demo sin persistencia real:
+
+```bash
+Persistence__Provider=InMemory dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
+```
+
+### EF Core
+
+La migracion inicial ya existe en `src/Prodimt.Pedidos.Infrastructure/Persistence/Migrations`.
+
+Aplicar migraciones a SQL Server local:
+
+```bash
+dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+```
+
+Crear una nueva migracion:
 
 ```bash
 dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
 ```
 
-Ese comando requiere tener disponible la herramienta `dotnet-ef`.
+Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes y asignaciones internas de maquina.
 
 ### Frontend
 
@@ -91,6 +115,7 @@ npm test
 ## Estado de implementación
 
 Ver `docs/13-estado-implementacion-inicial.md`.
+Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
 
 ## Regla de continuidad para Codex
 

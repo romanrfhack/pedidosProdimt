@@ -1,4 +1,6 @@
 import { Injectable } from '@angular/core';
+import { Observable, catchError, map, of } from 'rxjs';
+import { CustomerOrdersApiService } from './customer-orders-api.service';
 
 export interface FrequentProduct {
   id: string;
@@ -18,12 +20,14 @@ export interface AdminOrder {
 
 @Injectable({ providedIn: 'root' })
 export class OrderDataService {
+  constructor(private readonly customerOrdersApi: CustomerOrdersApiService) {}
+
   readonly customerName = 'Cliente de ejemplo';
 
   readonly frequentProducts: FrequentProduct[] = [
-    { id: '22222222-2222-2222-2222-222222222201', name: '#9.5', suggestedQuantity: 12, quantity: 12 },
-    { id: '22222222-2222-2222-2222-222222222202', name: '#10', suggestedQuantity: 8, quantity: 8 },
-    { id: '22222222-2222-2222-2222-222222222203', name: 'Flauta', suggestedQuantity: 6, quantity: 6 }
+    { id: '22222222-2222-2222-2222-222222222201', name: '#9 1/2', suggestedQuantity: 20, quantity: 20 },
+    { id: '22222222-2222-2222-2222-222222222202', name: '#10 1/2', suggestedQuantity: 10, quantity: 10 },
+    { id: '22222222-2222-2222-2222-222222222203', name: '#11', suggestedQuantity: 6, quantity: 6 }
   ];
 
   readonly todayOrders: AdminOrder[] = [
@@ -46,4 +50,22 @@ export class OrderDataService {
   ];
 
   readonly pendingReviewOrders: AdminOrder[] = this.todayOrders.filter((order) => order.requiresReview);
+
+  loadCustomerToday(): Observable<{ customerName: string; frequentProducts: FrequentProduct[] }> {
+    return this.customerOrdersApi.getToday().pipe(
+      map((response) => ({
+        customerName: response.customerName,
+        frequentProducts: response.products.map((product) => ({
+          id: product.productId,
+          name: product.name,
+          suggestedQuantity: product.suggestedQuantity,
+          quantity: product.suggestedQuantity
+        }))
+      })),
+      catchError(() => of({
+        customerName: this.customerName,
+        frequentProducts: this.frequentProducts.map((product) => ({ ...product }))
+      }))
+    );
+  }
 }
