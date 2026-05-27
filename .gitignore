@@ -1,0 +1,28 @@
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+
+# ASP.NET local settings
+*.Development.local.json
+
+# Node / Angular
+node_modules/
+.angular/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Playwright
+playwright-report/
+test-results/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

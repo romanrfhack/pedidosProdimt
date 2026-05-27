@@ -41,10 +41,56 @@ Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas,
 
 ## Estado actual
 
-- No hay código de aplicación generado todavía.
+- Ya existe estructura técnica inicial de backend, frontend y pruebas.
 - Esta documentación define el alcance base para iniciar el repositorio.
 - El Excel actual se usó como referencia para entender captura, moldes, clientes, máquinas y vistas derivadas.
 - La primera meta de desarrollo debe ser capturar pedidos correctamente, no reemplazar todos los reportes de producción desde el día uno.
+
+## Comandos reales
+
+### Backend
+
+```bash
+dotnet restore src/Prodimt.Pedidos.sln
+dotnet build src/Prodimt.Pedidos.sln
+dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
+```
+
+Endpoints iniciales:
+
+- `GET http://127.0.0.1:5088/health`
+- `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today`
+
+La cadena local de ejemplo está en `src/Prodimt.Pedidos.Api/appsettings.Development.json` y no contiene credenciales reales. Cuando se confirme SQL Server local/dev, generar migración con:
+
+```bash
+dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+```
+
+Ese comando requiere tener disponible la herramienta `dotnet-ef`.
+
+### Frontend
+
+```bash
+cd apps/prodimt-pedidos-web
+npm install
+npm run start -- --host 127.0.0.1 --port 4200
+```
+
+### Pruebas
+
+```bash
+dotnet test src/Prodimt.Pedidos.sln
+cd apps/prodimt-pedidos-web
+npm run build
+cd ../../tests/e2e
+npm install
+npm test
+```
+
+## Estado de implementación
+
+Ver `docs/13-estado-implementacion-inicial.md`.
 
 ## Regla de continuidad para Codex
 

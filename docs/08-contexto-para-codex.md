@@ -10,8 +10,8 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 
 ## Estado actual
 
-- Solo existe documentación inicial.
-- No se ha generado código todavía.
+- Ya existe estructura técnica inicial de backend, frontend y pruebas.
+- El estado de implementación inicial está documentado en `docs/13-estado-implementacion-inicial.md`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -79,34 +79,13 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 
 ## Siguiente tarea sugerida para Codex
 
-Crear la estructura inicial del repositorio:
+Continuar con persistencia real y flujo vertical mínimo:
 
-```text
-/
-  README.md
-  docs/
-  src/
-    Prodimt.Pedidos.Api/
-    Prodimt.Pedidos.Application/
-    Prodimt.Pedidos.Domain/
-    Prodimt.Pedidos.Infrastructure/
-  tests/
-    Prodimt.Pedidos.UnitTests/
-    Prodimt.Pedidos.IntegrationTests/
-  apps/
-    prodimt-pedidos-web/
-```
-
-Luego implementar el modelo base:
-
-- Customer
-- Product
-- Machine
-- CustomerProductPreference
-- Order
-- OrderLine
-- AuditLog
-- User
+- Crear migración EF Core inicial cuando se confirme SQL Server local/dev.
+- Sustituir repositorios en memoria por repositorios EF Core.
+- Conectar Angular con la API inicial.
+- Agregar autenticación piloto sin implementar roles completos todavía.
+- Agregar auditoría persistente mínima para pedido creado, no pedido y decisión administrativa.
 
 ## Criterio para futuras sesiones
 
@@ -120,6 +99,7 @@ Al iniciar una nueva sesión, leer siempre:
 - `docs/02-alcance-y-etapas.md`
 - `docs/03-requerimientos-funcionales.md`
 - `docs/07-backlog-mvp.md`
+- `docs/13-estado-implementacion-inicial.md`
 
 Al terminar una sesión, dejar documentado:
 
