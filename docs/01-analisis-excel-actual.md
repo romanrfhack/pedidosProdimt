@@ -26,16 +26,18 @@ También contiene vistas o auxiliares:
 
 En las hojas por día, la captura principal está en las columnas:
 
-| Columna | Uso observado |
+| Columna | Uso confirmado |
 |---|---|
 | A | Molde o categoría de producto |
-| B | Maq / máquina / equipo |
+| B | Maq / máquina / equipo, según formato de captura |
 | C | Cliente |
 | D | Pedido |
-| E | Campo operativo asociado a línea, máquina o clasificación; requiere confirmación |
+| E | Número de máquina que atenderá el pedido |
 | F | Repartidor |
 
-La columna D contiene la cantidad del pedido. Cuando aparece `x` o `X`, esa marca no suma al total numérico. Debe confirmarse si significa "no pidió", "contactado sin pedido", "pendiente" u otra cosa.
+La columna D contiene la cantidad del pedido. Cuando aparece `x` o `X`, significa **no pidió**. En el sistema nuevo esto no debe tratarse como texto de pedido ni como cantidad cero sin contexto; debe representarse como un estado explícito de cliente sin pedido para esa fecha.
+
+La columna E representa la máquina asignada para atender ese pedido. Esta asignación es interna y no debe mostrarse al cliente. Normalmente cada máquina tiene clientes asignados, pero un administrador puede cambiar la máquina en situaciones especiales.
 
 ## Hallazgos cuantitativos
 
@@ -66,7 +68,14 @@ Para la app, esta estructura debe transformarse a un modelo normalizado:
 - Preferencias de cliente por producto/moldes
 - Pedido
 - Detalle de pedido
-- Estado de captura / confirmación / entrega
+- Estado de captura / no pedido / revisión / aceptación / rechazo
+- Canal de captura o venta
+- Máquina asignada de forma interna
+- Hora o ventana deseada de entrega
+
+## Mostrador
+
+`Mostrador` no debe tratarse como cliente externo. Debe modelarse como un canal de venta interno o captura interna, para que no contamine las estadísticas de clientes ni las preferencias de moldes por cliente.
 
 ## Vistas derivadas
 
@@ -88,9 +97,10 @@ La hoja `GABY (3)` parece una matriz o catálogo operativo de clientes contra mo
 1. No está normalizado.
 2. Depende de filas fijas y ubicación visual.
 3. Tiene nombres escritos con variaciones.
-4. Mezcla captura, cálculo, logística y reportes en el mismo archivo.
-5. Requiere criterio humano para interpretar marcas como `x/X`.
+4. Mezcla captura, cálculo, logística, máquinas y reportes en el mismo archivo.
+5. La marca `x/X` debe transformarse a un estado de negocio claro: no pidió.
 6. Las hojas derivadas dependen de fórmulas y de nombres de hoja específicos.
+7. La asignación de máquina no debe exponerse al cliente.
 
 ## Recomendación
 

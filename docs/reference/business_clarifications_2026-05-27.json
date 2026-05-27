@@ -1,0 +1,17 @@
+{
+  "date": "2026-05-27",
+  "x_or_X": "No pidió",
+  "late_cutoff": "10:00 a.m.",
+  "late_order_policy": "Marcar como tardío y enviar a revisión administrativa",
+  "multiple_orders_same_day_policy": "Enviar a revisión administrativa; el administrador decide si acepta, rechaza o ajusta",
+  "customer_delivery_time": "Campo opcional en catálogo de cliente; copiar al pedido",
+  "mostrador": "Canal de venta interno, no cliente externo",
+  "excel_column_E": "Número de máquina que atenderá el pedido",
+  "machine_visibility": "Dato interno; no visible para el cliente",
+  "phase_1_focus": "Captura de pedidos de clientes y revisión administrativa básica",
+  "future_modules": [
+    "Producción por máquina",
+    "Embarques",
+    "Repartidores"
+  ]
+}

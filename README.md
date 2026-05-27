@@ -1,12 +1,25 @@
 # PRODIMT Pedidos — Base documental inicial
 
-Fecha: 2026-05-27
+Fecha: 2026-05-27  
+Versión documental: 0.2
 
 Este paquete contiene la documentación inicial para construir la aplicación de pedidos de PRODIMT con enfoque **mobile first**.
 
 ## Objetivo del proyecto
 
-Sustituir el flujo manual actual de pedidos por WhatsApp, llamadas, mensajes en grupo y captura en Excel por un sistema donde cada cliente pueda confirmar o editar su pedido desde el celular, y donde PRODIMT pueda consultar los pedidos por área sin depender de transcribir cientos de mensajes.
+Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas, mensajes en grupo y captura en Excel por un sistema donde cada cliente pueda confirmar, editar o marcar que no pedirá desde el celular, y donde PRODIMT pueda consultar los pedidos sin depender de transcribir cientos de mensajes.
+
+## Definiciones operativas confirmadas
+
+- `x/X` en el Excel significa **no pidió**.
+- La hora límite inicial es **10:00 a.m.**.
+- Un pedido después de la hora límite se marca como **tardío** y queda sujeto a decisión administrativa.
+- Si un cliente intenta hacer más de un pedido en el mismo día, el nuevo pedido o cambio debe quedar sujeto a decisión administrativa.
+- `Mostrador` no es cliente externo; es un **canal de venta interno**.
+- La columna E de las hojas diarias representa el **número de máquina** que atenderá el pedido.
+- El cliente no debe ver la máquina asignada.
+- El catálogo de cliente debe permitir registrar una **hora o ventana deseada de entrega** como dato opcional.
+- La Fase 1 se concentra en capturar pedidos de clientes; las vistas de producción, embarques y repartidores quedan para fases posteriores.
 
 ## Documentos incluidos
 
@@ -19,16 +32,18 @@ Sustituir el flujo manual actual de pedidos por WhatsApp, llamadas, mensajes en 
 - `docs/06-modelo-datos-inicial.md`: modelo conceptual inicial.
 - `docs/07-backlog-mvp.md`: backlog inicial para la primera versión útil.
 - `docs/08-contexto-para-codex.md`: instrucciones de continuidad para Codex.
-- `docs/09-preguntas-abiertas.md`: dudas que deben resolverse antes o durante el MVP.
-- `docs/adrs/ADR-0001-stack-tecnologico.md`: decisión técnica inicial.
-- `docs/adrs/ADR-0002-excel-no-sera-fuente-principal.md`: decisión sobre Excel.
-- `docs/reference/`: archivos de apoyo extraídos del Excel.
+- `docs/09-preguntas-abiertas.md`: dudas abiertas y decisiones ya resueltas.
+- `docs/10-decisiones-operativas-confirmadas.md`: decisiones de negocio confirmadas por PRODIMT.
+- `docs/11-reglas-de-negocio-fase-1.md`: reglas de negocio base para captura.
+- `docs/12-flujos-fase-1.md`: flujos funcionales de la primera fase.
+- `docs/adrs/`: decisiones arquitectónicas.
+- `docs/reference/`: archivos de apoyo extraídos o derivados del Excel.
 
 ## Estado actual
 
 - No hay código de aplicación generado todavía.
 - Esta documentación define el alcance base para iniciar el repositorio.
-- El Excel actual se usó como referencia para entender captura, moldes, clientes y vistas derivadas.
+- El Excel actual se usó como referencia para entender captura, moldes, clientes, máquinas y vistas derivadas.
 - La primera meta de desarrollo debe ser capturar pedidos correctamente, no reemplazar todos los reportes de producción desde el día uno.
 
 ## Regla de continuidad para Codex
@@ -36,7 +51,10 @@ Sustituir el flujo manual actual de pedidos por WhatsApp, llamadas, mensajes en 
 Antes de crear o modificar código, Codex debe leer:
 
 1. `docs/08-contexto-para-codex.md`
-2. `docs/02-alcance-y-etapas.md`
-3. `docs/03-requerimientos-funcionales.md`
-4. `docs/06-modelo-datos-inicial.md`
-5. `docs/07-backlog-mvp.md`
+2. `docs/10-decisiones-operativas-confirmadas.md`
+3. `docs/11-reglas-de-negocio-fase-1.md`
+4. `docs/12-flujos-fase-1.md`
+5. `docs/02-alcance-y-etapas.md`
+6. `docs/03-requerimientos-funcionales.md`
+7. `docs/06-modelo-datos-inicial.md`
+8. `docs/07-backlog-mvp.md`

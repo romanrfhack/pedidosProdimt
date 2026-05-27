@@ -6,7 +6,7 @@ Este modelo es conceptual. Debe refinarse durante el diseño técnico.
 
 ### Customer
 
-Representa al cliente.
+Representa al cliente externo.
 
 Campos candidatos:
 
@@ -16,6 +16,10 @@ Campos candidatos:
 - PrimaryPhone
 - SecondaryPhone opcional
 - RouteId opcional
+- PreferredDeliveryTime opcional
+- PreferredDeliveryWindowStart opcional
+- PreferredDeliveryWindowEnd opcional
+- DeliveryNotes opcional
 - IsActive
 - CreatedAt
 - UpdatedAt
@@ -54,6 +58,40 @@ Campos candidatos:
 - PreferredWeekdays opcional
 - DisplayOrder
 - IsFrequent
+- DefaultMachineId opcional, interno
+
+### Machine
+
+Representa una máquina de producción o atención interna.
+
+Campos candidatos:
+
+- MachineId
+- MachineNumber
+- DisplayName
+- IsActive
+
+Notas:
+
+- La máquina no debe mostrarse al cliente.
+- Puede usarse después para vistas de producción.
+- En Fase 1 basta con modelarla y permitir asignación básica.
+
+### CustomerMachineAssignment
+
+Asignación interna por defecto entre cliente, producto y máquina.
+
+Campos candidatos:
+
+- CustomerMachineAssignmentId
+- CustomerId
+- ProductId opcional
+- Weekday opcional
+- MachineId
+- IsDefault
+- IsActive
+
+Esta entidad puede omitirse temporalmente si en MVP se decide guardar `DefaultMachineId` directamente en `CustomerProductPreference`.
 
 ### Order
 
@@ -62,34 +100,67 @@ Pedido del cliente para una fecha.
 Campos candidatos:
 
 - OrderId
-- CustomerId
+- CustomerId nullable para ventas internas de mostrador
 - OrderDate
 - DeliveryDate opcional
+- RequestedDeliveryTime opcional
+- RequestedDeliveryWindowStart opcional
+- RequestedDeliveryWindowEnd opcional
 - Status
 - CaptureChannel
+- SalesChannel
 - SubmittedAt
 - SubmittedByUserId opcional
 - Notes
 - IsLate
+- RequiresAdminReview
+- AdminReviewReason opcional
+- ReviewedByUserId opcional
+- ReviewedAt opcional
+- AdminDecision opcional
+- RejectionReason opcional
+- SequenceNumber
 - CreatedAt
 - UpdatedAt
 
 Estados candidatos:
 
 - Draft
-- Suggested
 - Submitted
-- Confirmed
+- PendingAdminReview
+- Accepted
+- Rejected
 - Cancelled
-- Processed
+- NoOrder
+- Superseded
 
-Canales candidatos:
+Razones de revisión administrativa candidatas:
+
+- LateSubmission
+- AdditionalOrderSameDay
+- PostConfirmationEdit
+- ManualAdminReview
+
+Decisiones administrativas candidatas:
+
+- Pending
+- Accepted
+- Rejected
+- AcceptedWithDeliveryTimeChange
+- AcceptedWithChanges
+
+Canales de captura candidatos:
 
 - CustomerApp
 - InternalCall
 - WhatsAppConfirmation
 - Import
 - AdminEdit
+
+Canales de venta candidatos:
+
+- ExternalCustomer
+- InternalCounter, equivalente a Mostrador
 
 ### OrderLine
 
@@ -103,8 +174,25 @@ Campos candidatos:
 - Quantity
 - Unit opcional
 - Notes
+- AssignedMachineId opcional, interno
 - SourceSuggestionLineId opcional
 - WasChangedFromSuggestion
+
+### NoOrderRecord
+
+Puede modelarse como una entidad separada o como un `Order` con estado `NoOrder` y sin líneas.
+
+Recomendación inicial: modelarlo como `Order.Status = NoOrder` para que el cliente salga de pendientes y todo quede en la misma línea de tiempo.
+
+Campos candidatos si se separa:
+
+- NoOrderRecordId
+- CustomerId
+- OrderDate
+- CaptureChannel
+- SubmittedAt
+- SubmittedByUserId opcional
+- Notes opcional
 
 ### OrderSuggestion
 
@@ -161,13 +249,18 @@ Campos candidatos:
 
 ## Reglas de negocio iniciales
 
-1. Un cliente puede tener máximo un pedido activo por fecha.
-2. Un pedido puede tener muchas líneas.
-3. Una línea de pedido debe tener producto y cantidad.
-4. La cantidad debe ser mayor o igual a cero.
-5. Cero debe significar cantidad cero; no debe mezclarse con la marca `x/X` del Excel sin definirla.
-6. Todo cambio después de la hora límite debe marcarse como tardío o auditado.
-7. Las sugerencias nunca deben enviarse como pedido confirmado sin acción del cliente o usuario interno.
+1. Un cliente puede tener máximo un pedido activo aceptado o enviado por fecha sin revisión adicional.
+2. Si un cliente intenta crear otro pedido el mismo día, debe crearse una solicitud pendiente de revisión administrativa.
+3. Un pedido tardío después de las 10:00 a.m. debe marcarse como `IsLate = true` y `RequiresAdminReview = true`.
+4. Un pedido puede tener muchas líneas.
+5. Una línea de pedido debe tener producto y cantidad.
+6. La cantidad debe ser mayor o igual a cero.
+7. Cero significa cantidad cero en un producto; `x/X` del Excel significa no pidió y debe mapearse a estado `NoOrder`.
+8. Todo cambio después de la hora límite debe marcarse como tardío o auditado.
+9. Las sugerencias nunca deben enviarse como pedido confirmado sin acción del cliente o usuario interno.
+10. La máquina asignada es interna y no debe exponerse en endpoints o vistas de cliente.
+11. `Mostrador` debe manejarse como canal de venta interno, no como cliente externo.
+12. La hora deseada de entrega vive en el perfil de cliente, pero debe copiarse al pedido para conservar el contexto histórico.
 
 ## Limpieza requerida
 
@@ -175,6 +268,7 @@ Antes de importar masivamente:
 
 - Normalizar nombres de clientes.
 - Unificar moldes equivalentes.
-- Confirmar significado de `x/X`.
-- Confirmar uso de columna E del Excel.
-- Definir si `Mostrador` es cliente, canal o categoría interna.
+- Mapear `x/X` a no pedido.
+- Mapear columna E a máquina asignada.
+- Separar `Mostrador` como canal interno.
+- Definir catálogo inicial de máquinas.
