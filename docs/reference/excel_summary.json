@@ -1,0 +1,173 @@
+{
+  "source_file": "05 EMBARQUES Mayo-04.xlsm",
+  "generated_at": "2026-05-27",
+  "sheet_stats": [
+    {
+      "sheet": "LUNES",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1911,
+      "formula_cells": 231
+    },
+    {
+      "sheet": "MARTES",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1294,
+      "formula_cells": 234
+    },
+    {
+      "sheet": "MIÉRCOLES",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1302,
+      "formula_cells": 233
+    },
+    {
+      "sheet": "JUEVES",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1315,
+      "formula_cells": 234
+    },
+    {
+      "sheet": "VIERNES",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1318,
+      "formula_cells": 232
+    },
+    {
+      "sheet": "SABADO",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1313,
+      "formula_cells": 233
+    },
+    {
+      "sheet": "DOMINGO",
+      "rows": 447,
+      "cols": 29,
+      "non_empty_cells": 1313,
+      "formula_cells": 233
+    },
+    {
+      "sheet": "Maq. #2 Lunes",
+      "rows": 72,
+      "cols": 8,
+      "non_empty_cells": 440,
+      "formula_cells": 120
+    },
+    {
+      "sheet": "Hoja1",
+      "rows": 72,
+      "cols": 8,
+      "non_empty_cells": 439,
+      "formula_cells": 123
+    },
+    {
+      "sheet": "FORMATO",
+      "rows": 433,
+      "cols": 29,
+      "non_empty_cells": 1821,
+      "formula_cells": 220
+    },
+    {
+      "sheet": "GABY (3)",
+      "rows": 219,
+      "cols": 18,
+      "non_empty_cells": 3123,
+      "formula_cells": 0
+    },
+    {
+      "sheet": "Metricas Produccion",
+      "rows": 23,
+      "cols": 17,
+      "non_empty_cells": 234,
+      "formula_cells": 196
+    }
+  ],
+  "day_order_stats": [
+    {
+      "sheet": "LUNES",
+      "candidate_order_rows": 306,
+      "unique_clients_in_sheet": 222,
+      "mold_category_count": 22,
+      "numeric_orders": 159,
+      "x_marks": 130,
+      "blank_orders": 17,
+      "numeric_quantity_total": 2400
+    },
+    {
+      "sheet": "MARTES",
+      "candidate_order_rows": 296,
+      "unique_clients_in_sheet": 218,
+      "mold_category_count": 21,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 296,
+      "numeric_quantity_total": 0
+    },
+    {
+      "sheet": "MIÉRCOLES",
+      "candidate_order_rows": 298,
+      "unique_clients_in_sheet": 219,
+      "mold_category_count": 22,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 298,
+      "numeric_quantity_total": 0
+    },
+    {
+      "sheet": "JUEVES",
+      "candidate_order_rows": 307,
+      "unique_clients_in_sheet": 220,
+      "mold_category_count": 21,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 307,
+      "numeric_quantity_total": 0
+    },
+    {
+      "sheet": "VIERNES",
+      "candidate_order_rows": 312,
+      "unique_clients_in_sheet": 225,
+      "mold_category_count": 22,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 312,
+      "numeric_quantity_total": 0
+    },
+    {
+      "sheet": "SABADO",
+      "candidate_order_rows": 308,
+      "unique_clients_in_sheet": 223,
+      "mold_category_count": 22,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 308,
+      "numeric_quantity_total": 0
+    },
+    {
+      "sheet": "DOMINGO",
+      "candidate_order_rows": 308,
+      "unique_clients_in_sheet": 223,
+      "mold_category_count": 22,
+      "numeric_orders": 0,
+      "x_marks": 0,
+      "blank_orders": 308,
+      "numeric_quantity_total": 0
+    }
+  ],
+  "unique_customers_excluding_mostrador_estimate": 236,
+  "customer_mold_count_distribution": {
+    "1": 172,
+    "2": 45,
+    "3": 19
+  },
+  "notes": [
+    "Los conteos son candidatos, no catálogo final. Requieren limpieza de nombres de cliente y molde.",
+    "La marca x/X en la columna PEDIDO no suma como cantidad; debe confirmarse su significado operativo.",
+    "Hoja1 y Maq. #2 Lunes son vistas derivadas con XLOOKUP, no hojas de captura primaria."
+  ]
+}
