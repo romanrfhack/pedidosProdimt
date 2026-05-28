@@ -30,4 +30,4 @@ if ([string]::IsNullOrWhiteSpace($env:ConnectionStrings__Pedidos)) {
 $env:Persistence__Provider = "SqlServer"
 
 Set-Location $RepoRoot
-dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api

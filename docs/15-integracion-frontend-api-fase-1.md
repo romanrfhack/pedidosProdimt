@@ -1,6 +1,6 @@
 # 15 — Integracion frontend/API Fase 1
 
-Fecha: 2026-05-27
+Fecha: 2026-05-28
 
 ## Estado
 
@@ -19,6 +19,7 @@ Administracion:
 
 - `GET /api/admin/orders/today` carga pedidos del dia.
 - `GET /api/admin/orders/pending-review` carga pendientes de revision.
+- `GET /api/admin/orders/{orderId}/audit` devuelve auditoria persistente del pedido para administracion.
 - `POST /api/admin/orders/{orderId}/review` acepta o rechaza desde la UI.
 - Despues de una decision administrativa, la UI refresca los pendientes.
 
@@ -63,7 +64,7 @@ Este resumen permite mostrar `Pedido enviado`, `Pedido pendiente de revision`, `
 - Si ya existe pedido activo del dia, `no-order` responde conflicto claro.
 - `review` acepta solo `Accepted`, `Rejected` y `AcceptedWithChanges`.
 - `review` persiste `adminDecision`, nuevo `status` e `internalNotes`.
-- La auditoria persistente queda pendiente con TODO en Application.
+- Los eventos principales quedan registrados en auditoria persistente.
 
 ## Configuracion Angular
 
@@ -130,4 +131,4 @@ No se implemento:
 - Repetir la validacion SQL Server local cuando cambien migraciones, seed o endpoints. Ver `docs/16-validacion-sql-server-local.md`.
 - Agregar detalle de lineas en administracion.
 - Implementar ajuste real de cantidades/horario para `AcceptedWithChanges`.
-- Agregar auditoria persistente para pedido creado, no pedido y decision administrativa.
+- Agregar UI administrativa para consultar auditoria cuando se implemente autenticacion/roles.

@@ -21,6 +21,8 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();
 
+    public DbSet<OrderAuditLog> OrderAuditLogs => Set<OrderAuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PedidosDbContext).Assembly);

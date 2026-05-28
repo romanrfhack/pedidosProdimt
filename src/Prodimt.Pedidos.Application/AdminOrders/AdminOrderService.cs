@@ -6,6 +6,7 @@ namespace Prodimt.Pedidos.Application.AdminOrders;
 
 public sealed class AdminOrderService(
     IOrderRepository orders,
+    IOrderAuditLogRepository auditLogs,
     ICustomerRepository customers,
     IDateTimeProvider dateTimeProvider)
 {
@@ -38,13 +39,31 @@ public sealed class AdminOrderService(
             throw new ArgumentException("La decision administrativa debe ser Accepted, Rejected o AcceptedWithChanges.", nameof(request));
         }
 
-        // TODO: Persistir auditoria de la decision administrativa en la siguiente iteracion de Fase 1.
         order.ApplyAdminDecision(request.Decision);
         order.InternalNotes = request.InternalNotes;
+        await auditLogs.AddAsync(OrderAuditLog.Create(
+            order,
+            OrderAuditEventType.AdminDecisionRecorded,
+            dateTimeProvider.Now,
+            AuditActorType.Admin,
+            $"Decision administrativa registrada: {request.Decision}."), cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 
         var customerNames = await GetCustomerNamesAsync([order], cancellationToken);
         return MapSummary(order, customerNames);
+    }
+
+    public async Task<IReadOnlyList<OrderAuditLogResponse>> GetAuditAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        var order = await orders.GetByIdAsync(orderId, cancellationToken);
+
+        if (order is null)
+        {
+            throw new InvalidOperationException("Order was not found.");
+        }
+
+        var orderAuditLogs = await auditLogs.GetByOrderIdAsync(orderId, cancellationToken);
+        return orderAuditLogs.Select(MapAuditLog).ToArray();
     }
 
     private async Task<IReadOnlyList<AdminOrderSummaryResponse>> MapSummariesAsync(
@@ -91,5 +110,23 @@ public sealed class AdminOrderService(
             order.RequestedDeliveryWindowEnd,
             order.DeliveryNotes,
             order.AdminDecision);
+    }
+
+    private static OrderAuditLogResponse MapAuditLog(OrderAuditLog auditLog)
+    {
+        return new OrderAuditLogResponse(
+            auditLog.Id,
+            auditLog.OrderId,
+            auditLog.CustomerId,
+            auditLog.EventType,
+            auditLog.OccurredAt,
+            auditLog.ActorType,
+            auditLog.ActorId,
+            auditLog.ActorDisplayName,
+            auditLog.OrderStatus,
+            auditLog.AdminReviewReason,
+            auditLog.AdminDecision,
+            auditLog.Summary,
+            auditLog.MetadataJson);
     }
 }

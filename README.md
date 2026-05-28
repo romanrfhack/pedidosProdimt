@@ -67,11 +67,13 @@ Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCA
 Endpoints iniciales:
 
 - `GET http://127.0.0.1:5088/health`
+- `GET http://127.0.0.1:5088/health/db`
 - `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today`
 - `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/submit`
 - `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order`
 - `GET http://127.0.0.1:5088/api/admin/orders/today`
 - `GET http://127.0.0.1:5088/api/admin/orders/pending-review`
+- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}/audit`
 - `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review`
 
 Si no hay SQL Server local disponible y solo se quiere levantar la API demo sin persistencia real:
@@ -83,6 +85,12 @@ Persistence__Provider=InMemory dotnet run --project src/Prodimt.Pedidos.Api/Prod
 ### EF Core
 
 La migracion inicial ya existe en `src/Prodimt.Pedidos.Infrastructure/Persistence/Migrations`.
+El repositorio usa tool manifest local para `dotnet-ef`:
+
+```bash
+dotnet tool restore
+dotnet tool run dotnet-ef --version
+```
 
 ### SQL Server local con Docker
 
@@ -110,19 +118,26 @@ bash scripts/dev/smoke-fase1.sh
 
 Este smoke usa datos demo y crea pedidos locales. Si se requiere una corrida limpia, reiniciar la base local de desarrollo.
 
+Reset local controlado con reseed de desarrollo:
+
+```bash
+bash scripts/dev/reset-database.sh --confirm
+```
+
 Aplicar migraciones a SQL Server local:
 
 ```bash
-dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
 ```
 
 Crear una nueva migracion:
 
 ```bash
-dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
 ```
 
 Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes y asignaciones internas de maquina.
+La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo `GET /api/admin/orders/{orderId}/audit`.
 
 ### Frontend
 
@@ -163,6 +178,7 @@ Ver `docs/13-estado-implementacion-inicial.md`.
 Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
 Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
 Ver tambien `docs/16-validacion-sql-server-local.md`.
+Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

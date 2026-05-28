@@ -147,6 +147,7 @@ customerOrders.MapPost("/{customerId:guid}/no-order", async (
 var adminOrders = app.MapGroup("/api/admin/orders")
     .WithTags("Admin orders");
 
+// TODO: Protect administrative endpoints when authentication and authorization are implemented.
 adminOrders.MapGet("/today", async (
     AdminOrderService service,
     CancellationToken cancellationToken) =>
@@ -162,6 +163,22 @@ adminOrders.MapGet("/pending-review", async (
     return Results.Ok(await service.GetPendingReviewAsync(cancellationToken));
 })
 .WithName("GetAdminOrdersPendingReview");
+
+adminOrders.MapGet("/{orderId:guid}/audit", async (
+    Guid orderId,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetAuditAsync(orderId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminOrderAudit");
 
 adminOrders.MapPost("/{orderId:guid}/review", async (
     Guid orderId,

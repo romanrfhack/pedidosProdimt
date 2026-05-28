@@ -10,6 +10,7 @@ public sealed class CustomerOrderService(
     IProductRepository products,
     ISalesChannelRepository salesChannels,
     IOrderRepository orders,
+    IOrderAuditLogRepository auditLogs,
     IDateTimeProvider dateTimeProvider)
 {
     public async Task<CustomerOrderTodayResponse> GetTodayAsync(Guid customerId, CancellationToken cancellationToken)
@@ -69,6 +70,7 @@ public sealed class CustomerOrderService(
             customer);
 
         await orders.AddAsync(order, cancellationToken);
+        await AddSubmittedOrderAuditLogsAsync(order, hasExistingOrder, cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 
         return MapCustomerResponse(order);
@@ -101,6 +103,12 @@ public sealed class CustomerOrderService(
             customer);
 
         await orders.AddAsync(order, cancellationToken);
+        await auditLogs.AddAsync(OrderAuditLog.Create(
+            order,
+            OrderAuditEventType.NoOrderMarked,
+            order.SubmittedAt,
+            AuditActorType.Customer,
+            "No pedir hoy registrado por cliente."), cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 
         return MapCustomerResponse(order);
@@ -159,6 +167,49 @@ public sealed class CustomerOrderService(
     private static bool IsActiveCustomerOrder(OrderStatus status)
     {
         return status is OrderStatus.Submitted or OrderStatus.PendingAdminReview or OrderStatus.Accepted;
+    }
+
+    private async Task AddSubmittedOrderAuditLogsAsync(
+        Order order,
+        bool hasExistingOrder,
+        CancellationToken cancellationToken)
+    {
+        await auditLogs.AddAsync(OrderAuditLog.Create(
+            order,
+            OrderAuditEventType.OrderSubmitted,
+            order.SubmittedAt,
+            AuditActorType.Customer,
+            "Pedido enviado por cliente."), cancellationToken);
+
+        if (order.IsLate)
+        {
+            await auditLogs.AddAsync(OrderAuditLog.Create(
+                order,
+                OrderAuditEventType.OrderMarkedLate,
+                order.SubmittedAt,
+                AuditActorType.System,
+                "Pedido tardio detectado despues de la hora limite."), cancellationToken);
+        }
+
+        if (hasExistingOrder && order.AdminReviewReason is AdminReviewReason.AdditionalOrderSameDay)
+        {
+            await auditLogs.AddAsync(OrderAuditLog.Create(
+                order,
+                OrderAuditEventType.AdditionalOrderDetected,
+                order.SubmittedAt,
+                AuditActorType.System,
+                "Segundo pedido del mismo cliente en el dia detectado."), cancellationToken);
+        }
+
+        if (order.RequiresAdminReview)
+        {
+            await auditLogs.AddAsync(OrderAuditLog.Create(
+                order,
+                OrderAuditEventType.OrderRequiresAdminReview,
+                order.SubmittedAt,
+                AuditActorType.System,
+                "Pedido enviado a revision administrativa."), cancellationToken);
+        }
     }
 
     private static CustomerCurrentOrderSummaryResponse MapCurrentOrder(Order order)

@@ -31,4 +31,4 @@ fi
 export Persistence__Provider=SqlServer
 
 cd "$repo_root"
-dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api

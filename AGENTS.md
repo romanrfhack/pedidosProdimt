@@ -16,6 +16,7 @@ Incluye:
 - Deteccion de pedido tardio despues de las 10:00 a.m.
 - Deteccion de segundo pedido del mismo cliente en el mismo dia.
 - Revision administrativa basica para pedidos tardios o adicionales.
+- Auditoria persistente minima de eventos principales del pedido.
 - Vista administrativa inicial de pedidos del dia y pendientes de revision.
 - Modelo inicial para maquina asignada como dato interno.
 
@@ -72,7 +73,8 @@ dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls h
 Aplicar migraciones EF Core:
 
 ```bash
-dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool restore
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
 ```
 
 SQL Server local con Docker:
@@ -83,6 +85,7 @@ bash scripts/dev/start-sqlserver.sh
 bash scripts/dev/update-database.sh
 bash scripts/dev/run-api-sqlserver.sh
 bash scripts/dev/smoke-fase1.sh
+bash scripts/dev/reset-database.sh --confirm
 ```
 
 Fallback temporal sin SQL Server:

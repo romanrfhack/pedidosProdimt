@@ -64,10 +64,15 @@ bash scripts/dev/update-database.sh
 Equivalente manual:
 
 ```bash
-dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
 ```
 
-Nota: `dotnet-ef` local reporto version `10.0.7`, mientras EF runtime usa `10.0.8`. La migracion se aplico, pero conviene alinear la herramienta en una sesion posterior.
+El repositorio usa tool manifest local para alinear `dotnet-ef` con EF runtime `10.0.8`:
+
+```bash
+dotnet tool restore
+dotnet tool run dotnet-ef --version
+```
 
 ## Iniciar API contra SQL Server
 
@@ -128,8 +133,19 @@ El smoke valida:
 - `GET /api/admin/orders/pending-review`.
 - `POST /api/admin/orders/{orderId}/review`.
 - `POST /api/customer-orders/{otroCustomerId}/no-order`.
+- `GET /api/admin/orders/{orderId}/audit` para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded` y `NoOrderMarked`.
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
+
+## Reset/reseed local
+
+Para borrar la base local `ProdimtPedidos`, reaplicar migraciones y ejecutar el seed de desarrollo:
+
+```bash
+bash scripts/dev/reset-database.sh --confirm
+```
+
+El script exige `--confirm`, usa configuracion local/dev y rechaza resets ambiguos cuando `ConnectionStrings__Pedidos` ya viene predefinida sin `PRODIMT_ALLOW_DATABASE_RESET=local-dev`.
 
 ## Confirmar seed
 
@@ -192,7 +208,5 @@ Customers=3, Products=4, Machines=3, SalesChannels=3, FrequentProducts=4, Machin
 
 ## Pendiente posterior
 
-- Alinear `dotnet-ef` con EF runtime `10.0.8`.
-- Agregar reset local controlado de base demo si se necesita smoke siempre limpio.
-- Agregar auditoria persistente.
 - Agregar autenticacion piloto.
+- Agregar UI administrativa para consultar auditoria cuando exista autorizacion.

@@ -28,11 +28,20 @@ public sealed class CustomerOrderDtoTests
         Assert.DoesNotContain(orderResponsePropertyNames, ContainsMachineName);
         Assert.DoesNotContain(currentOrderSummaryPropertyNames, ContainsMachineName);
         Assert.DoesNotContain(productSuggestionPropertyNames, ContainsMachineName);
+        Assert.DoesNotContain(customerDtoPropertyNames, ContainsAuditName);
+        Assert.DoesNotContain(orderResponsePropertyNames, ContainsAuditName);
+        Assert.DoesNotContain(currentOrderSummaryPropertyNames, ContainsAuditName);
+        Assert.DoesNotContain(productSuggestionPropertyNames, ContainsAuditName);
     }
 
     private static bool ContainsMachineName(string propertyName)
     {
         return propertyName.Contains("Machine", StringComparison.OrdinalIgnoreCase)
             || propertyName.Contains("AssignedMachine", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsAuditName(string propertyName)
+    {
+        return propertyName.Contains("Audit", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -48,6 +48,11 @@ Fecha: 2026-05-28
 - Se agregaron scripts de desarrollo para levantar SQL Server, aplicar migraciones, correr API contra SQL Server y ejecutar smoke test de Fase 1.
 - Se agrego `/health/db` para verificar conectividad real de base.
 - Se valido la migracion inicial y el seed contra SQL Server 2022 local en Docker.
+- Se agrego auditoria persistente minima de Fase 1 en `OrderAuditLogs`.
+- Se agrego endpoint administrativo `GET /api/admin/orders/{orderId}/audit`.
+- Se agrego migracion `AddOrderAuditLogs`.
+- Se alineo `dotnet-ef` local a `10.0.8` con tool manifest del repositorio.
+- Se agrego script de reset/reseed local `scripts/dev/reset-database.sh --confirm`.
 
 ## Decisiones tomadas
 
@@ -61,6 +66,7 @@ Fecha: 2026-05-28
 - El frontend no simula exito en POST; muestra error si la API no responde o devuelve error.
 - Playwright usa mock API local controlado para E2E basico y documenta esa decision.
 - SQL Server local/dev puede ejecutarse con Docker Compose, pero la configuracion sigue permitiendo usar una instancia SQL Server instalada localmente mediante `ConnectionStrings__Pedidos`.
+- La auditoria se escribe desde casos de uso de Application; no se expone al cliente y queda disponible solo en endpoint administrativo.
 
 ## Validacion ejecutada
 
@@ -71,12 +77,16 @@ Fecha: 2026-05-28
 - `npm run build` en `apps/prodimt-pedidos-web`
 - `npm install --save-dev @playwright/test` en `tests/e2e`
 - `npm test` en `tests/e2e`
+- `dotnet tool restore`
+- `dotnet tool run dotnet-ef --version`
+- `dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations`
+- `bash scripts/dev/reset-database.sh --confirm`
 - `bash scripts/dev/start-sqlserver.sh`
 - `bash scripts/dev/update-database.sh`
 - `bash scripts/dev/run-api-sqlserver.sh`
 - `bash scripts/dev/smoke-fase1.sh`
 - Verificacion local de API con fallback `InMemory` para `/health` y `/api/customer-orders/{customerId}/today`
-- `dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations`
+- `dotnet tool run dotnet-ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations`
 - `dotnet build src/Prodimt.Pedidos.sln --no-restore`
 - `dotnet test src/Prodimt.Pedidos.sln --no-restore`
 - `npm run build` en `apps/prodimt-pedidos-web`
@@ -85,7 +95,7 @@ Fecha: 2026-05-28
 ## Resultado
 
 - Backend build: exitoso.
-- Pruebas unitarias backend: 19 pruebas exitosas.
+- Pruebas unitarias backend: 20 pruebas exitosas.
 - Angular build: exitoso.
 - Playwright E2E: 6 pruebas exitosas.
 - API `/health`: responde `{"status":"ok"}`.
@@ -96,11 +106,11 @@ Fecha: 2026-05-28
 - Migracion inicial aplicada correctamente en SQL Server.
 - Seed de desarrollo validado: 3 clientes, 4 productos, 3 maquinas, 3 canales, 4 productos frecuentes y 3 asignaciones internas.
 - Smoke Fase 1 contra API real + SQL Server: exitoso.
+- Auditoria persistente: implementada para pedido enviado, `NoOrder`, pedido tardio, segundo pedido del dia y decision administrativa.
 
 ## Pendiente
 
 - Agregar autenticacion piloto.
-- Agregar auditoria persistente.
 - Implementar CRUD interno de catalogos.
 - Agregar ajuste administrativo real de lineas para `AcceptedWithChanges`.
 - Agregar vistas de detalle de lineas para administracion.

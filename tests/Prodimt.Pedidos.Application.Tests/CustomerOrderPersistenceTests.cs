@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
+using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
@@ -53,10 +54,15 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Null(response.AdminReviewReason);
         Assert.Single(persisted.Lines);
         Assert.Equal(20, persisted.Lines.Single().Quantity);
+
+        var auditLog = await fixture.DbContext.OrderAuditLogs.SingleAsync(x => x.OrderId == response.OrderId);
+        Assert.Equal(OrderAuditEventType.OrderSubmitted, auditLog.EventType);
+        Assert.Equal(AuditActorType.Customer, auditLog.ActorType);
+        Assert.Equal(OrderStatus.Submitted, auditLog.OrderStatus);
     }
 
     [Fact]
-    public async Task SubmitAsync_PersistsLateOrderAsPendingReview()
+    public async Task SubmitAsync_PersistsLateOrderAsPendingReviewAndAudit()
     {
         await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 10, 1, 0, TimeSpan.Zero));
 
@@ -71,10 +77,19 @@ public sealed class CustomerOrderPersistenceTests
         Assert.True(persisted.IsLate);
         Assert.True(persisted.RequiresAdminReview);
         Assert.Equal(AdminReviewReason.LateSubmission, persisted.AdminReviewReason);
+
+        var auditEventTypes = await fixture.DbContext.OrderAuditLogs
+            .Where(x => x.OrderId == response.OrderId)
+            .Select(x => x.EventType)
+            .ToArrayAsync();
+
+        Assert.Contains(OrderAuditEventType.OrderSubmitted, auditEventTypes);
+        Assert.Contains(OrderAuditEventType.OrderMarkedLate, auditEventTypes);
+        Assert.Contains(OrderAuditEventType.OrderRequiresAdminReview, auditEventTypes);
     }
 
     [Fact]
-    public async Task MarkNoOrderAsync_PersistsNoOrderResponse()
+    public async Task MarkNoOrderAsync_PersistsNoOrderResponseAndAudit()
     {
         await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 0, 0, TimeSpan.Zero));
 
@@ -90,10 +105,15 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Equal(DevelopmentSeedIds.GranTakitoCustomerId, persisted.CustomerId);
         Assert.Empty(persisted.Lines);
         Assert.False(persisted.RequiresAdminReview);
+
+        var auditLog = await fixture.DbContext.OrderAuditLogs.SingleAsync(x => x.OrderId == response.OrderId);
+        Assert.Equal(OrderAuditEventType.NoOrderMarked, auditLog.EventType);
+        Assert.Equal(AuditActorType.Customer, auditLog.ActorType);
+        Assert.Equal(OrderStatus.NoOrder, auditLog.OrderStatus);
     }
 
     [Fact]
-    public async Task SubmitAsync_SecondOrderSameDayRequiresAdminReview()
+    public async Task SubmitAsync_SecondOrderSameDayRequiresAdminReviewAndAudit()
     {
         await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 0, 0, TimeSpan.Zero));
 
@@ -116,6 +136,16 @@ public sealed class CustomerOrderPersistenceTests
         Assert.True(persisted.RequiresAdminReview);
         Assert.Equal(AdminReviewReason.AdditionalOrderSameDay, persisted.AdminReviewReason);
         Assert.Equal(2, persisted.SequenceNumber);
+
+        var auditLogs = await fixture.DbContext.OrderAuditLogs
+            .Where(x => x.OrderId == response.OrderId)
+            .ToArrayAsync();
+
+        Assert.Contains(auditLogs, x => x.EventType == OrderAuditEventType.OrderSubmitted);
+        Assert.Contains(auditLogs, x => x.EventType == OrderAuditEventType.AdditionalOrderDetected);
+        Assert.Contains(auditLogs, x =>
+            x.EventType == OrderAuditEventType.OrderRequiresAdminReview &&
+            x.AdminReviewReason == AdminReviewReason.AdditionalOrderSameDay);
     }
 
     [Fact]
@@ -183,6 +213,7 @@ public sealed class CustomerOrderPersistenceTests
 
         Assert.Equal(first.OrderId, second.OrderId);
         Assert.Equal(1, await fixture.DbContext.Orders.CountAsync(x => x.CustomerId == DevelopmentSeedIds.GranTakitoCustomerId));
+        Assert.Equal(1, await fixture.DbContext.OrderAuditLogs.CountAsync(x => x.OrderId == first.OrderId));
     }
 
     [Fact]
@@ -230,6 +261,45 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Equal(expectedStatus, persisted.Status);
         Assert.False(persisted.RequiresAdminReview);
         Assert.Equal("Decision revisada por admin.", persisted.InternalNotes);
+
+        var auditLog = await fixture.DbContext.OrderAuditLogs
+            .SingleAsync(x => x.OrderId == response.OrderId && x.EventType == OrderAuditEventType.AdminDecisionRecorded);
+
+        Assert.Equal(AuditActorType.Admin, auditLog.ActorType);
+        Assert.Equal(decision, auditLog.AdminDecision);
+        Assert.Equal(expectedStatus, auditLog.OrderStatus);
+    }
+
+    [Fact]
+    public async Task GetAuditAsync_ReturnsEventsOrderedByOccurredAt()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 0, 0, TimeSpan.Zero));
+
+        var response = await fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20),
+            CancellationToken.None);
+
+        var order = await fixture.DbContext.Orders.SingleAsync(x => x.Id == response.OrderId);
+
+        fixture.DbContext.OrderAuditLogs.Add(OrderAuditLog.Create(
+            order,
+            OrderAuditEventType.OrderRequiresAdminReview,
+            response.SubmittedAt.AddMinutes(10),
+            AuditActorType.System,
+            "Evento posterior de prueba."));
+        fixture.DbContext.OrderAuditLogs.Add(OrderAuditLog.Create(
+            order,
+            OrderAuditEventType.OrderMarkedLate,
+            response.SubmittedAt.AddMinutes(-10),
+            AuditActorType.System,
+            "Evento anterior de prueba."));
+        await fixture.DbContext.SaveChangesAsync();
+
+        var auditLogs = await fixture.AdminOrders.GetAuditAsync(response.OrderId, CancellationToken.None);
+        var occurredAtValues = auditLogs.Select(x => x.OccurredAt).ToArray();
+
+        Assert.Equal(occurredAtValues.OrderBy(x => x).ToArray(), occurredAtValues);
     }
 
     private static SubmitCustomerOrderRequest CreateSubmitRequest(Guid productId, decimal quantity)
@@ -260,14 +330,16 @@ public sealed class CustomerOrderPersistenceTests
             DateTimeProvider = dateTimeProvider;
             var customerRepository = new EfCustomerRepository(dbContext);
             var orderRepository = new EfOrderRepository(dbContext);
+            var auditLogRepository = new EfOrderAuditLogRepository(dbContext);
 
             CustomerOrders = new CustomerOrderService(
                 customerRepository,
                 new EfProductRepository(dbContext),
                 new EfSalesChannelRepository(dbContext),
                 orderRepository,
+                auditLogRepository,
                 dateTimeProvider);
-            AdminOrders = new AdminOrderService(orderRepository, customerRepository, dateTimeProvider);
+            AdminOrders = new AdminOrderService(orderRepository, auditLogRepository, customerRepository, dateTimeProvider);
         }
 
         public PedidosDbContext DbContext { get; }

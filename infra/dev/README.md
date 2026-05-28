@@ -33,6 +33,8 @@ If `1433` is already in use, change `PRODIMT_SQL_PORT` in `infra/dev/.env`.
 bash scripts/dev/update-database.sh
 ```
 
+The repo uses a local `dotnet-ef` tool manifest. Run `dotnet tool restore` after cloning.
+
 ## Run API Against SQL Server
 
 ```bash
@@ -50,3 +52,13 @@ bash scripts/dev/smoke-fase1.sh
 ```
 
 The smoke test uses demo data and creates local development orders. Reset the local database/container if you need a clean run.
+
+## Reset And Reseed
+
+This deletes the local development database, reapplies migrations, and starts the API once to run the development seed:
+
+```bash
+bash scripts/dev/reset-database.sh --confirm
+```
+
+Do not use it with production or shared databases.

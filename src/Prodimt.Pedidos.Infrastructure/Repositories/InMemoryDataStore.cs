@@ -55,4 +55,6 @@ public sealed class InMemoryDataStore
     ];
 
     public List<Order> Orders { get; } = [];
+
+    public List<OrderAuditLog> OrderAuditLogs { get; } = [];
 }
