@@ -17,4 +17,10 @@ public sealed class InMemorySalesChannelRepository(InMemoryDataStore store) : IS
 
         return Task.FromResult(channel);
     }
+
+    public Task<SalesChannel?> GetByIdAsync(Guid salesChannelId, CancellationToken cancellationToken)
+    {
+        var channel = store.SalesChannels.SingleOrDefault(x => x.Id == salesChannelId);
+        return Task.FromResult(channel);
+    }
 }

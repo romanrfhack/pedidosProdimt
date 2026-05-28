@@ -42,6 +42,7 @@ Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas,
 - `docs/16-validacion-sql-server-local.md`: validacion contra SQL Server local.
 - `docs/17-auditoria-persistente-fase-1.md`: auditoria persistente de Fase 1.
 - `docs/18-autenticacion-piloto-fase-1.md`: autenticacion piloto con JWT para cliente y admin.
+- `docs/19-administracion-operativa-fase-1.md`: administracion operativa minima de Fase 1.
 - `docs/adrs/`: decisiones arquitectónicas.
 - `docs/reference/`: archivos de apoyo extraídos o derivados del Excel.
 
@@ -82,8 +83,13 @@ Endpoints iniciales:
 - `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order` requiere JWT de cliente.
 - `GET http://127.0.0.1:5088/api/admin/orders/today` requiere JWT admin.
 - `GET http://127.0.0.1:5088/api/admin/orders/pending-review` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}` requiere JWT admin y devuelve detalle con lineas y maquina interna.
 - `GET http://127.0.0.1:5088/api/admin/orders/{orderId}/audit` requiere JWT admin.
 - `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/customers/pending-orders?date=YYYY-MM-DD` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/customers/{customerId}/order-template` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/submit` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/no-order` requiere JWT admin.
 
 `/health` y `/health/db` quedan publicos en Fase 1. `/health/db` solo informa disponibilidad de base y no expone datos sensibles.
 
@@ -182,6 +188,7 @@ La migracion de autenticacion piloto se creo como `AddPilotAuthentication`.
 
 Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes, asignaciones internas de maquina, admin demo y token demo de cliente.
 La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo protegido `GET /api/admin/orders/{orderId}/audit`.
+La operacion administrativa basica permite ver detalle con lineas, consultar clientes pendientes, capturar pedidos por llamada, registrar `NoOrder` administrativo y aceptar con cambios de entrega o cantidades existentes.
 
 ### Frontend
 
@@ -219,6 +226,7 @@ npm test
 ```
 
 Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth mockeada, y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
+El smoke real autenticado valida detalle administrativo, clientes pendientes, `NoOrder` administrativo, captura administrativa, segundo pedido pendiente, `AcceptedWithChanges` con cambios persistidos y auditoria de cambios.
 
 ## Estado de implementación
 
@@ -228,6 +236,7 @@ Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
 Ver tambien `docs/16-validacion-sql-server-local.md`.
 Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
 Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
+Ver tambien `docs/19-administracion-operativa-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

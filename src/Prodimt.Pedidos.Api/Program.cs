@@ -262,6 +262,22 @@ adminOrders.MapGet("/pending-review", async (
 })
 .WithName("GetAdminOrdersPendingReview");
 
+adminOrders.MapGet("/{orderId:guid}", async (
+    Guid orderId,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetDetailAsync(orderId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminOrderDetail");
+
 adminOrders.MapGet("/{orderId:guid}/audit", async (
     Guid orderId,
     AdminOrderService service,
@@ -281,12 +297,13 @@ adminOrders.MapGet("/{orderId:guid}/audit", async (
 adminOrders.MapPost("/{orderId:guid}/review", async (
     Guid orderId,
     ReviewOrderRequest request,
+    ClaimsPrincipal user,
     AdminOrderService service,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken));
+        return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, GetAdminActor(user)));
     }
     catch (ArgumentException ex)
     {
@@ -298,6 +315,79 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     }
 })
 .WithName("ReviewAdminOrder");
+
+var adminCustomers = app.MapGroup("/api/admin/customers")
+    .WithTags("Admin customers")
+    .RequireAuthorization("AdminAccess");
+
+adminCustomers.MapGet("/pending-orders", async (
+    DateOnly? date,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    return Results.Ok(await service.GetPendingCustomersAsync(date, cancellationToken));
+})
+.WithName("GetAdminCustomersPendingOrders");
+
+adminCustomers.MapGet("/{customerId:guid}/order-template", async (
+    Guid customerId,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetOrderTemplateAsync(customerId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerOrderTemplate");
+
+adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
+    Guid customerId,
+    AdminSubmitCustomerOrderRequest request,
+    ClaimsPrincipal user,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("SubmitAdminCustomerOrder");
+
+adminCustomers.MapPost("/{customerId:guid}/orders/no-order", async (
+    Guid customerId,
+    AdminMarkNoOrderRequest request,
+    ClaimsPrincipal user,
+    AdminOrderService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.MarkNoOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("MarkAdminCustomerNoOrder");
 
 app.Run();
 
@@ -311,6 +401,13 @@ static IResult? ValidateCustomerAccess(ClaimsPrincipal user, Guid customerId)
     }
 
     return null;
+}
+
+static AdminActorContext GetAdminActor(ClaimsPrincipal user)
+{
+    return new AdminActorContext(
+        user.FindFirstValue(ProdimtAuthClaims.UserId),
+        user.FindFirstValue(ProdimtAuthClaims.DisplayName) ?? user.Identity?.Name);
 }
 
 public partial class Program;

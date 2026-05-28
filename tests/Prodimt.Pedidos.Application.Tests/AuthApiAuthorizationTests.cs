@@ -104,6 +104,61 @@ public sealed class AuthApiAuthorizationTests
         Assert.Equal(HttpStatusCode.OK, adminAudit.StatusCode);
     }
 
+    [Fact]
+    public async Task AdminOrderDetailEndpoint_RequiresAdminTokenAndReturnsLines()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetCustomerBearerAsync(client);
+
+        var submitResponse = await client.PostAsJsonAsync(
+            $"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit",
+            new SubmitCustomerOrderRequest(
+            [
+                new SubmitCustomerOrderLineRequest(DevelopmentSeedIds.ProductNineAndHalfId, 1, null)
+            ]));
+        var orderId = await ReadOrderIdAsync(submitResponse);
+
+        client.DefaultRequestHeaders.Authorization = null;
+        var anonymousDetail = await client.GetAsync($"/api/admin/orders/{orderId}");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousDetail.StatusCode);
+
+        await SetCustomerBearerAsync(client);
+        var customerDetail = await client.GetAsync($"/api/admin/orders/{orderId}");
+        Assert.Equal(HttpStatusCode.Forbidden, customerDetail.StatusCode);
+
+        await SetAdminBearerAsync(client);
+        var adminDetail = await client.GetAsync($"/api/admin/orders/{orderId}");
+        var body = await adminDetail.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, adminDetail.StatusCode);
+        Assert.Contains("\"lines\"", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("assignedMachineId", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("GET", "/api/admin/customers/pending-orders")]
+    [InlineData("GET", "/api/admin/customers/11111111-1111-1111-1111-111111111111/order-template")]
+    [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/submit")]
+    [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/no-order")]
+    public async Task AdminCustomerEndpoints_RejectCustomerJwt(string method, string path)
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetCustomerBearerAsync(client);
+
+        using var request = new HttpRequestMessage(new HttpMethod(method), path);
+
+        if (method == "POST")
+        {
+            request.Content = JsonContent.Create(new { });
+        }
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static async Task SetCustomerBearerAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(

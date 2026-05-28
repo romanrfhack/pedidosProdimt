@@ -44,6 +44,18 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
             .FirstOrDefault();
     }
 
+    public async Task<IReadOnlySet<Guid>> GetCustomerIdsWithOrdersAsync(DateOnly orderDate, CancellationToken cancellationToken)
+    {
+        var customerIds = await dbContext.Orders
+            .AsNoTracking()
+            .Where(x => x.CustomerId != null && x.OrderDate == orderDate)
+            .Select(x => x.CustomerId!.Value)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        return customerIds.ToHashSet();
+    }
+
     public async Task AddAsync(Order order, CancellationToken cancellationToken)
     {
         await dbContext.Orders.AddAsync(order, cancellationToken);
@@ -75,7 +87,9 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
 
     public Task<Order?> GetByIdAsync(Guid orderId, CancellationToken cancellationToken)
     {
-        return dbContext.Orders.SingleOrDefaultAsync(x => x.Id == orderId, cancellationToken);
+        return dbContext.Orders
+            .Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Id == orderId, cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)

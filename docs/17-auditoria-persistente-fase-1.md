@@ -13,17 +13,19 @@ Guardar una linea de tiempo minima y persistente de lo que paso con cada pedido 
 - Pedido tardio despues de las 10:00 a.m.
 - Segundo pedido del mismo cliente en el dia.
 - Pedido enviado a revision administrativa.
+- Captura administrativa de pedido.
+- `NoOrder` registrado por administracion.
 - Decision administrativa `Accepted`.
 - Decision administrativa `Rejected`.
 - Decision administrativa `AcceptedWithChanges`.
+- Cambios administrativos aplicados a entrega o lineas existentes.
 
 ## Que no se audita todavia
 
 - Validaciones fallidas.
 - Cambios de maquina.
-- Cambios detallados de lineas.
-- Ajustes reales de cantidades u horarios para `AcceptedWithChanges`.
-- Identidad real de usuario autenticado.
+- Cambios de maquina.
+- Agregado de productos nuevos durante revision.
 
 ## Modelo
 
@@ -56,6 +58,9 @@ Campos principales:
 - `OrderMarkedLate`
 - `AdditionalOrderDetected`
 - `AdminDecisionRecorded`
+- `AdminManualOrderCaptured`
+- `AdminNoOrderMarked`
+- `AdminOrderChanged`
 
 ## Actores soportados
 
@@ -63,7 +68,7 @@ Campos principales:
 - `Admin`
 - `System`
 
-La autenticacion piloto ya distingue cliente y admin en JWT, pero la auditoria de Fase 1 aun no propaga identidad real a `ActorId`. Ese enriquecimiento queda pendiente.
+La autenticacion piloto distingue cliente y admin en JWT. Los flujos administrativos nuevos propagan `ActorId` y `ActorDisplayName` desde el JWT admin cuando estan disponibles.
 
 ## Registro desde casos de uso
 
@@ -72,6 +77,8 @@ La escritura ocurre en Application:
 - `CustomerOrderService.SubmitAsync`
 - `CustomerOrderService.MarkNoOrderAsync`
 - `AdminOrderService.ReviewAsync`
+- `AdminOrderService.SubmitCustomerOrderAsync`
+- `AdminOrderService.MarkNoOrderAsync`
 
 Los endpoints no contienen logica de auditoria.
 
@@ -98,6 +105,9 @@ Pruebas backend cubren:
 - Segundo pedido crea evento `AdditionalOrderDetected`.
 - `NoOrder` crea `NoOrderMarked`.
 - Revision administrativa crea `AdminDecisionRecorded`.
+- Captura administrativa crea `AdminManualOrderCaptured`.
+- `NoOrder` administrativo crea `AdminNoOrderMarked`.
+- `AcceptedWithChanges` crea `AdminOrderChanged` cuando aplica cambios.
 - La consulta devuelve eventos ordenados.
 - DTOs de cliente no exponen maquina ni auditoria.
 
@@ -105,13 +115,11 @@ El smoke real `scripts/dev/smoke-fase1.sh` consulta auditoria contra API + SQL S
 
 ## Limitaciones
 
-- `AcceptedWithChanges` persiste decision y auditoria, pero aun no ajusta lineas ni horario.
-- La identidad autenticada aun no se copia a `ActorId`/`ActorDisplayName` en cada evento.
-- Existe una vista minima de auditoria en pendientes administrativos, pero no un detalle administrativo completo.
+- `AcceptedWithChanges` solo ajusta lineas existentes; no agrega productos nuevos.
+- No se cambia maquina desde la UI en esta sesion.
+- La identidad autenticada se propaga en flujos administrativos nuevos; eventos historicos de cliente siguen sin identidad enriquecida.
 
 ## Pendiente
 
-- Propagar identidad autenticada real a los eventos de auditoria.
 - Auditar cambios de maquina cuando exista flujo administrativo.
-- Auditar modificaciones de lineas y horario de entrega.
-- Ampliar vista administrativa de auditoria.
+- Ampliar vista administrativa de auditoria si operacion requiere filtros o busqueda.

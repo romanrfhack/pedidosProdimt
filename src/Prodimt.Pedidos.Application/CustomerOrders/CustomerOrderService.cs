@@ -57,7 +57,8 @@ public sealed class CustomerOrderService(
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
-        var lines = ValidateAndCreateLines(request);
+        var machineAssignments = await customers.GetMachineAssignmentsAsync(customerId, cancellationToken);
+        var lines = ValidateAndCreateLines(request, machineAssignments);
 
         var order = Order.CreateSubmitted(
             customer.Id,
@@ -126,7 +127,9 @@ public sealed class CustomerOrderService(
         return customer;
     }
 
-    private static OrderLine[] ValidateAndCreateLines(SubmitCustomerOrderRequest request)
+    private static OrderLine[] ValidateAndCreateLines(
+        SubmitCustomerOrderRequest request,
+        IReadOnlyList<CustomerMachineAssignment> machineAssignments)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -142,7 +145,7 @@ public sealed class CustomerOrderService(
 
         var lines = request.Lines
             .Where(line => line.Quantity > 0)
-            .Select(CreateLine)
+            .Select(line => CreateLine(line, machineAssignments))
             .ToArray();
 
         if (lines.Length == 0)
@@ -153,13 +156,21 @@ public sealed class CustomerOrderService(
         return lines;
     }
 
-    private static OrderLine CreateLine(SubmitCustomerOrderLineRequest line)
+    private static OrderLine CreateLine(
+        SubmitCustomerOrderLineRequest line,
+        IReadOnlyList<CustomerMachineAssignment> machineAssignments)
     {
+        var assignedMachineId = machineAssignments
+            .OrderByDescending(x => x.IsDefault)
+            .FirstOrDefault()
+            ?.MachineId;
+
         return new OrderLine
         {
             Id = Guid.NewGuid(),
             ProductId = line.ProductId,
             Quantity = line.Quantity,
+            AssignedMachineId = assignedMachineId,
             Notes = line.Notes
         };
     }

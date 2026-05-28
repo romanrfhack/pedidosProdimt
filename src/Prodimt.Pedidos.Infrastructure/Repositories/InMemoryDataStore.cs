@@ -62,6 +62,25 @@ public sealed class InMemoryDataStore
             DeliveryNotes = "Entrega en mostrador del cliente.",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
+        },
+        new()
+        {
+            Id = DevelopmentSeedIds.DemoCustomer2Id,
+            Name = "Cliente Demo 2",
+            PhoneNumber = "0000000002",
+            IsActive = true,
+            PreferredDeliveryTime = new TimeOnly(13, 30),
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        },
+        new()
+        {
+            Id = DevelopmentSeedIds.DemoCustomer3Id,
+            Name = "Cliente Demo 3",
+            PhoneNumber = "0000000003",
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         }
     ];
 
@@ -76,7 +95,23 @@ public sealed class InMemoryDataStore
     public List<CustomerFrequentProduct> CustomerFrequentProducts { get; } =
     [
         new() { CustomerId = ExampleCustomerId, ProductId = ProductNineAndHalfId, DefaultQuantity = 20, SortOrder = 1, IsActive = true },
-        new() { CustomerId = ExampleCustomerId, ProductId = ProductTenAndHalfId, DefaultQuantity = 10, SortOrder = 2, IsActive = true }
+        new() { CustomerId = ExampleCustomerId, ProductId = ProductTenAndHalfId, DefaultQuantity = 10, SortOrder = 2, IsActive = true },
+        new() { CustomerId = DevelopmentSeedIds.DemoCustomer2Id, ProductId = ProductElevenId, DefaultQuantity = 8, SortOrder = 1, IsActive = true },
+        new() { CustomerId = DevelopmentSeedIds.DemoCustomer3Id, ProductId = ProductFifteenId, DefaultQuantity = 6, SortOrder = 1, IsActive = true }
+    ];
+
+    public List<Machine> Machines { get; } =
+    [
+        new() { Id = DevelopmentSeedIds.MachineOneId, Number = 1, Name = "Maquina 1", IsActive = true },
+        new() { Id = DevelopmentSeedIds.MachineTwoId, Number = 2, Name = "Maquina 2", IsActive = true },
+        new() { Id = DevelopmentSeedIds.MachineThreeId, Number = 3, Name = "Maquina 3", IsActive = true }
+    ];
+
+    public List<CustomerMachineAssignment> CustomerMachineAssignments { get; } =
+    [
+        new() { CustomerId = ExampleCustomerId, MachineId = DevelopmentSeedIds.MachineOneId, IsDefault = true, IsActive = true },
+        new() { CustomerId = DevelopmentSeedIds.DemoCustomer2Id, MachineId = DevelopmentSeedIds.MachineTwoId, IsDefault = true, IsActive = true },
+        new() { CustomerId = DevelopmentSeedIds.DemoCustomer3Id, MachineId = DevelopmentSeedIds.MachineThreeId, IsDefault = true, IsActive = true }
     ];
 
     public List<SalesChannel> SalesChannels { get; } =

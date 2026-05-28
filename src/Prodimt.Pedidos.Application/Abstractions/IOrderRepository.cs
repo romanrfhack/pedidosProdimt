@@ -10,6 +10,8 @@ public interface IOrderRepository
 
     Task<Order?> GetLatestCustomerOrderAsync(Guid customerId, DateOnly orderDate, CancellationToken cancellationToken);
 
+    Task<IReadOnlySet<Guid>> GetCustomerIdsWithOrdersAsync(DateOnly orderDate, CancellationToken cancellationToken);
+
     Task AddAsync(Order order, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Order>> GetByDateAsync(DateOnly orderDate, CancellationToken cancellationToken);

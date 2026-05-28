@@ -14,6 +14,15 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
             .SingleOrDefaultAsync(x => x.Id == customerId, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Customer>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        return await dbContext.Customers
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Customer>> GetByIdsAsync(
         IEnumerable<Guid> customerIds,
         CancellationToken cancellationToken)
@@ -34,6 +43,17 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
             .AsNoTracking()
             .Where(x => x.CustomerId == customerId && x.IsActive)
             .OrderBy(x => x.SortOrder)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CustomerMachineAssignment>> GetMachineAssignmentsAsync(
+        Guid customerId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.CustomerMachineAssignments
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.IsActive)
+            .OrderByDescending(x => x.IsDefault)
             .ToArrayAsync(cancellationToken);
     }
 }

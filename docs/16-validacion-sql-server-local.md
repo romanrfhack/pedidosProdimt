@@ -134,11 +134,16 @@ El smoke valida:
 - `currentOrder` despues del envio.
 - Que un JWT de cliente no pueda consultar auditoria.
 - `GET /api/admin/orders/today` con JWT admin.
+- `GET /api/admin/orders/{orderId}` con JWT admin para validar detalle y lineas.
 - Segundo pedido del mismo cliente queda con `requiresAdminReview = true`.
 - Razon `AdditionalOrderSameDay`.
 - `GET /api/admin/orders/pending-review` con JWT admin.
-- `POST /api/admin/orders/{orderId}/review` con JWT admin.
-- `GET /api/admin/orders/{orderId}/audit` con JWT admin para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded` y `NoOrderMarked`.
+- `GET /api/admin/customers/pending-orders` con JWT admin.
+- `POST /api/admin/customers/{customerId}/orders/no-order` con JWT admin.
+- `POST /api/admin/customers/{customerId}/orders/submit` con JWT admin.
+- Segundo pedido por captura administrativa queda pendiente de revision.
+- `POST /api/admin/orders/{orderId}/review` con `AcceptedWithChanges`.
+- `GET /api/admin/orders/{orderId}/audit` con JWT admin para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded`, `AdminManualOrderCaptured`, `AdminNoOrderMarked` y `AdminOrderChanged`.
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
 

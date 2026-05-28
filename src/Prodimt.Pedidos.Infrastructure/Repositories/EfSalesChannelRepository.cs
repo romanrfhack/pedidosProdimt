@@ -21,4 +21,11 @@ public sealed class EfSalesChannelRepository(PedidosDbContext dbContext) : ISale
 
         return channel;
     }
+
+    public Task<SalesChannel?> GetByIdAsync(Guid salesChannelId, CancellationToken cancellationToken)
+    {
+        return dbContext.SalesChannels
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == salesChannelId, cancellationToken);
+    }
 }

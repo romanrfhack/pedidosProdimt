@@ -16,7 +16,8 @@ body {
 }
 
 button,
-input {
+input,
+label span {
   font: inherit;
 }
 
@@ -49,7 +50,7 @@ input {
 
 nav {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 6px;
 }
 
@@ -101,6 +102,7 @@ nav button.nav-action {
 
 .product-list,
 .admin-list,
+.line-list,
 .audit-list,
 .login-form {
   display: grid;
@@ -156,6 +158,8 @@ nav button.nav-action {
 
 .product-row,
 .admin-row,
+.line-row,
+.detail-panel,
 .audit-event {
   display: grid;
   gap: 12px;
@@ -168,6 +172,16 @@ nav button.nav-action {
 .product-row {
   grid-template-columns: minmax(0, 1fr) 88px;
   align-items: center;
+}
+
+.line-row {
+  grid-template-columns: minmax(0, 1fr) 96px;
+  align-items: center;
+}
+
+.detail-panel {
+  grid-column: 1 / -1;
+  background: #ffffff;
 }
 
 .login-form label {

@@ -46,6 +46,19 @@ public sealed class InMemoryOrderRepository(InMemoryDataStore store) : IOrderRep
         }
     }
 
+    public Task<IReadOnlySet<Guid>> GetCustomerIdsWithOrdersAsync(DateOnly orderDate, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot)
+        {
+            IReadOnlySet<Guid> customerIds = store.Orders
+                .Where(x => x.CustomerId is not null && x.OrderDate == orderDate)
+                .Select(x => x.CustomerId!.Value)
+                .ToHashSet();
+
+            return Task.FromResult(customerIds);
+        }
+    }
+
     public Task AddAsync(Order order, CancellationToken cancellationToken)
     {
         lock (store.SyncRoot)

@@ -234,6 +234,120 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Equal(AdminDecision.Pending, summary.AdminDecision);
     }
 
+    [Fact]
+    public async Task AdminDetail_ReturnsLinesWithInternalMachine()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 30, 0, TimeSpan.Zero));
+
+        var response = await fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20),
+            CancellationToken.None);
+
+        var detail = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
+        var line = Assert.Single(detail.Lines);
+
+        Assert.Equal(response.OrderId, detail.OrderId);
+        Assert.Equal("Gran Takito", detail.CustomerName);
+        Assert.Equal(DevelopmentSeedIds.ProductNineAndHalfId, line.ProductId);
+        Assert.Equal("#9 1/2", line.ProductName);
+        Assert.Equal(20, line.Quantity);
+        Assert.Equal(DevelopmentSeedIds.MachineOneId, line.AssignedMachineId);
+        Assert.Equal("Maquina 1", line.AssignedMachineName);
+        Assert.Equal(1, line.AssignedMachineNumber);
+    }
+
+    [Fact]
+    public async Task PendingCustomers_ExcludesCustomersWithOrderOrNoOrder()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 30, 0, TimeSpan.Zero));
+
+        await fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20),
+            CancellationToken.None);
+        await fixture.AdminOrders.MarkNoOrderAsync(
+            DevelopmentSeedIds.DemoCustomer2Id,
+            new AdminMarkNoOrderRequest("Confirmado por telefono."),
+            new AdminActorContext("admin-1", "Admin Test"),
+            CancellationToken.None);
+
+        var pendingCustomers = await fixture.AdminOrders.GetPendingCustomersAsync(
+            new DateOnly(2026, 5, 27),
+            CancellationToken.None);
+
+        Assert.DoesNotContain(pendingCustomers, x => x.CustomerId == DevelopmentSeedIds.GranTakitoCustomerId);
+        Assert.DoesNotContain(pendingCustomers, x => x.CustomerId == DevelopmentSeedIds.DemoCustomer2Id);
+
+        var pending = Assert.Single(pendingCustomers);
+        Assert.Equal(DevelopmentSeedIds.DemoCustomer3Id, pending.CustomerId);
+        Assert.Equal(1, pending.FrequentProductsCount);
+    }
+
+    [Fact]
+    public async Task AdminSubmitCustomerOrder_PersistsAdminCaptureAndAudit()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 30, 0, TimeSpan.Zero));
+
+        var response = await fixture.AdminOrders.SubmitCustomerOrderAsync(
+            DevelopmentSeedIds.DemoCustomer2Id,
+            new AdminSubmitCustomerOrderRequest(
+            [
+                new AdminSubmitCustomerOrderLineRequest(DevelopmentSeedIds.ProductElevenId, 8, "Por llamada")
+            ],
+            RequestedDeliveryTime: new TimeOnly(12, 0),
+            RequestedDeliveryWindowStart: null,
+            RequestedDeliveryWindowEnd: null,
+            DeliveryNotes: "Entregar despues de las 12",
+            InternalNotes: "Capturado por telefono."),
+            new AdminActorContext("admin-1", "Admin Test"),
+            CancellationToken.None);
+
+        var persisted = await fixture.DbContext.Orders
+            .Include(x => x.Lines)
+            .SingleAsync(x => x.Id == response.OrderId);
+
+        Assert.Equal(OrderStatus.Submitted, persisted.Status);
+        Assert.Equal(DevelopmentSeedIds.AdminManualChannelId, persisted.SalesChannelId);
+        Assert.Equal(new TimeOnly(12, 0), persisted.RequestedDeliveryTime);
+        Assert.Equal("Entregar despues de las 12", persisted.DeliveryNotes);
+        Assert.Equal("Capturado por telefono.", persisted.InternalNotes);
+        Assert.Equal(DevelopmentSeedIds.MachineTwoId, persisted.Lines.Single().AssignedMachineId);
+
+        var auditLog = await fixture.DbContext.OrderAuditLogs
+            .SingleAsync(x => x.OrderId == response.OrderId && x.EventType == OrderAuditEventType.AdminManualOrderCaptured);
+
+        Assert.Equal(AuditActorType.Admin, auditLog.ActorType);
+        Assert.Equal("admin-1", auditLog.ActorId);
+        Assert.Equal("Admin Test", auditLog.ActorDisplayName);
+    }
+
+    [Fact]
+    public async Task AdminMarkNoOrder_IsIdempotentAndAudits()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 30, 0, TimeSpan.Zero));
+
+        var first = await fixture.AdminOrders.MarkNoOrderAsync(
+            DevelopmentSeedIds.DemoCustomer2Id,
+            new AdminMarkNoOrderRequest("No pedira hoy."),
+            new AdminActorContext("admin-1", "Admin Test"),
+            CancellationToken.None);
+        var second = await fixture.AdminOrders.MarkNoOrderAsync(
+            DevelopmentSeedIds.DemoCustomer2Id,
+            new AdminMarkNoOrderRequest("Reintento."),
+            new AdminActorContext("admin-1", "Admin Test"),
+            CancellationToken.None);
+
+        Assert.Equal(first.OrderId, second.OrderId);
+        Assert.Equal(1, await fixture.DbContext.Orders.CountAsync(x => x.CustomerId == DevelopmentSeedIds.DemoCustomer2Id));
+
+        var auditLog = await fixture.DbContext.OrderAuditLogs
+            .SingleAsync(x => x.OrderId == first.OrderId && x.EventType == OrderAuditEventType.AdminNoOrderMarked);
+
+        Assert.Equal(AuditActorType.Admin, auditLog.ActorType);
+        Assert.Equal(OrderStatus.NoOrder, auditLog.OrderStatus);
+    }
+
     [Theory]
     [InlineData(AdminDecision.Accepted, OrderStatus.Accepted)]
     [InlineData(AdminDecision.Rejected, OrderStatus.Rejected)]
@@ -268,6 +382,61 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Equal(AuditActorType.Admin, auditLog.ActorType);
         Assert.Equal(decision, auditLog.AdminDecision);
         Assert.Equal(expectedStatus, auditLog.OrderStatus);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_AcceptedWithChanges_ModifiesDeliveryLineAndAuditsChanges()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 10, 1, 0, TimeSpan.Zero));
+
+        var response = await fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20),
+            CancellationToken.None);
+        var lineId = await fixture.DbContext.OrderLines
+            .Where(x => x.OrderId == response.OrderId)
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        var reviewed = await fixture.AdminOrders.ReviewAsync(
+            response.OrderId,
+            new ReviewOrderRequest(
+                AdminDecision.AcceptedWithChanges,
+                InternalNotes: "Se ajusta entrega y cantidad.",
+                RequestedDeliveryTime: new TimeOnly(13, 0),
+                DeliveryNotes: "Entregar despues de las 13.",
+                LineAdjustments:
+                [
+                    new ReviewOrderLineAdjustmentRequest(lineId, 25, "Cantidad ajustada.")
+                ]),
+            CancellationToken.None,
+            new AdminActorContext("admin-1", "Admin Test"));
+
+        var persisted = await fixture.DbContext.Orders
+            .Include(x => x.Lines)
+            .SingleAsync(x => x.Id == response.OrderId);
+        var line = persisted.Lines.Single();
+
+        Assert.Equal(OrderStatus.Accepted, persisted.Status);
+        Assert.Equal(AdminDecision.AcceptedWithChanges, reviewed.AdminDecision);
+        Assert.Equal(new TimeOnly(13, 0), persisted.RequestedDeliveryTime);
+        Assert.Equal("Entregar despues de las 13.", persisted.DeliveryNotes);
+        Assert.Equal(25, line.Quantity);
+        Assert.Equal("Cantidad ajustada.", line.Notes);
+
+        var auditLogs = await fixture.DbContext.OrderAuditLogs
+            .Where(x => x.OrderId == response.OrderId)
+            .ToArrayAsync();
+
+        Assert.Contains(auditLogs, x =>
+            x.EventType == OrderAuditEventType.AdminDecisionRecorded &&
+            x.AdminDecision == AdminDecision.AcceptedWithChanges &&
+            x.MetadataJson != null &&
+            x.MetadataJson.Contains("requestedDeliveryTime", StringComparison.Ordinal));
+        Assert.Contains(auditLogs, x =>
+            x.EventType == OrderAuditEventType.AdminOrderChanged &&
+            x.MetadataJson != null &&
+            x.MetadataJson.Contains("quantity", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -339,7 +508,14 @@ public sealed class CustomerOrderPersistenceTests
                 orderRepository,
                 auditLogRepository,
                 dateTimeProvider);
-            AdminOrders = new AdminOrderService(orderRepository, auditLogRepository, customerRepository, dateTimeProvider);
+            AdminOrders = new AdminOrderService(
+                orderRepository,
+                auditLogRepository,
+                customerRepository,
+                new EfProductRepository(dbContext),
+                new EfMachineRepository(dbContext),
+                new EfSalesChannelRepository(dbContext),
+                dateTimeProvider);
         }
 
         public PedidosDbContext DbContext { get; }

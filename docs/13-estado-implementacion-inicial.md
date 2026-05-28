@@ -63,6 +63,15 @@ Fecha: 2026-05-28
 - Se actualizo Angular con login cliente por token, login admin, interceptor Bearer, guard admin y consulta minima de auditoria desde pendientes.
 - Se actualizo Playwright para usar auth mockeada.
 - Se actualizo el smoke real de Fase 1 para autenticacion.
+- Se agrego detalle administrativo `GET /api/admin/orders/{orderId}` con lineas, canal y maquina interna.
+- Se agrego lista administrativa de clientes pendientes `GET /api/admin/customers/pending-orders`.
+- Se agrego plantilla administrativa de pedido `GET /api/admin/customers/{customerId}/order-template`.
+- Se agrego captura administrativa `POST /api/admin/customers/{customerId}/orders/submit`.
+- Se agrego `NoOrder` administrativo `POST /api/admin/customers/{customerId}/orders/no-order`.
+- Se implemento `AcceptedWithChanges` real para hora/notas de entrega y cantidades/notas de lineas existentes.
+- Se agregaron eventos de auditoria `AdminManualOrderCaptured`, `AdminNoOrderMarked` y `AdminOrderChanged`.
+- Se propaga identidad admin del JWT a auditoria en flujos administrativos nuevos.
+- Se actualizo Angular con detalle de pedido, clientes pendientes, captura administrativa y aceptacion con cambios.
 
 ## Decisiones tomadas
 
@@ -78,9 +87,11 @@ Fecha: 2026-05-28
 - SQL Server local/dev puede ejecutarse con Docker Compose, pero la configuracion sigue permitiendo usar una instancia SQL Server instalada localmente mediante `ConnectionStrings__Pedidos`.
 - La auditoria se escribe desde casos de uso de Application; no se expone al cliente y queda disponible solo en endpoint administrativo.
 - La autenticacion piloto usa JWT Bearer con claims explicitos `prodimt_actor_type`, `prodimt_customer_id`, `prodimt_user_id`, `prodimt_user_name` y `prodimt_display_name`.
-- Los endpoints de cliente aceptan solo JWT de cliente en esta fase; captura administrativa en nombre de cliente queda pendiente.
+- Los endpoints de cliente aceptan solo JWT de cliente; la captura en nombre de cliente se implementa por endpoints administrativos separados con `AdminAccess`.
 - `/health` y `/health/db` quedan publicos en Fase 1. `/health/db` no expone datos sensibles.
 - Angular guarda el JWT en `localStorage` solo para desarrollo piloto; debe revisarse antes de produccion.
+- La maquina asignada se consulta en detalle administrativo, pero sigue excluida de DTOs y pantallas de cliente.
+- En `AcceptedWithChanges` se ajustan lineas existentes; agregar productos nuevos y cambiar maquina quedan fuera de esta sesion.
 
 ## Validacion ejecutada
 
@@ -114,6 +125,11 @@ Fecha: 2026-05-28
 - `git diff --check`
 - `bash -n scripts/dev/smoke-fase1.sh scripts/dev/start-sqlserver.sh scripts/dev/update-database.sh scripts/dev/reset-database.sh scripts/dev/run-api-sqlserver.sh`
 - `node --check scripts/dev/smoke-fase1.mjs`
+- `dotnet build src/Prodimt.Pedidos.sln --no-restore`
+- `dotnet test src/Prodimt.Pedidos.sln --no-restore`
+- `npm run build` en `apps/prodimt-pedidos-web`
+- `npm test` en `tests/e2e`
+- `node --check tests/e2e/mock-api.js`
 
 ## Resultado
 
@@ -131,10 +147,11 @@ Fecha: 2026-05-28
 - Smoke Fase 1 autenticado contra API real + SQL Server: exitoso.
 - Auditoria persistente: implementada para pedido enviado, `NoOrder`, pedido tardio, segundo pedido del dia y decision administrativa.
 - Autenticacion piloto: implementada para cliente por token y admin por login demo en Development.
+- Administracion operativa Fase 1: implementada para detalle con lineas, clientes pendientes, captura administrativa, `NoOrder` administrativo y `AcceptedWithChanges`.
 
 ## Pendiente
 
 - Implementar CRUD interno de catalogos.
-- Agregar ajuste administrativo real de lineas para `AcceptedWithChanges`.
-- Agregar vistas de detalle de lineas para administracion.
 - Endurecer autenticacion antes de produccion: secrets reales por entorno, expiracion/rotacion de tokens cliente, estrategia de almacenamiento frontend y roles finos.
+- Agregar productos nuevos durante `AcceptedWithChanges`.
+- Cambiar maquina desde administracion y auditarlo cuando entre en alcance.

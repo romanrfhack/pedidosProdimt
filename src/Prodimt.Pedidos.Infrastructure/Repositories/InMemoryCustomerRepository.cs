@@ -11,6 +11,16 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
         return Task.FromResult(customer);
     }
 
+    public Task<IReadOnlyList<Customer>> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Customer> customers = store.Customers
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .ToArray();
+
+        return Task.FromResult(customers);
+    }
+
     public Task<IReadOnlyList<Customer>> GetByIdsAsync(
         IEnumerable<Guid> customerIds,
         CancellationToken cancellationToken)
@@ -33,5 +43,17 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
             .ToArray();
 
         return Task.FromResult(frequentProducts);
+    }
+
+    public Task<IReadOnlyList<CustomerMachineAssignment>> GetMachineAssignmentsAsync(
+        Guid customerId,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<CustomerMachineAssignment> assignments = store.CustomerMachineAssignments
+            .Where(x => x.CustomerId == customerId && x.IsActive)
+            .OrderByDescending(x => x.IsDefault)
+            .ToArray();
+
+        return Task.FromResult(assignments);
     }
 }

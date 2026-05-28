@@ -121,4 +121,31 @@ public sealed class Order
             RequiresAdminReview = false;
         }
     }
+
+    public void ApplyDeliveryChanges(
+        TimeOnly? requestedDeliveryTime,
+        TimeOnly? requestedDeliveryWindowStart,
+        TimeOnly? requestedDeliveryWindowEnd,
+        string? deliveryNotes)
+    {
+        if (requestedDeliveryTime is not null)
+        {
+            RequestedDeliveryTime = requestedDeliveryTime;
+        }
+
+        if (requestedDeliveryWindowStart is not null)
+        {
+            RequestedDeliveryWindowStart = requestedDeliveryWindowStart;
+        }
+
+        if (requestedDeliveryWindowEnd is not null)
+        {
+            RequestedDeliveryWindowEnd = requestedDeliveryWindowEnd;
+        }
+
+        if (deliveryNotes is not null)
+        {
+            DeliveryNotes = deliveryNotes;
+        }
+    }
 }

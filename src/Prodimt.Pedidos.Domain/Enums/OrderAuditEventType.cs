@@ -7,5 +7,8 @@ public enum OrderAuditEventType
     OrderRequiresAdminReview = 2,
     OrderMarkedLate = 3,
     AdditionalOrderDetected = 4,
-    AdminDecisionRecorded = 5
+    AdminDecisionRecorded = 5,
+    AdminManualOrderCaptured = 6,
+    AdminNoOrderMarked = 7,
+    AdminOrderChanged = 8
 }

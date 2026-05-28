@@ -67,6 +67,24 @@ export interface AdminOrderSummaryApiResponse {
   adminDecision: string | null;
 }
 
+export interface AdminOrderDetailApiResponse extends AdminOrderSummaryApiResponse {
+  internalNotes: string | null;
+  salesChannelName: string | null;
+  salesChannelType: string | null;
+  lines: AdminOrderLineApiResponse[];
+}
+
+export interface AdminOrderLineApiResponse {
+  orderLineId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  notes: string | null;
+  assignedMachineId: string | null;
+  assignedMachineName: string | null;
+  assignedMachineNumber: number | null;
+}
+
 export interface AdminOrderAuditApiResponse {
   id: string;
   orderId: string;
@@ -85,6 +103,58 @@ export interface AdminOrderAuditApiResponse {
 
 export interface ReviewOrderApiRequest {
   decision: AdminDecisionApiValue;
+  internalNotes: string | null;
+  requestedDeliveryTime?: string | null;
+  requestedDeliveryWindowStart?: string | null;
+  requestedDeliveryWindowEnd?: string | null;
+  deliveryNotes?: string | null;
+  lineAdjustments?: ReviewOrderLineAdjustmentApiRequest[] | null;
+}
+
+export interface ReviewOrderLineAdjustmentApiRequest {
+  orderLineId: string;
+  quantity: number;
+  notes: string | null;
+}
+
+export interface PendingCustomerOrderApiResponse {
+  customerId: string;
+  customerName: string;
+  phoneNumber: string;
+  preferredDeliveryTime: string | null;
+  preferredDeliveryWindowStart: string | null;
+  preferredDeliveryWindowEnd: string | null;
+  deliveryNotes: string | null;
+  frequentProductsCount: number;
+}
+
+export interface AdminOrderTemplateApiResponse {
+  customerId: string;
+  customerName: string;
+  preferredDeliveryTime: string | null;
+  preferredDeliveryWindowStart: string | null;
+  preferredDeliveryWindowEnd: string | null;
+  deliveryNotes: string | null;
+  products: AdminOrderTemplateProductApiResponse[];
+}
+
+export interface AdminOrderTemplateProductApiResponse {
+  productId: string;
+  name: string;
+  description: string | null;
+  suggestedQuantity: number;
+}
+
+export interface AdminSubmitCustomerOrderApiRequest {
+  lines: SubmitCustomerOrderLineApiRequest[];
+  requestedDeliveryTime: string | null;
+  requestedDeliveryWindowStart: string | null;
+  requestedDeliveryWindowEnd: string | null;
+  deliveryNotes: string | null;
+  internalNotes: string | null;
+}
+
+export interface AdminMarkNoOrderApiRequest {
   internalNotes: string | null;
 }
 
@@ -127,6 +197,12 @@ export class CustomerOrdersApiService {
     );
   }
 
+  getOrderDetail(orderId: string): Observable<AdminOrderDetailApiResponse> {
+    return this.http.get<AdminOrderDetailApiResponse>(
+      `${environment.apiBaseUrl}/api/admin/orders/${orderId}`
+    );
+  }
+
   reviewOrder(orderId: string, request: ReviewOrderApiRequest): Observable<AdminOrderSummaryApiResponse> {
     return this.http.post<AdminOrderSummaryApiResponse>(
       `${environment.apiBaseUrl}/api/admin/orders/${orderId}/review`,
@@ -137,6 +213,38 @@ export class CustomerOrdersApiService {
   getOrderAudit(orderId: string): Observable<AdminOrderAuditApiResponse[]> {
     return this.http.get<AdminOrderAuditApiResponse[]>(
       `${environment.apiBaseUrl}/api/admin/orders/${orderId}/audit`
+    );
+  }
+
+  getPendingCustomers(): Observable<PendingCustomerOrderApiResponse[]> {
+    return this.http.get<PendingCustomerOrderApiResponse[]>(
+      `${environment.apiBaseUrl}/api/admin/customers/pending-orders`
+    );
+  }
+
+  getAdminOrderTemplate(customerId: string): Observable<AdminOrderTemplateApiResponse> {
+    return this.http.get<AdminOrderTemplateApiResponse>(
+      `${environment.apiBaseUrl}/api/admin/customers/${customerId}/order-template`
+    );
+  }
+
+  submitAdminCustomerOrder(
+    customerId: string,
+    request: AdminSubmitCustomerOrderApiRequest
+  ): Observable<AdminOrderSummaryApiResponse> {
+    return this.http.post<AdminOrderSummaryApiResponse>(
+      `${environment.apiBaseUrl}/api/admin/customers/${customerId}/orders/submit`,
+      request
+    );
+  }
+
+  markAdminCustomerNoOrder(
+    customerId: string,
+    request: AdminMarkNoOrderApiRequest
+  ): Observable<AdminOrderSummaryApiResponse> {
+    return this.http.post<AdminOrderSummaryApiResponse>(
+      `${environment.apiBaseUrl}/api/admin/customers/${customerId}/orders/no-order`,
+      request
     );
   }
 }

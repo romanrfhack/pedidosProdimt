@@ -19,6 +19,7 @@ Incluye:
 - Auditoria persistente minima de eventos principales del pedido.
 - Autenticacion piloto con JWT Bearer para cliente por token y administracion basica.
 - Vista administrativa inicial de pedidos del dia y pendientes de revision.
+- Administracion operativa basica: detalle de lineas, clientes pendientes, captura en nombre de cliente, `NoOrder` administrativo y `AcceptedWithChanges` real.
 - Modelo inicial para maquina asignada como dato interno.
 
 No implementar todavia:

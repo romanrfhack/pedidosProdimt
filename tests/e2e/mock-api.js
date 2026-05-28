@@ -62,14 +62,60 @@ const pendingOrderBase = {
   adminDecision: 'Pending'
 };
 
+const pendingOrderDetail = {
+  ...pendingOrderBase,
+  internalNotes: 'Pedido demo pendiente.',
+  salesChannelName: 'Cliente',
+  salesChannelType: 'Customer',
+  lines: [
+    {
+      orderLineId: '77777777-7777-7777-7777-777777777701',
+      productId: '22222222-2222-2222-2222-222222222201',
+      productName: '#9 1/2',
+      quantity: 20,
+      notes: 'Linea demo',
+      assignedMachineId: '44444444-4444-4444-4444-444444444401',
+      assignedMachineName: 'Maquina 1',
+      assignedMachineNumber: 1
+    }
+  ]
+};
+
+const pendingCustomerBase = [
+  {
+    customerId: '11111111-1111-1111-1111-111111111112',
+    customerName: 'Cliente Demo 2',
+    phoneNumber: '0000000002',
+    preferredDeliveryTime: '13:30:00',
+    preferredDeliveryWindowStart: null,
+    preferredDeliveryWindowEnd: null,
+    deliveryNotes: 'Llamar antes de enviar.',
+    frequentProductsCount: 1
+  },
+  {
+    customerId: '11111111-1111-1111-1111-111111111113',
+    customerName: 'Cliente Demo 3',
+    phoneNumber: '0000000003',
+    preferredDeliveryTime: null,
+    preferredDeliveryWindowStart: null,
+    preferredDeliveryWindowEnd: null,
+    deliveryNotes: null,
+    frequentProductsCount: 1
+  }
+];
+
 let currentOrder = null;
 let pendingOrders = [pendingOrderBase];
+let pendingCustomers = [...pendingCustomerBase];
 let submitCalls = 0;
+let adminSubmitCalls = 0;
 
 function resetState() {
   currentOrder = null;
   pendingOrders = [pendingOrderBase];
+  pendingCustomers = [...pendingCustomerBase];
   submitCalls = 0;
+  adminSubmitCalls = 0;
 }
 
 function sendJson(response, statusCode, body) {
@@ -195,7 +241,7 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === 'GET' && url.pathname === '/__test/state') {
-    sendJson(response, 200, { submitCalls });
+    sendJson(response, 200, { submitCalls, adminSubmitCalls });
     return;
   }
 
@@ -273,6 +319,16 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const adminOrderDetailMatch = url.pathname.match(/^\/api\/admin\/orders\/([^/]+)$/);
+  if (request.method === 'GET' && adminOrderDetailMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, pendingOrderDetail);
+    return;
+  }
+
   if (request.method === 'GET' && /^\/api\/admin\/orders\/[^/]+\/audit$/.test(url.pathname)) {
     if (!requireAdminAccess(request, response)) {
       return;
@@ -304,13 +360,117 @@ const server = http.createServer(async (request, response) => {
     }
 
     const body = await readJson(request);
-    const decision = body.decision === 'Rejected' ? 'Rejected' : 'Accepted';
+    const decision = body.decision === 'Rejected'
+      ? 'Rejected'
+      : body.decision === 'AcceptedWithChanges'
+        ? 'AcceptedWithChanges'
+        : 'Accepted';
     pendingOrders = [];
     sendJson(response, 200, {
       ...pendingOrderBase,
       status: decision === 'Rejected' ? 'Rejected' : 'Accepted',
       requiresAdminReview: false,
       adminDecision: decision
+    });
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/customers/pending-orders') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, pendingCustomers);
+    return;
+  }
+
+  const adminTemplateMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/order-template$/);
+  if (request.method === 'GET' && adminTemplateMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const customer = pendingCustomerBase.find((item) => item.customerId === adminTemplateMatch[1]);
+    sendJson(response, 200, {
+      customerId: adminTemplateMatch[1],
+      customerName: customer?.customerName ?? 'Cliente Demo',
+      preferredDeliveryTime: customer?.preferredDeliveryTime ?? null,
+      preferredDeliveryWindowStart: null,
+      preferredDeliveryWindowEnd: null,
+      deliveryNotes: customer?.deliveryNotes ?? null,
+      products: [
+        {
+          productId: '22222222-2222-2222-2222-222222222203',
+          name: '#11',
+          description: 'Producto demo',
+          suggestedQuantity: 8
+        }
+      ]
+    });
+    return;
+  }
+
+  const adminNoOrderMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/orders\/no-order$/);
+  if (request.method === 'POST' && adminNoOrderMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    pendingCustomers = pendingCustomers.filter((customer) => customer.customerId !== adminNoOrderMatch[1]);
+    sendJson(response, 200, {
+      orderId: '33333333-3333-3333-3333-333333333398',
+      customerId: adminNoOrderMatch[1],
+      customerName: 'Cliente Demo 2',
+      orderDate: '2026-05-27',
+      submittedAt: '2026-05-27T09:40:00-06:00',
+      status: 'NoOrder',
+      sequenceNumber: 1,
+      isLate: false,
+      requiresAdminReview: false,
+      adminReviewReason: null,
+      requestedDeliveryTime: null,
+      requestedDeliveryWindowStart: null,
+      requestedDeliveryWindowEnd: null,
+      deliveryNotes: null,
+      adminDecision: null
+    });
+    return;
+  }
+
+  const adminSubmitMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/orders\/submit$/);
+  if (request.method === 'POST' && adminSubmitMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    adminSubmitCalls += 1;
+    const body = await readJson(request);
+    const positiveLines = Array.isArray(body.lines)
+      ? body.lines.filter((line) => Number(line.quantity) > 0)
+      : [];
+
+    if (positiveLines.length === 0) {
+      sendJson(response, 400, { error: 'Captura al menos una cantidad o marca No pedir hoy.' });
+      return;
+    }
+
+    pendingCustomers = pendingCustomers.filter((customer) => customer.customerId !== adminSubmitMatch[1]);
+    sendJson(response, 200, {
+      orderId: '33333333-3333-3333-3333-333333333397',
+      customerId: adminSubmitMatch[1],
+      customerName: 'Cliente Demo 2',
+      orderDate: '2026-05-27',
+      submittedAt: '2026-05-27T09:45:00-06:00',
+      status: 'Submitted',
+      sequenceNumber: 1,
+      isLate: false,
+      requiresAdminReview: false,
+      adminReviewReason: null,
+      requestedDeliveryTime: body.requestedDeliveryTime ?? null,
+      requestedDeliveryWindowStart: null,
+      requestedDeliveryWindowEnd: null,
+      deliveryNotes: body.deliveryNotes ?? null,
+      adminDecision: null
     });
     return;
   }

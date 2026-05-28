@@ -55,8 +55,13 @@ Endpoints protegidos con `AdminAccess`:
 
 - `GET /api/admin/orders/today`
 - `GET /api/admin/orders/pending-review`
+- `GET /api/admin/orders/{orderId}`
 - `POST /api/admin/orders/{orderId}/review`
 - `GET /api/admin/orders/{orderId}/audit`
+- `GET /api/admin/customers/pending-orders`
+- `GET /api/admin/customers/{customerId}/order-template`
+- `POST /api/admin/customers/{customerId}/orders/submit`
+- `POST /api/admin/customers/{customerId}/orders/no-order`
 
 ## Endpoints de auth
 
@@ -174,7 +179,7 @@ Angular agrega:
 - Interceptor HTTP que agrega `Authorization: Bearer`.
 - Login cliente por query string `?token=...` o token pegado.
 - Login admin en `/admin/login`.
-- Guard para `/admin/pedidos` y `/admin/pendientes`.
+- Guard para `/admin/pedidos`, `/admin/pendientes` y `/admin/clientes-pendientes`.
 
 Para esta fase el JWT se guarda en `localStorage`. Es una decision temporal de desarrollo piloto.
 
@@ -227,8 +232,8 @@ npm test
 - No hay refresh tokens.
 - No hay rotacion automatica de tokens cliente.
 - No hay envio real de enlaces por WhatsApp.
-- La captura administrativa en nombre de cliente queda pendiente.
-- La identidad autenticada aun no se copia a `ActorId` en auditoria.
+- La captura administrativa en nombre de cliente ya existe como flujo piloto protegido por `AdminAccess`.
+- La identidad admin se copia a auditoria en los flujos administrativos nuevos.
 
 ## Endurecer antes de produccion
 
