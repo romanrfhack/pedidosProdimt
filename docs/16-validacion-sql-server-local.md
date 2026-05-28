@@ -123,17 +123,22 @@ El smoke valida:
 
 - `/health`.
 - `/health/db`.
-- `GET /api/customer-orders/{demoCustomerId}/today`.
-- Que la respuesta de cliente no contenga `machine`, `machineId`, `assignedMachineId`, `assignedMachine` ni `maquina`.
-- `POST /api/customer-orders/{demoCustomerId}/submit`.
+- Que endpoints admin y cliente rechacen llamadas anonimas con `401` o `403`.
+- `POST /api/auth/admin/login`.
+- `POST /api/auth/customer-token`.
+- Que un JWT de cliente no pueda operar otro `customerId`.
+- `GET /api/customer-orders/{demoCustomerId}/today` con JWT de cliente.
+- Que la respuesta de cliente no contenga `machine`, `machineId`, `assignedMachineId`, `assignedMachine`, `maquina`, `audit` ni `auditLog`.
+- `POST /api/customer-orders/{demoCustomerId}/no-order` con JWT de cliente.
+- `POST /api/customer-orders/{demoCustomerId}/submit` con JWT de cliente.
 - `currentOrder` despues del envio.
-- `GET /api/admin/orders/today`.
+- Que un JWT de cliente no pueda consultar auditoria.
+- `GET /api/admin/orders/today` con JWT admin.
 - Segundo pedido del mismo cliente queda con `requiresAdminReview = true`.
 - Razon `AdditionalOrderSameDay`.
-- `GET /api/admin/orders/pending-review`.
-- `POST /api/admin/orders/{orderId}/review`.
-- `POST /api/customer-orders/{otroCustomerId}/no-order`.
-- `GET /api/admin/orders/{orderId}/audit` para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded` y `NoOrderMarked`.
+- `GET /api/admin/orders/pending-review` con JWT admin.
+- `POST /api/admin/orders/{orderId}/review` con JWT admin.
+- `GET /api/admin/orders/{orderId}/audit` con JWT admin para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded` y `NoOrderMarked`.
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
 
@@ -157,6 +162,8 @@ El seed de desarrollo debe crear:
 - Canales: `Cliente`, `Mostrador`, `Captura administrativa`.
 - Productos frecuentes.
 - Asignaciones internas de maquina.
+- Admin demo `admin`.
+- Token demo de cliente para Gran Takito.
 
 El `demoCustomerId` de Angular es:
 
@@ -187,6 +194,9 @@ Customers=3, Products=4, Machines=3, SalesChannels=3, FrequentProducts=4, Machin
 - La API corrio contra SQL Server y aplico seed de desarrollo.
 - `/health/db` respondio OK.
 - `scripts/dev/smoke-fase1.sh` paso completo.
+- En la validacion de autenticacion piloto, `AddPilotAuthentication` se aplico correctamente.
+- `reset-database.sh --confirm` reaplico migraciones y seed Development, incluyendo admin demo y token demo.
+- `scripts/dev/smoke-fase1.sh` paso completo con JWT cliente/admin, rechazo anonimo, bloqueo de otro `customerId` y auditoria protegida.
 
 ## Si SQL Server no esta disponible
 
@@ -208,5 +218,5 @@ Customers=3, Products=4, Machines=3, SalesChannels=3, FrequentProducts=4, Machin
 
 ## Pendiente posterior
 
-- Agregar autenticacion piloto.
-- Agregar UI administrativa para consultar auditoria cuando exista autorizacion.
+- Endurecer autenticacion piloto antes de produccion.
+- Ampliar UI administrativa de auditoria si se requiere detalle completo.

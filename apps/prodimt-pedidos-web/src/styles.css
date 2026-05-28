@@ -49,11 +49,12 @@ input {
 
 nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
-nav a {
+nav a,
+nav button {
   display: flex;
   min-height: 38px;
   align-items: center;
@@ -70,6 +71,10 @@ nav a.active {
   background: #173b3f;
   border-color: #173b3f;
   color: #ffffff;
+}
+
+nav button.nav-action {
+  background: #ffffff;
 }
 
 .app-shell__main {
@@ -95,7 +100,9 @@ nav a.active {
 }
 
 .product-list,
-.admin-list {
+.admin-list,
+.audit-list,
+.login-form {
   display: grid;
   gap: 10px;
 }
@@ -148,7 +155,8 @@ nav a.active {
 }
 
 .product-row,
-.admin-row {
+.admin-row,
+.audit-event {
   display: grid;
   gap: 12px;
   padding: 12px;
@@ -160,6 +168,26 @@ nav a.active {
 .product-row {
   grid-template-columns: minmax(0, 1fr) 88px;
   align-items: center;
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.login-form input {
+  text-align: left;
+}
+
+.audit-list {
+  grid-column: 1 / -1;
+  border-top: 1px solid #dfe5e8;
+  padding-top: 10px;
+}
+
+.audit-event {
+  background: #ffffff;
 }
 
 strong {

@@ -67,6 +67,22 @@ export interface AdminOrderSummaryApiResponse {
   adminDecision: string | null;
 }
 
+export interface AdminOrderAuditApiResponse {
+  id: string;
+  orderId: string;
+  customerId: string | null;
+  eventType: string;
+  occurredAt: string;
+  actorType: string;
+  actorId: string | null;
+  actorDisplayName: string | null;
+  orderStatus: string | null;
+  adminReviewReason: string | null;
+  adminDecision: string | null;
+  summary: string;
+  metadataJson: string | null;
+}
+
 export interface ReviewOrderApiRequest {
   decision: AdminDecisionApiValue;
   internalNotes: string | null;
@@ -115,6 +131,12 @@ export class CustomerOrdersApiService {
     return this.http.post<AdminOrderSummaryApiResponse>(
       `${environment.apiBaseUrl}/api/admin/orders/${orderId}/review`,
       request
+    );
+  }
+
+  getOrderAudit(orderId: string): Observable<AdminOrderAuditApiResponse[]> {
+    return this.http.get<AdminOrderAuditApiResponse[]>(
+      `${environment.apiBaseUrl}/api/admin/orders/${orderId}/audit`
     );
   }
 }

@@ -36,12 +36,19 @@ Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas,
 - `docs/10-decisiones-operativas-confirmadas.md`: decisiones de negocio confirmadas por PRODIMT.
 - `docs/11-reglas-de-negocio-fase-1.md`: reglas de negocio base para captura.
 - `docs/12-flujos-fase-1.md`: flujos funcionales de la primera fase.
+- `docs/13-estado-implementacion-inicial.md`: estado de implementacion y validaciones.
+- `docs/14-persistencia-ef-core-sql-server.md`: persistencia EF Core y SQL Server.
+- `docs/15-integracion-frontend-api-fase-1.md`: integracion Angular/API.
+- `docs/16-validacion-sql-server-local.md`: validacion contra SQL Server local.
+- `docs/17-auditoria-persistente-fase-1.md`: auditoria persistente de Fase 1.
+- `docs/18-autenticacion-piloto-fase-1.md`: autenticacion piloto con JWT para cliente y admin.
 - `docs/adrs/`: decisiones arquitectónicas.
 - `docs/reference/`: archivos de apoyo extraídos o derivados del Excel.
 
 ## Estado actual
 
 - Ya existe estructura técnica inicial de backend, frontend y pruebas.
+- Ya existe autenticacion piloto de Fase 1 con JWT Bearer para clientes por token y administracion por login demo.
 - Esta documentación define el alcance base para iniciar el repositorio.
 - El Excel actual se usó como referencia para entender captura, moldes, clientes, máquinas y vistas derivadas.
 - La primera meta de desarrollo debe ser capturar pedidos correctamente, no reemplazar todos los reportes de producción desde el día uno.
@@ -68,13 +75,48 @@ Endpoints iniciales:
 
 - `GET http://127.0.0.1:5088/health`
 - `GET http://127.0.0.1:5088/health/db`
-- `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today`
-- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/submit`
-- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order`
-- `GET http://127.0.0.1:5088/api/admin/orders/today`
-- `GET http://127.0.0.1:5088/api/admin/orders/pending-review`
-- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}/audit`
-- `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review`
+- `POST http://127.0.0.1:5088/api/auth/customer-token`
+- `POST http://127.0.0.1:5088/api/auth/admin/login`
+- `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today` requiere JWT de cliente.
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/submit` requiere JWT de cliente.
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order` requiere JWT de cliente.
+- `GET http://127.0.0.1:5088/api/admin/orders/today` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/orders/pending-review` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}/audit` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review` requiere JWT admin.
+
+`/health` y `/health/db` quedan publicos en Fase 1. `/health/db` solo informa disponibilidad de base y no expone datos sensibles.
+
+Autenticacion local de desarrollo:
+
+```bash
+export Authentication__Jwt__SigningKey='development-only-change-this-local-key-with-at-least-32-chars'
+# Alternativa equivalente:
+export PRODIMT_JWT_SIGNING_KEY='development-only-change-this-local-key-with-at-least-32-chars'
+```
+
+En `Development`, si no hay clave configurada se usa una clave demo versionada en `appsettings.Development.json`. No usarla en produccion.
+
+Seed demo solo Development:
+
+- Admin: `admin` / `prodimt-admin-demo`.
+- Cliente Gran Takito: token `demo-customer-token`.
+
+Ejemplo login admin:
+
+```bash
+curl -s http://127.0.0.1:5088/api/auth/admin/login \
+  -H 'content-type: application/json' \
+  -d '{"userName":"admin","password":"prodimt-admin-demo"}'
+```
+
+Ejemplo login cliente:
+
+```bash
+curl -s http://127.0.0.1:5088/api/auth/customer-token \
+  -H 'content-type: application/json' \
+  -d '{"token":"demo-customer-token"}'
+```
 
 Si no hay SQL Server local disponible y solo se quiere levantar la API demo sin persistencia real:
 
@@ -136,8 +178,10 @@ Crear una nueva migracion:
 dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
 ```
 
-Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes y asignaciones internas de maquina.
-La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo `GET /api/admin/orders/{orderId}/audit`.
+La migracion de autenticacion piloto se creo como `AddPilotAuthentication`.
+
+Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes, asignaciones internas de maquina, admin demo y token demo de cliente.
+La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo protegido `GET /api/admin/orders/{orderId}/audit`.
 
 ### Frontend
 
@@ -152,12 +196,16 @@ El frontend lee la API desde `apps/prodimt-pedidos-web/src/environments/environm
 ```ts
 export const environment = {
   apiBaseUrl: 'http://127.0.0.1:5088',
-  demoCustomerId: '11111111-1111-1111-1111-111111111111'
+  demoCustomerId: '11111111-1111-1111-1111-111111111111',
+  demoCustomerToken: 'demo-customer-token',
+  demoAdminUserName: 'admin',
+  demoAdminPassword: 'prodimt-admin-demo'
 };
 ```
 
 Para desarrollo local normal, levantar primero la API en `http://127.0.0.1:5088` y despues Angular en `http://127.0.0.1:4200`.
 Los envios reales (`submit`, `no-order`, revision admin) no simulan exito si la API falla.
+La pantalla cliente acepta `http://127.0.0.1:4200/cliente?token=demo-customer-token`.
 
 ### Pruebas
 
@@ -170,7 +218,7 @@ npm install
 npm test
 ```
 
-Playwright usa un mock API local controlado en `http://127.0.0.1:5088` y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
+Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth mockeada, y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
 
 ## Estado de implementación
 
@@ -179,6 +227,7 @@ Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
 Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
 Ver tambien `docs/16-validacion-sql-server-local.md`.
 Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
+Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

@@ -18,4 +18,7 @@ public static class DevelopmentSeedIds
     public static readonly Guid CustomerChannelId = Guid.Parse("33333333-3333-3333-3333-333333333301");
     public static readonly Guid CounterChannelId = Guid.Parse("33333333-3333-3333-3333-333333333302");
     public static readonly Guid AdminManualChannelId = Guid.Parse("33333333-3333-3333-3333-333333333303");
+
+    public static readonly Guid AdminUserId = Guid.Parse("55555555-5555-5555-5555-555555555501");
+    public static readonly Guid GranTakitoAccessTokenId = Guid.Parse("55555555-5555-5555-5555-555555555502");
 }

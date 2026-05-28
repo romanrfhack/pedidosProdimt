@@ -63,7 +63,7 @@ Campos principales:
 - `Admin`
 - `System`
 
-Como aun no hay autenticacion real, `ActorId` queda nulo por ahora.
+La autenticacion piloto ya distingue cliente y admin en JWT, pero la auditoria de Fase 1 aun no propaga identidad real a `ActorId`. Ese enriquecimiento queda pendiente.
 
 ## Registro desde casos de uso
 
@@ -87,7 +87,7 @@ Devuelve eventos ordenados por `OccurredAt`, `CreatedAt` e `Id`.
 
 Este endpoint es administrativo. No hay endpoint de auditoria para cliente.
 
-TODO: proteger este endpoint cuando se implemente autenticacion y autorizacion.
+Queda protegido por `AdminAccess`. Un cliente autenticado no puede consultar auditoria.
 
 ## Validacion
 
@@ -106,12 +106,12 @@ El smoke real `scripts/dev/smoke-fase1.sh` consulta auditoria contra API + SQL S
 ## Limitaciones
 
 - `AcceptedWithChanges` persiste decision y auditoria, pero aun no ajusta lineas ni horario.
-- No hay identidad real de administrador hasta implementar autenticacion.
-- No hay UI Angular para consultar auditoria; queda disponible por API administrativa.
+- La identidad autenticada aun no se copia a `ActorId`/`ActorDisplayName` en cada evento.
+- Existe una vista minima de auditoria en pendientes administrativos, pero no un detalle administrativo completo.
 
 ## Pendiente
 
-- Proteger endpoint admin con autenticacion y roles.
+- Propagar identidad autenticada real a los eventos de auditoria.
 - Auditar cambios de maquina cuando exista flujo administrativo.
 - Auditar modificaciones de lineas y horario de entrega.
-- Agregar vista administrativa de auditoria.
+- Ampliar vista administrativa de auditoria.

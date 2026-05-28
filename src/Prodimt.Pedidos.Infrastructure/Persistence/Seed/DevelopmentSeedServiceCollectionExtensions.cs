@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Prodimt.Pedidos.Application.Abstractions;
 
 namespace Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
@@ -32,7 +33,15 @@ public static class DevelopmentSeedServiceCollectionExtensions
             await dbContext.Database.MigrateAsync(cancellationToken);
         }
 
-        await PedidosDevelopmentSeeder.SeedAsync(dbContext, cancellationToken);
+        var passwordHashService = scope.ServiceProvider.GetRequiredService<IPasswordHashService>();
+        var customerAccessTokenHasher = scope.ServiceProvider.GetRequiredService<ICustomerAccessTokenHasher>();
+
+        await PedidosDevelopmentSeeder.SeedAsync(
+            dbContext,
+            configuration,
+            passwordHashService,
+            customerAccessTokenHasher,
+            cancellationToken);
     }
 
     private static bool ReadBoolean(IConfiguration configuration, string key, bool defaultValue)

@@ -1,5 +1,8 @@
+using Microsoft.Extensions.Configuration;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
+using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
 namespace Prodimt.Pedidos.Infrastructure.Repositories;
@@ -14,6 +17,35 @@ public sealed class InMemoryDataStore
     public static readonly Guid CustomerChannelId = DevelopmentSeedIds.CustomerChannelId;
     public static readonly Guid CounterChannelId = DevelopmentSeedIds.CounterChannelId;
     public static readonly Guid AdminManualChannelId = DevelopmentSeedIds.AdminManualChannelId;
+
+    public InMemoryDataStore(
+        IConfiguration configuration,
+        IPasswordHashService passwordHashService,
+        ICustomerAccessTokenHasher customerAccessTokenHasher)
+    {
+        var authSeed = DevelopmentAuthSeedValues.FromConfiguration(configuration);
+        var now = DateTimeOffset.UtcNow;
+
+        AdminUsers.Add(new AdminUser
+        {
+            Id = DevelopmentSeedIds.AdminUserId,
+            UserName = authSeed.AdminUserName,
+            PasswordHash = passwordHashService.HashPassword(authSeed.AdminPassword),
+            DisplayName = "Administrador Demo",
+            IsActive = true,
+            CreatedAt = now
+        });
+
+        CustomerAccessTokens.Add(new CustomerAccessToken
+        {
+            Id = DevelopmentSeedIds.GranTakitoAccessTokenId,
+            CustomerId = DevelopmentSeedIds.GranTakitoCustomerId,
+            TokenHash = customerAccessTokenHasher.HashToken(authSeed.CustomerToken),
+            DisplayName = "Token demo Gran Takito",
+            IsActive = true,
+            CreatedAt = now
+        });
+    }
 
     public object SyncRoot { get; } = new();
 
@@ -57,4 +89,8 @@ public sealed class InMemoryDataStore
     public List<Order> Orders { get; } = [];
 
     public List<OrderAuditLog> OrderAuditLogs { get; } = [];
+
+    public List<AdminUser> AdminUsers { get; } = [];
+
+    public List<CustomerAccessToken> CustomerAccessTokens { get; } = [];
 }

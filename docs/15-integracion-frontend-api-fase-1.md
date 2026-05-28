@@ -8,20 +8,24 @@ El primer flujo funcional de Fase 1 ya esta conectado entre Angular y la API.
 
 Cliente:
 
+- `POST /api/auth/customer-token` intercambia token demo por JWT de cliente.
 - `GET /api/customer-orders/{customerId}/today` carga cliente, productos frecuentes, cantidades sugeridas y resumen del pedido actual del dia.
 - `POST /api/customer-orders/{customerId}/submit` envia pedido real.
 - `POST /api/customer-orders/{customerId}/no-order` registra `NoOrder`.
 - La UI muestra carga, errores, confirmacion, pedido tardio, revision administrativa y pedido adicional.
 - La UI valida que exista al menos una cantidad positiva antes de enviar.
 - La vista de cliente no muestra maquina.
+- La pantalla cliente puede iniciar con `?token=demo-customer-token` o token pegado.
 
 Administracion:
 
+- `POST /api/auth/admin/login` intercambia usuario/contrasena demo por JWT admin.
 - `GET /api/admin/orders/today` carga pedidos del dia.
 - `GET /api/admin/orders/pending-review` carga pendientes de revision.
 - `GET /api/admin/orders/{orderId}/audit` devuelve auditoria persistente del pedido para administracion.
 - `POST /api/admin/orders/{orderId}/review` acepta o rechaza desde la UI.
 - Despues de una decision administrativa, la UI refresca los pendientes.
+- Rutas administrativas usan guard local y requieren sesion admin.
 
 ## Contratos relevantes
 
@@ -73,7 +77,10 @@ La API se configura en `apps/prodimt-pedidos-web/src/environments/environment.ts
 ```ts
 export const environment = {
   apiBaseUrl: 'http://127.0.0.1:5088',
-  demoCustomerId: '11111111-1111-1111-1111-111111111111'
+  demoCustomerId: '11111111-1111-1111-1111-111111111111',
+  demoCustomerToken: 'demo-customer-token',
+  demoAdminUserName: 'admin',
+  demoAdminPassword: 'prodimt-admin-demo'
 };
 ```
 
@@ -99,6 +106,7 @@ Motivo:
 
 - Validar el comportamiento de la UI sin depender de SQL Server local.
 - Mantener pruebas rapidas y deterministas para el flujo de Fase 1.
+- Validar autenticacion cliente/admin sin depender de JWT reales.
 
 Comando:
 
@@ -118,7 +126,7 @@ Si una API real ya esta usando `5088`, detenerla antes de ejecutar E2E.
 
 No se implemento:
 
-- Autenticacion real.
+- Autenticacion definitiva con roles finos.
 - WhatsApp.
 - Produccion por maquina.
 - Embarques.
@@ -131,4 +139,4 @@ No se implemento:
 - Repetir la validacion SQL Server local cuando cambien migraciones, seed o endpoints. Ver `docs/16-validacion-sql-server-local.md`.
 - Agregar detalle de lineas en administracion.
 - Implementar ajuste real de cantidades/horario para `AcceptedWithChanges`.
-- Agregar UI administrativa para consultar auditoria cuando se implemente autenticacion/roles.
+- Ampliar UI administrativa de auditoria.

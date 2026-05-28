@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Repositories;
 
@@ -14,6 +15,9 @@ public static class DependencyInjection
         var persistenceProvider = configuration["Persistence:Provider"] ?? "SqlServer";
 
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+        services.AddSingleton<ICustomerAccessTokenHasher, CustomerAccessTokenHasher>();
+        services.AddSingleton<IPasswordHashService, PasswordHashService>();
+        services.AddSingleton<IJwtTokenService, JwtTokenService>();
 
         if (string.Equals(persistenceProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
         {
@@ -23,6 +27,8 @@ public static class DependencyInjection
             services.AddSingleton<ISalesChannelRepository, InMemorySalesChannelRepository>();
             services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
             services.AddSingleton<IOrderAuditLogRepository, InMemoryOrderAuditLogRepository>();
+            services.AddSingleton<IAdminUserRepository, InMemoryAdminUserRepository>();
+            services.AddSingleton<ICustomerAccessTokenRepository, InMemoryCustomerAccessTokenRepository>();
 
             return services;
         }
@@ -37,6 +43,8 @@ public static class DependencyInjection
         services.AddScoped<ISalesChannelRepository, EfSalesChannelRepository>();
         services.AddScoped<IOrderRepository, EfOrderRepository>();
         services.AddScoped<IOrderAuditLogRepository, EfOrderAuditLogRepository>();
+        services.AddScoped<IAdminUserRepository, EfAdminUserRepository>();
+        services.AddScoped<ICustomerAccessTokenRepository, EfCustomerAccessTokenRepository>();
 
         return services;
     }

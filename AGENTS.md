@@ -17,13 +17,14 @@ Incluye:
 - Deteccion de segundo pedido del mismo cliente en el mismo dia.
 - Revision administrativa basica para pedidos tardios o adicionales.
 - Auditoria persistente minima de eventos principales del pedido.
+- Autenticacion piloto con JWT Bearer para cliente por token y administracion basica.
 - Vista administrativa inicial de pedidos del dia y pendientes de revision.
 - Modelo inicial para maquina asignada como dato interno.
 
 No implementar todavia:
 
 - WhatsApp real, Twilio o Meta WhatsApp Business API.
-- Login real con JWT y roles completos.
+- Autenticacion definitiva, roles completos, recuperacion de contrasena, 2FA o administracion avanzada de usuarios.
 - Produccion por maquina completa.
 - Embarques, repartidores, rutas avanzadas.
 - Estadisticas avanzadas, proyecciones, IA.
@@ -45,6 +46,8 @@ No implementar todavia:
 - Pedido despues de las 10:00 a.m. se captura, se marca tardio y queda pendiente de revision administrativa.
 - Segundo pedido del mismo cliente en el mismo dia queda pendiente de revision administrativa.
 - Administracion puede aceptar, rechazar o aceptar con cambios un pedido pendiente.
+- Endpoints administrativos requieren `AdminAccess`.
+- Endpoints de cliente requieren `CustomerAccess` y solo permiten operar el `CustomerId` del JWT.
 - Algunos clientes tienen hora o ventana deseada de entrega opcional.
 - `Mostrador` es canal interno, no cliente externo.
 - La maquina asignada es informacion interna.

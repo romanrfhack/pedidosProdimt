@@ -1,17 +1,54 @@
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Prodimt.Pedidos.Application.AdminOrders;
+using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
+using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
+var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
 
 builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<PilotAuthenticationService>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtSettings.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CustomerAccess", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(ProdimtAuthClaims.ActorType, ProdimtActorTypes.Customer);
+    });
+
+    options.AddPolicy("AdminAccess", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(ProdimtAuthClaims.ActorType, ProdimtActorTypes.Admin);
+    });
+});
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ProdimtWeb", policy =>
@@ -44,6 +81,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("ProdimtWeb");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -84,14 +123,59 @@ app.MapGet("/health/db", async (
 })
 .WithName("DatabaseHealth");
 
+var auth = app.MapGroup("/api/auth")
+    .WithTags("Authentication");
+
+auth.MapPost("/customer-token", async (
+    CustomerTokenLoginRequest request,
+    PilotAuthenticationService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.LoginCustomerWithTokenAsync(request, cancellationToken));
+    }
+    catch (AuthenticationFailedException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+})
+.WithName("LoginCustomerWithToken")
+.AllowAnonymous();
+
+auth.MapPost("/admin/login", async (
+    AdminLoginRequest request,
+    PilotAuthenticationService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.LoginAdminAsync(request, cancellationToken));
+    }
+    catch (AuthenticationFailedException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+})
+.WithName("LoginAdmin")
+.AllowAnonymous();
+
 var customerOrders = app.MapGroup("/api/customer-orders")
-    .WithTags("Customer orders");
+    .WithTags("Customer orders")
+    .RequireAuthorization("CustomerAccess");
 
 customerOrders.MapGet("/{customerId:guid}/today", async (
     Guid customerId,
+    ClaimsPrincipal user,
     CustomerOrderService service,
     CancellationToken cancellationToken) =>
 {
+    var authorizationFailure = ValidateCustomerAccess(user, customerId);
+    if (authorizationFailure is not null)
+    {
+        return authorizationFailure;
+    }
+
     try
     {
         return Results.Ok(await service.GetTodayAsync(customerId, cancellationToken));
@@ -105,10 +189,17 @@ customerOrders.MapGet("/{customerId:guid}/today", async (
 
 customerOrders.MapPost("/{customerId:guid}/submit", async (
     Guid customerId,
+    ClaimsPrincipal user,
     SubmitCustomerOrderRequest request,
     CustomerOrderService service,
     CancellationToken cancellationToken) =>
 {
+    var authorizationFailure = ValidateCustomerAccess(user, customerId);
+    if (authorizationFailure is not null)
+    {
+        return authorizationFailure;
+    }
+
     try
     {
         return Results.Ok(await service.SubmitAsync(customerId, request, cancellationToken));
@@ -126,9 +217,16 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
 
 customerOrders.MapPost("/{customerId:guid}/no-order", async (
     Guid customerId,
+    ClaimsPrincipal user,
     CustomerOrderService service,
     CancellationToken cancellationToken) =>
 {
+    var authorizationFailure = ValidateCustomerAccess(user, customerId);
+    if (authorizationFailure is not null)
+    {
+        return authorizationFailure;
+    }
+
     try
     {
         return Results.Ok(await service.MarkNoOrderAsync(customerId, cancellationToken));
@@ -145,9 +243,9 @@ customerOrders.MapPost("/{customerId:guid}/no-order", async (
 .WithName("MarkCustomerNoOrder");
 
 var adminOrders = app.MapGroup("/api/admin/orders")
-    .WithTags("Admin orders");
+    .WithTags("Admin orders")
+    .RequireAuthorization("AdminAccess");
 
-// TODO: Protect administrative endpoints when authentication and authorization are implemented.
 adminOrders.MapGet("/today", async (
     AdminOrderService service,
     CancellationToken cancellationToken) =>
@@ -202,3 +300,17 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
 .WithName("ReviewAdminOrder");
 
 app.Run();
+
+static IResult? ValidateCustomerAccess(ClaimsPrincipal user, Guid customerId)
+{
+    var customerIdClaim = user.FindFirstValue(ProdimtAuthClaims.CustomerId);
+
+    if (!Guid.TryParse(customerIdClaim, out var authenticatedCustomerId) || authenticatedCustomerId != customerId)
+    {
+        return Results.Forbid();
+    }
+
+    return null;
+}
+
+public partial class Program;

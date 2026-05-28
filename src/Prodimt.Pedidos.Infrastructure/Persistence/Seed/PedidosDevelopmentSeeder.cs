@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
+using Prodimt.Pedidos.Infrastructure.Authentication;
 
 namespace Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
@@ -8,7 +11,25 @@ public static class PedidosDevelopmentSeeder
 {
     private static readonly DateTimeOffset SeedTimestamp = new(2026, 5, 27, 0, 0, 0, TimeSpan.Zero);
 
-    public static async Task SeedAsync(PedidosDbContext dbContext, CancellationToken cancellationToken = default)
+    public static Task SeedAsync(PedidosDbContext dbContext, CancellationToken cancellationToken = default)
+    {
+        var passwordHashService = new PasswordHashService();
+        var customerAccessTokenHasher = new CustomerAccessTokenHasher();
+
+        return SeedAsync(
+            dbContext,
+            configuration: null,
+            passwordHashService,
+            customerAccessTokenHasher,
+            cancellationToken);
+    }
+
+    public static async Task SeedAsync(
+        PedidosDbContext dbContext,
+        IConfiguration? configuration,
+        IPasswordHashService passwordHashService,
+        ICustomerAccessTokenHasher customerAccessTokenHasher,
+        CancellationToken cancellationToken = default)
     {
         await SeedCustomersAsync(dbContext, cancellationToken);
         await SeedProductsAsync(dbContext, cancellationToken);
@@ -18,6 +39,12 @@ public static class PedidosDevelopmentSeeder
 
         await SeedFrequentProductsAsync(dbContext, cancellationToken);
         await SeedMachineAssignmentsAsync(dbContext, cancellationToken);
+        await SeedAuthenticationAsync(
+            dbContext,
+            configuration,
+            passwordHashService,
+            customerAccessTokenHasher,
+            cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -211,6 +238,42 @@ public static class PedidosDevelopmentSeeder
             {
                 dbContext.CustomerMachineAssignments.Add(assignment);
             }
+        }
+    }
+
+    private static async Task SeedAuthenticationAsync(
+        PedidosDbContext dbContext,
+        IConfiguration? configuration,
+        IPasswordHashService passwordHashService,
+        ICustomerAccessTokenHasher customerAccessTokenHasher,
+        CancellationToken cancellationToken)
+    {
+        var authSeed = DevelopmentAuthSeedValues.FromConfiguration(configuration);
+
+        if (!await dbContext.AdminUsers.AnyAsync(x => x.Id == DevelopmentSeedIds.AdminUserId, cancellationToken))
+        {
+            dbContext.AdminUsers.Add(new AdminUser
+            {
+                Id = DevelopmentSeedIds.AdminUserId,
+                UserName = authSeed.AdminUserName,
+                PasswordHash = passwordHashService.HashPassword(authSeed.AdminPassword),
+                DisplayName = "Administrador Demo",
+                IsActive = true,
+                CreatedAt = SeedTimestamp
+            });
+        }
+
+        if (!await dbContext.CustomerAccessTokens.AnyAsync(x => x.Id == DevelopmentSeedIds.GranTakitoAccessTokenId, cancellationToken))
+        {
+            dbContext.CustomerAccessTokens.Add(new CustomerAccessToken
+            {
+                Id = DevelopmentSeedIds.GranTakitoAccessTokenId,
+                CustomerId = DevelopmentSeedIds.GranTakitoCustomerId,
+                TokenHash = customerAccessTokenHasher.HashToken(authSeed.CustomerToken),
+                DisplayName = "Token demo Gran Takito",
+                IsActive = true,
+                CreatedAt = SeedTimestamp
+            });
         }
     }
 }

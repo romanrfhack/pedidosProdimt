@@ -1,6 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { environment } from '../environments/environment';
+import { AuthService } from './auth.service';
 import { FrequentProduct, OrderDataService } from './order-data.service';
 import { CustomerCurrentOrderSummaryApiResponse } from './customer-orders-api.service';
 
@@ -14,92 +17,148 @@ import { CustomerCurrentOrderSummaryApiResponse } from './customer-orders-api.se
         <h2>Mi pedido de hoy</h2>
       </div>
 
-      @if (isLoading) {
-        <div class="notice">Cargando pedido de hoy...</div>
-      }
+      @if (!isCustomerAuthenticated) {
+        <form class="login-form" (ngSubmit)="loginCustomer()">
+          <label>
+            <span>Token de acceso</span>
+            <input name="customerToken" autocomplete="one-time-code" [(ngModel)]="customerToken">
+          </label>
 
-      @if (loadError) {
-        <div class="alert error">{{ loadError }}</div>
-      }
-
-      @if (!isLoading && !loadError) {
-        @if (currentOrder) {
-          <section class="status-panel" aria-live="polite">
-            <strong>{{ currentOrderTitle(currentOrder) }}</strong>
-            <small>Pedido #{{ currentOrder.sequenceNumber }} · {{ formatSubmittedAt(currentOrder.submittedAt) }}</small>
-            <div class="badges">
-              @if (currentOrder.isLate) {
-                <span class="badge warning">Tardio</span>
-              }
-              @if (currentOrder.requiresAdminReview) {
-                <span class="badge danger">Revision</span>
-              }
-              @if (currentOrder.sequenceNumber > 1) {
-                <span class="badge neutral">Adicional</span>
-              }
-            </div>
-            @if (currentOrder.status !== 'NoOrder') {
-              <p>Ya existe un pedido; un nuevo envio sera tratado como pedido adicional sujeto a revision.</p>
-            }
-          </section>
-        }
-
-        <div class="product-list">
-          @for (product of frequentProducts; track product.id) {
-            <label class="product-row">
-              <span>
-                <strong>{{ product.name }}</strong>
-                <small>Cantidad sugerida: {{ product.suggestedQuantity }}</small>
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                [ngModel]="product.quantity"
-                (ngModelChange)="product.quantity = normalizeQuantity($event)"
-                [attr.aria-label]="'Cantidad ' + product.name">
-            </label>
+          @if (tokenLoginError) {
+            <div class="alert error">{{ tokenLoginError }}</div>
           }
-        </div>
 
-        @if (validationMessage) {
-          <div class="alert warning">{{ validationMessage }}</div>
+          <button type="submit" class="primary" [disabled]="isAuthenticating">Entrar</button>
+        </form>
+      } @else {
+        @if (isLoading) {
+          <div class="notice">Cargando pedido de hoy...</div>
         }
 
-        @if (actionMessage) {
-          <div class="alert success">{{ actionMessage }}</div>
+        @if (loadError) {
+          <div class="alert error">{{ loadError }}</div>
         }
 
-        @if (actionError) {
-          <div class="alert error">{{ actionError }}</div>
-        }
+        @if (!isLoading && !loadError) {
+          @if (currentOrder) {
+            <section class="status-panel" aria-live="polite">
+              <strong>{{ currentOrderTitle(currentOrder) }}</strong>
+              <small>Pedido #{{ currentOrder.sequenceNumber }} · {{ formatSubmittedAt(currentOrder.submittedAt) }}</small>
+              <div class="badges">
+                @if (currentOrder.isLate) {
+                  <span class="badge warning">Tardio</span>
+                }
+                @if (currentOrder.requiresAdminReview) {
+                  <span class="badge danger">Revision</span>
+                }
+                @if (currentOrder.sequenceNumber > 1) {
+                  <span class="badge neutral">Adicional</span>
+                }
+              </div>
+              @if (currentOrder.status !== 'NoOrder') {
+                <p>Ya existe un pedido; un nuevo envio sera tratado como pedido adicional sujeto a revision.</p>
+              }
+            </section>
+          }
 
-        <div class="action-bar">
-          <button type="button" class="primary" [disabled]="isSubmitting" (click)="submitOrder()">Enviar pedido</button>
-          <button type="button" class="secondary" [disabled]="isSubmitting" (click)="markNoOrder()">No pedir hoy</button>
-        </div>
+          <div class="product-list">
+            @for (product of frequentProducts; track product.id) {
+              <label class="product-row">
+                <span>
+                  <strong>{{ product.name }}</strong>
+                  <small>Cantidad sugerida: {{ product.suggestedQuantity }}</small>
+                </span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  inputmode="numeric"
+                  [ngModel]="product.quantity"
+                  (ngModelChange)="product.quantity = normalizeQuantity($event)"
+                  [attr.aria-label]="'Cantidad ' + product.name">
+              </label>
+            }
+          </div>
+
+          @if (validationMessage) {
+            <div class="alert warning">{{ validationMessage }}</div>
+          }
+
+          @if (actionMessage) {
+            <div class="alert success">{{ actionMessage }}</div>
+          }
+
+          @if (actionError) {
+            <div class="alert error">{{ actionError }}</div>
+          }
+
+          <div class="action-bar">
+            <button type="button" class="primary" [disabled]="isSubmitting" (click)="submitOrder()">Enviar pedido</button>
+            <button type="button" class="secondary" [disabled]="isSubmitting" (click)="markNoOrder()">No pedir hoy</button>
+          </div>
+        }
       }
     </section>
   `
 })
 export class CustomerTodayComponent {
+  private readonly auth = inject(AuthService);
   private readonly data = inject(OrderDataService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
   protected customerName = 'Cliente';
 
+  protected customerToken = environment.demoCustomerToken;
   protected frequentProducts: FrequentProduct[] = [];
   protected currentOrder: CustomerCurrentOrderSummaryApiResponse | null = null;
-  protected isLoading = true;
+  protected isLoading = false;
+  protected isAuthenticating = false;
   protected isSubmitting = false;
   protected loadError: string | null = null;
+  protected tokenLoginError: string | null = null;
   protected validationMessage: string | null = null;
   protected actionMessage: string | null = null;
   protected actionError: string | null = null;
 
   constructor() {
-    this.loadToday();
+    const tokenFromQuery = this.route.snapshot.queryParamMap.get('token');
+
+    if (tokenFromQuery) {
+      this.customerToken = tokenFromQuery;
+      this.loginCustomer(true);
+      return;
+    }
+
+    if (this.auth.isCustomer()) {
+      this.loadToday();
+    }
+  }
+
+  protected get isCustomerAuthenticated(): boolean {
+    return this.auth.isCustomer();
+  }
+
+  protected loginCustomer(replaceUrl = false): void {
+    this.tokenLoginError = null;
+    this.isAuthenticating = true;
+
+    this.auth.loginCustomerWithToken(this.customerToken).subscribe({
+      next: (session) => {
+        this.customerName = session.customerName ?? 'Cliente';
+        this.isAuthenticating = false;
+        if (replaceUrl) {
+          void this.router.navigate(['/cliente'], { replaceUrl: true });
+        }
+        this.loadToday();
+      },
+      error: (error: unknown) => {
+        this.tokenLoginError = this.formatError(error, 'Token de cliente invalido.');
+        this.isAuthenticating = false;
+        this.changeDetector.detectChanges();
+      }
+    });
   }
 
   protected submitOrder(): void {
@@ -128,7 +187,15 @@ export class CustomerTodayComponent {
     }
 
     this.isSubmitting = true;
-    this.data.submitCustomerOrder(lines).subscribe({
+    const customerId = this.getAuthenticatedCustomerId();
+
+    if (!customerId) {
+      this.actionError = 'Inicia sesion con token de cliente.';
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.data.submitCustomerOrder(lines, customerId).subscribe({
       next: (order) => {
         this.actionMessage = order.requiresAdminReview
           ? 'Pedido enviado y pendiente de revision administrativa.'
@@ -148,8 +215,15 @@ export class CustomerTodayComponent {
     this.actionMessage = null;
     this.actionError = null;
     this.isSubmitting = true;
+    const customerId = this.getAuthenticatedCustomerId();
 
-    this.data.markNoOrder().subscribe({
+    if (!customerId) {
+      this.actionError = 'Inicia sesion con token de cliente.';
+      this.isSubmitting = false;
+      return;
+    }
+
+    this.data.markNoOrder(customerId).subscribe({
       next: () => {
         this.actionMessage = 'No pedir hoy registrado.';
         this.loadToday(false);
@@ -187,12 +261,19 @@ export class CustomerTodayComponent {
   }
 
   private loadToday(showLoading = true): void {
+    const customerId = this.getAuthenticatedCustomerId();
+
+    if (!customerId) {
+      this.isLoading = false;
+      return;
+    }
+
     if (showLoading) {
       this.isLoading = true;
     }
 
     this.loadError = null;
-    this.data.loadCustomerToday().subscribe((today) => {
+    this.data.loadCustomerToday(customerId).subscribe((today) => {
       this.customerName = today.customerName;
       this.frequentProducts = today.frequentProducts;
       this.currentOrder = today.currentOrder;
@@ -205,6 +286,10 @@ export class CustomerTodayComponent {
       this.isSubmitting = false;
       this.changeDetector.detectChanges();
     });
+  }
+
+  private getAuthenticatedCustomerId(): string | null {
+    return this.auth.getCustomerId();
   }
 
   private formatError(error: unknown, fallback: string): string {

@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-root',
@@ -14,6 +15,11 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         <a routerLink="/cliente" routerLinkActive="active">Cliente</a>
         <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a>
         <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
+        @if (auth.session()) {
+          <button type="button" class="nav-action" (click)="logout()">Salir</button>
+        } @else {
+          <a routerLink="/admin/login" routerLinkActive="active">Admin</a>
+        }
       </nav>
     </header>
 
@@ -22,4 +28,12 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
     </main>
   `
 })
-export class AppComponent {}
+export class AppComponent {
+  protected readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  protected logout(): void {
+    this.auth.logout();
+    void this.router.navigate(['/cliente']);
+  }
+}

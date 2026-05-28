@@ -23,6 +23,10 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<OrderAuditLog> OrderAuditLogs => Set<OrderAuditLog>();
 
+    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+
+    public DbSet<CustomerAccessToken> CustomerAccessTokens => Set<CustomerAccessToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PedidosDbContext).Assembly);

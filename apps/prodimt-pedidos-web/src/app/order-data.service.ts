@@ -3,6 +3,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../environments/environment';
 import {
   AdminDecisionApiValue,
+  AdminOrderAuditApiResponse,
   AdminOrderSummaryApiResponse,
   CustomerCurrentOrderSummaryApiResponse,
   CustomerOrderApiResponse,
@@ -36,6 +37,14 @@ export interface AdminOrder {
   reviewReason: string | null;
   sequenceNumber: number;
   adminDecision: string | null;
+}
+
+export interface AdminOrderAuditEvent {
+  id: string;
+  eventType: string;
+  occurredAt: string;
+  actorType: string;
+  summary: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -89,6 +98,12 @@ export class OrderDataService {
     }).pipe(map((order) => this.mapAdminOrder(order)));
   }
 
+  loadOrderAudit(orderId: string): Observable<AdminOrderAuditEvent[]> {
+    return this.customerOrdersApi.getOrderAudit(orderId).pipe(
+      map((events) => events.map((event) => this.mapAuditEvent(event)))
+    );
+  }
+
   private mapAdminOrder(order: AdminOrderSummaryApiResponse): AdminOrder {
     return {
       id: order.orderId,
@@ -101,6 +116,16 @@ export class OrderDataService {
       reviewReason: order.adminReviewReason,
       sequenceNumber: order.sequenceNumber,
       adminDecision: order.adminDecision
+    };
+  }
+
+  private mapAuditEvent(event: AdminOrderAuditApiResponse): AdminOrderAuditEvent {
+    return {
+      id: event.id,
+      eventType: event.eventType,
+      occurredAt: this.formatDateTime(event.occurredAt),
+      actorType: event.actorType,
+      summary: event.summary
     };
   }
 

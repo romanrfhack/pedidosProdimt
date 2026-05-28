@@ -1,6 +1,11 @@
 const http = require('node:http');
 
 const port = 5088;
+const demoCustomerToken = 'demo-customer-token';
+const demoAdminUserName = 'admin';
+const demoAdminPassword = 'prodimt-admin-demo';
+const customerJwt = 'mock-customer-jwt';
+const adminJwt = 'mock-admin-jwt';
 
 const customerTodayBase = {
   customerId: '11111111-1111-1111-1111-111111111111',
@@ -70,7 +75,7 @@ function resetState() {
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
     'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'content-type',
+    'access-control-allow-headers': 'authorization,content-type',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'content-type': 'application/json'
   });
@@ -98,6 +103,43 @@ function readJson(request) {
   });
 }
 
+function bearerToken(request) {
+  const authorization = request.headers.authorization ?? '';
+  return authorization.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : null;
+}
+
+function requireCustomerAccess(request, response, customerId) {
+  const token = bearerToken(request);
+
+  if (!token) {
+    sendJson(response, 401, { error: 'Unauthorized' });
+    return false;
+  }
+
+  if (token !== customerJwt || customerId !== customerTodayBase.customerId) {
+    sendJson(response, 403, { error: 'Forbidden' });
+    return false;
+  }
+
+  return true;
+}
+
+function requireAdminAccess(request, response) {
+  const token = bearerToken(request);
+
+  if (!token) {
+    sendJson(response, 401, { error: 'Unauthorized' });
+    return false;
+  }
+
+  if (token !== adminJwt) {
+    sendJson(response, 403, { error: 'Forbidden' });
+    return false;
+  }
+
+  return true;
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`);
 
@@ -108,6 +150,41 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'GET' && (url.pathname === '/health' || url.pathname === '/__test/health')) {
     sendJson(response, 200, { status: 'ok' });
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/customer-token') {
+    const body = await readJson(request);
+
+    if (body.token !== demoCustomerToken) {
+      sendJson(response, 401, { error: 'Token de cliente invalido.' });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accessToken: customerJwt,
+      tokenType: 'Bearer',
+      expiresAt: '2030-01-01T00:00:00Z',
+      customerId: customerTodayBase.customerId,
+      customerName: customerTodayBase.customerName
+    });
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/admin/login') {
+    const body = await readJson(request);
+
+    if (body.userName !== demoAdminUserName || body.password !== demoAdminPassword) {
+      sendJson(response, 401, { error: 'Credenciales administrativas invalidas.' });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accessToken: adminJwt,
+      tokenType: 'Bearer',
+      expiresAt: '2030-01-01T00:00:00Z',
+      displayName: 'Administrador Demo'
+    });
     return;
   }
 
@@ -122,7 +199,12 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === 'GET' && /^\/api\/customer-orders\/[^/]+\/today$/.test(url.pathname)) {
+  const customerTodayMatch = url.pathname.match(/^\/api\/customer-orders\/([^/]+)\/today$/);
+  if (request.method === 'GET' && customerTodayMatch) {
+    if (!requireCustomerAccess(request, response, customerTodayMatch[1])) {
+      return;
+    }
+
     sendJson(response, 200, {
       ...customerTodayBase,
       currentOrder
@@ -130,7 +212,12 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === 'POST' && /^\/api\/customer-orders\/[^/]+\/submit$/.test(url.pathname)) {
+  const customerSubmitMatch = url.pathname.match(/^\/api\/customer-orders\/([^/]+)\/submit$/);
+  if (request.method === 'POST' && customerSubmitMatch) {
+    if (!requireCustomerAccess(request, response, customerSubmitMatch[1])) {
+      return;
+    }
+
     submitCalls += 1;
     const body = await readJson(request);
     const positiveLines = Array.isArray(body.lines)
@@ -157,23 +244,65 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  if (request.method === 'POST' && /^\/api\/customer-orders\/[^/]+\/no-order$/.test(url.pathname)) {
+  const customerNoOrderMatch = url.pathname.match(/^\/api\/customer-orders\/([^/]+)\/no-order$/);
+  if (request.method === 'POST' && customerNoOrderMatch) {
+    if (!requireCustomerAccess(request, response, customerNoOrderMatch[1])) {
+      return;
+    }
+
     currentOrder = noOrder;
     sendJson(response, 200, noOrder);
     return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/orders/today') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
     sendJson(response, 200, [pendingOrderBase]);
     return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/orders/pending-review') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
     sendJson(response, 200, pendingOrders);
     return;
   }
 
+  if (request.method === 'GET' && /^\/api\/admin\/orders\/[^/]+\/audit$/.test(url.pathname)) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, [
+      {
+        id: '66666666-6666-6666-6666-666666666601',
+        orderId: pendingOrderBase.orderId,
+        customerId: pendingOrderBase.customerId,
+        eventType: 'OrderSubmitted',
+        occurredAt: '2026-05-27T10:15:00-06:00',
+        actorType: 'Customer',
+        actorId: null,
+        actorDisplayName: null,
+        orderStatus: 'PendingAdminReview',
+        adminReviewReason: 'LateSubmission',
+        adminDecision: 'Pending',
+        summary: 'Pedido enviado por cliente.',
+        metadataJson: null
+      }
+    ]);
+    return;
+  }
+
   if (request.method === 'POST' && /^\/api\/admin\/orders\/[^/]+\/review$/.test(url.pathname)) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
     const body = await readJson(request);
     const decision = body.decision === 'Rejected' ? 'Rejected' : 'Accepted';
     pendingOrders = [];

@@ -47,12 +47,15 @@ Entidades configuradas con Fluent API:
 - `Order`
 - `OrderLine`
 - `OrderAuditLog`
+- `AdminUser`
+- `CustomerAccessToken`
 
 Relaciones configuradas:
 
 - `Customer` 1:N `Order`.
 - `Order` 1:N `OrderLine`.
 - `Order` 1:N `OrderAuditLog`.
+- `Customer` 1:N `CustomerAccessToken`.
 - `Product` 1:N `OrderLine`.
 - `Customer` N:N `Product` mediante `CustomerFrequentProduct`.
 - `Customer` N:N `Machine` mediante `CustomerMachineAssignment`.
@@ -70,6 +73,7 @@ Datos creados:
 - Maquinas: `Maquina 1`, `Maquina 2`, `Maquina 3`.
 - Canales: `Cliente`, `Mostrador`, `Captura administrativa`.
 - Productos frecuentes y asignaciones internas de maquina.
+- Admin demo y token demo de cliente para autenticacion piloto.
 
 Estos datos son solo para desarrollo y no representan datos reales sensibles.
 
@@ -85,6 +89,12 @@ La migracion de auditoria persistente fue creada con:
 
 ```bash
 dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
+```
+
+La migracion de autenticacion piloto fue creada con:
+
+```bash
+dotnet tool run dotnet-ef migrations add AddPilotAuthentication --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
 ```
 
 Aplicar a SQL Server local:

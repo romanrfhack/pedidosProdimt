@@ -53,6 +53,16 @@ Fecha: 2026-05-28
 - Se agrego migracion `AddOrderAuditLogs`.
 - Se alineo `dotnet-ef` local a `10.0.8` con tool manifest del repositorio.
 - Se agrego script de reset/reseed local `scripts/dev/reset-database.sh --confirm`.
+- Se agrego autenticacion piloto con JWT Bearer.
+- Se agregaron entidades `AdminUser` y `CustomerAccessToken`.
+- Se agrego migracion `AddPilotAuthentication`.
+- Se agregaron endpoints `POST /api/auth/admin/login` y `POST /api/auth/customer-token`.
+- Se protegio `GET/POST /api/customer-orders/{customerId}/...` con `CustomerAccess` y validacion de `customerId` propio.
+- Se protegieron endpoints administrativos, incluyendo auditoria, con `AdminAccess`.
+- Se agrego seed Development de admin demo y token demo de Gran Takito.
+- Se actualizo Angular con login cliente por token, login admin, interceptor Bearer, guard admin y consulta minima de auditoria desde pendientes.
+- Se actualizo Playwright para usar auth mockeada.
+- Se actualizo el smoke real de Fase 1 para autenticacion.
 
 ## Decisiones tomadas
 
@@ -67,6 +77,10 @@ Fecha: 2026-05-28
 - Playwright usa mock API local controlado para E2E basico y documenta esa decision.
 - SQL Server local/dev puede ejecutarse con Docker Compose, pero la configuracion sigue permitiendo usar una instancia SQL Server instalada localmente mediante `ConnectionStrings__Pedidos`.
 - La auditoria se escribe desde casos de uso de Application; no se expone al cliente y queda disponible solo en endpoint administrativo.
+- La autenticacion piloto usa JWT Bearer con claims explicitos `prodimt_actor_type`, `prodimt_customer_id`, `prodimt_user_id`, `prodimt_user_name` y `prodimt_display_name`.
+- Los endpoints de cliente aceptan solo JWT de cliente en esta fase; captura administrativa en nombre de cliente queda pendiente.
+- `/health` y `/health/db` quedan publicos en Fase 1. `/health/db` no expone datos sensibles.
+- Angular guarda el JWT en `localStorage` solo para desarrollo piloto; debe revisarse antes de produccion.
 
 ## Validacion ejecutada
 
@@ -91,26 +105,36 @@ Fecha: 2026-05-28
 - `dotnet test src/Prodimt.Pedidos.sln --no-restore`
 - `npm run build` en `apps/prodimt-pedidos-web`
 - `npm test` en `tests/e2e`
+- `dotnet tool run dotnet-ef migrations add AddPilotAuthentication --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
+- `bash scripts/dev/start-sqlserver.sh`
+- `bash scripts/dev/update-database.sh`
+- `bash scripts/dev/reset-database.sh --confirm`
+- `bash scripts/dev/run-api-sqlserver.sh`
+- `bash scripts/dev/smoke-fase1.sh`
+- `git diff --check`
+- `bash -n scripts/dev/smoke-fase1.sh scripts/dev/start-sqlserver.sh scripts/dev/update-database.sh scripts/dev/reset-database.sh scripts/dev/run-api-sqlserver.sh`
+- `node --check scripts/dev/smoke-fase1.mjs`
 
 ## Resultado
 
 - Backend build: exitoso.
-- Pruebas unitarias backend: 20 pruebas exitosas.
+- Pruebas unitarias/integracion backend: 30 pruebas exitosas.
 - Angular build: exitoso.
-- Playwright E2E: 6 pruebas exitosas.
+- Playwright E2E: 7 pruebas exitosas.
 - API `/health`: responde `{"status":"ok"}`.
 - API de cliente de ejemplo no expone maquina.
 - Migracion inicial EF Core: creada.
 - Flujo cliente/admin Fase 1 integrado desde Angular con API real para ejecucion normal.
 - SQL Server real local: contenedor `prodimt-pedidos-sqlserver` levantado correctamente.
-- Migracion inicial aplicada correctamente en SQL Server.
-- Seed de desarrollo validado: 3 clientes, 4 productos, 3 maquinas, 3 canales, 4 productos frecuentes y 3 asignaciones internas.
-- Smoke Fase 1 contra API real + SQL Server: exitoso.
+- Migraciones `InitialCreate`, `AddOrderAuditLogs` y `AddPilotAuthentication` aplicadas correctamente en SQL Server.
+- Seed de desarrollo validado: clientes, productos, maquinas, canales, productos frecuentes, asignaciones internas, admin demo y token demo de cliente.
+- Smoke Fase 1 autenticado contra API real + SQL Server: exitoso.
 - Auditoria persistente: implementada para pedido enviado, `NoOrder`, pedido tardio, segundo pedido del dia y decision administrativa.
+- Autenticacion piloto: implementada para cliente por token y admin por login demo en Development.
 
 ## Pendiente
 
-- Agregar autenticacion piloto.
 - Implementar CRUD interno de catalogos.
 - Agregar ajuste administrativo real de lineas para `AcceptedWithChanges`.
 - Agregar vistas de detalle de lineas para administracion.
+- Endurecer autenticacion antes de produccion: secrets reales por entorno, expiracion/rotacion de tokens cliente, estrategia de almacenamiento frontend y roles finos.
