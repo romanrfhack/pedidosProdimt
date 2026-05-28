@@ -170,6 +170,16 @@ El smoke valida:
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
 
+## Smoke test de carpeta de importacion
+
+Con la API real corriendo:
+
+```bash
+bash scripts/dev/smoke-import-folder.sh
+```
+
+Este smoke copia ejemplos demo a `data/local-imports/`, ejecuta `validate-import-folder` y `apply-import-folder`, confirma que se generen reportes locales, valida que un JWT de cliente no acceda a importacion y confirma que el cliente importado no vea datos de maquina.
+
 ## Reset/reseed local
 
 Para borrar la base local `ProdimtPedidos`, reaplicar migraciones y ejecutar el seed de desarrollo:

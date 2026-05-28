@@ -9,6 +9,11 @@ TestResults/
 *.Development.local.json
 .env
 
+# Private pilot/import data
+data/local-imports/
+*.real.csv
+*.private.csv
+
 # Node / Angular
 node_modules/
 .angular/

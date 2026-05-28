@@ -90,6 +90,16 @@ Fecha: 2026-05-28
 - Se agrego `ExternalCode` nullable a `Customer`, `Product` y `Machine` para matching controlado; la migracion es `AddCatalogExternalCodesAndImportSupport`.
 - Se agrego UI Angular administrativa en `/admin/importacion`.
 - Se amplio Playwright y el smoke real para validar importacion, bloqueo con JWT de cliente y que la maquina sigue oculta al cliente.
+- Se agrego flujo asistido para validar/aplicar carpetas CSV de muestra piloto depurada:
+  - `scripts/dev/validate-import-folder.sh`
+  - `scripts/dev/apply-import-folder.sh`
+  - `scripts/dev/import-folder.mjs`
+  - wrappers PowerShell equivalentes.
+- Se agrego `scripts/dev/smoke-import-folder.sh` y `scripts/dev/smoke-import-folder.mjs` para validar scripts, reportes, bloqueo de Customer JWT y ocultamiento de maquina.
+- Se ignora `data/local-imports/`, `*.real.csv` y `*.private.csv` para evitar versionar muestras reales, reportes locales o Excel operativo.
+- Se agrego `docs/22-piloto-carga-inicial-desde-excel-depurado.md` y `docs/import-templates/README.md`.
+- Se endurecieron validaciones de importacion para duplicados explicitos, ventana de entrega invertida, telefonos sospechosos, producto inactivo como frecuente activo, `sortOrder` duplicado y cliente sin maquina default.
+- `validate` puede recibir referencias opcionales de otros CSV de la misma carpeta para validar relaciones antes de que esos catalogos existan en SQL Server; `apply` sigue revalidando contra la base real.
 
 ## Decisiones tomadas
 
@@ -114,6 +124,8 @@ Fecha: 2026-05-28
 - La UI de catalogos cubre operacion basica; usuarios admin basicos quedaron como API protegida, sin pantalla dedicada.
 - La importacion usa CSV controlado y no importacion directa del `.xlsm`; el flujo MVP es stateless: `validate` no persiste sesion y `apply` revalida el mismo contenido antes de guardar.
 - No se importan tokens planos por CSV; despues de importar clientes, administracion debe crear tokens desde el sistema para que el token plano se muestre una sola vez y se guarde solo el hash.
+- Los scripts de carpeta permiten archivos faltantes como advertencia y procesan solo los CSV presentes en orden: productos, maquinas, clientes, frecuentes y asignaciones.
+- Los scripts no imprimen passwords ni JWT completos y los reportes sanitizan secretos.
 
 ## Validacion ejecutada
 
@@ -154,6 +166,23 @@ Fecha: 2026-05-28
 - `node --check tests/e2e/mock-api.js`
 - `dotnet tool run dotnet-ef migrations add AddCatalogManagementSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
 - `dotnet tool run dotnet-ef migrations add AddCatalogExternalCodesAndImportSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
+- `dotnet test tests/Prodimt.Pedidos.Application.Tests/Prodimt.Pedidos.Application.Tests.csproj --no-restore`
+- `dotnet restore src/Prodimt.Pedidos.sln`
+- `dotnet build src/Prodimt.Pedidos.sln --no-restore`
+- `dotnet test src/Prodimt.Pedidos.sln --no-restore`
+- `npm run build` en `apps/prodimt-pedidos-web`
+- `npm test` en `tests/e2e`
+- `bash scripts/dev/start-sqlserver.sh`
+- `bash scripts/dev/update-database.sh`
+- `bash scripts/dev/reset-database.sh --confirm`
+- `bash scripts/dev/run-api-sqlserver.sh`
+- `bash scripts/dev/smoke-fase1.sh`
+- `bash scripts/dev/smoke-import-folder.sh`
+- `git diff --check`
+- `bash -n scripts/dev/*.sh`
+- `node --check scripts/dev/import-folder.mjs`
+- `node --check scripts/dev/smoke-import-folder.mjs`
+- `node --check tests/e2e/mock-api.js`
 
 ## Resultado
 
@@ -175,11 +204,14 @@ Fecha: 2026-05-28
 - Administracion operativa Fase 1: implementada para detalle con lineas, clientes pendientes, captura administrativa, `NoOrder` administrativo y `AcceptedWithChanges`.
 - Catalogos internos Fase 1: implementados para preparar piloto con datos reales sin editar SQL directamente.
 - Carga masiva controlada Fase 1: implementada para preparar piloto con CSV validado y auditado, sin importar el Excel real ni datos sensibles.
+- Flujo de muestra piloto depurada: scripts de carpeta y reportes locales implementados y validados contra API real + SQL Server con datos demo.
+- Smoke de importacion por carpeta: exitoso; genera reportes locales ignorados por git, bloquea Customer JWT en importacion y confirma que cliente no ve maquina.
+- Verificacion de datos privados trackeados: `OK: no local real data tracked`.
 
 ## Pendiente
 
 - Endurecer autenticacion antes de produccion: secrets reales por entorno, expiracion/rotacion de tokens cliente, estrategia de almacenamiento frontend y roles finos.
 - Agregar productos nuevos durante `AcceptedWithChanges`.
 - Cambiar maquina desde administracion y auditarlo cuando entre en alcance.
-- Validar las plantillas CSV con una copia depurada de datos reales antes del piloto.
+- Ejecutar `validate-import-folder` y `apply-import-folder` con una muestra real depurada en `data/local-imports/pilot-sample` antes del piloto.
 - Evaluar en fase posterior una importacion directa del `.xlsm` solo si hay reglas completas para macros, formulas, historico y datos sensibles.

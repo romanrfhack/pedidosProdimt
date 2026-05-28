@@ -68,6 +68,8 @@ No implementar todavia:
 - `Api` contiene endpoints, OpenAPI y configuracion de DI.
 - No poner logica de negocio en controllers/endpoints ni componentes Angular.
 - No agregar secretos, credenciales reales o tokens.
+- No commitear el Excel operativo real, `.xlsm`, CSV reales, reportes locales ni datos sensibles.
+- Los CSV reales o muestras depuradas privadas deben colocarse en `data/local-imports/`, que esta ignorado por git.
 - Mantener el alcance dentro de Fase 1.
 
 ## Comandos
@@ -96,6 +98,9 @@ bash scripts/dev/update-database.sh
 bash scripts/dev/run-api-sqlserver.sh
 bash scripts/dev/smoke-fase1.sh
 bash scripts/dev/reset-database.sh --confirm
+bash scripts/dev/validate-import-folder.sh data/local-imports/pilot-sample
+bash scripts/dev/apply-import-folder.sh data/local-imports/pilot-sample --confirm
+bash scripts/dev/smoke-import-folder.sh
 ```
 
 Fallback temporal sin SQL Server:
@@ -135,3 +140,4 @@ npm test
 8. `docs/06-modelo-datos-inicial.md`
 9. `docs/07-backlog-mvp.md`
 10. `docs/21-carga-masiva-controlada-fase-1.md`
+11. `docs/22-piloto-carga-inicial-desde-excel-depurado.md`

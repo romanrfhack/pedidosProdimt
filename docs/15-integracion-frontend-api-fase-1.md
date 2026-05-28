@@ -35,6 +35,7 @@ Administracion:
 - `/admin/catalogos` permite mantener clientes, productos, maquinas y configuracion de cliente.
 - La configuracion de cliente administra productos frecuentes, asignacion interna de maquina y tokens de acceso.
 - `/admin/importacion` permite validar y aplicar CSV controlados para clientes, productos, frecuentes, maquinas y asignaciones internas.
+- `/admin/importacion` muestra advertencia operativa para usar `data/local-imports/` y no versionar CSV reales ni `.xlsm`.
 - La pantalla cliente no muestra navegacion de catalogos ni maquina asignada.
 
 ## Contratos relevantes

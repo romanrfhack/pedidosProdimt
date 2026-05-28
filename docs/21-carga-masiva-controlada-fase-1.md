@@ -113,8 +113,12 @@ Advertencias:
 
 - Registro existente sera actualizado.
 - Telefono vacio.
+- Telefono con caracteres claramente invalidos.
 - Falta `externalCode` y se usara nombre o numero.
 - Posible duplicado por nombre normalizado.
+- Producto inactivo marcado como frecuente activo.
+- `sortOrder` duplicado para el mismo cliente.
+- Cliente con asignaciones de maquina sin default.
 - Configuracion de productos frecuentes o maquinas reemplazara la existente para clientes presentes.
 
 ## Aplicacion
@@ -148,6 +152,21 @@ Body:
 }
 ```
 
+Para validacion de carpeta, los scripts envian opcionalmente `referenceContents`:
+
+```json
+{
+  "content": "customerExternalCode,...",
+  "fileName": "customer-frequent-products.csv",
+  "referenceContents": {
+    "customers": "externalCode,name,...",
+    "products": "externalCode,name,..."
+  }
+}
+```
+
+Esto permite validar relaciones que apuntan a clientes, productos o maquinas definidos en otros CSV de la misma carpeta aunque aun no existan en SQL Server. `apply` no depende de estas referencias: revalida y aplica cada archivo en orden contra SQL Server.
+
 Tipos:
 
 - `customers`
@@ -157,6 +176,62 @@ Tipos:
 - `customer-machine-assignments`
 
 Un JWT de cliente recibe `403`.
+
+## Scripts de carpeta para muestra piloto
+
+Carpeta local ignorada por git:
+
+```text
+data/local-imports/pilot-sample/
+data/local-imports/reports/
+```
+
+Validar:
+
+```bash
+bash scripts/dev/validate-import-folder.sh data/local-imports/pilot-sample
+```
+
+Aplicar:
+
+```bash
+bash scripts/dev/apply-import-folder.sh data/local-imports/pilot-sample --confirm
+```
+
+Orden:
+
+1. `products.csv`
+2. `machines.csv`
+3. `customers.csv`
+4. `customer-frequent-products.csv`
+5. `customer-machine-assignments.csv`
+
+Archivos faltantes se reportan como advertencia y no bloquean si son intencionales. Si no hay ningun CSV esperado, el script falla.
+
+Autenticacion:
+
+- `PRODIMT_API_BASE_URL`, default `http://127.0.0.1:5088`.
+- `PRODIMT_ADMIN_USERNAME`.
+- `PRODIMT_ADMIN_PASSWORD`.
+- Si usuario/password no existen, se usan defaults de `Development`: `admin` / `prodimt-admin-demo`.
+- No se imprimen passwords ni JWT.
+
+Reportes:
+
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.md`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.md`
+
+Los JSON contienen respuestas de API sanitizadas. No guardan passwords ni JWT.
+
+Smoke especifico:
+
+```bash
+bash scripts/dev/smoke-import-folder.sh
+```
+
+Valida login admin, copia ejemplos demo a una carpeta temporal ignorada, ejecuta validate/apply de carpeta, confirma reportes locales, rechaza Customer JWT en importacion y confirma que cliente importado no ve maquina.
 
 ## UI Angular
 
@@ -204,6 +279,8 @@ La aplicacion registra en `AuditLogs`:
 7. Revisar horarios en `HH:mm`.
 8. Ejecutar `validate`, corregir errores, repetir.
 9. Aplicar solo cuando administracion confirme los cambios propuestos.
+
+Guia detallada: `docs/22-piloto-carga-inicial-desde-excel-depurado.md`.
 
 ## Limitaciones
 

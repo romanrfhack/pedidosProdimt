@@ -19,6 +19,12 @@ import {
         <h2>Importacion</h2>
       </div>
 
+      <div class="notice" data-testid="import-private-data-warning">
+        <strong>Datos reales no versionados</strong>
+        <small>Usa data/local-imports/ para muestras depuradas; no subas CSV reales ni .xlsm al repositorio.</small>
+        <small>Orden de carpeta: productos, maquinas, clientes, frecuentes y asignaciones.</small>
+      </div>
+
       @if (isLoadingTemplates) {
         <div class="notice">Cargando plantillas...</div>
       }

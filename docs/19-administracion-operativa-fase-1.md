@@ -180,4 +180,4 @@ Playwright sigue usando mock API y no depende de SQL Server.
 - Agregar productos nuevos en ajustes administrativos.
 - Endurecer autenticacion antes de produccion.
 - Definir flujo operativo para fusionar pedidos adicionales.
-- CRUD de canales y carga masiva/importacion controlada desde Excel siguen pendientes.
+- CRUD de canales sigue pendiente; carga masiva controlada por CSV ya existe, sin importacion directa del `.xlsm`.

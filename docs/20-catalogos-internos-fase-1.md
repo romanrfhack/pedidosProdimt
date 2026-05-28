@@ -161,6 +161,7 @@ Eventos cubiertos:
 ## Carga masiva controlada
 
 La carga masiva esta documentada en `docs/21-carga-masiva-controlada-fase-1.md`.
+El flujo de muestra piloto depurada esta documentado en `docs/22-piloto-carga-inicial-desde-excel-depurado.md`.
 
 Endpoints protegidos con `AdminAccess`:
 
@@ -177,6 +178,7 @@ Tipos soportados:
 - `customer-machine-assignments`
 
 `validate` no modifica base. `apply` vuelve a validar y solo guarda si no hay errores bloqueantes. Las plantillas viven en `docs/import-templates/`.
+Los CSV reales o muestras privadas deben vivir en `data/local-imports/`, ignorado por git.
 
 ## UI Angular
 
@@ -216,7 +218,7 @@ La configuracion de cliente incluye productos frecuentes, maquinas asignadas y t
 
 ## Pendiente recomendado
 
-- Probar carga masiva con una copia depurada de datos reales antes del piloto.
+- Probar carga masiva con una copia depurada de datos reales en `data/local-imports/pilot-sample` antes del piloto.
 - Agregar pantalla de usuarios admin solo cuando haya reglas claras de operacion.
 - Agregar rotacion de token si se necesita reemplazo controlado sin crear uno nuevo manualmente.
 - Agregar cambio administrativo de maquina por pedido o linea cuando entre en alcance.

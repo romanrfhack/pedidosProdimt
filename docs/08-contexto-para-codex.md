@@ -31,6 +31,12 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 - Los cambios relevantes de catalogos se auditan en `AuditLogs`; la auditoria de pedidos existente se mantiene en `OrderAuditLogs`.
 - Administracion ya cuenta con carga masiva controlada por CSV para clientes, productos, productos frecuentes, maquinas y asignaciones cliente-maquina, con validacion `dry-run`, aplicacion confirmada y auditoria en `AuditLogs`.
 - Se agregaron `ExternalCode` nullable a clientes, productos y maquinas para facilitar matching controlado desde datos depurados del Excel sin depender solo del nombre.
+- Se agregaron scripts de carpeta para muestra piloto depurada:
+  - `scripts/dev/validate-import-folder.sh`
+  - `scripts/dev/apply-import-folder.sh`
+  - `scripts/dev/smoke-import-folder.sh`
+- Los reportes y muestras privadas viven bajo `data/local-imports/`, ignorado por git.
+- La documentacion de prueba piloto desde Excel depurado esta en `docs/22-piloto-carga-inicial-desde-excel-depurado.md`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -104,7 +110,7 @@ Continuar con endurecimiento del flujo vertical:
 - Mantener scripts de validacion SQL Server local actualizados cuando cambien endpoints o seed.
 - Mantener la auditoria persistente alineada con nuevas decisiones administrativas.
 - Endurecer autenticacion piloto antes de produccion sin implementar roles completos todavia.
-- Siguiente pendiente funcional sugerido: validar carga CSV con una copia depurada de datos reales, endurecer autenticacion antes de produccion y completar cambios administrativos de maquina por pedido cuando entre en alcance.
+- Siguiente pendiente funcional sugerido: ejecutar el flujo `validate`/`apply` con una muestra real depurada colocada en `data/local-imports/pilot-sample`, revisar reportes locales, endurecer autenticacion antes de produccion y completar cambios administrativos de maquina por pedido cuando entre en alcance.
 
 ## Criterio para futuras sesiones
 
@@ -122,6 +128,7 @@ Al iniciar una nueva sesión, leer siempre:
 - `docs/14-persistencia-ef-core-sql-server.md`
 - `docs/18-autenticacion-piloto-fase-1.md`
 - `docs/21-carga-masiva-controlada-fase-1.md`
+- `docs/22-piloto-carga-inicial-desde-excel-depurado.md`
 
 Al terminar una sesión, dejar documentado:
 

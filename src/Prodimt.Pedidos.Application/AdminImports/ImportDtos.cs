@@ -18,7 +18,10 @@ public static class AdminImportTypes
     };
 }
 
-public sealed record ImportCsvRequest(string Content, string? FileName);
+public sealed record ImportCsvRequest(
+    string Content,
+    string? FileName,
+    IReadOnlyDictionary<string, string>? ReferenceContents = null);
 
 public sealed record ImportTemplatesResponse(
     int MaxFileSizeBytes,

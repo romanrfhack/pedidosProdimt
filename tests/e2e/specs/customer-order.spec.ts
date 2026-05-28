@@ -261,6 +261,7 @@ test('admin puede validar y aplicar CSV demo de importacion', async ({ page }) =
 
   await expect(page.getByTestId('admin-import')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Importacion' })).toBeVisible();
+  await expect(page.getByTestId('import-private-data-warning')).toContainText('no subas CSV reales');
 
   await page.getByLabel('Tipo').selectOption('products');
   await expect(page.getByLabel('Tipo')).toHaveValue('products');

@@ -43,6 +43,9 @@ Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas,
 - `docs/17-auditoria-persistente-fase-1.md`: auditoria persistente de Fase 1.
 - `docs/18-autenticacion-piloto-fase-1.md`: autenticacion piloto con JWT para cliente y admin.
 - `docs/19-administracion-operativa-fase-1.md`: administracion operativa minima de Fase 1.
+- `docs/20-catalogos-internos-fase-1.md`: catalogos internos de Fase 1.
+- `docs/21-carga-masiva-controlada-fase-1.md`: carga masiva controlada por CSV.
+- `docs/22-piloto-carga-inicial-desde-excel-depurado.md`: procedimiento para muestra real depurada.
 - `docs/adrs/`: decisiones arquitectónicas.
 - `docs/reference/`: archivos de apoyo extraídos o derivados del Excel.
 
@@ -231,7 +234,42 @@ El body esperado por `validate` y `apply` es JSON:
 }
 ```
 
+`validate` acepta opcionalmente `referenceContents` para validacion de carpeta; esto permite validar relaciones que apuntan a clientes/productos/maquinas definidos en otros CSV de la misma carpeta. `apply` ignora referencias y revalida contra SQL Server en cada paso.
+
 El limite inicial es 2 MB por CSV. `apply` es stateless: vuelve a validar el contenido recibido y solo guarda cambios si no hay errores. Los cambios aplicados se registran en `AuditLogs`.
+
+Carga de carpeta para muestra piloto depurada:
+
+```bash
+mkdir -p data/local-imports/pilot-sample
+bash scripts/dev/validate-import-folder.sh data/local-imports/pilot-sample
+bash scripts/dev/apply-import-folder.sh data/local-imports/pilot-sample --confirm
+```
+
+Orden de carpeta:
+
+1. `products.csv`
+2. `machines.csv`
+3. `customers.csv`
+4. `customer-frequent-products.csv`
+5. `customer-machine-assignments.csv`
+
+Los scripts usan `PRODIMT_API_BASE_URL` o `http://127.0.0.1:5088` por default, y se autentican con `PRODIMT_ADMIN_USERNAME` / `PRODIMT_ADMIN_PASSWORD`. Si no existen, usan defaults de `Development`: `admin` / `prodimt-admin-demo`.
+
+Reportes locales:
+
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.md`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.md`
+
+`data/local-imports/`, `*.real.csv` y `*.private.csv` estan ignorados por git. No commitear CSV reales, el Excel `.xlsm`, reportes locales, tokens, passwords ni datos sensibles.
+
+Smoke especifico de carpeta:
+
+```bash
+bash scripts/dev/smoke-import-folder.sh
+```
 
 ### Frontend
 
@@ -273,6 +311,7 @@ Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth
 El smoke real autenticado valida detalle administrativo, clientes pendientes, `NoOrder` administrativo, captura administrativa, segundo pedido pendiente, `AcceptedWithChanges` con cambios persistidos y auditoria de cambios.
 Tambien valida alta de cliente/producto/maquina, configuracion de producto frecuente, creacion/revocacion de token, login con token creado, bloqueo de token revocado y rechazo de catalogos con JWT de cliente.
 Tambien valida importacion CSV de clientes, productos, productos frecuentes, maquinas, asignaciones internas, auditoria de importacion y rechazo de importacion con JWT de cliente.
+El smoke de carpeta valida los scripts `validate-import-folder` y `apply-import-folder`, genera reportes locales ignorados por git, confirma que Customer JWT no accede a importacion y que cliente no ve maquina.
 
 ## Estado de implementación
 
@@ -285,6 +324,7 @@ Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
 Ver tambien `docs/19-administracion-operativa-fase-1.md`.
 Ver tambien `docs/20-catalogos-internos-fase-1.md`.
 Ver tambien `docs/21-carga-masiva-controlada-fase-1.md`.
+Ver tambien `docs/22-piloto-carga-inicial-desde-excel-depurado.md`.
 
 ## Regla de continuidad para Codex
 

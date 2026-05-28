@@ -45,7 +45,70 @@ public sealed class AdminImportServiceTests
 
         Assert.Equal(2, response.ErrorCount);
         Assert.Contains(response.Errors, x => x.Code == "Required" && x.Field == "name");
-        Assert.Contains(response.Errors, x => x.Code == "DuplicateCustomer");
+        Assert.Contains(response.Errors, x => x.Code == "DuplicateCustomerExternalCode");
+    }
+
+    [Fact]
+    public async Task ValidateCustomers_DetectsInvalidDeliveryWindowAndSuspiciousPhone()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        var csv = string.Join('\n',
+        [
+            "externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes",
+            "C-200,Cliente Ventana,55A-INVALIDO,true,09:00,11:00,10:00,",
+            "C-201,Cliente Tiempo Fuera,+52 55 0000 0000,true,08:30,09:00,10:00,"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.Customers,
+            new ImportCsvRequest(csv, "customers.csv"),
+            CancellationToken.None);
+
+        Assert.Contains(response.Errors, x => x.Code == "InvalidDeliveryWindow");
+        Assert.Contains(response.Warnings, x => x.Code == "SuspiciousPhoneNumber");
+        Assert.Contains(response.Warnings, x => x.Code == "DeliveryTimeOutsideWindow");
+    }
+
+    [Fact]
+    public async Task ValidateProducts_DetectsExternalCodeAndNormalizedNameDuplicates()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        var csv = string.Join('\n',
+        [
+            "externalCode,name,description,isActive",
+            "P-DUP-1,Molde Duplicado,Demo,true",
+            "P-DUP-1,Molde Diferente,Demo,true",
+            "P-DUP-2,Molde Duplicado,Demo,true"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.Products,
+            new ImportCsvRequest(csv, "products.csv"),
+            CancellationToken.None);
+
+        Assert.Contains(response.Errors, x => x.Code == "DuplicateProductExternalCode");
+        Assert.Contains(response.Errors, x => x.Code == "DuplicateProductName");
+    }
+
+    [Fact]
+    public async Task ValidateMachines_DetectsExternalCodeAndNumberDuplicates()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        var csv = string.Join('\n',
+        [
+            "externalCode,number,name,isActive",
+            "M-DUP-1,201,Maquina Duplicada,true",
+            "M-DUP-1,202,Maquina Otra,true",
+            "M-DUP-2,201,Maquina Numero Duplicado,true"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.Machines,
+            new ImportCsvRequest(csv, "machines.csv"),
+            CancellationToken.None);
+
+        Assert.Contains(response.Errors, x => x.Code == "DuplicateMachineExternalCode");
+        Assert.Contains(response.Errors, x => x.Code == "DuplicateMachineNumber");
     }
 
     [Fact]
@@ -186,6 +249,65 @@ public sealed class AdminImportServiceTests
     }
 
     [Fact]
+    public async Task FrequentProducts_ValidateCanUseFolderReferenceContents()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        var customersCsv = string.Join('\n',
+        [
+            "externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes",
+            "C-REF-1,Cliente Referencia,5550000000,true,,,,"
+        ]);
+        var productsCsv = string.Join('\n',
+        [
+            "externalCode,name,description,isActive",
+            "P-REF-1,Molde Referencia,Demo,true"
+        ]);
+        var frequentCsv = string.Join('\n',
+        [
+            "customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive",
+            "C-REF-1,,P-REF-1,,3,1,true"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.CustomerFrequentProducts,
+            new ImportCsvRequest(
+                frequentCsv,
+                "frequent.csv",
+                new Dictionary<string, string>
+                {
+                    [AdminImportTypes.Customers] = customersCsv,
+                    [AdminImportTypes.Products] = productsCsv
+                }),
+            CancellationToken.None);
+
+        Assert.Equal(0, response.ErrorCount);
+        Assert.Equal(1, response.ProposedUpdateCount);
+    }
+
+    [Fact]
+    public async Task FrequentProducts_WarnDuplicateSortOrderAndInactiveActiveProduct()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        fixture.DbContext.Products.Single(x => x.Id == DevelopmentSeedIds.ProductElevenId).Deactivate();
+        await fixture.DbContext.SaveChangesAsync();
+        var csv = string.Join('\n',
+        [
+            "customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive",
+            ",Gran Takito,,#11,4,1,true",
+            ",Gran Takito,,#15,5,1,true"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.CustomerFrequentProducts,
+            new ImportCsvRequest(csv, "frequent.csv"),
+            CancellationToken.None);
+
+        Assert.Equal(0, response.ErrorCount);
+        Assert.Contains(response.Warnings, x => x.Code == "InactiveProductAsFrequentActive");
+        Assert.Contains(response.Warnings, x => x.Code == "DuplicateSortOrderForCustomer");
+    }
+
+    [Fact]
     public async Task ApplyFrequentProducts_ReplacesOnlyCustomersPresentInFile()
     {
         await using var fixture = await ImportFixture.CreateAsync();
@@ -212,6 +334,25 @@ public sealed class AdminImportServiceTests
         Assert.Single(granTakitoFrequent);
         Assert.Equal(DevelopmentSeedIds.ProductElevenId, granTakitoFrequent[0].ProductId);
         Assert.NotEmpty(demo2Frequent);
+    }
+
+    [Fact]
+    public async Task MachineAssignments_WarnWhenCustomerHasNoDefault()
+    {
+        await using var fixture = await ImportFixture.CreateAsync();
+        var csv = string.Join('\n',
+        [
+            "customerExternalCode,customerName,machineExternalCode,machineNumber,isDefault,notes",
+            ",Gran Takito,,1,false,Asignacion sin default"
+        ]);
+
+        var response = await fixture.Import.ValidateAsync(
+            AdminImportTypes.CustomerMachineAssignments,
+            new ImportCsvRequest(csv, "assignments.csv"),
+            CancellationToken.None);
+
+        Assert.Equal(0, response.ErrorCount);
+        Assert.Contains(response.Warnings, x => x.Code == "NoDefaultMachineForCustomer");
     }
 
     [Fact]

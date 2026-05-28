@@ -106,7 +106,7 @@ public sealed class AdminImportService(
         ImportCsvRequest request,
         CancellationToken cancellationToken)
     {
-        var plan = await BuildPlanAsync(importType, request, cancellationToken);
+        var plan = await BuildPlanAsync(importType, request, allowReferenceContents: true, cancellationToken);
         return plan.Response;
     }
 
@@ -116,7 +116,7 @@ public sealed class AdminImportService(
         AdminActorContext? actor,
         CancellationToken cancellationToken)
     {
-        var plan = await BuildPlanAsync(importType, request, cancellationToken);
+        var plan = await BuildPlanAsync(importType, request, allowReferenceContents: false, cancellationToken);
         if (plan.Response.Errors.Count > 0)
         {
             return new ImportApplyResponse(
@@ -144,6 +144,7 @@ public sealed class AdminImportService(
     private Task<IImportPlan> BuildPlanAsync(
         string importType,
         ImportCsvRequest request,
+        bool allowReferenceContents,
         CancellationToken cancellationToken)
     {
         if (!Templates.TryGetValue(importType, out var template))
@@ -156,8 +157,8 @@ public sealed class AdminImportService(
             AdminImportTypes.Customers => BuildCustomerPlanAsync(template, request, cancellationToken),
             AdminImportTypes.Products => BuildProductPlanAsync(template, request, cancellationToken),
             AdminImportTypes.Machines => BuildMachinePlanAsync(template, request, cancellationToken),
-            AdminImportTypes.CustomerFrequentProducts => BuildFrequentProductPlanAsync(template, request, cancellationToken),
-            AdminImportTypes.CustomerMachineAssignments => BuildMachineAssignmentPlanAsync(template, request, cancellationToken),
+            AdminImportTypes.CustomerFrequentProducts => BuildFrequentProductPlanAsync(template, request, allowReferenceContents, cancellationToken),
+            AdminImportTypes.CustomerMachineAssignments => BuildMachineAssignmentPlanAsync(template, request, allowReferenceContents, cancellationToken),
             _ => throw new InvalidOperationException("Unsupported import template.")
         };
     }
@@ -179,8 +180,8 @@ public sealed class AdminImportService(
         var allCustomers = await customers.GetAllAsync(cancellationToken);
         var byExternalCode = BuildLookup(allCustomers, x => x.ExternalCode, NormalizeExternalCode);
         var byName = BuildLookup(allCustomers, x => x.Name, NormalizeName);
-        var seenKeys = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var seenExternalCodes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenNormalizedNames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in context.Rows)
         {
@@ -199,15 +200,29 @@ public sealed class AdminImportService(
                 context.Errors.Add(Required(row, "name"));
             }
 
-            TrackDuplicate(
-                seenKeys,
-                BuildCustomerFileKey(externalCode, name),
-                row,
-                "name",
-                "DuplicateCustomer",
-                "Cliente duplicado en el mismo archivo.",
-                context);
-            TrackPossibleDuplicateName(seenNames, externalCode, name, row, context, "CustomerPossibleDuplicate");
+            if (externalCode is not null)
+            {
+                TrackDuplicate(
+                    seenExternalCodes,
+                    NormalizeExternalCode(externalCode),
+                    row,
+                    "externalCode",
+                    "DuplicateCustomerExternalCode",
+                    "externalCode de cliente duplicado en el mismo archivo.",
+                    context);
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                TrackDuplicate(
+                    seenNormalizedNames,
+                    NormalizeName(name),
+                    row,
+                    "name",
+                    "DuplicateCustomerName",
+                    "Nombre normalizado de cliente duplicado en el mismo archivo.",
+                    context);
+            }
 
             if (externalCode is null)
             {
@@ -228,6 +243,23 @@ public sealed class AdminImportService(
                     "Telefono vacio.",
                     null));
             }
+            else if (HasClearlyInvalidPhoneCharacters(phoneNumber))
+            {
+                context.Warnings.Add(new ImportIssueDto(
+                    row.RowNumber,
+                    "phoneNumber",
+                    "SuspiciousPhoneNumber",
+                    "Telefono con caracteres claramente invalidos; revisar antes de piloto.",
+                    phoneNumber));
+            }
+
+            ValidateDeliveryWindow(row, preferredDeliveryWindowStart, preferredDeliveryWindowEnd, context);
+            WarnIfDeliveryTimeOutsideWindow(
+                row,
+                preferredDeliveryTime,
+                preferredDeliveryWindowStart,
+                preferredDeliveryWindowEnd,
+                context);
 
             if (context.Errors.Count != errorsBefore)
             {
@@ -298,8 +330,8 @@ public sealed class AdminImportService(
         var allProducts = await products.GetAllAsync(cancellationToken);
         var byExternalCode = BuildLookup(allProducts, x => x.ExternalCode, NormalizeExternalCode);
         var byName = BuildLookup(allProducts, x => x.Name, NormalizeName);
-        var seenKeys = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var seenExternalCodes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenNormalizedNames = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in context.Rows)
         {
@@ -314,15 +346,29 @@ public sealed class AdminImportService(
                 context.Errors.Add(Required(row, "name"));
             }
 
-            TrackDuplicate(
-                seenKeys,
-                BuildNameBackedFileKey(externalCode, name),
-                row,
-                "name",
-                "DuplicateProduct",
-                "Producto duplicado en el mismo archivo.",
-                context);
-            TrackPossibleDuplicateName(seenNames, externalCode, name, row, context, "ProductPossibleDuplicate");
+            if (externalCode is not null)
+            {
+                TrackDuplicate(
+                    seenExternalCodes,
+                    NormalizeExternalCode(externalCode),
+                    row,
+                    "externalCode",
+                    "DuplicateProductExternalCode",
+                    "externalCode de producto duplicado en el mismo archivo.",
+                    context);
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                TrackDuplicate(
+                    seenNormalizedNames,
+                    NormalizeName(name),
+                    row,
+                    "name",
+                    "DuplicateProductName",
+                    "Nombre normalizado de producto duplicado en el mismo archivo.",
+                    context);
+            }
 
             if (externalCode is null)
             {
@@ -402,7 +448,8 @@ public sealed class AdminImportService(
             .GroupBy(x => x.Number)
             .Where(x => x.Count() == 1)
             .ToDictionary(x => x.Key, x => x.Single());
-        var seenKeys = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenExternalCodes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenNumbers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in context.Rows)
         {
@@ -412,14 +459,29 @@ public sealed class AdminImportService(
             var name = NullIfWhiteSpace(row.Get("name"));
             var isActive = ParseBooleanField(row, "isActive", defaultValue: true, context);
 
-            TrackDuplicate(
-                seenKeys,
-                externalCode is null ? $"number:{number}" : $"external:{NormalizeExternalCode(externalCode)}",
-                row,
-                "number",
-                "DuplicateMachine",
-                "Maquina duplicada en el mismo archivo.",
-                context);
+            if (externalCode is not null)
+            {
+                TrackDuplicate(
+                    seenExternalCodes,
+                    NormalizeExternalCode(externalCode),
+                    row,
+                    "externalCode",
+                    "DuplicateMachineExternalCode",
+                    "externalCode de maquina duplicado en el mismo archivo.",
+                    context);
+            }
+
+            if (number > 0)
+            {
+                TrackDuplicate(
+                    seenNumbers,
+                    number.ToString(CultureInfo.InvariantCulture),
+                    row,
+                    "number",
+                    "DuplicateMachineNumber",
+                    "Numero de maquina duplicado en el mismo archivo.",
+                    context);
+            }
 
             if (externalCode is null)
             {
@@ -482,6 +544,7 @@ public sealed class AdminImportService(
     private async Task<IImportPlan> BuildFrequentProductPlanAsync(
         TemplateDefinition template,
         ImportCsvRequest request,
+        bool allowReferenceContents,
         CancellationToken cancellationToken)
     {
         var context = CreateParseContext(template, request);
@@ -493,8 +556,14 @@ public sealed class AdminImportService(
             return CreatePlan(template.ImportType, context, items, proposedChanges);
         }
 
-        var allCustomers = await customers.GetAllAsync(cancellationToken);
-        var allProducts = await products.GetAllAsync(cancellationToken);
+        var existingCustomers = await customers.GetAllAsync(cancellationToken);
+        var existingProducts = await products.GetAllAsync(cancellationToken);
+        var allCustomers = existingCustomers
+            .Concat(allowReferenceContents ? GetReferencedCustomers(request, existingCustomers) : [])
+            .ToArray();
+        var allProducts = existingProducts
+            .Concat(allowReferenceContents ? GetReferencedProducts(request, existingProducts) : [])
+            .ToArray();
         var customerByExternalCode = BuildLookup(allCustomers, x => x.ExternalCode, NormalizeExternalCode);
         var customerByName = BuildLookup(allCustomers, x => x.Name, NormalizeName);
         var productByExternalCode = BuildLookup(allProducts, x => x.ExternalCode, NormalizeExternalCode);
@@ -563,6 +632,15 @@ public sealed class AdminImportService(
                     "Producto requerido no encontrado.",
                     productExternalCode ?? productName));
             }
+            else if (isActive && !product.IsActive)
+            {
+                context.Warnings.Add(new ImportIssueDto(
+                    row.RowNumber,
+                    "isActive",
+                    "InactiveProductAsFrequentActive",
+                    "Producto inactivo marcado como frecuente activo; no sera visible al cliente mientras el producto siga inactivo.",
+                    row.Get("isActive")));
+            }
 
             if (customer is not null && product is not null)
             {
@@ -605,6 +683,7 @@ public sealed class AdminImportService(
             "FrequentProductsWillReplace",
             "Producto frecuente reemplazara configuracion previa del cliente.",
             context);
+        AddDuplicateSortOrderWarnings(items, context);
 
         return CreatePlan(template.ImportType, context, items, proposedChanges);
     }
@@ -612,6 +691,7 @@ public sealed class AdminImportService(
     private async Task<IImportPlan> BuildMachineAssignmentPlanAsync(
         TemplateDefinition template,
         ImportCsvRequest request,
+        bool allowReferenceContents,
         CancellationToken cancellationToken)
     {
         var context = CreateParseContext(template, request);
@@ -623,8 +703,14 @@ public sealed class AdminImportService(
             return CreatePlan(template.ImportType, context, items, proposedChanges);
         }
 
-        var allCustomers = await customers.GetAllAsync(cancellationToken);
-        var allMachines = await machines.GetAllAsync(cancellationToken);
+        var existingCustomers = await customers.GetAllAsync(cancellationToken);
+        var existingMachines = await machines.GetAllAsync(cancellationToken);
+        var allCustomers = existingCustomers
+            .Concat(allowReferenceContents ? GetReferencedCustomers(request, existingCustomers) : [])
+            .ToArray();
+        var allMachines = existingMachines
+            .Concat(allowReferenceContents ? GetReferencedMachines(request, existingMachines) : [])
+            .ToArray();
         var customerByExternalCode = BuildLookup(allCustomers, x => x.ExternalCode, NormalizeExternalCode);
         var customerByName = BuildLookup(allCustomers, x => x.Name, NormalizeName);
         var machineByExternalCode = BuildLookup(allMachines, x => x.ExternalCode, NormalizeExternalCode);
@@ -738,6 +824,16 @@ public sealed class AdminImportService(
                         "Solo puede existir una maquina default por cliente.",
                         "true"));
                 }
+            }
+            else if (!group.Any(x => x.IsDefault))
+            {
+                var first = group.First();
+                context.Warnings.Add(new ImportIssueDto(
+                    first.RowNumber,
+                    "isDefault",
+                    "NoDefaultMachineForCustomer",
+                    "Cliente con asignaciones de maquina sin default; se permite, pero no habra maquina default para nuevas lineas.",
+                    null));
             }
         }
 
@@ -1189,6 +1285,286 @@ public sealed class AdminImportService(
                 row.Get("customerName").Length > 0);
             context.Warnings.Add(new ImportIssueDto(firstRow?.RowNumber ?? 0, null, code, message, null));
         }
+    }
+
+    private IReadOnlyList<Customer> GetReferencedCustomers(
+        ImportCsvRequest request,
+        IReadOnlyList<Customer> existingCustomers)
+    {
+        if (!TryGetReferenceContent(request, AdminImportTypes.Customers, out var content))
+        {
+            return [];
+        }
+
+        var context = CreateParseContext(
+            Templates[AdminImportTypes.Customers],
+            new ImportCsvRequest(content, "customers.csv"));
+        if (context.HasBlockingHeaderErrors)
+        {
+            return [];
+        }
+
+        var existingExternalCodes = existingCustomers
+            .Select(x => NullIfWhiteSpace(x.ExternalCode))
+            .Where(x => x is not null)
+            .Select(x => NormalizeExternalCode(x!))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var result = new List<Customer>();
+
+        foreach (var row in context.Rows)
+        {
+            var name = row.Get("name").Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var externalCode = NullIfWhiteSpace(row.Get("externalCode"));
+            if (externalCode is not null && existingExternalCodes.Contains(NormalizeExternalCode(externalCode)))
+            {
+                continue;
+            }
+
+            result.Add(new Customer
+            {
+                Id = Guid.NewGuid(),
+                ExternalCode = externalCode,
+                Name = name,
+                PhoneNumber = NullIfWhiteSpace(row.Get("phoneNumber")) ?? string.Empty,
+                IsActive = ParseReferenceBoolean(row.Get("isActive"), defaultValue: true)
+            });
+        }
+
+        return result;
+    }
+
+    private IReadOnlyList<Product> GetReferencedProducts(
+        ImportCsvRequest request,
+        IReadOnlyList<Product> existingProducts)
+    {
+        if (!TryGetReferenceContent(request, AdminImportTypes.Products, out var content))
+        {
+            return [];
+        }
+
+        var context = CreateParseContext(
+            Templates[AdminImportTypes.Products],
+            new ImportCsvRequest(content, "products.csv"));
+        if (context.HasBlockingHeaderErrors)
+        {
+            return [];
+        }
+
+        var existingExternalCodes = existingProducts
+            .Select(x => NullIfWhiteSpace(x.ExternalCode))
+            .Where(x => x is not null)
+            .Select(x => NormalizeExternalCode(x!))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var result = new List<Product>();
+
+        foreach (var row in context.Rows)
+        {
+            var name = row.Get("name").Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            var externalCode = NullIfWhiteSpace(row.Get("externalCode"));
+            if (externalCode is not null && existingExternalCodes.Contains(NormalizeExternalCode(externalCode)))
+            {
+                continue;
+            }
+
+            result.Add(new Product
+            {
+                Id = Guid.NewGuid(),
+                ExternalCode = externalCode,
+                Name = name,
+                Description = NullIfWhiteSpace(row.Get("description")),
+                IsActive = ParseReferenceBoolean(row.Get("isActive"), defaultValue: true)
+            });
+        }
+
+        return result;
+    }
+
+    private IReadOnlyList<Machine> GetReferencedMachines(
+        ImportCsvRequest request,
+        IReadOnlyList<Machine> existingMachines)
+    {
+        if (!TryGetReferenceContent(request, AdminImportTypes.Machines, out var content))
+        {
+            return [];
+        }
+
+        var context = CreateParseContext(
+            Templates[AdminImportTypes.Machines],
+            new ImportCsvRequest(content, "machines.csv"));
+        if (context.HasBlockingHeaderErrors)
+        {
+            return [];
+        }
+
+        var existingExternalCodes = existingMachines
+            .Select(x => NullIfWhiteSpace(x.ExternalCode))
+            .Where(x => x is not null)
+            .Select(x => NormalizeExternalCode(x!))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var result = new List<Machine>();
+
+        foreach (var row in context.Rows)
+        {
+            if (!int.TryParse(row.Get("number").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) ||
+                number <= 0)
+            {
+                continue;
+            }
+
+            var externalCode = NullIfWhiteSpace(row.Get("externalCode"));
+            if (externalCode is not null && existingExternalCodes.Contains(NormalizeExternalCode(externalCode)))
+            {
+                continue;
+            }
+
+            result.Add(new Machine
+            {
+                Id = Guid.NewGuid(),
+                ExternalCode = externalCode,
+                Number = number,
+                Name = NullIfWhiteSpace(row.Get("name")),
+                IsActive = ParseReferenceBoolean(row.Get("isActive"), defaultValue: true)
+            });
+        }
+
+        return result;
+    }
+
+    private static bool TryGetReferenceContent(
+        ImportCsvRequest request,
+        string importType,
+        out string content)
+    {
+        content = string.Empty;
+        if (request.ReferenceContents is null)
+        {
+            return false;
+        }
+
+        if (!request.ReferenceContents.TryGetValue(importType, out var value) ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        content = value;
+        return true;
+    }
+
+    private static bool ParseReferenceBoolean(string raw, bool defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return defaultValue;
+        }
+
+        var normalized = NormalizeName(raw);
+        return normalized switch
+        {
+            "TRUE" or "1" or "SI" or "YES" => true,
+            "FALSE" or "0" or "NO" => false,
+            _ => defaultValue
+        };
+    }
+
+    private static void AddDuplicateSortOrderWarnings(
+        IEnumerable<FrequentProductImportItem> items,
+        ImportParseContext context)
+    {
+        foreach (var duplicateGroup in items
+            .Where(x => x.SortOrder is > 0)
+            .GroupBy(x => new { x.CustomerId, SortOrder = x.SortOrder!.Value })
+            .Where(x => x.Count() > 1))
+        {
+            foreach (var item in duplicateGroup.Skip(1))
+            {
+                context.Warnings.Add(new ImportIssueDto(
+                    item.RowNumber,
+                    "sortOrder",
+                    "DuplicateSortOrderForCustomer",
+                    "sortOrder duplicado para el mismo cliente; revisar orden de visualizacion.",
+                    item.SortOrder?.ToString(CultureInfo.InvariantCulture)));
+            }
+        }
+    }
+
+    private static void ValidateDeliveryWindow(
+        CsvImportRow row,
+        TimeOnly? preferredDeliveryWindowStart,
+        TimeOnly? preferredDeliveryWindowEnd,
+        ImportParseContext context)
+    {
+        if (preferredDeliveryWindowStart is null ||
+            preferredDeliveryWindowEnd is null ||
+            preferredDeliveryWindowStart <= preferredDeliveryWindowEnd)
+        {
+            return;
+        }
+
+        context.Errors.Add(new ImportIssueDto(
+            row.RowNumber,
+            "preferredDeliveryWindowStart",
+            "InvalidDeliveryWindow",
+            "La hora inicial de ventana no puede ser mayor que la hora final.",
+            row.Get("preferredDeliveryWindowStart")));
+    }
+
+    private static void WarnIfDeliveryTimeOutsideWindow(
+        CsvImportRow row,
+        TimeOnly? preferredDeliveryTime,
+        TimeOnly? preferredDeliveryWindowStart,
+        TimeOnly? preferredDeliveryWindowEnd,
+        ImportParseContext context)
+    {
+        if (preferredDeliveryTime is null ||
+            preferredDeliveryWindowStart is null ||
+            preferredDeliveryWindowEnd is null ||
+            preferredDeliveryWindowStart > preferredDeliveryWindowEnd ||
+            (preferredDeliveryTime >= preferredDeliveryWindowStart &&
+                preferredDeliveryTime <= preferredDeliveryWindowEnd))
+        {
+            return;
+        }
+
+        context.Warnings.Add(new ImportIssueDto(
+            row.RowNumber,
+            "preferredDeliveryTime",
+            "DeliveryTimeOutsideWindow",
+            "Hora deseada fuera de la ventana de entrega; se permite en Fase 1, pero debe revisarse.",
+            row.Get("preferredDeliveryTime")));
+    }
+
+    private static bool HasClearlyInvalidPhoneCharacters(string phoneNumber)
+    {
+        var hasDigit = false;
+        foreach (var character in phoneNumber)
+        {
+            if (char.IsDigit(character))
+            {
+                hasDigit = true;
+                continue;
+            }
+
+            if (char.IsWhiteSpace(character) ||
+                character is '+' or '-' or '(' or ')' or '.')
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return !hasDigit;
     }
 
     private static ImportPlan<T> CreatePlan<T>(
