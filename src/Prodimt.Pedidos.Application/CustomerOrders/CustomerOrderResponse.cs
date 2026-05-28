@@ -8,6 +8,7 @@ public sealed record CustomerOrderResponse(
     DateOnly OrderDate,
     OrderStatus Status,
     int SequenceNumber,
+    DateTimeOffset SubmittedAt,
     bool IsLate,
     bool RequiresAdminReview,
     AdminReviewReason? AdminReviewReason);

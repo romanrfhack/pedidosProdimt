@@ -15,6 +15,10 @@ public sealed class CustomerOrderDtoTests
             .GetProperties()
             .Select(x => x.Name)
             .ToArray();
+        var currentOrderSummaryPropertyNames = typeof(CustomerCurrentOrderSummaryResponse)
+            .GetProperties()
+            .Select(x => x.Name)
+            .ToArray();
         var productSuggestionPropertyNames = typeof(ProductSuggestionDto)
             .GetProperties()
             .Select(x => x.Name)
@@ -22,6 +26,7 @@ public sealed class CustomerOrderDtoTests
 
         Assert.DoesNotContain(customerDtoPropertyNames, ContainsMachineName);
         Assert.DoesNotContain(orderResponsePropertyNames, ContainsMachineName);
+        Assert.DoesNotContain(currentOrderSummaryPropertyNames, ContainsMachineName);
         Assert.DoesNotContain(productSuggestionPropertyNames, ContainsMachineName);
     }
 

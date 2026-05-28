@@ -31,6 +31,19 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
             cancellationToken);
     }
 
+    public async Task<Order?> GetLatestCustomerOrderAsync(Guid customerId, DateOnly orderDate, CancellationToken cancellationToken)
+    {
+        var customerOrders = await dbContext.Orders
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.OrderDate == orderDate)
+            .ToArrayAsync(cancellationToken);
+
+        return customerOrders
+            .OrderByDescending(x => x.SubmittedAt)
+            .ThenByDescending(x => x.SequenceNumber)
+            .FirstOrDefault();
+    }
+
     public async Task AddAsync(Order order, CancellationToken cancellationToken)
     {
         await dbContext.Orders.AddAsync(order, cancellationToken);
@@ -38,20 +51,26 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
 
     public async Task<IReadOnlyList<Order>> GetByDateAsync(DateOnly orderDate, CancellationToken cancellationToken)
     {
-        return await dbContext.Orders
+        var orders = await dbContext.Orders
             .AsNoTracking()
             .Where(x => x.OrderDate == orderDate)
-            .OrderBy(x => x.SubmittedAt)
             .ToArrayAsync(cancellationToken);
+
+        return orders
+            .OrderBy(x => x.SubmittedAt)
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<Order>> GetPendingReviewAsync(DateOnly orderDate, CancellationToken cancellationToken)
     {
-        return await dbContext.Orders
+        var orders = await dbContext.Orders
             .AsNoTracking()
             .Where(x => x.OrderDate == orderDate && x.RequiresAdminReview)
-            .OrderBy(x => x.SubmittedAt)
             .ToArrayAsync(cancellationToken);
+
+        return orders
+            .OrderBy(x => x.SubmittedAt)
+            .ToArray();
     }
 
     public Task<Order?> GetByIdAsync(Guid orderId, CancellationToken cancellationToken)

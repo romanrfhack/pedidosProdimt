@@ -100,6 +100,53 @@ nav a.active {
   gap: 10px;
 }
 
+.notice,
+.alert,
+.status-panel {
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.notice {
+  background: #eef4f5;
+  color: #2c474d;
+}
+
+.alert {
+  border: 1px solid transparent;
+  font-weight: 700;
+}
+
+.alert.error {
+  background: #fff1f1;
+  border-color: #f1b7b7;
+  color: #8a1f1f;
+}
+
+.alert.success {
+  background: #edf8f0;
+  border-color: #abd9b6;
+  color: #1d6b35;
+}
+
+.alert.warning {
+  background: #fff8df;
+  border-color: #ead47c;
+  color: #6b5100;
+}
+
+.status-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #c8d8dd;
+  background: #f6fafb;
+}
+
+.status-panel p {
+  margin: 0;
+  color: #45545c;
+}
+
 .product-row,
 .admin-row {
   display: grid;
@@ -157,6 +204,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 button.primary {
   background: #173b3f;
   color: #ffffff;
@@ -190,6 +242,11 @@ button.compact {
 .badge.danger {
   background: #ffe2e2;
   color: #8a1f1f;
+}
+
+.badge.neutral {
+  background: #e7edf0;
+  color: #43525a;
 }
 
 @media (min-width: 700px) {

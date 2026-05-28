@@ -16,6 +16,7 @@ public sealed class CustomerOrderService(
     {
         var customer = await GetRequiredCustomerAsync(customerId, cancellationToken);
         var frequentProducts = await customers.GetFrequentProductsAsync(customerId, cancellationToken);
+        var currentOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var productLookup = (await products.GetByIdsAsync(frequentProducts.Select(x => x.ProductId), cancellationToken))
             .ToDictionary(x => x.Id);
 
@@ -41,6 +42,7 @@ public sealed class CustomerOrderService(
             customer.PreferredDeliveryWindowStart,
             customer.PreferredDeliveryWindowEnd,
             customer.DeliveryNotes,
+            currentOrder is null ? null : MapCurrentOrder(currentOrder),
             suggestions);
     }
 
@@ -54,7 +56,7 @@ public sealed class CustomerOrderService(
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
-        var lines = request.Lines.Select(CreateLine).ToArray();
+        var lines = ValidateAndCreateLines(request);
 
         var order = Order.CreateSubmitted(
             customer.Id,
@@ -76,6 +78,18 @@ public sealed class CustomerOrderService(
     {
         var customer = await GetRequiredCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.Customer, cancellationToken);
+        var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
+
+        if (latestOrder?.Status is OrderStatus.NoOrder)
+        {
+            return MapCustomerResponse(latestOrder);
+        }
+
+        if (latestOrder is not null && IsActiveCustomerOrder(latestOrder.Status))
+        {
+            throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy.");
+        }
+
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
 
         var order = Order.CreateNoOrder(
@@ -104,13 +118,35 @@ public sealed class CustomerOrderService(
         return customer;
     }
 
-    private static OrderLine CreateLine(SubmitCustomerOrderLineRequest line)
+    private static OrderLine[] ValidateAndCreateLines(SubmitCustomerOrderRequest request)
     {
-        if (line.Quantity < 0)
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.Lines is null || request.Lines.Count == 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(line), "Quantity cannot be negative.");
+            throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.", nameof(request));
         }
 
+        if (request.Lines.Any(line => line.Quantity < 0))
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades no pueden ser negativas.");
+        }
+
+        var lines = request.Lines
+            .Where(line => line.Quantity > 0)
+            .Select(CreateLine)
+            .ToArray();
+
+        if (lines.Length == 0)
+        {
+            throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.", nameof(request));
+        }
+
+        return lines;
+    }
+
+    private static OrderLine CreateLine(SubmitCustomerOrderLineRequest line)
+    {
         return new OrderLine
         {
             Id = Guid.NewGuid(),
@@ -118,6 +154,23 @@ public sealed class CustomerOrderService(
             Quantity = line.Quantity,
             Notes = line.Notes
         };
+    }
+
+    private static bool IsActiveCustomerOrder(OrderStatus status)
+    {
+        return status is OrderStatus.Submitted or OrderStatus.PendingAdminReview or OrderStatus.Accepted;
+    }
+
+    private static CustomerCurrentOrderSummaryResponse MapCurrentOrder(Order order)
+    {
+        return new CustomerCurrentOrderSummaryResponse(
+            order.Id,
+            order.Status,
+            order.SequenceNumber,
+            order.SubmittedAt,
+            order.IsLate,
+            order.RequiresAdminReview,
+            order.AdminReviewReason);
     }
 
     private static CustomerOrderResponse MapCustomerResponse(Order order)
@@ -133,6 +186,7 @@ public sealed class CustomerOrderService(
             order.OrderDate,
             order.Status,
             order.SequenceNumber,
+            order.SubmittedAt,
             order.IsLate,
             order.RequiresAdminReview,
             order.AdminReviewReason);

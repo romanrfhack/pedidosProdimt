@@ -13,8 +13,14 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 - Ya existe estructura técnica inicial de backend, frontend y pruebas.
 - La API usa EF Core + SQL Server por defecto y conserva fallback en memoria configurable para desarrollo.
 - Existe migracion inicial EF Core y seed de desarrollo.
+- El primer flujo end-to-end funcional de Fase 1 ya esta integrado:
+  - Cliente ve productos frecuentes desde API.
+  - Cliente envia pedido real y marca "No pedir hoy" por API.
+  - Cliente ve estado actual del pedido del dia.
+  - Administracion ve pedidos del dia, pendientes de revision y puede aceptar o rechazar.
 - El estado de implementación inicial está documentado en `docs/13-estado-implementacion-inicial.md`.
 - La persistencia EF Core está documentada en `docs/14-persistencia-ef-core-sql-server.md`.
+- La integracion frontend/API de Fase 1 está documentada en `docs/15-integracion-frontend-api-fase-1.md`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -82,12 +88,12 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 
 ## Siguiente tarea sugerida para Codex
 
-Continuar con persistencia real y flujo vertical mínimo:
+Continuar con endurecimiento del flujo vertical:
 
 - Aplicar migracion inicial en SQL Server local/dev y validar endpoints contra base real.
-- Completar integracion Angular para enviar pedido y marcar "No pedir hoy".
 - Agregar autenticación piloto sin implementar roles completos todavía.
 - Agregar auditoría persistente mínima para pedido creado, no pedido y decisión administrativa.
+- Agregar detalle administrativo de lineas y ajuste real para `AcceptedWithChanges`.
 
 ## Criterio para futuras sesiones
 

@@ -68,6 +68,11 @@ Endpoints iniciales:
 
 - `GET http://127.0.0.1:5088/health`
 - `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today`
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/submit`
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order`
+- `GET http://127.0.0.1:5088/api/admin/orders/today`
+- `GET http://127.0.0.1:5088/api/admin/orders/pending-review`
+- `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review`
 
 Si no hay SQL Server local disponible y solo se quiere levantar la API demo sin persistencia real:
 
@@ -101,6 +106,18 @@ npm install
 npm run start -- --host 127.0.0.1 --port 4200
 ```
 
+El frontend lee la API desde `apps/prodimt-pedidos-web/src/environments/environment.ts`:
+
+```ts
+export const environment = {
+  apiBaseUrl: 'http://127.0.0.1:5088',
+  demoCustomerId: '11111111-1111-1111-1111-111111111111'
+};
+```
+
+Para desarrollo local normal, levantar primero la API en `http://127.0.0.1:5088` y despues Angular en `http://127.0.0.1:4200`.
+Los envios reales (`submit`, `no-order`, revision admin) no simulan exito si la API falla.
+
 ### Pruebas
 
 ```bash
@@ -112,10 +129,13 @@ npm install
 npm test
 ```
 
+Playwright usa un mock API local controlado en `http://127.0.0.1:5088` y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
+
 ## Estado de implementación
 
 Ver `docs/13-estado-implementacion-inicial.md`.
 Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
+Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

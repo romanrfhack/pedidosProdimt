@@ -14,6 +14,18 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
             .SingleOrDefaultAsync(x => x.Id == customerId, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Customer>> GetByIdsAsync(
+        IEnumerable<Guid> customerIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = customerIds.Distinct().ToArray();
+
+        return await dbContext.Customers
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<CustomerFrequentProduct>> GetFrequentProductsAsync(
         Guid customerId,
         CancellationToken cancellationToken)

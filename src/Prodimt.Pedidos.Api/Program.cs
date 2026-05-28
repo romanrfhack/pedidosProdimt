@@ -75,7 +75,7 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
     {
         return Results.Ok(await service.SubmitAsync(customerId, request, cancellationToken));
     }
-    catch (ArgumentOutOfRangeException ex)
+    catch (ArgumentException ex)
     {
         return Results.BadRequest(new { error = ex.Message });
     }
@@ -94,6 +94,10 @@ customerOrders.MapPost("/{customerId:guid}/no-order", async (
     try
     {
         return Results.Ok(await service.MarkNoOrderAsync(customerId, cancellationToken));
+    }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (InvalidOperationException ex)
     {
@@ -130,6 +134,10 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     try
     {
         return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
     }
     catch (InvalidOperationException ex)
     {

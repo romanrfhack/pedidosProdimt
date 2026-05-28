@@ -32,6 +32,20 @@ public sealed class InMemoryOrderRepository(InMemoryDataStore store) : IOrderRep
         }
     }
 
+    public Task<Order?> GetLatestCustomerOrderAsync(Guid customerId, DateOnly orderDate, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot)
+        {
+            var order = store.Orders
+                .Where(x => x.CustomerId == customerId && x.OrderDate == orderDate)
+                .OrderByDescending(x => x.SubmittedAt)
+                .ThenByDescending(x => x.SequenceNumber)
+                .FirstOrDefault();
+
+            return Task.FromResult(order);
+        }
+    }
+
     public Task AddAsync(Order order, CancellationToken cancellationToken)
     {
         lock (store.SyncRoot)

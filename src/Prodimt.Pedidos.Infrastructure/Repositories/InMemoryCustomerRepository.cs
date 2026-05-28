@@ -11,6 +11,18 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
         return Task.FromResult(customer);
     }
 
+    public Task<IReadOnlyList<Customer>> GetByIdsAsync(
+        IEnumerable<Guid> customerIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = customerIds.ToHashSet();
+        IReadOnlyList<Customer> customers = store.Customers
+            .Where(x => ids.Contains(x.Id))
+            .ToArray();
+
+        return Task.FromResult(customers);
+    }
+
     public Task<IReadOnlyList<CustomerFrequentProduct>> GetFrequentProductsAsync(
         Guid customerId,
         CancellationToken cancellationToken)

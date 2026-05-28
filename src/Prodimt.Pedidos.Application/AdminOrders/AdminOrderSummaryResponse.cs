@@ -5,6 +5,7 @@ namespace Prodimt.Pedidos.Application.AdminOrders;
 public sealed record AdminOrderSummaryResponse(
     Guid OrderId,
     Guid? CustomerId,
+    string CustomerName,
     DateOnly OrderDate,
     DateTimeOffset SubmittedAt,
     OrderStatus Status,
@@ -15,4 +16,5 @@ public sealed record AdminOrderSummaryResponse(
     TimeOnly? RequestedDeliveryTime,
     TimeOnly? RequestedDeliveryWindowStart,
     TimeOnly? RequestedDeliveryWindowEnd,
-    string? DeliveryNotes);
+    string? DeliveryNotes,
+    AdminDecision? AdminDecision);
