@@ -1,4 +1,5 @@
 const http = require('node:http');
+const { randomUUID } = require('node:crypto');
 
 const port = 5088;
 const demoCustomerToken = 'demo-customer-token';
@@ -104,26 +105,151 @@ const pendingCustomerBase = [
   }
 ];
 
+const catalogCustomersBase = [
+  {
+    id: customerTodayBase.customerId,
+    name: 'Gran Takito',
+    phoneNumber: '0000000001',
+    isActive: true,
+    preferredDeliveryTime: null,
+    preferredDeliveryWindowStart: '12:00:00',
+    preferredDeliveryWindowEnd: '14:00:00',
+    deliveryNotes: 'Cliente demo.',
+    createdAt: '2026-05-27T00:00:00Z',
+    updatedAt: '2026-05-27T00:00:00Z'
+  },
+  {
+    id: '11111111-1111-1111-1111-111111111112',
+    name: 'Cliente Demo 2',
+    phoneNumber: '0000000002',
+    isActive: true,
+    preferredDeliveryTime: '13:30:00',
+    preferredDeliveryWindowStart: null,
+    preferredDeliveryWindowEnd: null,
+    deliveryNotes: 'Llamar antes de enviar.',
+    createdAt: '2026-05-27T00:00:00Z',
+    updatedAt: '2026-05-27T00:00:00Z'
+  }
+];
+
+const catalogProductsBase = [
+  {
+    id: '22222222-2222-2222-2222-222222222201',
+    name: '#9 1/2',
+    description: 'Producto demo',
+    isActive: true
+  },
+  {
+    id: '22222222-2222-2222-2222-222222222202',
+    name: '#10 1/2',
+    description: 'Producto demo',
+    isActive: true
+  },
+  {
+    id: '22222222-2222-2222-2222-222222222203',
+    name: '#11',
+    description: 'Producto demo',
+    isActive: true
+  }
+];
+
+const catalogMachinesBase = [
+  {
+    id: '44444444-4444-4444-4444-444444444401',
+    number: 1,
+    name: 'Maquina 1',
+    isActive: true
+  },
+  {
+    id: '44444444-4444-4444-4444-444444444402',
+    number: 2,
+    name: 'Maquina 2',
+    isActive: true
+  }
+];
+
+const frequentProductsBase = {
+  [customerTodayBase.customerId]: [
+    {
+      productId: '22222222-2222-2222-2222-222222222201',
+      productName: '#9 1/2',
+      defaultQuantity: 20,
+      sortOrder: 1,
+      isActive: true
+    },
+    {
+      productId: '22222222-2222-2222-2222-222222222202',
+      productName: '#10 1/2',
+      defaultQuantity: 10,
+      sortOrder: 2,
+      isActive: true
+    }
+  ]
+};
+
+const machineAssignmentsBase = {
+  [customerTodayBase.customerId]: [
+    {
+      machineId: '44444444-4444-4444-4444-444444444401',
+      machineNumber: 1,
+      machineName: 'Maquina 1',
+      isDefault: true,
+      isActive: true,
+      notes: 'Asignacion demo'
+    }
+  ]
+};
+
+const accessTokensBase = {
+  [customerTodayBase.customerId]: [
+    {
+      tokenId: '55555555-5555-5555-5555-555555555501',
+      customerId: customerTodayBase.customerId,
+      description: 'Token demo Gran Takito',
+      expiresAt: null,
+      isActive: true,
+      createdAt: '2026-05-27T00:00:00Z',
+      lastUsedAt: null
+    }
+  ]
+};
+
 let currentOrder = null;
 let pendingOrders = [pendingOrderBase];
 let pendingCustomers = [...pendingCustomerBase];
+let catalogCustomers = [];
+let catalogProducts = [];
+let catalogMachines = [];
+let frequentProductsByCustomer = {};
+let machineAssignmentsByCustomer = {};
+let accessTokensByCustomer = {};
 let submitCalls = 0;
 let adminSubmitCalls = 0;
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 function resetState() {
   currentOrder = null;
   pendingOrders = [pendingOrderBase];
   pendingCustomers = [...pendingCustomerBase];
+  catalogCustomers = clone(catalogCustomersBase);
+  catalogProducts = clone(catalogProductsBase);
+  catalogMachines = clone(catalogMachinesBase);
+  frequentProductsByCustomer = clone(frequentProductsBase);
+  machineAssignmentsByCustomer = clone(machineAssignmentsBase);
+  accessTokensByCustomer = clone(accessTokensBase);
   submitCalls = 0;
   adminSubmitCalls = 0;
 }
 
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
-    'access-control-allow-origin': '*',
-    'access-control-allow-headers': 'authorization,content-type',
-    'access-control-allow-methods': 'GET,POST,OPTIONS',
-    'content-type': 'application/json'
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'authorization,content-type',
+      'access-control-allow-methods': 'GET,POST,PUT,PATCH,OPTIONS',
+      'content-type': 'application/json'
   });
   response.end(JSON.stringify(body));
 }
@@ -475,8 +601,315 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/customers') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, catalogCustomers);
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/customers') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const body = await readJson(request);
+    const customer = {
+      id: randomUUID(),
+      name: body.name,
+      phoneNumber: body.phoneNumber ?? '',
+      isActive: true,
+      preferredDeliveryTime: body.preferredDeliveryTime ?? null,
+      preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
+      preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
+      deliveryNotes: body.deliveryNotes ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    catalogCustomers.push(customer);
+    sendJson(response, 201, customer);
+    return;
+  }
+
+  const catalogCustomerMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)$/);
+  if (catalogCustomerMatch && (request.method === 'GET' || request.method === 'PUT')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const customer = catalogCustomers.find((item) => item.id === catalogCustomerMatch[1]);
+    if (!customer) {
+      sendJson(response, 404, { error: 'Customer was not found.' });
+      return;
+    }
+
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      Object.assign(customer, {
+        name: body.name,
+        phoneNumber: body.phoneNumber ?? '',
+        preferredDeliveryTime: body.preferredDeliveryTime ?? null,
+        preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
+        preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
+        deliveryNotes: body.deliveryNotes ?? null,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    sendJson(response, 200, customer);
+    return;
+  }
+
+  const customerActivationMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/(activate|deactivate)$/);
+  if (request.method === 'PATCH' && customerActivationMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const customer = catalogCustomers.find((item) => item.id === customerActivationMatch[1]);
+    if (!customer) {
+      sendJson(response, 404, { error: 'Customer was not found.' });
+      return;
+    }
+
+    customer.isActive = customerActivationMatch[2] === 'activate';
+    customer.updatedAt = new Date().toISOString();
+    sendJson(response, 200, customer);
+    return;
+  }
+
+  const frequentMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/frequent-products$/);
+  if (frequentMatch && (request.method === 'GET' || request.method === 'PUT')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      frequentProductsByCustomer[frequentMatch[1]] = (body.items ?? []).map((item) => {
+        const product = catalogProducts.find((candidate) => candidate.id === item.productId);
+        return {
+          productId: item.productId,
+          productName: product?.name ?? 'Producto',
+          defaultQuantity: item.defaultQuantity ?? null,
+          sortOrder: item.sortOrder,
+          isActive: item.isActive
+        };
+      });
+    }
+
+    sendJson(response, 200, frequentProductsByCustomer[frequentMatch[1]] ?? []);
+    return;
+  }
+
+  const assignmentMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/machine-assignments$/);
+  if (assignmentMatch && (request.method === 'GET' || request.method === 'PUT')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      machineAssignmentsByCustomer[assignmentMatch[1]] = (body.items ?? []).map((item) => {
+        const machine = catalogMachines.find((candidate) => candidate.id === item.machineId);
+        return {
+          machineId: item.machineId,
+          machineNumber: machine?.number ?? 0,
+          machineName: machine?.name ?? null,
+          isDefault: item.isDefault,
+          isActive: item.isActive,
+          notes: item.notes ?? null
+        };
+      });
+    }
+
+    sendJson(response, 200, machineAssignmentsByCustomer[assignmentMatch[1]] ?? []);
+    return;
+  }
+
+  const tokenMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/access-tokens$/);
+  if (tokenMatch && (request.method === 'GET' || request.method === 'POST')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    if (request.method === 'POST') {
+      const body = await readJson(request);
+      const token = {
+        tokenId: randomUUID(),
+        customerId: tokenMatch[1],
+        description: body.description ?? 'Token piloto',
+        expiresAt: body.expiresAt ?? null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        lastUsedAt: null
+      };
+      accessTokensByCustomer[tokenMatch[1]] = [...(accessTokensByCustomer[tokenMatch[1]] ?? []), token];
+      sendJson(response, 201, {
+        ...token,
+        plainToken: 'mock-generated-token'
+      });
+      return;
+    }
+
+    sendJson(response, 200, accessTokensByCustomer[tokenMatch[1]] ?? []);
+    return;
+  }
+
+  const tokenRevokeMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/access-tokens\/([^/]+)\/revoke$/);
+  if (request.method === 'PATCH' && tokenRevokeMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const tokens = accessTokensByCustomer[tokenRevokeMatch[1]] ?? [];
+    const token = tokens.find((item) => item.tokenId === tokenRevokeMatch[2]);
+    if (!token) {
+      sendJson(response, 404, { error: 'Token not found.' });
+      return;
+    }
+
+    token.isActive = false;
+    sendJson(response, 200, token);
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/products') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, catalogProducts);
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/products') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const body = await readJson(request);
+    const product = {
+      id: randomUUID(),
+      name: body.name,
+      description: body.description ?? null,
+      isActive: true
+    };
+    catalogProducts.push(product);
+    sendJson(response, 201, product);
+    return;
+  }
+
+  const catalogProductMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)$/);
+  if (catalogProductMatch && (request.method === 'GET' || request.method === 'PUT')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const product = catalogProducts.find((item) => item.id === catalogProductMatch[1]);
+    if (!product) {
+      sendJson(response, 404, { error: 'Product was not found.' });
+      return;
+    }
+
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      product.name = body.name;
+      product.description = body.description ?? null;
+    }
+
+    sendJson(response, 200, product);
+    return;
+  }
+
+  const productActivationMatch = url.pathname.match(/^\/api\/admin\/products\/([^/]+)\/(activate|deactivate)$/);
+  if (request.method === 'PATCH' && productActivationMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const product = catalogProducts.find((item) => item.id === productActivationMatch[1]);
+    if (!product) {
+      sendJson(response, 404, { error: 'Product was not found.' });
+      return;
+    }
+
+    product.isActive = productActivationMatch[2] === 'activate';
+    sendJson(response, 200, product);
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/machines') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, catalogMachines);
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/admin/machines') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const body = await readJson(request);
+    const machine = {
+      id: randomUUID(),
+      number: Number(body.number),
+      name: body.name ?? null,
+      isActive: true
+    };
+    catalogMachines.push(machine);
+    sendJson(response, 201, machine);
+    return;
+  }
+
+  const catalogMachineMatch = url.pathname.match(/^\/api\/admin\/machines\/([^/]+)$/);
+  if (catalogMachineMatch && (request.method === 'GET' || request.method === 'PUT')) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const machine = catalogMachines.find((item) => item.id === catalogMachineMatch[1]);
+    if (!machine) {
+      sendJson(response, 404, { error: 'Machine was not found.' });
+      return;
+    }
+
+    if (request.method === 'PUT') {
+      const body = await readJson(request);
+      machine.number = Number(body.number);
+      machine.name = body.name ?? null;
+    }
+
+    sendJson(response, 200, machine);
+    return;
+  }
+
+  const machineActivationMatch = url.pathname.match(/^\/api\/admin\/machines\/([^/]+)\/(activate|deactivate)$/);
+  if (request.method === 'PATCH' && machineActivationMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    const machine = catalogMachines.find((item) => item.id === machineActivationMatch[1]);
+    if (!machine) {
+      sendJson(response, 404, { error: 'Machine was not found.' });
+      return;
+    }
+
+    machine.isActive = machineActivationMatch[2] === 'activate';
+    sendJson(response, 200, machine);
+    return;
+  }
+
   sendJson(response, 404, { error: 'Not found' });
 });
+
+resetState();
 
 server.listen(port, '127.0.0.1', () => {
   console.log(`Mock API listening on http://127.0.0.1:${port}`);

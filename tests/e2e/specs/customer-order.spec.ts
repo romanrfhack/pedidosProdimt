@@ -136,6 +136,50 @@ test('admin puede abrir captura administrativa', async ({ page, request }) => {
   expect(state.adminSubmitCalls).toBe(1);
 });
 
+test('admin ve navegacion de catalogos y abre secciones', async ({ page }) => {
+  await loginAdmin(page);
+
+  await expect(page.getByRole('link', { name: 'Catalogos' })).toBeVisible();
+  await page.getByRole('link', { name: 'Catalogos' }).click();
+
+  await expect(page.getByTestId('admin-catalogs')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Catalogos' })).toBeVisible();
+  await expect(page.getByTestId('catalog-customers')).toBeVisible();
+  await expect(page.getByText('Gran Takito')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Productos' }).click();
+  await expect(page.getByTestId('catalog-products')).toBeVisible();
+  await expect(page.getByText('#9 1/2')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Maquinas' }).click();
+  await expect(page.getByTestId('catalog-machines')).toBeVisible();
+  await expect(page.getByText('#1')).toBeVisible();
+});
+
+test('admin abre configuracion de cliente y gestiona token', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/admin/catalogos');
+
+  await page.getByRole('button', { name: 'Configurar' }).first().click();
+  await expect(page.getByTestId('customer-config')).toBeVisible();
+  await expect(page.getByText('Productos frecuentes')).toBeVisible();
+  await expect(page.getByText('Maquinas asignadas')).toBeVisible();
+  await expect(page.getByText('Tokens de acceso')).toBeVisible();
+
+  await page.getByLabel('Descripcion').fill('Token e2e');
+  await page.getByRole('button', { name: 'Crear token' }).click();
+  await expect(page.getByText(/Token generado:/)).toBeVisible();
+  await expect(page.getByText('mock-generated-token')).toBeVisible();
+});
+
+test('cliente no ve navegacion ni pantallas de catalogos', async ({ page }) => {
+  await loginCustomer(page);
+
+  await expect(page.getByRole('link', { name: 'Catalogos' })).toHaveCount(0);
+  await page.goto('/admin/catalogos');
+  await expect(page.getByTestId('admin-login')).toBeVisible();
+});
+
 test('admin sin login ve pantalla de login', async ({ page }) => {
   await page.goto('/admin/pedidos');
 

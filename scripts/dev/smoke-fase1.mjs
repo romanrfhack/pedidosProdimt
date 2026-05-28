@@ -146,6 +146,149 @@ async function main() {
   assert(forbiddenOtherCustomer.status === 403, `Customer access to another customer returned ${forbiddenOtherCustomer.status}; expected 403.`);
   console.log('OK customer cannot operate another customerId');
 
+  const smokeSuffix = Date.now().toString(36);
+  const catalogCustomer = await requestJson('/api/admin/customers', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      name: `Smoke Cliente ${smokeSuffix}`,
+      phoneNumber: '0000009999',
+      preferredDeliveryTime: null,
+      preferredDeliveryWindowStart: '11:00',
+      preferredDeliveryWindowEnd: '12:00',
+      deliveryNotes: 'Cliente temporal smoke catalogos'
+    })
+  });
+  assert(catalogCustomer.id, 'Catalog customer create did not return id.');
+  console.log(`OK catalog customer created: ${catalogCustomer.id}`);
+
+  const updatedCatalogCustomer = await requestJson(`/api/admin/customers/${catalogCustomer.id}`, {
+    method: 'PUT',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      name: catalogCustomer.name,
+      phoneNumber: catalogCustomer.phoneNumber,
+      preferredDeliveryTime: '11:30',
+      preferredDeliveryWindowStart: null,
+      preferredDeliveryWindowEnd: null,
+      deliveryNotes: 'Horario actualizado por smoke catalogos'
+    })
+  });
+  assert(updatedCatalogCustomer.preferredDeliveryTime?.startsWith('11:30'), 'Catalog customer delivery time was not updated.');
+  console.log('OK catalog customer delivery updated');
+
+  const catalogProduct = await requestJson('/api/admin/products', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      name: `Smoke Molde ${smokeSuffix}`,
+      description: 'Producto temporal smoke catalogos'
+    })
+  });
+  assert(catalogProduct.id, 'Catalog product create did not return id.');
+  console.log(`OK catalog product created: ${catalogProduct.id}`);
+
+  const frequentConfig = await requestJson(`/api/admin/customers/${catalogCustomer.id}/frequent-products`, {
+    method: 'PUT',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      items: [
+        {
+          productId: catalogProduct.id,
+          defaultQuantity: 7,
+          sortOrder: 1,
+          isActive: true
+        }
+      ]
+    })
+  });
+  assert(frequentConfig.some((item) => item.productId === catalogProduct.id), 'Frequent product config did not include smoke product.');
+  console.log('OK catalog frequent product configured');
+
+  const createdCustomerToken = await requestJson(`/api/admin/customers/${catalogCustomer.id}/access-tokens`, {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      description: `Token smoke ${smokeSuffix}`,
+      expiresAt: null
+    })
+  });
+  assert(createdCustomerToken.plainToken, 'Created customer token did not return plainToken.');
+
+  const listedCustomerTokens = await requestJson(`/api/admin/customers/${catalogCustomer.id}/access-tokens`, {
+    headers: adminHeaders
+  });
+  assert(!JSON.stringify(listedCustomerTokens).includes(createdCustomerToken.plainToken), 'Token list exposed plain token.');
+  console.log('OK customer access token created and plain token is one-time only');
+
+  const smokeCustomerLogin = await requestJson('/api/auth/customer-token', {
+    method: 'POST',
+    body: JSON.stringify({
+      token: createdCustomerToken.plainToken
+    })
+  });
+  assert(smokeCustomerLogin.customerId === catalogCustomer.id, 'Generated token login returned unexpected customer id.');
+  const smokeCustomerHeaders = bearer(smokeCustomerLogin.accessToken);
+  console.log('OK generated customer token allows login');
+
+  const smokeCustomerToday = await requestJson(`/api/customer-orders/${catalogCustomer.id}/today`, {
+    headers: smokeCustomerHeaders
+  });
+  assert(smokeCustomerToday.products.some((item) => item.productId === catalogProduct.id), 'Customer today did not include configured frequent product.');
+  assertCustomerPayloadDoesNotExposeInternalData(smokeCustomerToday);
+  console.log('OK customer sees configured frequent product without machine data');
+
+  const catalogAttemptWithCustomerJwt = await fetchJson('/api/admin/customers', {
+    headers: smokeCustomerHeaders
+  });
+  assertUnauthorizedOrForbidden(catalogAttemptWithCustomerJwt, 'Customer catalog endpoint attempt');
+  console.log(`OK customer JWT cannot access catalog endpoints: ${catalogAttemptWithCustomerJwt.status}`);
+
+  const catalogMachine = await requestJson('/api/admin/machines', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      number: 900000 + Math.floor(Math.random() * 90000),
+      name: `Maquina smoke ${smokeSuffix}`
+    })
+  });
+  assert(catalogMachine.id, 'Catalog machine create did not return id.');
+
+  const machineAssignments = await requestJson(`/api/admin/customers/${catalogCustomer.id}/machine-assignments`, {
+    method: 'PUT',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      items: [
+        {
+          machineId: catalogMachine.id,
+          isDefault: true,
+          isActive: true,
+          notes: 'Asignacion smoke catalogos'
+        }
+      ]
+    })
+  });
+  assert(machineAssignments.some((item) => item.machineId === catalogMachine.id && item.isDefault), 'Machine assignment did not include default smoke machine.');
+
+  const smokeCustomerTodayAfterMachine = await requestJson(`/api/customer-orders/${catalogCustomer.id}/today`, {
+    headers: smokeCustomerHeaders
+  });
+  assertCustomerPayloadDoesNotExposeInternalData(smokeCustomerTodayAfterMachine);
+  console.log('OK machine assignment remains hidden from customer');
+
+  await requestJson(`/api/admin/customers/${catalogCustomer.id}/access-tokens/${createdCustomerToken.tokenId}/revoke`, {
+    method: 'PATCH',
+    headers: adminHeaders
+  });
+  const revokedTokenLogin = await fetchJson('/api/auth/customer-token', {
+    method: 'POST',
+    body: JSON.stringify({
+      token: createdCustomerToken.plainToken
+    })
+  });
+  assert(revokedTokenLogin.status === 401, `Revoked token login returned ${revokedTokenLogin.status}; expected 401.`);
+  console.log('OK revoked customer token cannot login');
+
   const today = await requestJson(`/api/customer-orders/${demoCustomerId}/today`, {
     headers: customerHeaders
   });

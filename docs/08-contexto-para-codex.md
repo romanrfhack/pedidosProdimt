@@ -27,6 +27,8 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 - Los endpoints de cliente requieren JWT de cliente y validan que el `customerId` de la ruta coincida con el claim.
 - Los endpoints administrativos requieren JWT admin, incluyendo auditoria, detalle de pedido, clientes pendientes, captura administrativa y `NoOrder` administrativo.
 - Administracion ya puede operar pedidos capturados sin Excel ni WhatsApp: ver lineas, ver pendientes de responder, capturar por llamada, registrar `NoOrder` y aceptar con cambios de entrega o cantidades existentes.
+- Administracion ya cuenta con CRUD interno minimo de clientes, productos/moldes, maquinas, productos frecuentes, asignaciones cliente-maquina, tokens de cliente y usuarios admin basicos.
+- Los cambios relevantes de catalogos se auditan en `AuditLogs`; la auditoria de pedidos existente se mantiene en `OrderAuditLogs`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -100,7 +102,7 @@ Continuar con endurecimiento del flujo vertical:
 - Mantener scripts de validacion SQL Server local actualizados cuando cambien endpoints o seed.
 - Mantener la auditoria persistente alineada con nuevas decisiones administrativas.
 - Endurecer autenticacion piloto antes de produccion sin implementar roles completos todavia.
-- Siguiente pendiente funcional sugerido: CRUD interno de catalogos y endurecimiento de autenticacion antes de produccion.
+- Siguiente pendiente funcional sugerido: endurecer autenticacion antes de produccion, definir importacion controlada desde Excel y completar cambios administrativos de maquina por pedido cuando entre en alcance.
 
 ## Criterio para futuras sesiones
 

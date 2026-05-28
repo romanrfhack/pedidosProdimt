@@ -125,6 +125,8 @@ public sealed class InMemoryDataStore
 
     public List<OrderAuditLog> OrderAuditLogs { get; } = [];
 
+    public List<AuditLog> AuditLogs { get; } = [];
+
     public List<AdminUser> AdminUsers { get; } = [];
 
     public List<CustomerAccessToken> CustomerAccessTokens { get; } = [];

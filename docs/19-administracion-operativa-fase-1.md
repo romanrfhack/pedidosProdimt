@@ -12,6 +12,7 @@ Administracion ya puede operar los pedidos capturados sin depender del Excel ni 
 - Marcar `NoOrder` en nombre de cliente.
 - Aceptar, rechazar o aceptar con cambios reales.
 - Consultar auditoria administrativa.
+- Mantener catalogos operativos basicos sin editar SQL directamente.
 
 ## Endpoints administrativos nuevos
 
@@ -22,6 +23,13 @@ Todos requieren JWT con `AdminAccess`.
 - `GET /api/admin/customers/{customerId}/order-template`
 - `POST /api/admin/customers/{customerId}/orders/submit`
 - `POST /api/admin/customers/{customerId}/orders/no-order`
+- `GET/POST/PUT/PATCH /api/admin/customers...`
+- `GET/PUT /api/admin/customers/{customerId}/frequent-products`
+- `GET/PUT /api/admin/customers/{customerId}/machine-assignments`
+- `GET/POST/PATCH /api/admin/customers/{customerId}/access-tokens...`
+- `GET/POST/PUT/PATCH /api/admin/products...`
+- `GET/POST/PUT/PATCH /api/admin/machines...`
+- `GET/POST/PATCH /api/admin/users...`
 
 Tambien se amplio:
 
@@ -151,6 +159,7 @@ Administracion tiene:
 - formulario simple de captura administrativa,
 - accion `No pedir hoy` administrativa,
 - auditoria minima por pedido.
+- catalogos internos en `/admin/catalogos` para clientes, productos, maquinas, productos frecuentes, asignacion interna de maquina y tokens.
 
 Playwright sigue usando mock API y no depende de SQL Server.
 
@@ -163,13 +172,12 @@ Playwright sigue usando mock API y no depende de SQL Server.
 - No hay pagos ni facturacion.
 - No se agregan productos nuevos durante revision.
 - No se cambia maquina desde UI.
-- No hay CRUD interno de catalogos.
 - La autenticacion sigue siendo piloto.
 
 ## Que queda pendiente
 
-- CRUD interno de clientes, productos, maquinas y canales.
 - Cambio administrativo de maquina con auditoria.
 - Agregar productos nuevos en ajustes administrativos.
 - Endurecer autenticacion antes de produccion.
 - Definir flujo operativo para fusionar pedidos adicionales.
+- CRUD de canales y carga masiva/importacion controlada desde Excel siguen pendientes.

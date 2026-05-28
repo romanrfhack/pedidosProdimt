@@ -23,6 +23,8 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<OrderAuditLog> OrderAuditLogs => Set<OrderAuditLog>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
 
     public DbSet<CustomerAccessToken> CustomerAccessTokens => Set<CustomerAccessToken>();

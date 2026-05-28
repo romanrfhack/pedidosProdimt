@@ -161,8 +161,7 @@ public sealed class CustomerOrderService(
         IReadOnlyList<CustomerMachineAssignment> machineAssignments)
     {
         var assignedMachineId = machineAssignments
-            .OrderByDescending(x => x.IsDefault)
-            .FirstOrDefault()
+            .FirstOrDefault(x => x.IsDefault)
             ?.MachineId;
 
         return new OrderLine

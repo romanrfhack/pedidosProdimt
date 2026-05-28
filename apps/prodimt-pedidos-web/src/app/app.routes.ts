@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AdminLoginComponent } from './admin-login.component';
+import { AdminCatalogsComponent } from './admin-catalogs.component';
 import { AdminPendingComponent } from './admin-pending.component';
 import { AdminPendingCustomersComponent } from './admin-pending-customers.component';
 import { AdminTodayComponent } from './admin-today.component';
@@ -12,5 +13,6 @@ export const routes: Routes = [
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'admin/pedidos', component: AdminTodayComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/pendientes', component: AdminPendingComponent, canActivate: [adminAuthGuard] },
-  { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [adminAuthGuard] }
+  { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [adminAuthGuard] },
+  { path: 'admin/catalogos', component: AdminCatalogsComponent, canActivate: [adminAuthGuard] }
 ];

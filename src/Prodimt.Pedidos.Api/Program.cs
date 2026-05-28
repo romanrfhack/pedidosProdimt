@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
@@ -19,6 +20,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<AdminCustomerCatalogService>();
+builder.Services.AddScoped<AdminProductCatalogService>();
+builder.Services.AddScoped<AdminMachineCatalogService>();
+builder.Services.AddScoped<AdminCustomerAccessTokenService>();
+builder.Services.AddScoped<AdminUserCatalogService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -320,6 +326,108 @@ var adminCustomers = app.MapGroup("/api/admin/customers")
     .WithTags("Admin customers")
     .RequireAuthorization("AdminAccess");
 
+adminCustomers.MapGet("", async (
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    return Results.Ok(await service.GetAllAsync(cancellationToken));
+})
+.WithName("GetAdminCustomers");
+
+adminCustomers.MapGet("/{customerId:guid}", async (
+    Guid customerId,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetByIdAsync(customerId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomer");
+
+adminCustomers.MapPost("", async (
+    UpsertAdminCustomerRequest request,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.CreateAsync(request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/customers/{response.Id}", response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateAdminCustomer");
+
+adminCustomers.MapPut("/{customerId:guid}", async (
+    Guid customerId,
+    UpsertAdminCustomerRequest request,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpdateAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("UpdateAdminCustomer");
+
+adminCustomers.MapPatch("/{customerId:guid}/activate", async (
+    Guid customerId,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ActivateAsync(customerId, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("ActivateAdminCustomer");
+
+adminCustomers.MapPatch("/{customerId:guid}/deactivate", async (
+    Guid customerId,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.DeactivateAsync(customerId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("DeactivateAdminCustomer");
+
 adminCustomers.MapGet("/pending-orders", async (
     DateOnly? date,
     AdminOrderService service,
@@ -344,6 +452,139 @@ adminCustomers.MapGet("/{customerId:guid}/order-template", async (
     }
 })
 .WithName("GetAdminCustomerOrderTemplate");
+
+adminCustomers.MapGet("/{customerId:guid}/frequent-products", async (
+    Guid customerId,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetFrequentProductsAsync(customerId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerFrequentProducts");
+
+adminCustomers.MapPut("/{customerId:guid}/frequent-products", async (
+    Guid customerId,
+    UpdateCustomerFrequentProductsRequest request,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ReplaceFrequentProductsAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("UpdateAdminCustomerFrequentProducts");
+
+adminCustomers.MapGet("/{customerId:guid}/machine-assignments", async (
+    Guid customerId,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetMachineAssignmentsAsync(customerId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerMachineAssignments");
+
+adminCustomers.MapPut("/{customerId:guid}/machine-assignments", async (
+    Guid customerId,
+    UpdateCustomerMachineAssignmentsRequest request,
+    ClaimsPrincipal user,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ReplaceMachineAssignmentsAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("UpdateAdminCustomerMachineAssignments");
+
+adminCustomers.MapGet("/{customerId:guid}/access-tokens", async (
+    Guid customerId,
+    AdminCustomerAccessTokenService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetByCustomerAsync(customerId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerAccessTokens");
+
+adminCustomers.MapPost("/{customerId:guid}/access-tokens", async (
+    Guid customerId,
+    CreateCustomerAccessTokenRequest request,
+    ClaimsPrincipal user,
+    AdminCustomerAccessTokenService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.CreateAsync(customerId, request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/customers/{customerId}/access-tokens/{response.TokenId}", response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("CreateAdminCustomerAccessToken");
+
+adminCustomers.MapPatch("/{customerId:guid}/access-tokens/{tokenId:guid}/revoke", async (
+    Guid customerId,
+    Guid tokenId,
+    ClaimsPrincipal user,
+    AdminCustomerAccessTokenService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.RevokeAsync(customerId, tokenId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("RevokeAdminCustomerAccessToken");
 
 adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
     Guid customerId,
@@ -388,6 +629,278 @@ adminCustomers.MapPost("/{customerId:guid}/orders/no-order", async (
     }
 })
 .WithName("MarkAdminCustomerNoOrder");
+
+var adminProducts = app.MapGroup("/api/admin/products")
+    .WithTags("Admin products")
+    .RequireAuthorization("AdminAccess");
+
+adminProducts.MapGet("", async (
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    return Results.Ok(await service.GetAllAsync(cancellationToken));
+})
+.WithName("GetAdminProducts");
+
+adminProducts.MapGet("/{productId:guid}", async (
+    Guid productId,
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetByIdAsync(productId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminProduct");
+
+adminProducts.MapPost("", async (
+    UpsertAdminProductRequest request,
+    ClaimsPrincipal user,
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.CreateAsync(request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/products/{response.Id}", response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateAdminProduct");
+
+adminProducts.MapPut("/{productId:guid}", async (
+    Guid productId,
+    UpsertAdminProductRequest request,
+    ClaimsPrincipal user,
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpdateAsync(productId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("UpdateAdminProduct");
+
+adminProducts.MapPatch("/{productId:guid}/activate", async (
+    Guid productId,
+    ClaimsPrincipal user,
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ActivateAsync(productId, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("ActivateAdminProduct");
+
+adminProducts.MapPatch("/{productId:guid}/deactivate", async (
+    Guid productId,
+    ClaimsPrincipal user,
+    AdminProductCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.DeactivateAsync(productId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("DeactivateAdminProduct");
+
+var adminMachines = app.MapGroup("/api/admin/machines")
+    .WithTags("Admin machines")
+    .RequireAuthorization("AdminAccess");
+
+adminMachines.MapGet("", async (
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    return Results.Ok(await service.GetAllAsync(cancellationToken));
+})
+.WithName("GetAdminMachines");
+
+adminMachines.MapGet("/{machineId:guid}", async (
+    Guid machineId,
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetByIdAsync(machineId, cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminMachine");
+
+adminMachines.MapPost("", async (
+    UpsertAdminMachineRequest request,
+    ClaimsPrincipal user,
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.CreateAsync(request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/machines/{response.Id}", response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateAdminMachine");
+
+adminMachines.MapPut("/{machineId:guid}", async (
+    Guid machineId,
+    UpsertAdminMachineRequest request,
+    ClaimsPrincipal user,
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.UpdateAsync(machineId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("UpdateAdminMachine");
+
+adminMachines.MapPatch("/{machineId:guid}/activate", async (
+    Guid machineId,
+    ClaimsPrincipal user,
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ActivateAsync(machineId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("ActivateAdminMachine");
+
+adminMachines.MapPatch("/{machineId:guid}/deactivate", async (
+    Guid machineId,
+    ClaimsPrincipal user,
+    AdminMachineCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.DeactivateAsync(machineId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("DeactivateAdminMachine");
+
+var adminUsers = app.MapGroup("/api/admin/users")
+    .WithTags("Admin users")
+    .RequireAuthorization("AdminAccess");
+
+adminUsers.MapGet("", async (
+    AdminUserCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    return Results.Ok(await service.GetAllAsync(cancellationToken));
+})
+.WithName("GetAdminUsers");
+
+adminUsers.MapPost("", async (
+    CreateAdminUserRequest request,
+    ClaimsPrincipal user,
+    AdminUserCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.CreateAsync(request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/users/{response.Id}", response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("CreateAdminUser");
+
+adminUsers.MapPatch("/{userId:guid}/activate", async (
+    Guid userId,
+    ClaimsPrincipal user,
+    AdminUserCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ActivateAsync(userId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("ActivateAdminUser");
+
+adminUsers.MapPatch("/{userId:guid}/deactivate", async (
+    Guid userId,
+    ClaimsPrincipal user,
+    AdminUserCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.DeactivateAsync(userId, GetAdminActor(user), cancellationToken));
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("DeactivateAdminUser");
 
 app.Run();
 

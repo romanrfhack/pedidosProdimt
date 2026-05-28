@@ -20,6 +20,7 @@ Incluye:
 - Autenticacion piloto con JWT Bearer para cliente por token y administracion basica.
 - Vista administrativa inicial de pedidos del dia y pendientes de revision.
 - Administracion operativa basica: detalle de lineas, clientes pendientes, captura en nombre de cliente, `NoOrder` administrativo y `AcceptedWithChanges` real.
+- CRUD interno minimo de catalogos: clientes, productos/moldes, productos frecuentes, maquinas, asignacion cliente-maquina, tokens de cliente y usuarios admin basicos.
 - Modelo inicial para maquina asignada como dato interno.
 
 No implementar todavia:
@@ -48,11 +49,13 @@ No implementar todavia:
 - Segundo pedido del mismo cliente en el mismo dia queda pendiente de revision administrativa.
 - Administracion puede aceptar, rechazar o aceptar con cambios un pedido pendiente.
 - Endpoints administrativos requieren `AdminAccess`.
+- Endpoints de catalogos internos requieren `AdminAccess`; un JWT de cliente no puede usarlos.
 - Endpoints de cliente requieren `CustomerAccess` y solo permiten operar el `CustomerId` del JWT.
 - Algunos clientes tienen hora o ventana deseada de entrega opcional.
 - `Mostrador` es canal interno, no cliente externo.
 - La maquina asignada es informacion interna.
 - El cliente nunca debe ver la maquina asignada.
+- Los tokens de cliente se guardan hasheados; el token plano solo se muestra al crearlo.
 
 ## Convenciones
 

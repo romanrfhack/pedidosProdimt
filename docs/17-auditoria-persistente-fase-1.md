@@ -27,6 +27,20 @@ Guardar una linea de tiempo minima y persistente de lo que paso con cada pedido 
 - Cambios de maquina.
 - Agregado de productos nuevos durante revision.
 
+## Auditoria de catalogos
+
+Los cambios de catalogos se guardan en la tabla generica `AuditLogs`, separada de `OrderAuditLogs` para no forzar eventos sin pedido a tener `OrderId`.
+
+Eventos cubiertos:
+
+- Creacion, actualizacion, activacion y desactivacion de clientes.
+- Creacion, actualizacion, activacion y desactivacion de productos.
+- Creacion, actualizacion, activacion y desactivacion de maquinas.
+- Cambios de productos frecuentes por cliente.
+- Cambios de asignacion cliente-maquina.
+- Creacion y revocacion de tokens de cliente.
+- Creacion, activacion y desactivacion de usuarios admin basicos.
+
 ## Modelo
 
 La tabla es `OrderAuditLogs`.

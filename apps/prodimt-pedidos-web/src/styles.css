@@ -104,9 +104,27 @@ nav button.nav-action {
 .admin-list,
 .line-list,
 .audit-list,
-.login-form {
+.login-form,
+.tab-bar,
+.catalog-grid {
   display: grid;
   gap: 10px;
+}
+
+.tab-bar {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tab-bar button {
+  background: #ffffff;
+  border-color: #b7c3c9;
+  color: #253139;
+}
+
+.tab-bar button.active {
+  background: #173b3f;
+  border-color: #173b3f;
+  color: #ffffff;
 }
 
 .notice,
@@ -224,6 +242,20 @@ input {
   text-align: center;
 }
 
+select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #b7c3c9;
+  border-radius: 6px;
+  padding: 8px;
+  background: #ffffff;
+  font: inherit;
+}
+
+code {
+  word-break: break-all;
+}
+
 .action-bar,
 .review-actions,
 .badges {
@@ -266,6 +298,23 @@ button.compact {
   min-height: 38px;
 }
 
+.inline-check {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.inline-check input {
+  width: 20px;
+  min-height: 20px;
+}
+
+.catalog-line {
+  grid-template-columns: 1fr;
+}
+
 .badge {
   display: inline-flex;
   min-height: 28px;
@@ -293,7 +342,7 @@ button.compact {
 
 @media (min-width: 700px) {
   .app-shell__header {
-    grid-template-columns: minmax(0, 1fr) 420px;
+    grid-template-columns: minmax(0, 1fr) minmax(420px, 560px);
     align-items: center;
     padding: 20px 24px;
   }
@@ -313,5 +362,13 @@ button.compact {
   .admin-row {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .catalog-line {
+    grid-template-columns: minmax(140px, 1fr) 90px 80px auto auto;
   }
 }

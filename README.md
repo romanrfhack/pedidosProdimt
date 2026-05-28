@@ -90,6 +90,10 @@ Endpoints iniciales:
 - `GET http://127.0.0.1:5088/api/admin/customers/{customerId}/order-template` requiere JWT admin.
 - `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/submit` requiere JWT admin.
 - `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/no-order` requiere JWT admin.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/customers...` requiere JWT admin y administra clientes, frecuentes, maquinas asignadas y tokens.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/products...` requiere JWT admin y administra productos/moldes.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/machines...` requiere JWT admin y administra maquinas.
+- `GET/POST/PATCH http://127.0.0.1:5088/api/admin/users...` requiere JWT admin y administra usuarios admin basicos.
 
 `/health` y `/health/db` quedan publicos en Fase 1. `/health/db` solo informa disponibilidad de base y no expone datos sensibles.
 
@@ -185,10 +189,13 @@ dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt
 ```
 
 La migracion de autenticacion piloto se creo como `AddPilotAuthentication`.
+La migracion de catalogos internos se creo como `AddCatalogManagementSupport`.
 
 Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes, asignaciones internas de maquina, admin demo y token demo de cliente.
 La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo protegido `GET /api/admin/orders/{orderId}/audit`.
+La auditoria de catalogos se guarda en `AuditLogs` para cambios relevantes de clientes, productos, maquinas, productos frecuentes, asignaciones, tokens y usuarios admin.
 La operacion administrativa basica permite ver detalle con lineas, consultar clientes pendientes, capturar pedidos por llamada, registrar `NoOrder` administrativo y aceptar con cambios de entrega o cantidades existentes.
+El CRUD interno de catalogos esta documentado en `docs/20-catalogos-internos-fase-1.md`.
 
 ### Frontend
 
@@ -227,6 +234,7 @@ npm test
 
 Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth mockeada, y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
 El smoke real autenticado valida detalle administrativo, clientes pendientes, `NoOrder` administrativo, captura administrativa, segundo pedido pendiente, `AcceptedWithChanges` con cambios persistidos y auditoria de cambios.
+Tambien valida alta de cliente/producto/maquina, configuracion de producto frecuente, creacion/revocacion de token, login con token creado, bloqueo de token revocado y rechazo de catalogos con JWT de cliente.
 
 ## Estado de implementación
 
@@ -237,6 +245,7 @@ Ver tambien `docs/16-validacion-sql-server-local.md`.
 Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
 Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
 Ver tambien `docs/19-administracion-operativa-fase-1.md`.
+Ver tambien `docs/20-catalogos-internos-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

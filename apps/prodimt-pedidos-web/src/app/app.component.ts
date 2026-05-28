@@ -13,9 +13,12 @@ import { AuthService } from './auth.service';
       </div>
       <nav aria-label="Navegacion principal">
         <a routerLink="/cliente" routerLinkActive="active">Cliente</a>
-        <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a>
-        <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
-        <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Clientes</a>
+        @if (auth.isAdminSession()) {
+          <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a>
+          <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
+          <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a>
+          <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a>
+        }
         @if (auth.session()) {
           <button type="button" class="nav-action" (click)="logout()">Salir</button>
         } @else {

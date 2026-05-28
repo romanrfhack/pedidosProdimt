@@ -32,6 +32,9 @@ Administracion:
 - Despues de una decision administrativa, la UI refresca los pendientes.
 - Despues de captura administrativa o `NoOrder`, la UI refresca clientes pendientes.
 - Rutas administrativas usan guard local y requieren sesion admin.
+- `/admin/catalogos` permite mantener clientes, productos, maquinas y configuracion de cliente.
+- La configuracion de cliente administra productos frecuentes, asignacion interna de maquina y tokens de acceso.
+- La pantalla cliente no muestra navegacion de catalogos ni maquina asignada.
 
 ## Contratos relevantes
 
@@ -127,6 +130,7 @@ Motivo:
 - Validar el comportamiento de la UI sin depender de SQL Server local.
 - Mantener pruebas rapidas y deterministas para el flujo de Fase 1.
 - Validar autenticacion cliente/admin sin depender de JWT reales.
+- Validar navegacion de catalogos con mock API sin depender de SQL Server.
 
 Comando:
 
@@ -157,4 +161,4 @@ No se implemento:
 ## Pendiente recomendado
 
 - Repetir la validacion SQL Server local cuando cambien migraciones, seed o endpoints. Ver `docs/16-validacion-sql-server-local.md`.
-- Ampliar la edicion administrativa para agregar productos nuevos o cambiar maquina cuando se apruebe el alcance.
+- Ampliar la edicion administrativa para agregar productos nuevos o cambiar maquina de una linea cuando se apruebe el alcance.

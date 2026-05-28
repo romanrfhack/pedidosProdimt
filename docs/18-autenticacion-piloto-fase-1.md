@@ -62,6 +62,8 @@ Endpoints protegidos con `AdminAccess`:
 - `GET /api/admin/customers/{customerId}/order-template`
 - `POST /api/admin/customers/{customerId}/orders/submit`
 - `POST /api/admin/customers/{customerId}/orders/no-order`
+- `GET/POST/PATCH /api/admin/customers/{customerId}/access-tokens...`
+- `GET/POST/PATCH /api/admin/users...`
 
 ## Endpoints de auth
 
@@ -162,6 +164,8 @@ Solo en `Development`, cuando `DevelopmentSeed:Enabled=true`:
   - token: `demo-customer-token`
 
 El token de cliente se guarda como hash SHA-256 Base64 en `CustomerAccessTokens`, no como texto plano.
+Administracion puede crear y revocar tokens desde endpoints protegidos. El token plano solo se devuelve al crearlo; listados posteriores muestran metadatos sin el valor ni el hash.
+Un cliente inactivo no puede autenticarse aunque tenga token activo.
 
 Valores configurables:
 
@@ -225,12 +229,13 @@ npm test
 
 ## Limitaciones
 
-- No hay alta, baja ni edicion de usuarios desde UI.
+- Hay alta y activacion/desactivacion basica de usuarios admin por API protegida; no hay pantalla dedicada ni modulo completo.
 - No hay recuperacion de contrasena.
 - No hay 2FA.
 - No hay roles finos.
 - No hay refresh tokens.
 - No hay rotacion automatica de tokens cliente.
+- No hay endpoint de rotacion de token; se crea uno nuevo y se revoca el anterior.
 - No hay envio real de enlaces por WhatsApp.
 - La captura administrativa en nombre de cliente ya existe como flujo piloto protegido por `AdminAccess`.
 - La identidad admin se copia a auditoria en los flujos administrativos nuevos.
@@ -243,5 +248,5 @@ npm test
 - Revisar almacenamiento frontend del token.
 - Agregar roles/permisos finos para administracion.
 - Propagar identidad autenticada a auditoria.
-- Agregar administracion interna de usuarios y tokens.
+- Completar administracion interna de usuarios con cambio de contrasena controlado, roles finos y auditoria visible.
 - Agregar pruebas de expiracion, inactividad y revocacion.

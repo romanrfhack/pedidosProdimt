@@ -159,6 +159,28 @@ public sealed class AuthApiAuthorizationTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/api/admin/customers")]
+    [InlineData("/api/admin/products")]
+    [InlineData("/api/admin/machines")]
+    [InlineData("/api/admin/users")]
+    public async Task AdminCatalogEndpoints_RequireAdminAccess(string path)
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+
+        var anonymousResponse = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousResponse.StatusCode);
+
+        await SetCustomerBearerAsync(client);
+        var customerResponse = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.Forbidden, customerResponse.StatusCode);
+
+        await SetAdminBearerAsync(client);
+        var adminResponse = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+    }
+
     private static async Task SetCustomerBearerAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(

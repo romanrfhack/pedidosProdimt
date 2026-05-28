@@ -47,6 +47,7 @@ Entidades configuradas con Fluent API:
 - `Order`
 - `OrderLine`
 - `OrderAuditLog`
+- `AuditLog`
 - `AdminUser`
 - `CustomerAccessToken`
 
@@ -97,6 +98,12 @@ La migracion de autenticacion piloto fue creada con:
 dotnet tool run dotnet-ef migrations add AddPilotAuthentication --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
 ```
 
+La migracion de catalogos internos y auditoria generica fue creada con:
+
+```bash
+dotnet tool run dotnet-ef migrations add AddCatalogManagementSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build
+```
+
 Aplicar a SQL Server local:
 
 ```bash
@@ -116,10 +123,10 @@ Ver `docs/16-validacion-sql-server-local.md` para levantar SQL Server con Docker
 Resultado de validacion local 2026-05-28:
 
 - SQL Server 2022 local en Docker: levantado.
-- Migraciones `InitialCreate` y `AddOrderAuditLogs`: aplicadas.
+- Migraciones `InitialCreate`, `AddOrderAuditLogs`, `AddPilotAuthentication` y `AddCatalogManagementSupport`: aplicadas.
 - Seed de desarrollo: aplicado.
 - `/health/db`: `{"status":"ok","database":"reachable"}`.
-- Smoke Fase 1 contra API real + SQL Server: exitoso, incluyendo consulta administrativa de auditoria.
+- Smoke Fase 1 contra API real + SQL Server: exitoso, incluyendo consulta administrativa de auditoria, catalogos internos y revocacion de token.
 
 `dotnet-ef` quedo alineado localmente con EF runtime `10.0.8` mediante tool manifest del repositorio.
 

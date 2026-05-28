@@ -144,6 +144,19 @@ El smoke valida:
 - Segundo pedido por captura administrativa queda pendiente de revision.
 - `POST /api/admin/orders/{orderId}/review` con `AcceptedWithChanges`.
 - `GET /api/admin/orders/{orderId}/audit` con JWT admin para validar `OrderSubmitted`, `AdditionalOrderDetected`, `AdminDecisionRecorded`, `AdminManualOrderCaptured`, `AdminNoOrderMarked` y `AdminOrderChanged`.
+- CRUD interno de catalogos:
+  - crear cliente temporal,
+  - actualizar horario de entrega,
+  - crear producto temporal,
+  - configurar producto frecuente,
+  - crear token de cliente,
+  - login cliente con token creado,
+  - confirmar que cliente ve producto frecuente y no ve maquina,
+  - crear/asignar maquina,
+  - confirmar que la maquina sigue oculta para cliente,
+  - revocar token,
+  - confirmar que token revocado no permite login,
+  - confirmar que JWT de cliente no accede a catalogos.
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
 
@@ -202,6 +215,8 @@ Customers=3, Products=4, Machines=3, SalesChannels=3, FrequentProducts=4, Machin
 - En la validacion de autenticacion piloto, `AddPilotAuthentication` se aplico correctamente.
 - `reset-database.sh --confirm` reaplico migraciones y seed Development, incluyendo admin demo y token demo.
 - `scripts/dev/smoke-fase1.sh` paso completo con JWT cliente/admin, rechazo anonimo, bloqueo de otro `customerId` y auditoria protegida.
+- En la validacion de catalogos internos, `AddCatalogManagementSupport` se aplico correctamente.
+- `scripts/dev/smoke-fase1.sh` paso completo con alta de cliente/producto/maquina, productos frecuentes, token creado, token revocado y rechazo de catalogos con JWT de cliente.
 
 ## Si SQL Server no esta disponible
 

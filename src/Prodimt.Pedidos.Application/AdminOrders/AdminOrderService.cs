@@ -310,8 +310,7 @@ public sealed class AdminOrderService(
         }
 
         var assignedMachineId = machineAssignments
-            .OrderByDescending(x => x.IsDefault)
-            .FirstOrDefault()
+            .FirstOrDefault(x => x.IsDefault)
             ?.MachineId;
 
         var lines = requestLines

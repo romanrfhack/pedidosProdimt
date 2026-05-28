@@ -72,6 +72,18 @@ Fecha: 2026-05-28
 - Se agregaron eventos de auditoria `AdminManualOrderCaptured`, `AdminNoOrderMarked` y `AdminOrderChanged`.
 - Se propaga identidad admin del JWT a auditoria en flujos administrativos nuevos.
 - Se actualizo Angular con detalle de pedido, clientes pendientes, captura administrativa y aceptacion con cambios.
+- Se agrego CRUD interno minimo de catalogos administrativos:
+  - clientes con horario/ventana/notas de entrega,
+  - productos/moldes,
+  - productos frecuentes por cliente,
+  - maquinas,
+  - asignacion cliente-maquina,
+  - tokens de acceso de cliente,
+  - usuarios administrativos basicos.
+- Se agrego auditoria generica `AuditLogs` para cambios relevantes de catalogo sin mezclarla con `OrderAuditLogs`.
+- Se agrego migracion `AddCatalogManagementSupport`.
+- Se agrego UI Angular administrativa en `/admin/catalogos`.
+- Se amplio Playwright para navegar catalogos, abrir configuracion de cliente y validar que cliente no vea catalogos.
 
 ## Decisiones tomadas
 
@@ -92,6 +104,8 @@ Fecha: 2026-05-28
 - Angular guarda el JWT en `localStorage` solo para desarrollo piloto; debe revisarse antes de produccion.
 - La maquina asignada se consulta en detalle administrativo, pero sigue excluida de DTOs y pantallas de cliente.
 - En `AcceptedWithChanges` se ajustan lineas existentes; agregar productos nuevos y cambiar maquina quedan fuera de esta sesion.
+- La gestion de tokens de cliente muestra el token plano solo en la respuesta de creacion; despues solo se listan metadatos.
+- La UI de catalogos cubre operacion basica; usuarios admin basicos quedaron como API protegida, sin pantalla dedicada.
 
 ## Validacion ejecutada
 
@@ -130,28 +144,31 @@ Fecha: 2026-05-28
 - `npm run build` en `apps/prodimt-pedidos-web`
 - `npm test` en `tests/e2e`
 - `node --check tests/e2e/mock-api.js`
+- `dotnet tool run dotnet-ef migrations add AddCatalogManagementSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
 
 ## Resultado
 
 - Backend build: exitoso.
-- Pruebas unitarias/integracion backend: 30 pruebas exitosas.
+- Pruebas unitarias/integracion backend: 50 pruebas exitosas.
 - Angular build: exitoso.
 - Playwright E2E: 7 pruebas exitosas.
+- Playwright E2E con catalogos: 14 pruebas exitosas.
 - API `/health`: responde `{"status":"ok"}`.
 - API de cliente de ejemplo no expone maquina.
 - Migracion inicial EF Core: creada.
 - Flujo cliente/admin Fase 1 integrado desde Angular con API real para ejecucion normal.
 - SQL Server real local: contenedor `prodimt-pedidos-sqlserver` levantado correctamente.
-- Migraciones `InitialCreate`, `AddOrderAuditLogs` y `AddPilotAuthentication` aplicadas correctamente en SQL Server.
+- Migraciones `InitialCreate`, `AddOrderAuditLogs`, `AddPilotAuthentication` y `AddCatalogManagementSupport` aplicadas correctamente en SQL Server.
 - Seed de desarrollo validado: clientes, productos, maquinas, canales, productos frecuentes, asignaciones internas, admin demo y token demo de cliente.
-- Smoke Fase 1 autenticado contra API real + SQL Server: exitoso.
+- Smoke Fase 1 autenticado contra API real + SQL Server: exitoso, incluyendo catalogos internos y revocacion de token.
 - Auditoria persistente: implementada para pedido enviado, `NoOrder`, pedido tardio, segundo pedido del dia y decision administrativa.
 - Autenticacion piloto: implementada para cliente por token y admin por login demo en Development.
 - Administracion operativa Fase 1: implementada para detalle con lineas, clientes pendientes, captura administrativa, `NoOrder` administrativo y `AcceptedWithChanges`.
+- Catalogos internos Fase 1: implementados para preparar piloto con datos reales sin editar SQL directamente.
 
 ## Pendiente
 
-- Implementar CRUD interno de catalogos.
 - Endurecer autenticacion antes de produccion: secrets reales por entorno, expiracion/rotacion de tokens cliente, estrategia de almacenamiento frontend y roles finos.
 - Agregar productos nuevos durante `AcceptedWithChanges`.
 - Cambiar maquina desde administracion y auditarlo cuando entre en alcance.
+- Definir importacion controlada desde Excel o carga masiva asistida para clientes reales.
