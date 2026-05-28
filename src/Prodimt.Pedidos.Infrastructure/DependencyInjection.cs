@@ -27,6 +27,7 @@ public static class DependencyInjection
         }
 
         var connectionString = configuration.GetConnectionString("Pedidos")
+            ?? configuration["PRODIMT_PEDIDOS_CONNECTION_STRING"]
             ?? "Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCAL_ONLY;TrustServerCertificate=True";
 
         services.AddDbContext<PedidosDbContext>(options => options.UseSqlServer(connectionString));

@@ -21,6 +21,7 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 - El estado de implementación inicial está documentado en `docs/13-estado-implementacion-inicial.md`.
 - La persistencia EF Core está documentada en `docs/14-persistencia-ef-core-sql-server.md`.
 - La integracion frontend/API de Fase 1 está documentada en `docs/15-integracion-frontend-api-fase-1.md`.
+- La validacion local con SQL Server real está documentada en `docs/16-validacion-sql-server-local.md`.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -91,6 +92,7 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 Continuar con endurecimiento del flujo vertical:
 
 - Aplicar migracion inicial en SQL Server local/dev y validar endpoints contra base real.
+- Mantener scripts de validacion SQL Server local actualizados cuando cambien endpoints o seed.
 - Agregar autenticación piloto sin implementar roles completos todavía.
 - Agregar auditoría persistente mínima para pedido creado, no pedido y decisión administrativa.
 - Agregar detalle administrativo de lineas y ajuste real para `AcceptedWithChanges`.

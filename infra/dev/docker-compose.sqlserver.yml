@@ -1,0 +1,17 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: prodimt-pedidos-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${PRODIMT_SQL_SA_PASSWORD:?Set PRODIMT_SQL_SA_PASSWORD in infra/dev/.env}
+    ports:
+      - "${PRODIMT_SQL_PORT:-1433}:1433"
+    volumes:
+      - prodimt-pedidos-sqlserver-data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  prodimt-pedidos-sqlserver-data:
+    name: prodimt-pedidos-sqlserver-data

@@ -127,7 +127,7 @@ No se implemento:
 
 ## Pendiente recomendado
 
-- Validar el flujo contra SQL Server local con migracion aplicada.
+- Repetir la validacion SQL Server local cuando cambien migraciones, seed o endpoints. Ver `docs/16-validacion-sql-server-local.md`.
 - Agregar detalle de lineas en administracion.
 - Implementar ajuste real de cantidades/horario para `AcceptedWithChanges`.
 - Agregar auditoria persistente para pedido creado, no pedido y decision administrativa.

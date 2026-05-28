@@ -75,6 +75,16 @@ Aplicar migraciones EF Core:
 dotnet ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
 ```
 
+SQL Server local con Docker:
+
+```bash
+cp infra/dev/.env.example infra/dev/.env
+bash scripts/dev/start-sqlserver.sh
+bash scripts/dev/update-database.sh
+bash scripts/dev/run-api-sqlserver.sh
+bash scripts/dev/smoke-fase1.sh
+```
+
 Fallback temporal sin SQL Server:
 
 ```bash

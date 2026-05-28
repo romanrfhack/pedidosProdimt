@@ -1,7 +1,9 @@
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
+using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +47,42 @@ app.UseCors("ProdimtWeb");
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
+
+app.MapGet("/health/db", async (
+    IServiceProvider serviceProvider,
+    CancellationToken cancellationToken) =>
+{
+    using var scope = serviceProvider.CreateScope();
+    var dbContext = scope.ServiceProvider.GetService<PedidosDbContext>();
+
+    if (dbContext is null)
+    {
+        return Results.Problem(
+            title: "Database persistence is not registered.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    try
+    {
+        var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken);
+
+        if (canConnect)
+        {
+            return Results.Ok(new { status = "ok", database = "reachable" });
+        }
+
+        return Results.Problem(
+            title: "Database is not reachable.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception)
+    {
+        return Results.Problem(
+            title: "Database is not reachable.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+})
+.WithName("DatabaseHealth");
 
 var customerOrders = app.MapGroup("/api/customer-orders")
     .WithTags("Customer orders");

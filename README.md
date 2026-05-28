@@ -84,6 +84,32 @@ Persistence__Provider=InMemory dotnet run --project src/Prodimt.Pedidos.Api/Prod
 
 La migracion inicial ya existe en `src/Prodimt.Pedidos.Infrastructure/Persistence/Migrations`.
 
+### SQL Server local con Docker
+
+Se agrego una configuracion Docker Compose para desarrollo local:
+
+```bash
+cp infra/dev/.env.example infra/dev/.env
+# Editar infra/dev/.env y reemplazar PRODIMT_SQL_SA_PASSWORD por una contrasena local fuerte.
+bash scripts/dev/start-sqlserver.sh
+bash scripts/dev/update-database.sh
+bash scripts/dev/run-api-sqlserver.sh
+```
+
+La API expone un health check de base:
+
+```bash
+curl http://127.0.0.1:5088/health/db
+```
+
+El smoke test real de Fase 1 se ejecuta contra la API real ya levantada:
+
+```bash
+bash scripts/dev/smoke-fase1.sh
+```
+
+Este smoke usa datos demo y crea pedidos locales. Si se requiere una corrida limpia, reiniciar la base local de desarrollo.
+
 Aplicar migraciones a SQL Server local:
 
 ```bash
@@ -136,6 +162,7 @@ Playwright usa un mock API local controlado en `http://127.0.0.1:5088` y levanta
 Ver `docs/13-estado-implementacion-inicial.md`.
 Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
 Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
+Ver tambien `docs/16-validacion-sql-server-local.md`.
 
 ## Regla de continuidad para Codex
 

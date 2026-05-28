@@ -1,6 +1,6 @@
 # 13 — Estado de implementacion inicial
 
-Fecha: 2026-05-27
+Fecha: 2026-05-28
 
 ## Hecho
 
@@ -44,6 +44,10 @@ Fecha: 2026-05-27
 - Se evita duplicar `NoOrder` cuando ya existe un registro `NoOrder` del cliente para el dia.
 - Se amplio el resumen administrativo con `customerName` y `adminDecision`.
 - Se agrego mock API local para Playwright en `tests/e2e/mock-api.js`.
+- Se agrego Docker Compose para SQL Server local/dev en `infra/dev`.
+- Se agregaron scripts de desarrollo para levantar SQL Server, aplicar migraciones, correr API contra SQL Server y ejecutar smoke test de Fase 1.
+- Se agrego `/health/db` para verificar conectividad real de base.
+- Se valido la migracion inicial y el seed contra SQL Server 2022 local en Docker.
 
 ## Decisiones tomadas
 
@@ -56,6 +60,7 @@ Fecha: 2026-05-27
 - Las pruebas de persistencia usan SQLite in-memory para no depender de SQL Server local.
 - El frontend no simula exito en POST; muestra error si la API no responde o devuelve error.
 - Playwright usa mock API local controlado para E2E basico y documenta esa decision.
+- SQL Server local/dev puede ejecutarse con Docker Compose, pero la configuracion sigue permitiendo usar una instancia SQL Server instalada localmente mediante `ConnectionStrings__Pedidos`.
 
 ## Validacion ejecutada
 
@@ -66,6 +71,10 @@ Fecha: 2026-05-27
 - `npm run build` en `apps/prodimt-pedidos-web`
 - `npm install --save-dev @playwright/test` en `tests/e2e`
 - `npm test` en `tests/e2e`
+- `bash scripts/dev/start-sqlserver.sh`
+- `bash scripts/dev/update-database.sh`
+- `bash scripts/dev/run-api-sqlserver.sh`
+- `bash scripts/dev/smoke-fase1.sh`
 - Verificacion local de API con fallback `InMemory` para `/health` y `/api/customer-orders/{customerId}/today`
 - `dotnet ef migrations add InitialCreate --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations`
 - `dotnet build src/Prodimt.Pedidos.sln --no-restore`
@@ -83,10 +92,13 @@ Fecha: 2026-05-27
 - API de cliente de ejemplo no expone maquina.
 - Migracion inicial EF Core: creada.
 - Flujo cliente/admin Fase 1 integrado desde Angular con API real para ejecucion normal.
+- SQL Server real local: contenedor `prodimt-pedidos-sqlserver` levantado correctamente.
+- Migracion inicial aplicada correctamente en SQL Server.
+- Seed de desarrollo validado: 3 clientes, 4 productos, 3 maquinas, 3 canales, 4 productos frecuentes y 3 asignaciones internas.
+- Smoke Fase 1 contra API real + SQL Server: exitoso.
 
 ## Pendiente
 
-- Aplicar migracion a SQL Server local/dev y validar endpoint completo contra SQL Server.
 - Agregar autenticacion piloto.
 - Agregar auditoria persistente.
 - Implementar CRUD interno de catalogos.
