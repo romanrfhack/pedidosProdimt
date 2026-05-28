@@ -21,6 +21,7 @@ Incluye:
 - Vista administrativa inicial de pedidos del dia y pendientes de revision.
 - Administracion operativa basica: detalle de lineas, clientes pendientes, captura en nombre de cliente, `NoOrder` administrativo y `AcceptedWithChanges` real.
 - CRUD interno minimo de catalogos: clientes, productos/moldes, productos frecuentes, maquinas, asignacion cliente-maquina, tokens de cliente y usuarios admin basicos.
+- Carga masiva controlada por CSV con validacion `dry-run`, aplicacion confirmada y auditoria.
 - Modelo inicial para maquina asignada como dato interno.
 
 No implementar todavia:
@@ -31,6 +32,7 @@ No implementar todavia:
 - Embarques, repartidores, rutas avanzadas.
 - Estadisticas avanzadas, proyecciones, IA.
 - Importacion completa del Excel.
+- Importacion directa ciega del `.xlsm` operativo.
 - Envio de mensajes, jobs automaticos o background workers.
 - Facturacion o pagos.
 
@@ -56,6 +58,7 @@ No implementar todavia:
 - La maquina asignada es informacion interna.
 - El cliente nunca debe ver la maquina asignada.
 - Los tokens de cliente se guardan hasheados; el token plano solo se muestra al crearlo.
+- No importar tokens planos de cliente por CSV; generar tokens desde el sistema despues de importar clientes.
 
 ## Convenciones
 
@@ -131,3 +134,4 @@ npm test
 7. `docs/03-requerimientos-funcionales.md`
 8. `docs/06-modelo-datos-inicial.md`
 9. `docs/07-backlog-mvp.md`
+10. `docs/21-carga-masiva-controlada-fase-1.md`

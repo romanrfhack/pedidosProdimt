@@ -157,6 +157,16 @@ El smoke valida:
   - revocar token,
   - confirmar que token revocado no permite login,
   - confirmar que JWT de cliente no accede a catalogos.
+- Carga masiva controlada:
+  - confirmar que JWT de cliente no accede a importacion,
+  - validar y aplicar CSV de clientes,
+  - validar y aplicar CSV de productos,
+  - validar y aplicar CSV de productos frecuentes,
+  - aplicar CSV de maquinas,
+  - validar y aplicar CSV de asignaciones cliente-maquina,
+  - crear token para cliente importado,
+  - confirmar login de cliente importado,
+  - confirmar que el cliente importado ve su producto frecuente y no ve maquina.
 
 El smoke modifica datos demo locales. Si se requiere una corrida limpia, reiniciar la base o el volumen local.
 
@@ -217,6 +227,8 @@ Customers=3, Products=4, Machines=3, SalesChannels=3, FrequentProducts=4, Machin
 - `scripts/dev/smoke-fase1.sh` paso completo con JWT cliente/admin, rechazo anonimo, bloqueo de otro `customerId` y auditoria protegida.
 - En la validacion de catalogos internos, `AddCatalogManagementSupport` se aplico correctamente.
 - `scripts/dev/smoke-fase1.sh` paso completo con alta de cliente/producto/maquina, productos frecuentes, token creado, token revocado y rechazo de catalogos con JWT de cliente.
+- En la validacion de carga masiva controlada, `AddCatalogExternalCodesAndImportSupport` debe aplicarse correctamente.
+- `scripts/dev/smoke-fase1.sh` valida importacion CSV de clientes/productos/frecuentes/maquinas/asignaciones, auditoria de importacion y rechazo con JWT de cliente.
 
 ## Si SQL Server no esta disponible
 

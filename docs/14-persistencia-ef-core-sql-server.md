@@ -51,6 +51,14 @@ Entidades configuradas con Fluent API:
 - `AdminUser`
 - `CustomerAccessToken`
 
+Campos de soporte de importacion controlada:
+
+- `Customer.ExternalCode` nullable.
+- `Product.ExternalCode` nullable.
+- `Machine.ExternalCode` nullable.
+
+Estos campos facilitan matching desde CSV depurado y tienen indices unicos filtrados cuando no son `NULL`.
+
 Relaciones configuradas:
 
 - `Customer` 1:N `Order`.
@@ -102,6 +110,12 @@ La migracion de catalogos internos y auditoria generica fue creada con:
 
 ```bash
 dotnet tool run dotnet-ef migrations add AddCatalogManagementSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build
+```
+
+La migracion de codigos externos para importacion controlada fue creada con:
+
+```bash
+dotnet tool run dotnet-ef migrations add AddCatalogExternalCodesAndImportSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build
 ```
 
 Aplicar a SQL Server local:

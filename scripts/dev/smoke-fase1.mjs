@@ -147,6 +147,176 @@ async function main() {
   console.log('OK customer cannot operate another customerId');
 
   const smokeSuffix = Date.now().toString(36);
+  const importCustomerCode = `SMK-C-${smokeSuffix}`;
+  const importProductCode = `SMK-P-${smokeSuffix}`;
+  const importMachineCode = `SMK-M-${smokeSuffix}`;
+  const importMachineNumber = 800000 + Math.floor(Math.random() * 90000);
+  const importCustomerCsv = [
+    'externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes',
+    `${importCustomerCode},Smoke Import Cliente ${smokeSuffix},0000008800,true,10:30,,,Cliente importado por smoke`
+  ].join('\n');
+  const importProductCsv = [
+    'externalCode,name,description,isActive',
+    `${importProductCode},Smoke Import Molde ${smokeSuffix},Producto importado por smoke,true`
+  ].join('\n');
+  const importFrequentCsv = [
+    'customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive',
+    `${importCustomerCode},,${importProductCode},,9,1,true`
+  ].join('\n');
+  const importMachineCsv = [
+    'externalCode,number,name,isActive',
+    `${importMachineCode},${importMachineNumber},Maquina importada smoke,true`
+  ].join('\n');
+  const importAssignmentCsv = [
+    'customerExternalCode,customerName,machineExternalCode,machineNumber,isDefault,notes',
+    `${importCustomerCode},,${importMachineCode},,true,Asignacion importada por smoke`
+  ].join('\n');
+
+  const importAttemptWithCustomerJwt = await fetchJson('/api/admin/import/customers/validate', {
+    method: 'POST',
+    headers: customerHeaders,
+    body: JSON.stringify({
+      content: importCustomerCsv,
+      fileName: 'customers.csv'
+    })
+  });
+  assertUnauthorizedOrForbidden(importAttemptWithCustomerJwt, 'Customer import endpoint attempt');
+  console.log(`OK customer JWT cannot access import endpoints: ${importAttemptWithCustomerJwt.status}`);
+
+  const importCustomerValidation = await requestJson('/api/admin/import/customers/validate', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importCustomerCsv,
+      fileName: 'customers.csv'
+    })
+  });
+  assert(importCustomerValidation.errorCount === 0, 'Customer import validation returned errors.');
+  assert(importCustomerValidation.proposedCreateCount === 1, 'Customer import validation did not propose one create.');
+  console.log('OK import customers dry-run');
+
+  const importCustomerApply = await requestJson('/api/admin/import/customers/apply', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importCustomerCsv,
+      fileName: 'customers.csv'
+    })
+  });
+  assert(importCustomerApply.createdCount === 1, 'Customer import apply did not create one customer.');
+  assert(importCustomerApply.auditLogIds?.length >= 1, 'Customer import apply did not return audit ids.');
+  console.log('OK import customers apply');
+
+  const importedCustomers = await requestJson('/api/admin/customers', {
+    headers: adminHeaders
+  });
+  const importedCustomer = importedCustomers.find((customer) => customer.externalCode === importCustomerCode);
+  assert(importedCustomer?.id, 'Imported customer was not found in catalog.');
+
+  const importProductValidation = await requestJson('/api/admin/import/products/validate', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importProductCsv,
+      fileName: 'products.csv'
+    })
+  });
+  assert(importProductValidation.errorCount === 0, 'Product import validation returned errors.');
+
+  const importProductApply = await requestJson('/api/admin/import/products/apply', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importProductCsv,
+      fileName: 'products.csv'
+    })
+  });
+  assert(importProductApply.createdCount === 1, 'Product import apply did not create one product.');
+  console.log('OK import products validate/apply');
+
+  const importedProducts = await requestJson('/api/admin/products', {
+    headers: adminHeaders
+  });
+  const importedProduct = importedProducts.find((product) => product.externalCode === importProductCode);
+  assert(importedProduct?.id, 'Imported product was not found in catalog.');
+
+  const importFrequentValidation = await requestJson('/api/admin/import/customer-frequent-products/validate', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importFrequentCsv,
+      fileName: 'customer-frequent-products.csv'
+    })
+  });
+  assert(importFrequentValidation.errorCount === 0, 'Frequent products import validation returned errors.');
+
+  const importFrequentApply = await requestJson('/api/admin/import/customer-frequent-products/apply', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importFrequentCsv,
+      fileName: 'customer-frequent-products.csv'
+    })
+  });
+  assert(importFrequentApply.updatedCount === 1, 'Frequent products import apply did not update one customer.');
+  console.log('OK import frequent products validate/apply');
+
+  const importMachineApply = await requestJson('/api/admin/import/machines/apply', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importMachineCsv,
+      fileName: 'machines.csv'
+    })
+  });
+  assert(importMachineApply.createdCount === 1, 'Machine import apply did not create one machine.');
+
+  const importAssignmentValidation = await requestJson('/api/admin/import/customer-machine-assignments/validate', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importAssignmentCsv,
+      fileName: 'customer-machine-assignments.csv'
+    })
+  });
+  assert(importAssignmentValidation.errorCount === 0, 'Machine assignment import validation returned errors.');
+
+  const importAssignmentApply = await requestJson('/api/admin/import/customer-machine-assignments/apply', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      content: importAssignmentCsv,
+      fileName: 'customer-machine-assignments.csv'
+    })
+  });
+  assert(importAssignmentApply.updatedCount === 1, 'Machine assignment import apply did not update one customer.');
+  console.log('OK import machines and assignments validate/apply');
+
+  const importedCustomerToken = await requestJson(`/api/admin/customers/${importedCustomer.id}/access-tokens`, {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      description: `Token import smoke ${smokeSuffix}`,
+      expiresAt: null
+    })
+  });
+  assert(importedCustomerToken.plainToken, 'Imported customer token did not return plainToken.');
+
+  const importedCustomerLogin = await requestJson('/api/auth/customer-token', {
+    method: 'POST',
+    body: JSON.stringify({
+      token: importedCustomerToken.plainToken
+    })
+  });
+  assert(importedCustomerLogin.customerId === importedCustomer.id, 'Imported customer login returned unexpected customer id.');
+  const importedCustomerHeaders = bearer(importedCustomerLogin.accessToken);
+  const importedCustomerToday = await requestJson(`/api/customer-orders/${importedCustomer.id}/today`, {
+    headers: importedCustomerHeaders
+  });
+  assert(importedCustomerToday.products.some((item) => item.productId === importedProduct.id), 'Imported customer does not see imported frequent product.');
+  assertCustomerPayloadDoesNotExposeInternalData(importedCustomerToday);
+  console.log('OK imported customer login sees frequent product without machine data');
+
   const catalogCustomer = await requestJson('/api/admin/customers', {
     method: 'POST',
     headers: adminHeaders,

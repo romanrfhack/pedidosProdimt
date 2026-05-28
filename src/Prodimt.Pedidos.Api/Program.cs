@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Prodimt.Pedidos.Application.AdminCatalogs;
+using Prodimt.Pedidos.Application.AdminImports;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
@@ -25,6 +26,8 @@ builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
 builder.Services.AddScoped<AdminCustomerAccessTokenService>();
 builder.Services.AddScoped<AdminUserCatalogService>();
+builder.Services.AddScoped<CsvImportParser>();
+builder.Services.AddScoped<AdminImportService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -837,6 +840,54 @@ adminMachines.MapPatch("/{machineId:guid}/deactivate", async (
     }
 })
 .WithName("DeactivateAdminMachine");
+
+var adminImports = app.MapGroup("/api/admin/import")
+    .WithTags("Admin import")
+    .RequireAuthorization("AdminAccess");
+
+adminImports.MapGet("/templates", (AdminImportService service) =>
+{
+    return Results.Ok(service.GetTemplates());
+})
+.WithName("GetAdminImportTemplates");
+
+adminImports.MapPost("/{importType}/validate", async (
+    string importType,
+    ImportCsvRequest request,
+    AdminImportService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.ValidateAsync(importType, request, cancellationToken));
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("ValidateAdminImport");
+
+adminImports.MapPost("/{importType}/apply", async (
+    string importType,
+    ImportCsvRequest request,
+    ClaimsPrincipal user,
+    AdminImportService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var response = await service.ApplyAsync(importType, request, GetAdminActor(user), cancellationToken);
+        return response.Errors.Count > 0
+            ? Results.BadRequest(response)
+            : Results.Ok(response);
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+})
+.WithName("ApplyAdminImport");
 
 var adminUsers = app.MapGroup("/api/admin/users")
     .WithTags("Admin users")

@@ -14,6 +14,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasMaxLength(120)
             .IsRequired();
 
+        builder.Property(x => x.ExternalCode)
+            .HasMaxLength(80);
+
         builder.Property(x => x.Description)
             .HasMaxLength(500);
 
@@ -26,5 +29,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .WithOne()
             .HasForeignKey(x => x.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => x.ExternalCode)
+            .IsUnique()
+            .HasFilter("[ExternalCode] IS NOT NULL");
     }
 }

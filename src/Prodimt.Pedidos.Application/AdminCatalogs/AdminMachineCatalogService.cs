@@ -149,6 +149,6 @@ public sealed class AdminMachineCatalogService(
 
     private static AdminMachineResponse MapMachine(Machine machine)
     {
-        return new AdminMachineResponse(machine.Id, machine.Number, machine.Name, machine.IsActive);
+        return new AdminMachineResponse(machine.Id, machine.Number, machine.ExternalCode, machine.Name, machine.IsActive);
     }
 }

@@ -155,6 +155,6 @@ public sealed class AdminProductCatalogService(
 
     private static AdminProductResponse MapProduct(Product product)
     {
-        return new AdminProductResponse(product.Id, product.Name, product.Description, product.IsActive);
+        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive);
     }
 }

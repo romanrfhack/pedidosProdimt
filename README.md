@@ -94,6 +94,9 @@ Endpoints iniciales:
 - `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/products...` requiere JWT admin y administra productos/moldes.
 - `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/machines...` requiere JWT admin y administra maquinas.
 - `GET/POST/PATCH http://127.0.0.1:5088/api/admin/users...` requiere JWT admin y administra usuarios admin basicos.
+- `GET http://127.0.0.1:5088/api/admin/import/templates` requiere JWT admin y lista plantillas CSV.
+- `POST http://127.0.0.1:5088/api/admin/import/{importType}/validate` requiere JWT admin y valida CSV sin modificar base.
+- `POST http://127.0.0.1:5088/api/admin/import/{importType}/apply` requiere JWT admin, revalida y aplica CSV si no hay errores bloqueantes.
 
 `/health` y `/health/db` quedan publicos en Fase 1. `/health/db` solo informa disponibilidad de base y no expone datos sensibles.
 
@@ -190,12 +193,45 @@ dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt
 
 La migracion de autenticacion piloto se creo como `AddPilotAuthentication`.
 La migracion de catalogos internos se creo como `AddCatalogManagementSupport`.
+La migracion de codigos externos para importacion controlada se creo como `AddCatalogExternalCodesAndImportSupport`.
 
 Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes, asignaciones internas de maquina, admin demo y token demo de cliente.
 La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo protegido `GET /api/admin/orders/{orderId}/audit`.
 La auditoria de catalogos se guarda en `AuditLogs` para cambios relevantes de clientes, productos, maquinas, productos frecuentes, asignaciones, tokens y usuarios admin.
 La operacion administrativa basica permite ver detalle con lineas, consultar clientes pendientes, capturar pedidos por llamada, registrar `NoOrder` administrativo y aceptar con cambios de entrega o cantidades existentes.
 El CRUD interno de catalogos esta documentado en `docs/20-catalogos-internos-fase-1.md`.
+
+### Carga masiva controlada
+
+La importacion de Fase 1 usa CSV controlado con flujo `validate`/`apply`; no importa directamente el `.xlsm` operativo ni tokens planos de cliente.
+
+Plantillas y ejemplos demo:
+
+- `docs/import-templates/customers.csv`
+- `docs/import-templates/products.csv`
+- `docs/import-templates/customer-frequent-products.csv`
+- `docs/import-templates/machines.csv`
+- `docs/import-templates/customer-machine-assignments.csv`
+- `docs/import-templates/examples/*.csv`
+
+Tipos soportados:
+
+- `customers`
+- `products`
+- `customer-frequent-products`
+- `machines`
+- `customer-machine-assignments`
+
+El body esperado por `validate` y `apply` es JSON:
+
+```json
+{
+  "content": "externalCode,name,...",
+  "fileName": "customers.csv"
+}
+```
+
+El limite inicial es 2 MB por CSV. `apply` es stateless: vuelve a validar el contenido recibido y solo guarda cambios si no hay errores. Los cambios aplicados se registran en `AuditLogs`.
 
 ### Frontend
 
@@ -220,6 +256,7 @@ export const environment = {
 Para desarrollo local normal, levantar primero la API en `http://127.0.0.1:5088` y despues Angular en `http://127.0.0.1:4200`.
 Los envios reales (`submit`, `no-order`, revision admin) no simulan exito si la API falla.
 La pantalla cliente acepta `http://127.0.0.1:4200/cliente?token=demo-customer-token`.
+La pantalla administrativa de carga masiva esta en `http://127.0.0.1:4200/admin/importacion` y requiere sesion admin.
 
 ### Pruebas
 
@@ -235,6 +272,7 @@ npm test
 Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth mockeada, y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
 El smoke real autenticado valida detalle administrativo, clientes pendientes, `NoOrder` administrativo, captura administrativa, segundo pedido pendiente, `AcceptedWithChanges` con cambios persistidos y auditoria de cambios.
 Tambien valida alta de cliente/producto/maquina, configuracion de producto frecuente, creacion/revocacion de token, login con token creado, bloqueo de token revocado y rechazo de catalogos con JWT de cliente.
+Tambien valida importacion CSV de clientes, productos, productos frecuentes, maquinas, asignaciones internas, auditoria de importacion y rechazo de importacion con JWT de cliente.
 
 ## Estado de implementación
 
@@ -246,6 +284,7 @@ Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
 Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
 Ver tambien `docs/19-administracion-operativa-fase-1.md`.
 Ver tambien `docs/20-catalogos-internos-fase-1.md`.
+Ver tambien `docs/21-carga-masiva-controlada-fase-1.md`.
 
 ## Regla de continuidad para Codex
 

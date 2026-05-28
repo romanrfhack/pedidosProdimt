@@ -14,6 +14,103 @@ async function loginAdmin(page: Page) {
   await expect(page.getByRole('heading', { name: 'Pedidos de hoy' })).toBeVisible();
 }
 
+async function mockImportEndpoints(page: Page) {
+  const corsHeaders = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'authorization,content-type',
+    'access-control-allow-methods': 'GET,POST,PUT,PATCH,OPTIONS'
+  };
+  await page.route(/\/api\/admin\/import\/products\/validate$/, async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        importType: 'products',
+        totalRows: 1,
+        validRows: 1,
+        errorCount: 0,
+        warningCount: 0,
+        proposedCreateCount: 1,
+        proposedUpdateCount: 0,
+        proposedDeactivateCount: 0,
+        errors: [],
+        warnings: [],
+        proposedChanges: [
+          {
+            rowNumber: 2,
+            action: 'Create',
+            entityType: 'Product',
+            entityId: null,
+            entityDisplayName: 'Molde E2E',
+            summary: 'Crear producto.'
+          }
+        ]
+      })
+    });
+  });
+  await page.route(/\/api\/admin\/import\/products\/apply$/, async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        importType: 'products',
+        totalRows: 1,
+        createdCount: 1,
+        updatedCount: 0,
+        skippedCount: 0,
+        warningCount: 0,
+        auditLogIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+        errors: []
+      })
+    });
+  });
+  await page.route(/\/api\/admin\/import\/customers\/validate$/, async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: corsHeaders,
+      body: JSON.stringify({
+        importType: 'customers',
+        totalRows: 1,
+        validRows: 0,
+        errorCount: 1,
+        warningCount: 0,
+        proposedCreateCount: 0,
+        proposedUpdateCount: 0,
+        proposedDeactivateCount: 0,
+        errors: [
+          {
+            rowNumber: 2,
+            field: 'name',
+            code: 'Required',
+            message: 'Campo requerido vacio: name.',
+            rawValue: ''
+          }
+        ],
+        warnings: [],
+        proposedChanges: []
+      })
+    });
+  });
+}
+
 test.beforeEach(async ({ request }) => {
   await request.post(`${mockApiBaseUrl}/__test/reset`);
 });
@@ -140,6 +237,7 @@ test('admin ve navegacion de catalogos y abre secciones', async ({ page }) => {
   await loginAdmin(page);
 
   await expect(page.getByRole('link', { name: 'Catalogos' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Importacion' })).toBeVisible();
   await page.getByRole('link', { name: 'Catalogos' }).click();
 
   await expect(page.getByTestId('admin-catalogs')).toBeVisible();
@@ -154,6 +252,43 @@ test('admin ve navegacion de catalogos y abre secciones', async ({ page }) => {
   await page.getByRole('button', { name: 'Maquinas' }).click();
   await expect(page.getByTestId('catalog-machines')).toBeVisible();
   await expect(page.getByText('#1')).toBeVisible();
+});
+
+test('admin puede validar y aplicar CSV demo de importacion', async ({ page }) => {
+  await mockImportEndpoints(page);
+  await loginAdmin(page);
+  await page.getByRole('link', { name: 'Importacion' }).click();
+
+  await expect(page.getByTestId('admin-import')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Importacion' })).toBeVisible();
+
+  await page.getByLabel('Tipo').selectOption('products');
+  await expect(page.getByLabel('Tipo')).toHaveValue('products');
+
+  await page.getByLabel('Contenido CSV').fill('externalCode,name,description,isActive\nP-E2E,Molde E2E,Producto demo,true');
+  await page.getByRole('button', { name: 'Validar' }).click();
+
+  await expect(page.getByTestId('import-validation')).toBeVisible();
+  await expect(page.getByText('CSV validado sin errores bloqueantes.')).toBeVisible();
+  await expect(page.getByText('Crear: 1')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aplicar importacion' })).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Aplicar importacion' }).click();
+  await expect(page.getByTestId('import-apply-result')).toBeVisible();
+  await expect(page.getByText('Importacion aplicada.')).toBeVisible();
+});
+
+test('admin ve errores de importacion y no puede aplicar', async ({ page }) => {
+  await mockImportEndpoints(page);
+  await loginAdmin(page);
+  await page.goto('/admin/importacion');
+
+  await page.getByLabel('Contenido CSV').fill('externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes\nC-ERR,,555,true,,,,');
+  await page.getByRole('button', { name: 'Validar' }).click();
+
+  await expect(page.getByTestId('import-errors')).toBeVisible();
+  await expect(page.getByText(/Campo requerido vacio: name/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Aplicar importacion' })).toBeDisabled();
 });
 
 test('admin abre configuracion de cliente y gestiona token', async ({ page }) => {
@@ -176,7 +311,11 @@ test('cliente no ve navegacion ni pantallas de catalogos', async ({ page }) => {
   await loginCustomer(page);
 
   await expect(page.getByRole('link', { name: 'Catalogos' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Importacion' })).toHaveCount(0);
   await page.goto('/admin/catalogos');
+  await expect(page.getByTestId('admin-login')).toBeVisible();
+
+  await page.goto('/admin/importacion');
   await expect(page.getByTestId('admin-login')).toBeVisible();
 });
 

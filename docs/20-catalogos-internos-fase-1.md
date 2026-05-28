@@ -17,6 +17,7 @@ Todos los endpoints de esta seccion requieren JWT con `AdminAccess`. Un JWT de c
 - Asignacion interna cliente-maquina.
 - Tokens de acceso de cliente.
 - Usuarios administrativos basicos por API.
+- Carga masiva controlada por CSV para preparar datos de piloto.
 
 ## Endpoints principales
 
@@ -69,6 +70,7 @@ Usuarios admin basicos:
 Clientes:
 
 - nombre,
+- codigo externo opcional para importacion,
 - telefono,
 - estado activo/inactivo,
 - hora deseada de entrega,
@@ -78,12 +80,14 @@ Clientes:
 Productos:
 
 - nombre,
+- codigo externo opcional para importacion,
 - descripcion,
 - estado activo/inactivo.
 
 Maquinas:
 
 - numero,
+- codigo externo opcional para importacion,
 - nombre,
 - estado activo/inactivo.
 
@@ -147,6 +151,32 @@ Eventos cubiertos:
 - `CustomerMachineAssignmentsUpdated`.
 - `CustomerAccessTokenCreated`, `CustomerAccessTokenRevoked`.
 - `AdminUserCreated`, `AdminUserActivated`, `AdminUserDeactivated`.
+- `BulkImportApplied`.
+- `CustomerImportedCreated`, `CustomerImportedUpdated`.
+- `ProductImportedCreated`, `ProductImportedUpdated`.
+- `MachineImportedCreated`, `MachineImportedUpdated`.
+- `CustomerFrequentProductsImported`.
+- `CustomerMachineAssignmentsImported`.
+
+## Carga masiva controlada
+
+La carga masiva esta documentada en `docs/21-carga-masiva-controlada-fase-1.md`.
+
+Endpoints protegidos con `AdminAccess`:
+
+- `GET /api/admin/import/templates`
+- `POST /api/admin/import/{importType}/validate`
+- `POST /api/admin/import/{importType}/apply`
+
+Tipos soportados:
+
+- `customers`
+- `products`
+- `customer-frequent-products`
+- `machines`
+- `customer-machine-assignments`
+
+`validate` no modifica base. `apply` vuelve a validar y solo guarda si no hay errores bloqueantes. Las plantillas viven en `docs/import-templates/`.
 
 ## UI Angular
 
@@ -154,6 +184,12 @@ La ruta administrativa es:
 
 ```text
 /admin/catalogos
+```
+
+La ruta de carga masiva es:
+
+```text
+/admin/importacion
 ```
 
 Incluye secciones para:
@@ -168,6 +204,8 @@ La configuracion de cliente incluye productos frecuentes, maquinas asignadas y t
 ## Limitaciones actuales
 
 - No hay importacion completa de Excel.
+- No hay importacion directa ciega del `.xlsm`.
+- No hay importacion de tokens planos por CSV.
 - No hay CRUD de canales de venta.
 - No hay roles avanzados.
 - No hay recuperacion o cambio completo de contrasena.
@@ -178,7 +216,7 @@ La configuracion de cliente incluye productos frecuentes, maquinas asignadas y t
 
 ## Pendiente recomendado
 
-- Definir carga masiva controlada para clientes/productos reales.
+- Probar carga masiva con una copia depurada de datos reales antes del piloto.
 - Agregar pantalla de usuarios admin solo cuando haya reglas claras de operacion.
 - Agregar rotacion de token si se necesita reemplazo controlado sin crear uno nuevo manualmente.
 - Agregar cambio administrativo de maquina por pedido o linea cuando entre en alcance.

@@ -312,6 +312,55 @@ function requireAdminAccess(request, response) {
   return true;
 }
 
+function validateImport(importType, body) {
+  const content = String(body.content ?? '');
+  const rows = content.split(/\r?\n/).filter((row) => row.trim().length > 0);
+  const dataRows = Math.max(0, rows.length - 1);
+  const errors = [];
+  const warnings = [];
+  const proposedChanges = [];
+
+  rows.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const columns = row.split(',');
+    const name = columns[1]?.trim() ?? '';
+
+    if ((importType === 'customers' || importType === 'products') && !name) {
+      errors.push({
+        rowNumber,
+        field: 'name',
+        code: 'Required',
+        message: 'Campo requerido vacio: name.',
+        rawValue: ''
+      });
+      return;
+    }
+
+    proposedChanges.push({
+      rowNumber,
+      action: 'Create',
+      entityType: importType === 'products' ? 'Product' : 'Customer',
+      entityId: null,
+      entityDisplayName: name || 'Registro demo',
+      summary: 'Crear registro desde CSV.'
+    });
+  });
+
+  return {
+    importType,
+    totalRows: dataRows,
+    validRows: errors.length > 0 ? Math.max(0, dataRows - errors.length) : dataRows,
+    errorCount: errors.length,
+    warningCount: warnings.length,
+    proposedCreateCount: proposedChanges.length,
+    proposedUpdateCount: 0,
+    proposedDeactivateCount: 0,
+    errors,
+    warnings,
+    proposedChanges: errors.length > 0 ? [] : proposedChanges
+  };
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`);
 
@@ -368,6 +417,120 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'GET' && url.pathname === '/__test/state') {
     sendJson(response, 200, { submitCalls, adminSubmitCalls });
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/import/templates') {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    sendJson(response, 200, {
+      maxFileSizeBytes: 2097152,
+      mode: 'stateless-validate-then-apply',
+      templates: [
+        {
+          importType: 'customers',
+          description: 'Clientes externos para piloto.',
+          templatePath: 'docs/import-templates/customers.csv',
+          examplePath: 'docs/import-templates/examples/customers-demo.csv',
+          columns: []
+        },
+        {
+          importType: 'products',
+          description: 'Productos o moldes.',
+          templatePath: 'docs/import-templates/products.csv',
+          examplePath: 'docs/import-templates/examples/products-demo.csv',
+          columns: []
+        },
+        {
+          importType: 'customer-frequent-products',
+          description: 'Productos frecuentes por cliente.',
+          templatePath: 'docs/import-templates/customer-frequent-products.csv',
+          examplePath: 'docs/import-templates/examples/customer-frequent-products-demo.csv',
+          columns: []
+        },
+        {
+          importType: 'machines',
+          description: 'Maquinas internas.',
+          templatePath: 'docs/import-templates/machines.csv',
+          examplePath: 'docs/import-templates/examples/machines-demo.csv',
+          columns: []
+        },
+        {
+          importType: 'customer-machine-assignments',
+          description: 'Asignaciones internas cliente-maquina.',
+          templatePath: 'docs/import-templates/customer-machine-assignments.csv',
+          examplePath: 'docs/import-templates/examples/customer-machine-assignments-demo.csv',
+          columns: []
+        }
+      ]
+    });
+    return;
+  }
+
+  const importMatch = url.pathname.match(/^\/api\/admin\/import\/([^/]+)\/(validate|apply)$/);
+  if (request.method === 'POST' && importMatch) {
+    if (!requireAdminAccess(request, response)) {
+      return;
+    }
+
+    request.resume();
+    const validation = importMatch[1] === 'customers'
+      ? {
+          importType: importMatch[1],
+          totalRows: 1,
+          validRows: 0,
+          errorCount: 1,
+          warningCount: 0,
+          proposedCreateCount: 0,
+          proposedUpdateCount: 0,
+          proposedDeactivateCount: 0,
+          errors: [
+            {
+              rowNumber: 2,
+              field: 'name',
+              code: 'Required',
+              message: 'Campo requerido vacio: name.',
+              rawValue: ''
+            }
+          ],
+          warnings: [],
+          proposedChanges: []
+        }
+      : validateImport(importMatch[1], {
+          content: 'externalCode,name,description,isActive\nP-E2E,Molde E2E,Producto demo,true'
+        });
+
+    if (importMatch[2] === 'validate') {
+      sendJson(response, 200, validation);
+      return;
+    }
+
+    if (validation.errorCount > 0) {
+      sendJson(response, 400, {
+        importType: importMatch[1],
+        totalRows: validation.totalRows,
+        createdCount: 0,
+        updatedCount: 0,
+        skippedCount: validation.totalRows,
+        warningCount: validation.warningCount,
+        auditLogIds: [],
+        errors: validation.errors
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      importType: importMatch[1],
+      totalRows: validation.totalRows,
+      createdCount: validation.proposedCreateCount,
+      updatedCount: validation.proposedUpdateCount,
+      skippedCount: 0,
+      warningCount: validation.warningCount,
+      auditLogIds: ['aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'],
+      errors: []
+    });
     return;
   }
 

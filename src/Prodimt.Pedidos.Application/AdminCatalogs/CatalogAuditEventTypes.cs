@@ -21,4 +21,13 @@ internal static class CatalogAuditEventTypes
     public const string AdminUserCreated = nameof(AdminUserCreated);
     public const string AdminUserActivated = nameof(AdminUserActivated);
     public const string AdminUserDeactivated = nameof(AdminUserDeactivated);
+    public const string BulkImportApplied = nameof(BulkImportApplied);
+    public const string CustomerImportedCreated = nameof(CustomerImportedCreated);
+    public const string CustomerImportedUpdated = nameof(CustomerImportedUpdated);
+    public const string ProductImportedCreated = nameof(ProductImportedCreated);
+    public const string ProductImportedUpdated = nameof(ProductImportedUpdated);
+    public const string MachineImportedCreated = nameof(MachineImportedCreated);
+    public const string MachineImportedUpdated = nameof(MachineImportedUpdated);
+    public const string CustomerFrequentProductsImported = nameof(CustomerFrequentProductsImported);
+    public const string CustomerMachineAssignmentsImported = nameof(CustomerMachineAssignmentsImported);
 }

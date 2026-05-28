@@ -14,6 +14,9 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(x => x.ExternalCode)
+            .HasMaxLength(80);
+
         builder.Property(x => x.PhoneNumber)
             .HasMaxLength(40)
             .IsRequired();
@@ -35,5 +38,9 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .WithOne()
             .HasForeignKey(x => x.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => x.ExternalCode)
+            .IsUnique()
+            .HasFilter("[ExternalCode] IS NOT NULL");
     }
 }

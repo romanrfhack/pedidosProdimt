@@ -6,6 +6,8 @@ public sealed class Product
 
     public string Name { get; set; } = string.Empty;
 
+    public string? ExternalCode { get; set; }
+
     public string? Description { get; set; }
 
     public bool IsActive { get; set; } = true;
@@ -19,6 +21,11 @@ public sealed class Product
 
         product.Update(name, description);
         return product;
+    }
+
+    public void SetExternalCode(string? externalCode)
+    {
+        ExternalCode = string.IsNullOrWhiteSpace(externalCode) ? null : externalCode.Trim();
     }
 
     public void Update(string name, string? description)

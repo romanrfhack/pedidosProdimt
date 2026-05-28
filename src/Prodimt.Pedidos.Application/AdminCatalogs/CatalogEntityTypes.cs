@@ -7,4 +7,5 @@ internal static class CatalogEntityTypes
     public const string Machine = nameof(Machine);
     public const string CustomerAccessToken = nameof(CustomerAccessToken);
     public const string AdminUser = nameof(AdminUser);
+    public const string BulkImport = nameof(BulkImport);
 }

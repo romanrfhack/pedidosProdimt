@@ -376,6 +376,7 @@ public sealed class AdminCustomerCatalogService(
         return new AdminCustomerResponse(
             customer.Id,
             customer.Name,
+            customer.ExternalCode,
             customer.PhoneNumber,
             customer.IsActive,
             customer.PreferredDeliveryTime,

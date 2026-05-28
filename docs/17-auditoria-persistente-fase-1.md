@@ -40,6 +40,7 @@ Eventos cubiertos:
 - Cambios de asignacion cliente-maquina.
 - Creacion y revocacion de tokens de cliente.
 - Creacion, activacion y desactivacion de usuarios admin basicos.
+- Aplicacion de carga masiva controlada por CSV.
 
 ## Modelo
 
@@ -75,6 +76,18 @@ Campos principales:
 - `AdminManualOrderCaptured`
 - `AdminNoOrderMarked`
 - `AdminOrderChanged`
+
+Eventos de `AuditLogs` para importacion:
+
+- `BulkImportApplied`
+- `CustomerImportedCreated`
+- `CustomerImportedUpdated`
+- `ProductImportedCreated`
+- `ProductImportedUpdated`
+- `MachineImportedCreated`
+- `MachineImportedUpdated`
+- `CustomerFrequentProductsImported`
+- `CustomerMachineAssignmentsImported`
 
 ## Actores soportados
 
@@ -124,6 +137,7 @@ Pruebas backend cubren:
 - `AcceptedWithChanges` crea `AdminOrderChanged` cuando aplica cambios.
 - La consulta devuelve eventos ordenados.
 - DTOs de cliente no exponen maquina ni auditoria.
+- Importacion aplicada crea `BulkImportApplied` en `AuditLogs`.
 
 El smoke real `scripts/dev/smoke-fase1.sh` consulta auditoria contra API + SQL Server.
 

@@ -17,6 +17,7 @@ body {
 
 button,
 input,
+textarea,
 label span {
   font: inherit;
 }
@@ -242,6 +243,14 @@ input {
   text-align: center;
 }
 
+textarea {
+  width: 100%;
+  border: 1px solid #b7c3c9;
+  border-radius: 6px;
+  padding: 10px;
+  resize: vertical;
+}
+
 select {
   width: 100%;
   min-height: 44px;
@@ -258,10 +267,23 @@ code {
 
 .action-bar,
 .review-actions,
-.badges {
+.badges,
+.import-summary {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.import-summary span {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border: 1px solid #d5dee2;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: #253139;
+  font-weight: 800;
 }
 
 .action-bar {

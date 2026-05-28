@@ -6,6 +6,8 @@ public sealed class Customer
 
     public string Name { get; set; } = string.Empty;
 
+    public string? ExternalCode { get; set; }
+
     public string PhoneNumber { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
@@ -47,6 +49,12 @@ public sealed class Customer
             now);
 
         return customer;
+    }
+
+    public void SetExternalCode(string? externalCode, DateTimeOffset now)
+    {
+        ExternalCode = string.IsNullOrWhiteSpace(externalCode) ? null : externalCode.Trim();
+        UpdatedAt = now;
     }
 
     public void Update(

@@ -64,6 +64,7 @@ Endpoints protegidos con `AdminAccess`:
 - `POST /api/admin/customers/{customerId}/orders/no-order`
 - `GET/POST/PATCH /api/admin/customers/{customerId}/access-tokens...`
 - `GET/POST/PATCH /api/admin/users...`
+- `GET/POST /api/admin/import...`
 
 ## Endpoints de auth
 
@@ -238,6 +239,7 @@ npm test
 - No hay endpoint de rotacion de token; se crea uno nuevo y se revoca el anterior.
 - No hay envio real de enlaces por WhatsApp.
 - La captura administrativa en nombre de cliente ya existe como flujo piloto protegido por `AdminAccess`.
+- La carga masiva controlada ya existe como flujo piloto protegido por `AdminAccess`; un JWT de cliente recibe `403`.
 - La identidad admin se copia a auditoria en los flujos administrativos nuevos.
 
 ## Endurecer antes de produccion

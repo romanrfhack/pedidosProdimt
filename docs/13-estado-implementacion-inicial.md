@@ -84,6 +84,12 @@ Fecha: 2026-05-28
 - Se agrego migracion `AddCatalogManagementSupport`.
 - Se agrego UI Angular administrativa en `/admin/catalogos`.
 - Se amplio Playwright para navegar catalogos, abrir configuracion de cliente y validar que cliente no vea catalogos.
+- Se agrego carga masiva controlada por CSV bajo `/api/admin/import`.
+- Se agregaron plantillas y ejemplos demo no sensibles en `docs/import-templates/`.
+- Se agrego validacion `dry-run` y aplicacion stateless para `customers`, `products`, `customer-frequent-products`, `machines` y `customer-machine-assignments`.
+- Se agrego `ExternalCode` nullable a `Customer`, `Product` y `Machine` para matching controlado; la migracion es `AddCatalogExternalCodesAndImportSupport`.
+- Se agrego UI Angular administrativa en `/admin/importacion`.
+- Se amplio Playwright y el smoke real para validar importacion, bloqueo con JWT de cliente y que la maquina sigue oculta al cliente.
 
 ## Decisiones tomadas
 
@@ -106,6 +112,8 @@ Fecha: 2026-05-28
 - En `AcceptedWithChanges` se ajustan lineas existentes; agregar productos nuevos y cambiar maquina quedan fuera de esta sesion.
 - La gestion de tokens de cliente muestra el token plano solo en la respuesta de creacion; despues solo se listan metadatos.
 - La UI de catalogos cubre operacion basica; usuarios admin basicos quedaron como API protegida, sin pantalla dedicada.
+- La importacion usa CSV controlado y no importacion directa del `.xlsm`; el flujo MVP es stateless: `validate` no persiste sesion y `apply` revalida el mismo contenido antes de guardar.
+- No se importan tokens planos por CSV; despues de importar clientes, administracion debe crear tokens desde el sistema para que el token plano se muestre una sola vez y se guarde solo el hash.
 
 ## Validacion ejecutada
 
@@ -145,6 +153,7 @@ Fecha: 2026-05-28
 - `npm test` en `tests/e2e`
 - `node --check tests/e2e/mock-api.js`
 - `dotnet tool run dotnet-ef migrations add AddCatalogManagementSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
+- `dotnet tool run dotnet-ef migrations add AddCatalogExternalCodesAndImportSupport --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations --no-build`
 
 ## Resultado
 
@@ -165,10 +174,12 @@ Fecha: 2026-05-28
 - Autenticacion piloto: implementada para cliente por token y admin por login demo en Development.
 - Administracion operativa Fase 1: implementada para detalle con lineas, clientes pendientes, captura administrativa, `NoOrder` administrativo y `AcceptedWithChanges`.
 - Catalogos internos Fase 1: implementados para preparar piloto con datos reales sin editar SQL directamente.
+- Carga masiva controlada Fase 1: implementada para preparar piloto con CSV validado y auditado, sin importar el Excel real ni datos sensibles.
 
 ## Pendiente
 
 - Endurecer autenticacion antes de produccion: secrets reales por entorno, expiracion/rotacion de tokens cliente, estrategia de almacenamiento frontend y roles finos.
 - Agregar productos nuevos durante `AcceptedWithChanges`.
 - Cambiar maquina desde administracion y auditarlo cuando entre en alcance.
-- Definir importacion controlada desde Excel o carga masiva asistida para clientes reales.
+- Validar las plantillas CSV con una copia depurada de datos reales antes del piloto.
+- Evaluar en fase posterior una importacion directa del `.xlsm` solo si hay reglas completas para macros, formulas, historico y datos sensibles.

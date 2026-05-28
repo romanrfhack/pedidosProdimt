@@ -181,6 +181,38 @@ public sealed class AuthApiAuthorizationTests
         Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task AdminImportEndpoints_RequireAdminAccess()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        var validateRequest = new
+        {
+            content = "externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes\nT-API,Cliente API,555,true,,,,",
+            fileName = "customers.csv"
+        };
+
+        var anonymousTemplates = await client.GetAsync("/api/admin/import/templates");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousTemplates.StatusCode);
+
+        var anonymousValidate = await client.PostAsJsonAsync("/api/admin/import/customers/validate", validateRequest);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousValidate.StatusCode);
+
+        await SetCustomerBearerAsync(client);
+        var customerTemplates = await client.GetAsync("/api/admin/import/templates");
+        Assert.Equal(HttpStatusCode.Forbidden, customerTemplates.StatusCode);
+
+        var customerValidate = await client.PostAsJsonAsync("/api/admin/import/customers/validate", validateRequest);
+        Assert.Equal(HttpStatusCode.Forbidden, customerValidate.StatusCode);
+
+        await SetAdminBearerAsync(client);
+        var adminTemplates = await client.GetAsync("/api/admin/import/templates");
+        Assert.Equal(HttpStatusCode.OK, adminTemplates.StatusCode);
+
+        var adminValidate = await client.PostAsJsonAsync("/api/admin/import/customers/validate", validateRequest);
+        Assert.Equal(HttpStatusCode.OK, adminValidate.StatusCode);
+    }
+
     private static async Task SetCustomerBearerAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(

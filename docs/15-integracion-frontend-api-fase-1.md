@@ -34,6 +34,7 @@ Administracion:
 - Rutas administrativas usan guard local y requieren sesion admin.
 - `/admin/catalogos` permite mantener clientes, productos, maquinas y configuracion de cliente.
 - La configuracion de cliente administra productos frecuentes, asignacion interna de maquina y tokens de acceso.
+- `/admin/importacion` permite validar y aplicar CSV controlados para clientes, productos, frecuentes, maquinas y asignaciones internas.
 - La pantalla cliente no muestra navegacion de catalogos ni maquina asignada.
 
 ## Contratos relevantes
@@ -78,6 +79,12 @@ Este resumen permite mostrar `Pedido enviado`, `Pedido pendiente de revision`, `
 `PendingCustomerOrderResponse` incluye cliente, telefono, hora o ventana preferida, notas de entrega y conteo de productos frecuentes.
 
 `AdminOrderTemplateResponse` incluye cliente, preferencias de entrega y productos frecuentes con cantidad sugerida.
+
+Importacion administrativa:
+
+- `GET /api/admin/import/templates` devuelve tipos y columnas esperadas.
+- `POST /api/admin/import/{importType}/validate` recibe `{ content, fileName }`, valida sin guardar y devuelve errores, advertencias y cambios propuestos.
+- `POST /api/admin/import/{importType}/apply` recibe el mismo body, revalida y aplica solo si no hay errores.
 
 ## Validaciones implementadas
 
@@ -131,6 +138,7 @@ Motivo:
 - Mantener pruebas rapidas y deterministas para el flujo de Fase 1.
 - Validar autenticacion cliente/admin sin depender de JWT reales.
 - Validar navegacion de catalogos con mock API sin depender de SQL Server.
+- Validar navegacion de importacion, dry-run, errores y aplicacion con mock API.
 
 Comando:
 

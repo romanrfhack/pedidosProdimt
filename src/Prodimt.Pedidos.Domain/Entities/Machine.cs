@@ -6,6 +6,8 @@ public sealed class Machine
 
     public int Number { get; set; }
 
+    public string? ExternalCode { get; set; }
+
     public string? Name { get; set; }
 
     public bool IsActive { get; set; } = true;
@@ -19,6 +21,11 @@ public sealed class Machine
 
         machine.Update(number, name);
         return machine;
+    }
+
+    public void SetExternalCode(string? externalCode)
+    {
+        ExternalCode = string.IsNullOrWhiteSpace(externalCode) ? null : externalCode.Trim();
     }
 
     public void Update(int number, string? name)

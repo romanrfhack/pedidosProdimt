@@ -3,6 +3,7 @@ namespace Prodimt.Pedidos.Application.AdminCatalogs;
 public sealed record AdminCustomerResponse(
     Guid Id,
     string Name,
+    string? ExternalCode,
     string PhoneNumber,
     bool IsActive,
     TimeOnly? PreferredDeliveryTime,
@@ -20,11 +21,11 @@ public sealed record UpsertAdminCustomerRequest(
     TimeOnly? PreferredDeliveryWindowEnd,
     string? DeliveryNotes);
 
-public sealed record AdminProductResponse(Guid Id, string Name, string? Description, bool IsActive);
+public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive);
 
 public sealed record UpsertAdminProductRequest(string Name, string? Description);
 
-public sealed record AdminMachineResponse(Guid Id, int Number, string? Name, bool IsActive);
+public sealed record AdminMachineResponse(Guid Id, int Number, string? ExternalCode, string? Name, bool IsActive);
 
 public sealed record UpsertAdminMachineRequest(int Number, string? Name);
 

@@ -1,0 +1,3 @@
+externalCode,name,phoneNumber,isActive,preferredDeliveryTime,preferredDeliveryWindowStart,preferredDeliveryWindowEnd,deliveryNotes
+C-DEMO-001,Cliente Demo Importado,5550000101,true,09:30,,,Entregar en recepcion
+C-DEMO-002,Cliente Demo Ventana,5550000102,true,,11:00,12:00,Llamar antes de enviar

@@ -29,6 +29,8 @@ Construir una aplicación web mobile first para capturar pedidos de clientes y r
 - Administracion ya puede operar pedidos capturados sin Excel ni WhatsApp: ver lineas, ver pendientes de responder, capturar por llamada, registrar `NoOrder` y aceptar con cambios de entrega o cantidades existentes.
 - Administracion ya cuenta con CRUD interno minimo de clientes, productos/moldes, maquinas, productos frecuentes, asignaciones cliente-maquina, tokens de cliente y usuarios admin basicos.
 - Los cambios relevantes de catalogos se auditan en `AuditLogs`; la auditoria de pedidos existente se mantiene en `OrderAuditLogs`.
+- Administracion ya cuenta con carga masiva controlada por CSV para clientes, productos, productos frecuentes, maquinas y asignaciones cliente-maquina, con validacion `dry-run`, aplicacion confirmada y auditoria en `AuditLogs`.
+- Se agregaron `ExternalCode` nullable a clientes, productos y maquinas para facilitar matching controlado desde datos depurados del Excel sin depender solo del nombre.
 - El Excel `05 EMBARQUES Mayo-04.xlsm` fue analizado como referencia operativa.
 - La prioridad es crear primero una versión útil para captura de pedidos.
 - Las decisiones operativas confirmadas están documentadas en `docs/10-decisiones-operativas-confirmadas.md`.
@@ -102,7 +104,7 @@ Continuar con endurecimiento del flujo vertical:
 - Mantener scripts de validacion SQL Server local actualizados cuando cambien endpoints o seed.
 - Mantener la auditoria persistente alineada con nuevas decisiones administrativas.
 - Endurecer autenticacion piloto antes de produccion sin implementar roles completos todavia.
-- Siguiente pendiente funcional sugerido: endurecer autenticacion antes de produccion, definir importacion controlada desde Excel y completar cambios administrativos de maquina por pedido cuando entre en alcance.
+- Siguiente pendiente funcional sugerido: validar carga CSV con una copia depurada de datos reales, endurecer autenticacion antes de produccion y completar cambios administrativos de maquina por pedido cuando entre en alcance.
 
 ## Criterio para futuras sesiones
 
@@ -119,6 +121,7 @@ Al iniciar una nueva sesión, leer siempre:
 - `docs/13-estado-implementacion-inicial.md`
 - `docs/14-persistencia-ef-core-sql-server.md`
 - `docs/18-autenticacion-piloto-fase-1.md`
+- `docs/21-carga-masiva-controlada-fase-1.md`
 
 Al terminar una sesión, dejar documentado:
 

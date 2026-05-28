@@ -10,6 +10,9 @@ public sealed class MachineConfiguration : IEntityTypeConfiguration<Machine>
     {
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.ExternalCode)
+            .HasMaxLength(80);
+
         builder.Property(x => x.Name)
             .HasMaxLength(120);
 
@@ -25,5 +28,9 @@ public sealed class MachineConfiguration : IEntityTypeConfiguration<Machine>
             .WithOne()
             .HasForeignKey(x => x.MachineId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => x.ExternalCode)
+            .IsUnique()
+            .HasFilter("[ExternalCode] IS NOT NULL");
     }
 }
