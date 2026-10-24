@@ -139,7 +139,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
                 ["Persistence:Provider"] = "SqlServer",
                 ["ConnectionStrings:Pedidos"] = _connectionString,
                 ["DevelopmentSeed:Enabled"] = "false",
-                ["Authentication:Jwt:SigningKey"] = JwtSettings.DevelopmentSigningKey
+                ["Authentication:Jwt:SigningKey"] = JwtSettings.DevelopmentSigningKey,
+                ["Logging:LogLevel:Default"] = "Warning",
+                ["Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command"] = "Warning"
             }));
             builder.ConfigureServices(services =>
             {

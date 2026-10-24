@@ -39,8 +39,9 @@ public sealed class OrderAuditLogConfiguration : IEntityTypeConfiguration<OrderA
         builder.Property(x => x.Summary)
             .HasMaxLength(500);
 
-        builder.Property(x => x.MetadataJson)
-            .HasMaxLength(2000);
+        // Corrections retain complete before/after line snapshots, not truncated text.
+        // No max length maps to nvarchar(max) on SQL Server and TEXT in relational tests.
+        builder.Property(x => x.MetadataJson);
 
         builder.HasIndex(x => new { x.OrderId, x.OccurredAt });
 

@@ -19,6 +19,7 @@ La suite genera una base `ProdimtI02Test_<guid>`, ignora el catálogo de la cade
 - Reintentos concurrentes con la misma clave y conflicto ante un contenido distinto.
 - Rollback del lote completo ante una restricción SQL que falla después de una vista previa válida; reintento de la misma operación después de retirar la restricción.
 - Corrección que reemplaza cantidades, conserva historial y rechaza versiones obsoletas o cambios de contenido con la misma clave.
+- Auditoría completa de una corrección con varias partidas y notas largas, incluso cuando supera 2000 caracteres.
 - Dos correcciones simultáneas: una gana, la otra devuelve conflicto y no deja un recibo de éxito.
 - Pedidos de fecha pasada consultables por fecha, revisión administrativa y demanda autorizada sólo después de aceptar.
 - Intercambio de posiciones de perfil y conservación de filas/versión ante un fallo de clave foránea.

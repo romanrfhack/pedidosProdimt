@@ -21,7 +21,7 @@ Actualizado: 24 de octubre de 2026.
 - Preservación del nombre/unidad/máquina históricos al ajustar una partida existente; productos agregados usan el catálogo vigente.
 - Interfaz de importación separada de catálogos, reintentos con el mismo contenido e historial legible.
 - CSV de catálogos compatible con la marca UTF-8 de Excel.
-- Migración aditiva `20261024181206_AddDailyOrderOperations`.
+- Migraciones aditivas `20261024181206_AddDailyOrderOperations` y `20261024181934_ExpandOrderAuditSnapshots`; historial completo sin el límite anterior de 2,000 caracteres.
 - Revisión del XLSX devuelto: 23 identidades/ruta, acceso explícito, cinco condiciones de contraentrega y dos instrucciones internas. 52 fórmulas simples verificadas. CSV privado preparado; productos incompletos separados.
 - Código/documentación públicos separados de los datos privados.
 
@@ -30,8 +30,8 @@ Actualizado: 24 de octubre de 2026.
 - **157/157 pruebas .NET** correctas: 5 dominio y 152 aplicación; cero omitidas.
 - **37/37 E2E** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
 - Revisión estática independiente de contratos, privacidad, snapshots, fechas y transacciones completada; hallazgos corregidos.
-- Proyecto de **8 pruebas HTTP/SQL Server** compilado sin errores ni advertencias; ejecución real preparada en el job `sqlserver` de CI.
-- El entorno local no dispone de SQL Server/Docker. La ejecución remota se comprobará al publicar; ver resultados del último commit en la PR y `../validation/2026-10-24-i02.md`.
+- Proyecto de **9 pruebas HTTP/SQL Server** compilado sin errores ni advertencias. La primera ejecución real pasó seis de ocho pruebas y detectó dos conflictos SQL envueltos por EF; su manejo fue corregido y se añadió cobertura de historial largo.
+- El entorno local no dispone de SQL Server/Docker. Falta comprobar el resultado remoto posterior a esas correcciones; ver último commit de la PR y `../validation/2026-10-24-i02.md`.
 - InMemory conserva las funciones de I01 y la vista previa diaria. Aplicar lotes o corregir pedidos exige persistencia relacional; no se finge éxito durable.
 
 ## Siguiente paso

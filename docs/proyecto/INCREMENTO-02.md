@@ -11,6 +11,7 @@ Capturar el mismo archivo dos veces puede duplicar demanda. Una corrección de c
 - Origen y referencia externa de cada pedido; clave de lote y hash para reconocer reintentos. Reutilizar una clave con otro contenido devuelve conflicto, no sobrescribe.
 - Corrección administrativa con motivo, versión esperada y clave de operación; reemplazo explícito del conjunto completo de líneas, con evidencia antes/después.
 - Pruebas de integración en SQL Server con datos ficticios y sin acceso a la base de un negocio.
+- Historial SQL ampliado a `nvarchar(max)` para conservar snapshots completos con varias partidas y notas; las solicitudes mantienen sus límites de tamaño.
 
 No incluye interpretación de WhatsApp, cargas directas del XLSM, producción física, entregas, pagos ni tickets monetarios.
 

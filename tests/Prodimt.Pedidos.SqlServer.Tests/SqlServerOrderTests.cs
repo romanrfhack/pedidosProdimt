@@ -161,6 +161,41 @@ public sealed class SqlServerOrderTests(SqlServerFixture database)
     }
 
     [Fact]
+    public async Task MultiLineCorrection_PreservesCompleteAuditBeyondTwoThousandCharacters()
+    {
+        var catalog = await database.CreateCatalogAsync();
+        var notes = new string('n', 400);
+        var request = new ImportBody(
+            $"{Header}\norder,2026-10-25,{catalog.CustomerCode},order,{catalog.ProductCode},10,kg,{notes}\norder,2026-10-25,{catalog.CustomerCode},order,{catalog.SecondProductCode},2,package,{notes}",
+            "sql-test.csv", Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"));
+        await using var factory = database.CreateFactory();
+        using var client = await SqlServerFixture.CreateAdminClientAsync(factory);
+        using var imported = await client.PostAsJsonAsync("/api/admin/daily-orders/apply", request);
+        var orderId = (await JsonAsync(imported)).GetProperty("orders")[0].GetProperty("orderId").GetGuid();
+        var reason = new string('r', 900);
+        using var corrected = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/corrections", new
+        {
+            operationKey = Guid.NewGuid().ToString("N"), expectedVersion = 1, reason,
+            lines = new[]
+            {
+                new { productId = catalog.ProductId, quantity = 7m, notes },
+                new { productId = catalog.SecondProductId, quantity = 3m, notes }
+            }
+        });
+        corrected.EnsureSuccessStatusCode();
+        await using var db = database.CreateDbContext();
+        var audit = (await db.OrderAuditLogs.Where(x => x.OrderId == orderId).ToArrayAsync())
+            .Single(x => x.EventType.ToString() == "OrderCorrected");
+        Assert.True(audit.MetadataJson!.Length > 2000);
+        using var parsed = JsonDocument.Parse(audit.MetadataJson);
+        Assert.Equal(reason, parsed.RootElement.GetProperty("reason").GetString());
+        Assert.Equal(2, parsed.RootElement.GetProperty("before").GetProperty("lines").GetArrayLength());
+        Assert.Equal(2, parsed.RootElement.GetProperty("after").GetProperty("lines").GetArrayLength());
+        Assert.All(parsed.RootElement.GetProperty("after").GetProperty("lines").EnumerateArray(),
+            line => Assert.Equal(notes, line.GetProperty("notes").GetString()));
+    }
+
+    [Fact]
     public async Task ConcurrentCorrections_OnlyOneVersionWins_AndFailedCommandDoesNotLeaveReceipt()
     {
         var catalog = await database.CreateCatalogAsync();

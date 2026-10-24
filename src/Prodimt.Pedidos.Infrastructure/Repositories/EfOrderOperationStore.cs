@@ -45,8 +45,7 @@ public sealed class EfOrderOperationStore(PedidosDbContext dbContext) : IOrderOp
             dbContext.ChangeTracker.Clear();
             throw new CustomerOrderConflictException("El pedido cambio durante la operacion. Recarga el detalle.");
         }
-        catch (Exception ex) when (ex is SqlException { Number: 1205 or 2601 or 2627 } ||
-            ex is DbUpdateException { InnerException: SqlException { Number: 1205 or 2601 or 2627 } })
+        catch (Exception ex) when (IsConcurrentSqlWrite(ex))
         {
             await RollbackSafelyAsync(transaction);
             dbContext.ChangeTracker.Clear();
@@ -59,6 +58,18 @@ public sealed class EfOrderOperationStore(PedidosDbContext dbContext) : IOrderOp
             throw;
         }
     }
+    private static bool IsConcurrentSqlWrite(Exception exception)
+    {
+        // EF's SQL Server execution strategy can wrap a deadlock in an
+        // InvalidOperationException outside DbUpdateException. Keep the original
+        // transaction rollback and 409 contract regardless of that wrapper.
+        for (Exception? cause = exception; cause is not null; cause = cause.InnerException)
+        {
+            if (cause is SqlException { Number: 1205 or 2601 or 2627 }) return true;
+        }
+        return false;
+    }
+
     private static async Task RollbackSafelyAsync(IDbContextTransaction transaction)
     {
         try { await transaction.RollbackAsync(CancellationToken.None); }
