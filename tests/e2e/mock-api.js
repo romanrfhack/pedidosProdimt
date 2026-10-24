@@ -599,6 +599,12 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/operations/changes') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: url.searchParams.get('date'), pendingCount: 0, changes: [] });
+    return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/orders/today') {
     if (!requireAdminAccess(request, response)) {
       return;
@@ -856,6 +862,26 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const orderingProfileMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/ordering-profile$/);
+  if (orderingProfileMatch && request.method === 'GET') {
+    if (!requireAdminAccess(request, response)) return;
+    const customer = catalogCustomers.find((item) => item.id === orderingProfileMatch[1]);
+    if (!customer) {
+      sendJson(response, 404, { error: 'Customer was not found.' });
+      return;
+    }
+    sendJson(response, 200, {
+      customerId: customer.id,
+      orderingProfileVersion: customer.orderingProfileVersion ?? 0,
+      isOrderProfileApproved: customer.isOrderProfileApproved ?? false,
+      items: (frequentProductsByCustomer[customer.id] ?? []).map(item => {
+        const product = catalogProducts.find(product => product.id === item.productId);
+        return { ...item, productName: product?.name ?? item.productName, unitCode: product?.unitCode ?? null, productIsActive: product?.isActive ?? false };
+      })
+    });
+    return;
+  }
+
   const frequentMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/frequent-products$/);
   if (frequentMatch && (request.method === 'GET' || request.method === 'PUT')) {
     if (!requireAdminAccess(request, response)) {
@@ -865,6 +891,10 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'PUT') {
       const body = await readJson(request);
       const customer = catalogCustomers.find((item) => item.id === frequentMatch[1]);
+      if (customer && body.expectedProfileVersion !== undefined && body.expectedProfileVersion !== (customer.orderingProfileVersion ?? 0)) {
+        sendJson(response, 409, { error: 'El perfil fue modificado por otro usuario.' });
+        return;
+      }
       if (customer) { customer.orderingProfileVersion = (customer.orderingProfileVersion ?? 0) + 1; customer.isOrderProfileApproved = body.approveForInterpretation === true; }
       frequentProductsByCustomer[frequentMatch[1]] = (body.items ?? []).map((item) => {
         const product = catalogProducts.find((candidate) => candidate.id === item.productId);

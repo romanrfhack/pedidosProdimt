@@ -151,5 +151,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Verify VPS inventory and isolated Nginx publication guards
+        run: python3 -m unittest discover -s tests/pilot -v
+      - name: Exercise configuration files extracted with private permissions
+        run: chmod 600 src/Prodimt.Pedidos.Api/appsettings*.json
       - name: Build and exercise a disposable production stack with fictional data
         run: bash scripts/pilot/smoke-compose.sh

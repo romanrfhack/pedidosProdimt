@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOrders;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
@@ -478,6 +479,176 @@ public sealed class DailyOrderServiceTests
         Assert.Equal(1, await fixture.OperationCountAsync());
     }
 
+    [Fact]
+    public async Task Correction_ProducesDurableNotice_AndAcknowledgementIsIdempotentWithoutChangingDemand()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        var request = new CorrectOrderRequest("notice-correct", 1, "Cliente solicita cinco mas",
+            [new(fixture.KgProduct.Id, 20, null)]);
+        await fixture.Service.CorrectAsync(orderId, request, Actor, Ct);
+        await fixture.Service.CorrectAsync(orderId, request, Actor, Ct);
+        await using var independent = fixture.NewContext();
+        var notices = fixture.NoticeService(independent);
+        var list = await notices.GetAsync(new DateOnly(2026, 10, 25), "R-DEMO", fixture.KgMachine.Id, true, Ct);
+        var notice = Assert.Single(list.Changes);
+        Assert.Equal(1, list.PendingCount);
+        Assert.Equal(2, notice.OrderVersion);
+        Assert.Equal("correction", notice.Kind);
+        var line = Assert.Single(notice.Lines);
+        Assert.Equal(15m, line.BeforeQuantity);
+        Assert.Equal(20m, line.AfterQuantity);
+        Assert.Equal(5m, line.DeltaQuantity);
+        Assert.Equal("kg", line.UnitCode);
+        Assert.Equal(Actor.ActorDisplayName, notice.ActorDisplayName);
+        var ackRequest = new AcknowledgeOrderChangeRequest("ack-notice", notice.Version);
+        var ack = await notices.AcknowledgeAsync(notice.Id, ackRequest, Actor, Ct);
+        var replay = await notices.AcknowledgeAsync(notice.Id, ackRequest, Actor, Ct);
+        Assert.Equal(ack.Id, replay.Id);
+        Assert.Equal(ack.Version, replay.Version);
+        Assert.Equal(ack.AcknowledgedAt, replay.AcknowledgedAt);
+        Assert.Equal(ack.AcknowledgedBy, replay.AcknowledgedBy);
+        Assert.Equal(ack.Lines, replay.Lines);
+        Assert.NotNull(ack.AcknowledgedAt);
+        Assert.Equal(2, ack.Version);
+        Assert.Equal(Actor.ActorDisplayName, ack.AcknowledgedBy);
+        Assert.Empty((await notices.GetAsync(new DateOnly(2026, 10, 25), null, null, true, Ct)).Changes);
+        Assert.Single((await notices.GetAsync(new DateOnly(2026, 10, 25), null, null, false, Ct)).Changes);
+        var order = await independent.Orders.AsNoTracking().Include(x => x.Lines).SingleAsync(x => x.Id == orderId);
+        Assert.Equal(20m, Assert.Single(order.Lines).Quantity);
+        Assert.Equal(2, order.Version);
+        var plan = await new AdminOperationsService(new EfOrderRepository(independent),
+            new EfCustomerRepository(independent), new EfMachineRepository(independent), new Clock())
+            .GetPlanAsync(new(2026, 10, 25), null, Ct);
+        Assert.Equal(2, Assert.Single(plan.Orders).OrderVersion);
+        Assert.Equal(20m, Assert.Single(plan.MachineDemand).Quantity);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => notices.AcknowledgeAsync(notice.Id,
+            new("different-key", 1), Actor, Ct));
+    }
+
+    [Fact]
+    public async Task LaterDecrease_RemainsPendingEvenAfterAnEarlierRevisionWasAcknowledged()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        await fixture.Service.CorrectAsync(orderId, new("increase", 1, "Aumenta",
+            [new(fixture.KgProduct.Id, 20, null)]), Actor, Ct);
+        var notices = fixture.NoticeService(fixture.Db);
+        var first = Assert.Single((await notices.GetAsync(new(2026, 10, 25), null, null, true, Ct)).Changes);
+        await notices.AcknowledgeAsync(first.Id, new("first-ack", first.Version), Actor, Ct);
+        await fixture.Service.CorrectAsync(orderId, new("decrease", 2, "Cliente reduce a doce",
+            [new(fixture.KgProduct.Id, 12, null)]), Actor, Ct);
+        var pending = Assert.Single((await notices.GetAsync(new(2026, 10, 25), null, null, true, Ct)).Changes);
+        Assert.NotEqual(first.Id, pending.Id);
+        Assert.Equal(3, pending.OrderVersion);
+        Assert.Equal(-8m, Assert.Single(pending.Lines).DeltaQuantity);
+        Assert.Null(pending.AcknowledgedAt);
+        Assert.Equal(2, (await notices.GetAsync(new(2026, 10, 25), null, null, false, Ct)).Changes.Count);
+        Assert.Empty((await notices.GetAsync(new(2026, 10, 24), null, null, false, Ct)).Changes);
+        Assert.Empty((await notices.GetAsync(new(2026, 10, 25), "OTHER", null, false, Ct)).Changes);
+    }
+
+    [Fact]
+    public async Task CorrectionWithoutAssignedMachine_RemainsVisibleAndDoesNotUseCurrentCatalogAssignment()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var profile = await fixture.Db.CustomerFrequentProducts.SingleAsync(x =>
+            x.CustomerId == fixture.Customer.Id && x.ProductId == fixture.KgProduct.Id);
+        profile.PreferredMachineId = null;
+        await fixture.Db.SaveChangesAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        // Assigning a machine after capture must not retroactively move this historical line.
+        profile.PreferredMachineId = fixture.KgMachine.Id;
+        await fixture.Db.SaveChangesAsync();
+        await fixture.Service.CorrectAsync(orderId, new("unassigned-change", 1, "Cambio pendiente de asignacion",
+            [new(fixture.KgProduct.Id, 20, null)]), Actor, Ct);
+        var notices = fixture.NoticeService(fixture.Db);
+        var notice = Assert.Single((await notices.GetAsync(new(2026, 10, 25), null, null, true, Ct)).Changes);
+        Assert.Null(notice.MachineId);
+        Assert.Null(notice.MachineNumber);
+        Assert.Null(notice.MachineName);
+        Assert.Equal(5m, Assert.Single(notice.Lines).DeltaQuantity);
+        Assert.Empty((await notices.GetAsync(new(2026, 10, 25), null, fixture.KgMachine.Id, true, Ct)).Changes);
+    }
+
+    [Fact]
+    public async Task ReplacingProduct_NotifiesOldAndNewMachines_WithoutCombiningUnits()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        await fixture.Service.CorrectAsync(orderId, new("replace-product", 1, "Cambio de producto",
+            [new(fixture.PackageProduct.Id, 3, "Preparar paquetes")]), Actor, Ct);
+        var changes = (await fixture.NoticeService(fixture.Db).GetAsync(new(2026, 10, 25), null, null, true, Ct)).Changes;
+        Assert.Equal(2, changes.Count);
+        var removed = Assert.Single(changes, x => x.MachineId == fixture.KgMachine.Id);
+        var added = Assert.Single(changes, x => x.MachineId == fixture.PackageMachine.Id);
+        Assert.Equal(-15m, Assert.Single(removed.Lines).DeltaQuantity);
+        Assert.Equal("kg", Assert.Single(removed.Lines).UnitCode);
+        Assert.Equal(0m, Assert.Single(removed.Lines).AfterQuantity);
+        Assert.Equal(3m, Assert.Single(added.Lines).DeltaQuantity);
+        Assert.Equal("package", Assert.Single(added.Lines).UnitCode);
+        Assert.Equal(0m, Assert.Single(added.Lines).BeforeQuantity);
+    }
+
+    [Fact]
+    public async Task NotesOnlyChange_NotifiesWithZeroDelta_WhileAnIdenticalCorrectionDoesNot()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        await fixture.Service.CorrectAsync(orderId, new("same-lines", 1, "Verificado",
+            [new(fixture.KgProduct.Id, 15, null)]), Actor, Ct);
+        Assert.Empty(await fixture.Db.OrderChangeNotices.ToArrayAsync());
+        await fixture.Service.CorrectAsync(orderId, new("new-notes", 2, "Indicación de preparación",
+            [new(fixture.KgProduct.Id, 15, "Separar en dos bolsas")]), Actor, Ct);
+        var change = Assert.Single((await fixture.NoticeService(fixture.Db).GetAsync(new(2026, 10, 25), null, null, true, Ct)).Changes);
+        var line = Assert.Single(change.Lines);
+        Assert.Equal(0m, line.DeltaQuantity);
+        Assert.Null(line.BeforeNotes);
+        Assert.Equal("Separar en dos bolsas", line.AfterNotes);
+    }
+
+    [Theory]
+    [InlineData(AdminDecision.Accepted, 1)]
+    [InlineData(AdminDecision.AcceptedWithChanges, 1)]
+    [InlineData(AdminDecision.Rejected, 0)]
+    public async Task PendingCorrection_NotifiesOnlyWhenReviewAddsAuthorizedDemand(AdminDecision decision, int expectedCount)
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var imported = await fixture.Service.ApplyAsync(Request("LATE,2026-10-23,C-TEST,order,P-KG,15,kg,"), Actor, Ct);
+        var orderId = imported.Orders.Single().OrderId!.Value;
+        await fixture.Service.CorrectAsync(orderId, new("pending-correction", 1, "Corrige antes de aceptar",
+            [new(fixture.KgProduct.Id, 20, null)]), Actor, Ct);
+        Assert.Empty(await fixture.Db.OrderChangeNotices.ToArrayAsync());
+        await fixture.AdminService.ReviewAsync(orderId, new(decision, InternalNotes: "Revisado", ExpectedVersion: 2), Ct, Actor);
+        var notices = (await fixture.NoticeService(fixture.Db).GetAsync(new(2026, 10, 23), null, null, true, Ct)).Changes;
+        Assert.Equal(expectedCount, notices.Count);
+        if (expectedCount == 1)
+        {
+            var notice = Assert.Single(notices);
+            Assert.Equal("review", notice.Kind);
+            Assert.Equal(3, notice.OrderVersion);
+            Assert.Equal(0m, Assert.Single(notice.Lines).BeforeQuantity);
+            Assert.Equal(20m, Assert.Single(notice.Lines).AfterQuantity);
+        }
+    }
+
+    [Fact]
+    public async Task FailedCorrection_RollsBackNoticeAndAudit_ThenSameKeyRetriesOnce()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var orderId = await fixture.CreateOrderAsync();
+        var request = new CorrectOrderRequest("rollback-notice", 1, "Cambio con fallo simulado",
+            [new(fixture.KgProduct.Id, 20, null)]);
+        fixture.Failure.Enabled = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Service.CorrectAsync(orderId, request, Actor, Ct));
+        fixture.Failure.Enabled = false;
+        Assert.Empty(await fixture.Db.OrderChangeNotices.ToArrayAsync());
+        Assert.False(await fixture.Db.OrderAuditLogs.AnyAsync(x => x.EventType == OrderAuditEventType.OrderCorrected));
+        Assert.Equal(15m, (await fixture.Db.OrderLines.AsNoTracking().SingleAsync(x => x.OrderId == orderId)).Quantity);
+        await fixture.Service.CorrectAsync(orderId, request, Actor, Ct);
+        Assert.Single(await fixture.Db.OrderChangeNotices.ToArrayAsync());
+    }
+
     private static DailyOrderImportRequest Request(params string[] rows) =>
         new(Header + "\n" + string.Join("\n", rows), "test_csv", "BATCH-1", "pedidos-demo.csv");
 
@@ -504,13 +675,17 @@ public sealed class DailyOrderServiceTests
         public ReceiptFailure Failure { get; }
         public AdminDailyOrderService Service { get; }
         public AdminOrderService AdminService => new(new EfOrderRepository(Db), new EfOrderAuditLogRepository(Db),
-            new EfCustomerRepository(Db), new EfProductRepository(Db), new EfMachineRepository(Db), new EfSalesChannelRepository(Db), clock);
+            new EfCustomerRepository(Db), new EfProductRepository(Db), new EfMachineRepository(Db), new EfSalesChannelRepository(Db), clock,
+            new Prodimt.Pedidos.Application.AdminOperations.OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(Db), new EfMachineRepository(Db), new EfCustomerRepository(Db)));
         public void SetTime(TimeOnly value) => clock.Time = value;
         public PedidosDbContext NewContext() => new(options);
         public AdminDailyOrderService NewService(PedidosDbContext db) => new(new EfOrderRepository(db),
             new EfOrderAuditLogRepository(db), new EfCustomerRepository(db), new EfProductRepository(db),
-            new EfMachineRepository(db), new EfSalesChannelRepository(db), clock, new EfOrderOperationStore(db));
+            new EfMachineRepository(db), new EfSalesChannelRepository(db), clock, new EfOrderOperationStore(db),
+            new Prodimt.Pedidos.Application.AdminOperations.OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(db), new EfMachineRepository(db), new EfCustomerRepository(db)));
         public Task<int> OperationCountAsync() => Db.OrderOperations.CountAsync();
+        public OrderChangeNoticeService NoticeService(PedidosDbContext db) =>
+            new(new EfOrderChangeNoticeRepository(db), new EfOrderOperationStore(db), clock);
         public async Task<Guid> CreateOrderAsync() => (await Service.ApplyAsync(
             Request("ORDER-1,2026-10-25,C-TEST,order,P-KG,15,kg,"), Actor, Ct)).Orders.Single().OrderId!.Value;
         public static async Task<Fixture> CreateAsync()

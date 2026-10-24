@@ -28,11 +28,18 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-022 | 2026-10-24 | Paquete portátil Linux/WSL con Docker Compose, SQL Express aislado y aplicación en loopback con túnel SSH. El destino no fue seleccionado; no se ejecutan cambios remotos ni se modifican DNS/proxy/servicios existentes. |
 | OCT-023 | 2026-10-24 | Production usa credenciales generadas en el destino, JWT propio y bootstrap explícito. El proceso HTTP no migra ni crea datos demo; la conexión habitual no tiene permisos de DDL. Repetir bootstrap no rota ni restablece cuentas. |
 | OCT-024 | 2026-10-24 | Para pedidos explícitos se requieren cliente, producto y unidad; para demanda por máquina, asignación aplicable. Posiciones de interpretación son una confirmación posterior; cobro desconocido no se rellena para probar pedidos. |
+| OCT-025 | 2026-10-24 | Usuario autoriza I04: una modificación comercial de la misma entrega corrige el pedido existente con total final, motivo e historial. Cambiar 15 a 20 kg produce diferencia +5; no crear otro pedido automáticamente a partir del mensaje «5 más». |
+| OCT-026 | 2026-10-24 | Un cambio de demanda genera aviso persistente por revisión y máquina afectada, guardado con el pedido. Requiere reconocimiento explícito; recibir el aviso no significa haber fabricado o entregado la cantidad. |
+| OCT-027 | 2026-10-24 | Reutilizar y ampliar la configuración de cliente existente en una pantalla enfocada. Orden visual y posición de interpretación siguen siendo distintos; guardar con versión protege ediciones simultáneas. |
+| OCT-028 | 2026-10-24 | El usuario devuelve la hoja I03: 30 unidades kg y 36 posiciones válidas, seis unidades aún vacías, 16 máquinas vacías y una máquina cero sin significado confirmado. No asumir que todas las filas quedaron completas ni fusionar variantes por nombre. |
+| OCT-029 | 2026-10-24 | La etiqueta «Adicional» en la evidencia fue una simplificación imprecisa de una columna original sin encabezado. Los valores se conservan como fuente; la hipótesis del usuario de que sean ampliaciones de pedido todavía no los convierte en cantidades actuales. |
+| OCT-030 | 2026-10-24 | Usuario elige VPS y dominio; usar pedidos.prodimt.site. Preparar preflight de sólo lectura, aplicación aislada y Nginx/HTTPS propios. No sobrescribir otros proyectos. La red del entorno de trabajo no permite SSH directo; el usuario ejecutará los comandos desde WSL. |
+| OCT-031 | 2026-10-24 | Empezar con captura administrativa asistida de WhatsApp/llamadas; la interpretación automática queda para otro incremento. Reintentos técnicos y duplicados comerciales entre canales son problemas distintos. Un segundo envío del cliente/fecha requiere revisión, no suma automática ni deduplicación por parecido. |
 
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.
-2. Completar unidades y posiciones del perfil privado; las columnas de revisión de productos siguen vacías. Nombres parecidos o sucursales diferentes no se fusionan sin evidencia.
+2. Completar las seis unidades pendientes y resolver máquinas faltantes/cero. Las 36 posiciones de la nueva revisión ya están completas. Nombres parecidos o sucursales diferentes no se fusionan sin evidencia.
 3. Conservar las dos instrucciones explícitas proporcionadas y completar las faltantes para entrega con llave. No inventar ubicación interior.
 4. El acceso con llave quedó explícito para los 23 clientes; completar política de cobro de quienes no tienen ticket y tratamiento operativo cuando ambos aplican.
 5. Confirmar fecha de servicio de las hojas de embarques, cuyos encabezados y mensajes no coinciden de forma segura.

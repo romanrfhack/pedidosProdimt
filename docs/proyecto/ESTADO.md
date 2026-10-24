@@ -10,6 +10,7 @@ Actualizado: 24 de octubre de 2026.
 - Código I02 verificado: `192c8d7871e2b2021b4d485dd71b5ebd7abbda4d`; [CI](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407). El commit documental posterior conserva el mismo código.
 - **I02 implementado y validado en CI, incluido SQL Server real**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
 - **I03-A implementado y validado en CI**, código `26eb6d8d47786bb18f2fe8117596e74f4f277430`; [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40123481595). Instalación reproducible Linux/WSL, SQL aislado, acceso por túnel y credenciales propias. Hitos separados en `INCREMENTO-03.md`; instrucciones en `../../infra/pilot/README.md`.
+- **I04 implementado; validación remota en curso**. Avisos persistentes de cambios de demanda, configuración enfocada por cliente y control de edición simultánea. Contratos y límites en `INCREMENTO-04.md`.
 - **Etapa 1 en desarrollo; preparación operativa de etapa 0 aún incompleta.**
 - Piloto real: no iniciado. No se ha cargado la ruta en una base operativa.
 
@@ -30,11 +31,17 @@ Actualizado: 24 de octubre de 2026.
 - Inicialización explícita de SQL, canales y administrador; el arranque normal no migra ni siembra datos demo. Reintentar no reinicia contraseñas.
 - Docker Compose con volumen persistente, SQL sin puerto publicado, aplicación en `127.0.0.1:5098`, respaldo verificado y reversión de imagen sin bajar esquema.
 - Hoja privada de pendientes I03: 36 relaciones y 23 clientes, valores confirmados conservados, unidades y otros desconocidos explícitos.
+- I04: avisos de corrección/aceptación con antes/después/diferencia por máquina y reconocimiento explícito, guardados junto con pedido y auditoría. Reconocer no significa producir.
+- Plan y pedidos se actualizan con sondeo mientras la pantalla está visible; lecturas antiguas se descartan, el borrador de corrección se conserva y las pérdidas de conexión quedan visibles.
+- Configuración enfocada `/admin/clientes/:id/configuracion`: agregar/quitar productos, cambiar orden visual y asignar posiciones explícitamente, con snapshot de perfil y conflictos de versión/unidad observada.
+- Captura administrativa comprueba pedidos existentes del cliente/fecha y permite abrirlos para corregir; una entrega independiente requiere una decisión explícita y conserva revisión.
+- Hoja devuelta I04 revisada: 30 unidades kg, 36 posiciones válidas por cliente; seis unidades aún vacías, 16 máquinas vacías y un cero sin significado confirmado. El original permanece intacto.
+- VPS/subdominio elegidos. Guía por etapas en `../../infra/pilot/DEPLOY-VPS.md`, diagnóstico de sólo lectura y publicación Nginx aislada con protección de conflictos.
 
 ## Validación
 
-- **182/182 pruebas .NET locales y remotas** correctas: 5 dominio y 177 aplicación; cero omitidas. Incluyen configuración Production y rutas estáticas/HTTP.
-- **37/37 E2E** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
+- **203/203 pruebas .NET locales** correctas: 5 dominio y 198 aplicación; cero omitidas. I04 añade avisos, perfiles y protección concurrente.
+- **53/53 E2E I04** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
 - Revisión estática independiente de contratos, privacidad, snapshots, fechas y transacciones completada; hallazgos corregidos.
 - **9/9 pruebas HTTP/SQL Server reales correctas**: migraciones, persistencia entre hosts, concurrencia con deadlocks reales y respuesta 409, rollback, correcciones, auditoría extensa y perfiles. Los fallos encontrados en la primera ejecución quedaron corregidos.
 - SQL Server se ejecutó en CI contra una instancia desechable, eliminada al terminar. No se usaron datos reales ni una base operativa. Evidencia en `../validation/2026-10-24-i02.md`.
@@ -42,12 +49,15 @@ Actualizado: 24 de octubre de 2026.
 - InMemory conserva las funciones de I01 y la vista previa diaria. Aplicar lotes o corregir pedidos exige persistencia relacional; no se finge éxito durable.
 - La última corrida documental de I02 encontró tres fallos E2E durante el llenado inicial de formularios. I03 hace explícita la espera del estado editable y conserva trazas sólo ante fallo; **37/37 locales y remotos correctos**.
 - **13/13 pruebas SQL Server reales correctas**, incluidas cuatro nuevas de bootstrap. **Smoke completo Docker Production correcto**: login, mismo origen, sin demos, permisos limitados, reintentos, respaldo y persistencia. Evidencia en `../validation/2026-10-24-i03.md`.
+- I04 amplía SQL a 20 pruebas compiladas, incluye rollback de avisos y carrera de aprobación/unidad. Ejecución remota pendiente en este checkpoint.
+- 15/15 pruebas Python de inventario y publicación aislada correctas. No se ejecutaron Nginx ni certificado en el VPS.
+- Comprobación SSH directa: el entorno no tiene ruta de red al servidor. Se entregan comandos para ejecutar desde WSL; no hubo cambios remotos.
 
 ## Siguiente paso
 
-1. Ejecutar la instalación I03-B con el paquete verificado en el equipo elegido. El destino no está instalado ni conectado desde esta sesión.
+1. Verificar CI I04 y ejecutar el preflight de sólo lectura en el VPS elegido. Revisar ese JSON antes de instalar I03-B; el destino no está instalado desde esta sesión.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
-3. Completar unidad y máquina de los productos que se utilizarán, y orden de visita para preparación. Las posiciones de interpretación son para futuras abreviaturas; cobros y saldos se completan para su etapa.
+3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
 5. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
 
@@ -55,7 +65,7 @@ Actualizado: 24 de octubre de 2026.
 
 - No hay parser ni conexión real con WhatsApp, producción física, empaque/carga/entrega ni pagos.
 - La importación diaria requiere CSV depurado con códigos y unidades explícitos; no interpreta `15 + 20` ni importa XLSM.
-- El historial de correcciones conserva evidencia, pero no representa ajustes de producción/entrega ya ejecutadas; ese control debe añadirse al incorporar etapa 2.
+- Los avisos I04 y el historial conservan evidencia; el reconocimiento no registra producción/entrega física, ni garantiza atención si nadie consulta el tablero. No hay push fuera del navegador.
 - La corrección conserva el estado del pedido. Un pendiente sigue excluido de demanda hasta su aceptación; un adicional sigue siendo otro pedido sujeto a revisión.
 - El ticket es una condición operativa; no se generan tickets monetarios ni se marca pago al imprimir.
 - Los campos vacíos y las fechas arrastradas del Excel no se convierten en valores operativos por suposición.

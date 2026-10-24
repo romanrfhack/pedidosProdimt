@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOrders;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure.Authentication;
@@ -440,6 +441,135 @@ public sealed class AdminCatalogServiceTests
         Assert.Equal(2, (await repository.GetAllFrequentProductsAsync(customer.Id, CancellationToken.None)).Count);
     }
 
+    [Fact]
+    public async Task OrderingProfileSnapshot_ReturnsVersionApprovalAndItemsTogether_AndTracksProductInvalidation()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        var customerId = DevelopmentSeedIds.GranTakitoCustomerId;
+        var productId = DevelopmentSeedIds.ProductNineAndHalfId;
+        await fixture.Customers.ReplaceFrequentProductsAsync(customerId,
+            new([new(productId, 15, 1, true, null, 1)], true, 0), AdminActor, default);
+
+        var approved = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.Equal(customerId, approved.CustomerId);
+        Assert.Equal(1, approved.OrderingProfileVersion);
+        Assert.True(approved.IsOrderProfileApproved);
+        Assert.Equal(15, Assert.Single(approved.Items).DefaultQuantity);
+        Assert.Equal("kg", approved.Items[0].UnitCode);
+
+        await fixture.Products.UpdateAsync(productId, new("Producto con nueva unidad", null, "piece"), AdminActor, default);
+        var changed = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.Equal(2, changed.OrderingProfileVersion);
+        Assert.False(changed.IsOrderProfileApproved);
+        Assert.Equal("Producto con nueva unidad", Assert.Single(changed.Items).ProductName);
+        Assert.Equal("piece", changed.Items[0].UnitCode);
+        Assert.Equal("kg", approved.Items[0].UnitCode); // Previous response remains an immutable snapshot.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Customers.GetOrderingProfileAsync(Guid.NewGuid(), default));
+    }
+
+    [Fact]
+    public async Task OrderingProfile_StaleExpectedVersionRejectsBeforeReplacingRowsOrAuditing()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        var customerId = DevelopmentSeedIds.GranTakitoCustomerId;
+        var productId = DevelopmentSeedIds.ProductNineAndHalfId;
+        await fixture.Customers.ReplaceFrequentProductsAsync(customerId,
+            new([new(productId, 15, 1, true, null, 1)], true, 0), AdminActor, default);
+        var auditCount = await fixture.DbContext.AuditLogs.CountAsync();
+
+        await Assert.ThrowsAsync<CatalogConflictException>(() => fixture.Customers.ReplaceFrequentProductsAsync(customerId,
+            new([new(productId, 99, 1, true, null, 1)], false, 0), AdminActor, default));
+
+        var current = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.Equal(1, current.OrderingProfileVersion);
+        Assert.True(current.IsOrderProfileApproved);
+        Assert.Equal(15, Assert.Single(current.Items).DefaultQuantity);
+        Assert.Equal(auditCount, await fixture.DbContext.AuditLogs.CountAsync());
+    }
+
+    [Fact]
+    public async Task OrderingProfile_ConcurrentTrackedEditorsRollBackLosingReplacementAndAudit()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        await using var firstDb = fixture.CreateSeparateContext();
+        await using var secondDb = fixture.CreateSeparateContext();
+        var customerId = DevelopmentSeedIds.GranTakitoCustomerId;
+        var productId = DevelopmentSeedIds.ProductNineAndHalfId;
+        var firstRepository = new EfCustomerRepository(firstDb);
+        var secondRepository = new EfCustomerRepository(secondDb);
+        // Both editors already loaded version zero before either save starts.
+        await firstRepository.GetByIdForUpdateAsync(customerId, default);
+        await secondRepository.GetByIdForUpdateAsync(customerId, default);
+        AdminCustomerCatalogService Service(PedidosDbContext db, EfCustomerRepository repository) => new(repository,
+            new EfProductRepository(db), new EfMachineRepository(db), new EfAuditLogRepository(db),
+            new FixedDateTimeProvider(new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero)));
+
+        await Service(firstDb, firstRepository).ReplaceFrequentProductsAsync(customerId,
+            new([new(productId, 20, 1, true, null, 1)], true, 0), AdminActor, default);
+        var auditCount = await fixture.DbContext.AuditLogs.CountAsync();
+        await Assert.ThrowsAsync<CatalogConflictException>(() => Service(secondDb, secondRepository)
+            .ReplaceFrequentProductsAsync(customerId, new([new(productId, 99, 1, true, null, 1)], false, 0), AdminActor, default));
+
+        var winner = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.Equal(1, winner.OrderingProfileVersion);
+        Assert.True(winner.IsOrderProfileApproved);
+        Assert.Equal(20, Assert.Single(winner.Items).DefaultQuantity);
+        Assert.Equal(auditCount, await fixture.DbContext.AuditLogs.CountAsync());
+    }
+
+    [Fact]
+    public async Task OrderingProfile_ApprovalRejectsChangedUnitOfNewProductWithoutReplacingOrAuditing()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        var customerId = DevelopmentSeedIds.GranTakitoCustomerId;
+        // This product is not in the customer's profile, so its edit cannot increment that profile's version.
+        var created = await fixture.Products.CreateAsync(new("Producto nuevo para confirmar", null, "kg"), AdminActor, default);
+        var before = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        await fixture.Products.UpdateAsync(created.Id, new(created.Name, null, "piece"), AdminActor, default);
+        var auditCount = await fixture.DbContext.AuditLogs.CountAsync();
+
+        await Assert.ThrowsAsync<CatalogConflictException>(() => fixture.Customers.ReplaceFrequentProductsAsync(customerId,
+            new([new(created.Id, 20, 1, true, null, 1, "kg")], true, before.OrderingProfileVersion), AdminActor, default));
+
+        var current = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.Equal(before.OrderingProfileVersion, current.OrderingProfileVersion);
+        Assert.Equal(before.Items, current.Items);
+        Assert.Equal(auditCount, await fixture.DbContext.AuditLogs.CountAsync());
+        // A new explicit confirmation of the displayed unit may approve normally.
+        await fixture.Customers.ReplaceFrequentProductsAsync(customerId,
+            new([new(created.Id, 20, 1, true, null, 1, "piece")], true, before.OrderingProfileVersion), AdminActor, default);
+        Assert.True((await fixture.Customers.GetOrderingProfileAsync(customerId, default)).IsOrderProfileApproved);
+    }
+
+    [Fact]
+    public async Task OrderingProfileSnapshot_IncludesProductAvailabilitySeparateFromMembership()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        var customerId = DevelopmentSeedIds.GranTakitoCustomerId;
+        var productId = DevelopmentSeedIds.ProductNineAndHalfId;
+        var before = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        Assert.True(before.Items.Single(x => x.ProductId == productId).ProductIsActive);
+        await fixture.Products.DeactivateAsync(productId, AdminActor, default);
+
+        var after = await fixture.Customers.GetOrderingProfileAsync(customerId, default);
+        var row = after.Items.Single(x => x.ProductId == productId);
+        Assert.True(row.IsActive);
+        Assert.False(row.ProductIsActive);
+        Assert.Equal(before.OrderingProfileVersion + 1, after.OrderingProfileVersion);
+        Assert.False(after.IsOrderProfileApproved);
+    }
+
+    [Fact]
+    public async Task OrderingProfile_RejectsNegativeVersionWithoutChangingExistingProfile()
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.Customers.ReplaceFrequentProductsAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId, new([], false, -1), AdminActor, default));
+        var profile = await fixture.Customers.GetOrderingProfileAsync(DevelopmentSeedIds.GranTakitoCustomerId, default);
+        Assert.Equal(0, profile.OrderingProfileVersion);
+        Assert.Equal(2, profile.Items.Count);
+    }
+
     private sealed class CatalogFixture : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;
@@ -471,6 +601,9 @@ public sealed class AdminCatalogServiceTests
         }
 
         public PedidosDbContext DbContext { get; }
+
+        public PedidosDbContext CreateSeparateContext() => new(new DbContextOptionsBuilder<PedidosDbContext>()
+            .UseSqlite(_connection).Options);
 
         public ICustomerAccessTokenHasher CustomerAccessTokenHasher { get; }
 
@@ -563,7 +696,8 @@ public sealed class AdminCatalogServiceTests
                 productRepository,
                 machineRepository,
                 salesChannelRepository,
-                dateTimeProvider);
+                dateTimeProvider,
+                new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(dbContext), machineRepository, customerRepository));
             var auth = new PilotAuthenticationService(
                 adminUserRepository,
                 customerAccessTokenRepository,

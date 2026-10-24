@@ -13,6 +13,7 @@ import { unitLabel } from './operational-labels';
     <form class="detail-panel stack" (ngSubmit)="submit()" data-testid="order-correction">
       <h3>Corregir pedido</h3>
       <p class="notice">Estas líneas reemplazarán todas las del pedido del {{ detail.orderDate }}. Las cantidades no se suman a las anteriores. El historial conserva el cambio y su motivo.</p>
+      <p class="notice">Ejemplo: si pidió 15 kg y solicita 5 kg más, escribe 20 kg como cantidad corregida. Si el pedido ya forma parte de la demanda, se genera un aviso pendiente para las máquinas afectadas; recibir el aviso no confirma producción.</p>
       @if (errorMessage) { <div class="alert error" role="alert">{{ errorMessage }}</div> }
       @for (warning of snapshotWarnings; track $index) { <p class="alert warning">{{ warning }}</p> }
       @if (conflict) { <button type="button" class="secondary" (click)="reload.emit()">Recargar pedido actualizado</button> }
@@ -25,7 +26,7 @@ import { unitLabel } from './operational-labels';
           </select></label>
           <label><span>Cantidad corregida {{ i + 1 }}</span><input type="number" required min="0.01" step="0.01" inputmode="decimal" [name]="'correctionQuantity' + i" [(ngModel)]="line.quantity" [disabled]="isBusy || attempted || conflict"></label>
           <label><span>Nota del producto {{ i + 1 }}</span><input [name]="'correctionNote' + i" maxlength="500" [(ngModel)]="line.notes" [disabled]="isBusy || attempted || conflict"></label>
-          @if (originalLine(line.productId); as original) { <small>Producto original del pedido: {{ original.productName }} · cantidades en {{ unitLabel(original.unitCode) }}.</small> }
+          @if (originalLine(line.productId); as original) { <small>Producto original del pedido: {{ original.productName }} · cantidades en {{ unitLabel(original.unitCode) }}.</small><small data-testid="correction-delta">Antes: {{ original.quantity }} {{ unitLabel(original.unitCode) }} → Nuevo total: {{ line.quantity }} {{ unitLabel(original.unitCode) }} · Diferencia: {{ quantityDelta(line.quantity, original.quantity) }} {{ unitLabel(original.unitCode) }}</small> }
           <button type="button" class="secondary compact" (click)="removeLine(i)" [disabled]="isBusy || attempted || conflict">Quitar producto {{ i + 1 }}</button>
         </div>
       }
@@ -89,6 +90,10 @@ export class AdminOrderCorrectionComponent implements OnInit {
   protected addLine(): void { this.lines.push({ productId: '', quantity: 1, notes: null }); }
   protected removeLine(index: number): void { this.lines.splice(index, 1); }
   protected originalLine(productId: string) { return this.detail.lines.find((line) => line.productId === productId); }
+  protected quantityDelta(current: number, previous: number): string {
+    const delta = Math.round((Number(current) - previous) * 100) / 100;
+    return Number.isFinite(delta) ? `${delta > 0 ? '+' : ''}${delta}` : 'Pendiente';
+  }
 
   protected submit(): void {
     if (this.isBusy || this.isLoading || this.conflict) return;

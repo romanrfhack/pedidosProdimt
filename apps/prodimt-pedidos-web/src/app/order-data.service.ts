@@ -35,6 +35,7 @@ export interface CustomerToday {
 
 export interface AdminOrder {
   id: string;
+  customerId: string | null;
   orderDate: string;
   customerName: string;
   status: string;
@@ -197,6 +198,7 @@ export class OrderDataService {
   private mapAdminOrder(order: AdminOrderSummaryApiResponse): AdminOrder {
     return {
       id: order.orderId,
+      customerId: order.customerId,
       orderDate: order.orderDate,
       customerName: order.customerName,
       status: order.status,

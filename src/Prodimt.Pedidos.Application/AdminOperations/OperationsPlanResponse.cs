@@ -28,7 +28,8 @@ public sealed record OperationsOrderResponse(
     TimeOnly? RequestedDeliveryWindowEnd,
     string? DeliveryNotes,
     int? OrderingProfileVersion,
-    IReadOnlyList<OperationsLineResponse> Lines);
+    IReadOnlyList<OperationsLineResponse> Lines,
+    int OrderVersion);
 
 public sealed record OperationsLineResponse(
     Guid OrderLineId,

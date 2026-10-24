@@ -2,6 +2,8 @@
 
 Este kit prepara Linux x86-64 o WSL2 con Docker. No instala Docker, no modifica servicios del host y no carga datos reales. La API ASP.NET Core y Angular se sirven desde un mismo contenedor en `http://127.0.0.1:5098`; SQL Server 2022 Express usa su propio volumen y no publica el puerto 1433.
 
+Para el VPS y `pedidos.prodimt.site`, siga [DEPLOY-VPS.md](DEPLOY-VPS.md). El primer paso es un inventario de sólo lectura. Los pasos posteriores preparan únicamente el virtual host del piloto y HTTPS; no modifican las otras aplicaciones del servidor.
+
 ## Requisitos y primera instalación
 
 - Docker Engine o Docker Desktop con Compose v2 y soporte `up --wait`; usuario con acceso al daemon.

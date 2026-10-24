@@ -5,6 +5,13 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICustomerRepository
 {
+    public async Task<T> ExecuteOrderingProfileUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    {
+        await store.CatalogGate.WaitAsync(cancellationToken);
+        try { return await action(cancellationToken); }
+        finally { store.CatalogGate.Release(); }
+    }
+
     public Task<IReadOnlyList<Customer>> GetAllAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<Customer> customers = store.Customers
@@ -90,6 +97,29 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task<CustomerOrderingProfileSnapshot?> GetOrderingProfileSnapshotAsync(Guid customerId, CancellationToken cancellationToken)
+        => ExecuteOrderingProfileUpdateAsync(token => ReadOrderingProfileSnapshotAsync(customerId, token), cancellationToken);
+
+    private Task<CustomerOrderingProfileSnapshot?> ReadOrderingProfileSnapshotAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (store.SyncRoot)
+        {
+            var customer = store.Customers.SingleOrDefault(x => x.Id == customerId);
+            if (customer is null) return Task.FromResult<CustomerOrderingProfileSnapshot?>(null);
+            var products = store.Products.ToDictionary(x => x.Id);
+            var items = store.CustomerFrequentProducts.Where(x => x.CustomerId == customerId)
+                .OrderBy(x => x.SortOrder).ThenBy(x => x.ProductId)
+                .Select(item => new CustomerOrderingProfileItem(item.ProductId,
+                    products.GetValueOrDefault(item.ProductId)?.Name ?? "Producto no encontrado",
+                    item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
+                    item.InterpretationPosition, products.GetValueOrDefault(item.ProductId)?.UnitCode,
+                    products.GetValueOrDefault(item.ProductId)?.IsActive ?? false)).ToArray();
+            return Task.FromResult<CustomerOrderingProfileSnapshot?>(new(customer.Id, customer.OrderingProfileVersion,
+                customer.IsOrderProfileApproved, items));
+        }
     }
 
     public Task<IReadOnlyList<CustomerMachineAssignment>> GetMachineAssignmentsAsync(

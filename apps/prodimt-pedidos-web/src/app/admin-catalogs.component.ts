@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import {
   AdminCatalogApiService,
@@ -45,19 +46,36 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink],
+  styles: [`
+    .profile-summary, .profile-product-heading { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .profile-product-card { border: 1px solid #d6e0e7; padding: 14px; border-radius: 12px; }
+    .profile-product-heading { grid-column: 1 / -1; }
+    .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+    .profile-errors { margin: 0; padding-left: 20px; }
+    .profile-help { margin: 0; color: #526478; }
+    .profile-unit { display: grid; gap: 6px; }
+    fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+    .profile-search { max-width: 540px; }
+    .profile-search input { width: 100%; }
+    .profile-status { margin: 0; }
+  `],
   template: `
     <section class="page stack" data-testid="admin-catalogs">
       <div class="page-title">
         <p class="eyebrow">Admin</p>
-        <h2>Catalogos</h2>
+        <h2>{{ configurationOnly ? 'Configuración del cliente' : 'Catalogos' }}</h2>
       </div>
 
+      @if (configurationOnly) {
+        <a routerLink="/admin/catalogos">← Volver a clientes y catálogos</a>
+      } @else {
       <div class="tab-bar" aria-label="Catalogos">
         <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button>
         <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button>
         <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button>
       </div>
+      }
 
       @if (isLoading) {
         <div class="notice">Cargando catalogos...</div>
@@ -74,6 +92,7 @@ interface MachineForm {
       @if (!isLoading) {
         @if (activeTab === 'customers') {
           <section class="stack" data-testid="catalog-customers">
+            @if (!configurationOnly || editingCustomerDetails) {
             <form class="detail-panel stack" (ngSubmit)="saveCustomer()">
               <strong>{{ customerForm.id ? 'Editar cliente' : 'Nuevo cliente' }}</strong>
               <label>
@@ -135,12 +154,21 @@ interface MachineForm {
               </label>
               <div class="review-actions">
                 <button type="submit" class="primary compact">{{ customerForm.id ? 'Guardar cliente' : 'Crear cliente' }}</button>
-                <button type="button" class="secondary compact" (click)="resetCustomerForm()">Limpiar</button>
+                <button type="button" class="secondary compact" (click)="resetCustomerForm()">{{ configurationOnly ? 'Cerrar datos del cliente' : 'Limpiar' }}</button>
               </div>
             </form>
+            }
+
+            @if (!configurationOnly) {
+              <label class="profile-search">
+                <span>Buscar cliente</span>
+                <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta">
+              </label>
+              <p class="profile-help">En Configurar puedes agregar productos, cambiar su orden y definir la máquina y la posición que corresponde a cada cantidad del cliente.</p>
+            }
 
             <div class="admin-list">
-              @for (customer of customers; track customer.id) {
+              @for (customer of visibleCustomers; track customer.id) {
                 <article class="admin-row">
                   <div>
                     <strong>{{ customer.name }}</strong>
@@ -155,8 +183,10 @@ interface MachineForm {
                     </span>
                   </div>
                   <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="openCustomerConfig(customer)">Configurar</button>
+                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button>
+                    @if (!configurationOnly) {
+                      <button type="button" class="secondary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button>
+                    }
                     <button type="button" class="secondary compact" (click)="toggleCustomer(customer)">
                       {{ customer.isActive ? 'Desactivar' : 'Activar' }}
                     </button>
@@ -164,19 +194,39 @@ interface MachineForm {
 
                   @if (selectedCustomer?.id === customer.id) {
                     <section class="detail-panel stack" data-testid="customer-config">
-                      <strong>Configuracion de {{ customer.name }}</strong>
+                      <div class="profile-summary">
+                        <strong>Configuración de {{ customer.name }}</strong>
+                        @if (profileDirty) { <span class="badge warning">Cambios sin guardar</span> }
+                      </div>
+                      @if (isConfigLoading) { <div class="notice">Cargando configuración...</div> }
+                      @if (profileMessage) { <div class="alert success" role="status">{{ profileMessage }}</div> }
+                      @if (profileError) { <div class="alert error" role="alert">{{ profileError }}</div> }
+                      @if (profileConflict) {
+                        <button type="button" class="secondary compact" (click)="reloadProfile()">Recargar perfil y descartar mis cambios</button>
+                      }
 
+                      <fieldset class="stack" [disabled]="isConfigLoading || isProfileSaving">
                       <div class="stack">
                         <strong>Productos frecuentes</strong>
                         <p class="notice">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}. El orden visual y la posición en mensajes como “15 + 20” se configuran por separado.</p>
+                        <p class="profile-help">Cada fila es un producto de este cliente. Subir o bajar cambia el orden en pantalla; la posición del mensaje se mantiene hasta que la edites. Las posiciones de cada cliente comienzan en 1.</p>
+                        @if (frequentRows.length === 0) { <div class="notice">Este cliente aún no tiene productos configurados. Agrega los que suele pedir.</div> }
                         <div class="line-list">
-                          @for (row of frequentRows; track row.productId; let i = $index) {
-                            <div class="line-row frequent-line">
+                          @for (row of frequentRows; track row; let i = $index) {
+                            <div class="line-row frequent-line profile-product-card" data-testid="profile-product">
+                              <div class="profile-product-heading">
+                                <strong>{{ i + 1 }}. {{ productFor(row)?.name || row.productName }}</strong>
+                                @if (!productFor(row)?.unitCode) { <span class="badge warning">Falta unidad</span> }
+                              </div>
                               <label><span>Producto</span><select [(ngModel)]="row.productId" [name]="'frequentProduct' + i" (ngModelChange)="invalidateProfileApproval()">
-                                @for (product of products; track product.id) {
+                                @for (product of profileProducts; track product.id) {
                                   <option [value]="product.id">{{ product.name }} · {{ unitLabel(product.unitCode) }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
                                 }
                               </select></label>
+                              <div class="profile-unit">
+                                <span>Unidad de venta: <strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
+                                <button type="button" class="secondary compact" (click)="editProductUnit(row)">Ver producto y unidad en catálogo</button>
+                              </div>
                               <label><span>Cantidad sugerida</span><input type="number" min="0" step="0.01" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" (ngModelChange)="invalidateProfileApproval()"></label>
                               <label><span>Orden visual</span><input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
                               <label><span>Posición en mensaje</span><input type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
@@ -190,10 +240,27 @@ interface MachineForm {
                                 <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i" (ngModelChange)="invalidateProfileApproval()">
                                 <span>Activo</span>
                               </label>
-                              <button type="button" class="secondary compact" (click)="removeFrequentRow(i)">Quitar</button>
+                              <div class="profile-actions">
+                                <button type="button" class="secondary compact" [disabled]="i === 0" (click)="moveFrequentRow(i, -1)">Subir</button>
+                                <button type="button" class="secondary compact" [disabled]="i === frequentRows.length - 1" (click)="moveFrequentRow(i, 1)">Bajar</button>
+                                <button type="button" class="secondary compact" (click)="removeFrequentRow(i)">Quitar</button>
+                              </div>
                             </div>
                           }
                         </div>
+                        <small>La unidad pertenece al producto del catálogo. Su cambio aplica a futuras capturas de los clientes que lo usan; los pedidos existentes conservan su unidad registrada.</small>
+                        @if (profileValidationErrors.length > 0) {
+                          <div class="alert error" data-testid="profile-validation"><ul class="profile-errors">
+                            @for (message of profileValidationErrors; track message) { <li>{{ message }}</li> }
+                          </ul></div>
+                        }
+                        @if (profileWarnings.length > 0) {
+                          <div class="alert warning"><ul class="profile-errors">
+                            @for (message of profileWarnings; track message) { <li>{{ message }}</li> }
+                          </ul></div>
+                        }
+                        <p class="profile-help" data-testid="position-preview">{{ interpretationPreview }}</p>
+                        <button type="button" class="secondary compact" [disabled]="frequentRows.length === 0" (click)="useVisualOrderForPositions()">Usar orden visual como posiciones 1, 2, 3...</button>
                         <label class="inline-check">
                           <input type="checkbox" name="approveProfile" [formControl]="profileApproval">
                           <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
@@ -201,10 +268,9 @@ interface MachineForm {
                         <small>Guardar sin esta confirmación deja el perfil pendiente de aprobación. Todavía no se interpretan mensajes automáticamente.</small>
                         <div class="review-actions">
                           <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
-                          <button type="button" class="primary compact" (click)="saveFrequentProducts()">Guardar frecuentes</button>
+                          <button type="button" class="primary compact" [disabled]="profileValidationErrors.length > 0 || profileConflict" (click)="saveFrequentProducts()">{{ isProfileSaving ? 'Guardando...' : 'Guardar frecuentes' }}</button>
                         </div>
                       </div>
-
                       <div class="stack">
                         <strong>Maquinas asignadas</strong>
                         <div class="line-list">
@@ -266,6 +332,7 @@ interface MachineForm {
                           }
                         </div>
                       </div>
+                      </fieldset>
                     </section>
                   }
                 </article>
@@ -376,12 +443,26 @@ interface MachineForm {
 export class AdminCatalogsComponent {
   private readonly api = inject(AdminCatalogApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly focusedCustomerId = this.route.snapshot.paramMap.get('customerId');
+  protected readonly configurationOnly = this.focusedCustomerId !== null;
+  protected editingCustomerDetails = false;
+  protected customerSearch = '';
+  protected isConfigLoading = false;
+  protected isProfileSaving = false;
+  protected profileDirty = false;
+  protected profileConflict = false;
+  protected profileError: string | null = null;
+  protected profileMessage: string | null = null;
+  private profileReadSequence = 0;
 
   protected activeTab: CatalogTab = 'customers';
   protected customers: AdminCustomerCatalogApiResponse[] = [];
   protected products: AdminProductCatalogApiResponse[] = [];
   protected machines: AdminMachineCatalogApiResponse[] = [];
   protected frequentRows: AdminCustomerFrequentProductApiResponse[] = [];
+  private profileProductSnapshot = new Map<string, AdminProductCatalogApiResponse>();
   protected machineAssignmentRows: AdminCustomerMachineAssignmentApiResponse[] = [];
   protected accessTokens: AdminCustomerAccessTokenApiResponse[] = [];
   protected selectedCustomer: AdminCustomerCatalogApiResponse | null = null;
@@ -401,6 +482,68 @@ export class AdminCatalogsComponent {
 
   constructor() {
     this.loadCatalogs();
+  }
+
+  protected get visibleCustomers(): AdminCustomerCatalogApiResponse[] {
+    if (this.focusedCustomerId) return this.customers.filter(customer => customer.id === this.focusedCustomerId);
+    const search = this.customerSearch.trim().toLocaleLowerCase('es-MX');
+    return search ? this.customers.filter(customer =>
+      [customer.name, customer.phoneNumber, customer.routeCode].some(value => value?.toLocaleLowerCase('es-MX').includes(search))) : this.customers;
+  }
+
+  protected productFor(row: AdminCustomerFrequentProductApiResponse): AdminProductCatalogApiResponse | undefined {
+    return this.profileProductSnapshot.get(row.productId) ?? this.products.find(product => product.id === row.productId);
+  }
+
+  protected get profileProducts(): AdminProductCatalogApiResponse[] {
+    return this.products.map(product => this.profileProductSnapshot.get(product.id) ?? product);
+  }
+
+  protected get profileValidationErrors(): string[] {
+    const errors: string[] = [];
+    const ids = this.frequentRows.map(row => row.productId);
+    if (new Set(ids).size !== ids.length) errors.push('Cada producto debe aparecer una sola vez para este cliente.');
+    if (this.frequentRows.some(row => !this.productFor(row))) errors.push('Selecciona un producto existente en cada fila.');
+    if (this.frequentRows.some(row => !Number.isInteger(row.sortOrder) || row.sortOrder < 1)) errors.push('El orden visual debe ser un número entero desde 1.');
+    if (this.frequentRows.some(row => row.defaultQuantity !== null && (!Number.isFinite(row.defaultQuantity) || row.defaultQuantity < 0))) errors.push('La cantidad sugerida debe ser cero o positiva, o quedar vacía.');
+    const positions = this.frequentRows.filter(row => row.interpretationPosition !== null).map(row => row.interpretationPosition!);
+    if (positions.some(position => !Number.isInteger(position) || position < 1)) errors.push('Las posiciones deben ser números enteros desde 1, o quedar vacías.');
+    if (new Set(positions).size !== positions.length) errors.push('No repitas posiciones dentro de este cliente.');
+    if (this.frequentRows.some(row => row.preferredMachineId && !this.machines.some(machine => machine.id === row.preferredMachineId && machine.isActive))) errors.push('Selecciona una máquina activa o usa la asignación del cliente.');
+    if (this.profileApproval.value) {
+      const active = this.frequentRows.filter(row => row.isActive);
+      if (active.length === 0 || active.some(row => !this.productFor(row)?.isActive || !this.productFor(row)?.unitCode)) errors.push('Para aprobar, todos los productos activos deben tener unidad confirmada y estar activos en el catálogo.');
+      const activePositions = active.map(row => row.interpretationPosition).sort((a, b) => (a ?? 0) - (b ?? 0));
+      if (activePositions.some((position, index) => position !== index + 1)) errors.push('Para aprobar, asigna posiciones consecutivas 1, 2, 3… a todos los productos activos.');
+    }
+    return errors;
+  }
+
+  protected get profileWarnings(): string[] {
+    const warnings: string[] = [];
+    if (this.frequentRows.some(row => row.isActive && !this.productFor(row)?.unitCode)) warnings.push('Hay productos sin unidad. Puedes guardar el borrador, pero no capturar cantidades de esos productos ni aprobar el perfil.');
+    if (this.frequentRows.some(row => row.isActive && row.interpretationPosition === null)) warnings.push('Hay posiciones sin confirmar. No son necesarias para capturar pedidos indicando producto y cantidad.');
+    if (this.frequentRows.some(row => row.isActive && !row.preferredMachineId) && !this.machineAssignmentRows.some(row => row.isActive && row.isDefault)) warnings.push('Hay productos sin máquina propia y no existe una máquina predeterminada del cliente. Su demanda quedará sin asignar.');
+    return warnings;
+  }
+
+  protected get interpretationPreview(): string {
+    const ordered = this.frequentRows.filter(row => row.isActive && row.interpretationPosition !== null)
+      .slice().sort((a, b) => a.interpretationPosition! - b.interpretationPosition!);
+    if (!ordered.length) return 'Secuencia del cliente: aún no hay posiciones confirmadas.';
+    return 'Secuencia del cliente: ' + ordered.map(row => `${row.interpretationPosition} = ${this.productFor(row)?.name ?? row.productName}`).join(' · ');
+  }
+
+  protected navigateToCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
+    void this.router.navigate(['/admin/clientes', customer.id, 'configuracion']);
+  }
+
+  protected editProductUnit(row: AdminCustomerFrequentProductApiResponse): void {
+    if (this.profileDirty) {
+      this.profileError = 'Guarda primero los cambios del perfil antes de abrir el producto en el catálogo.';
+      return;
+    }
+    void this.router.navigate(['/admin/catalogos'], { queryParams: { productId: row.productId } });
   }
 
   protected saveCustomer(): void {
@@ -432,6 +575,7 @@ export class AdminCatalogsComponent {
   }
 
   protected editCustomer(customer: AdminCustomerCatalogApiResponse): void {
+    this.editingCustomerDetails = true;
     this.customerForm = {
       id: customer.id,
       name: customer.name,
@@ -463,29 +607,53 @@ export class AdminCatalogsComponent {
   }
 
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
+    const sequence = ++this.profileReadSequence;
     this.selectedCustomer = customer;
     this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
     this.resultMessage = null;
     this.errorMessage = null;
+    this.isConfigLoading = true;
+    this.frequentRows = [];
+    this.profileProductSnapshot.clear();
+    this.machineAssignmentRows = [];
+    this.accessTokens = [];
+    this.profileDirty = false;
+    this.profileConflict = false;
+    this.profileError = null;
 
     forkJoin({
-      frequentProducts: this.api.getFrequentProducts(customer.id),
+      profile: this.api.getOrderingProfile(customer.id),
       assignments: this.api.getMachineAssignments(customer.id),
       tokens: this.api.getAccessTokens(customer.id)
     }).subscribe({
-      next: ({ frequentProducts, assignments, tokens }) => {
-        this.frequentRows = frequentProducts;
+      next: ({ profile, assignments, tokens }) => {
+        if (sequence !== this.profileReadSequence || this.selectedCustomer?.id !== customer.id) return;
+        this.selectedCustomer.orderingProfileVersion = profile.orderingProfileVersion;
+        this.selectedCustomer.isOrderProfileApproved = profile.isOrderProfileApproved;
+        this.profileProductSnapshot = new Map(profile.items.map(item => [item.productId, {
+          id: item.productId, name: item.productName, description: null,
+          unitCode: item.unitCode ?? null, isActive: item.productIsActive ?? false
+        }]));
+        this.frequentRows = profile.items.slice().sort((a, b) => a.sortOrder - b.sortOrder);
         this.machineAssignmentRows = assignments;
         this.accessTokens = tokens;
+        this.isConfigLoading = false;
         this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo cargar la configuracion del cliente.')
+      error: (error: unknown) => {
+        if (sequence !== this.profileReadSequence) return;
+        this.isConfigLoading = false;
+        this.profileConflict = true;
+        this.profileError = this.profileErrorText(error, 'No se pudo cargar la configuración. Recarga antes de guardar.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
   protected resetCustomerForm(): void {
     this.customerForm = this.emptyCustomerForm();
+    this.editingCustomerDetails = false;
   }
 
   protected addFrequentRow(): void {
@@ -503,7 +671,7 @@ export class AdminCatalogsComponent {
       {
         productId: product.id,
         productName: product.name,
-        defaultQuantity: 0,
+        defaultQuantity: null,
         sortOrder: this.frequentRows.length + 1,
         isActive: true,
         preferredMachineId: null,
@@ -515,21 +683,52 @@ export class AdminCatalogsComponent {
   protected removeFrequentRow(index: number): void {
     this.invalidateProfileApproval();
     this.frequentRows = this.frequentRows.filter((_, currentIndex) => currentIndex !== index);
+    this.frequentRows.forEach((row, currentIndex) => row.sortOrder = currentIndex + 1);
+  }
+
+  protected moveFrequentRow(index: number, direction: -1 | 1): void {
+    const destination = index + direction;
+    if (destination < 0 || destination >= this.frequentRows.length) return;
+    this.invalidateProfileApproval();
+    const reordered = this.frequentRows.slice();
+    [reordered[index], reordered[destination]] = [reordered[destination], reordered[index]];
+    reordered.forEach((row, currentIndex) => row.sortOrder = currentIndex + 1);
+    this.frequentRows = reordered;
+  }
+
+  protected useVisualOrderForPositions(): void {
+    this.invalidateProfileApproval();
+    let position = 0;
+    this.frequentRows.slice().sort((a, b) => a.sortOrder - b.sortOrder).forEach(row => {
+      row.interpretationPosition = row.isActive ? ++position : null;
+    });
+  }
+
+  protected reloadProfile(): void {
+    if (this.selectedCustomer) this.openCustomerConfig(this.selectedCustomer);
   }
 
   protected invalidateProfileApproval(): void {
     this.profileApproval.setValue(false);
+    this.profileDirty = true;
+    this.profileMessage = null;
+    this.profileError = null;
   }
 
   protected saveFrequentProducts(): void {
-    if (!this.selectedCustomer) {
+    if (!this.selectedCustomer || this.isConfigLoading || this.isProfileSaving || this.profileConflict || this.profileValidationErrors.length > 0) {
       return;
     }
-
-    this.api.updateFrequentProducts(this.selectedCustomer.id, {
+    const customerId = this.selectedCustomer.id;
+    this.isProfileSaving = true;
+    this.profileError = null;
+    this.profileMessage = null;
+    this.api.updateFrequentProducts(customerId, {
       approveForInterpretation: this.profileApproval.value,
+      expectedProfileVersion: this.selectedCustomer.orderingProfileVersion,
       items: this.frequentRows.map((row) => ({
         productId: row.productId,
+        expectedUnitCode: this.productFor(row)?.unitCode ?? null,
         defaultQuantity: row.defaultQuantity === null ? null : Number(row.defaultQuantity),
         sortOrder: Number(row.sortOrder) || 0,
         isActive: row.isActive,
@@ -537,14 +736,21 @@ export class AdminCatalogsComponent {
         interpretationPosition: row.interpretationPosition ?? null
       }))
     }).subscribe({
-      next: (rows) => {
-        this.frequentRows = rows;
+      next: () => {
+        this.isProfileSaving = false;
         this.profileApproval.setValue(false);
-        this.resultMessage = 'Productos frecuentes guardados.';
-        this.loadCatalogs(false);
+        this.profileMessage = 'Productos frecuentes guardados.';
+        this.reloadProfile();
         this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudieron guardar los productos frecuentes.')
+      error: (error: unknown) => {
+        this.isProfileSaving = false;
+        this.profileConflict = error instanceof HttpErrorResponse && error.status === 409;
+        this.profileError = this.profileConflict
+          ? 'Otro usuario cambió este perfil. Tus cambios siguen en pantalla; recarga la versión vigente antes de volver a editar.'
+          : this.profileErrorText(error, 'No se pudieron guardar los productos frecuentes.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
@@ -769,13 +975,25 @@ export class AdminCatalogsComponent {
     }).subscribe({
       next: ({ customers, products, machines }) => {
         this.customers = customers;
+        // The profile version belongs to the loaded snapshot, never to a separate catalog refresh.
         if (this.selectedCustomer) {
-          this.selectedCustomer = customers.find((customer) => customer.id === this.selectedCustomer?.id) ?? null;
+          const details = customers.find(customer => customer.id === this.selectedCustomer?.id);
+          if (details) this.selectedCustomer = { ...details, orderingProfileVersion: this.selectedCustomer.orderingProfileVersion, isOrderProfileApproved: this.selectedCustomer.isOrderProfileApproved };
         }
         this.products = products;
         this.machines = machines;
         this.isLoading = false;
         this.errorMessage = null;
+        if (this.focusedCustomerId && !this.selectedCustomer) {
+          const focused = customers.find(customer => customer.id === this.focusedCustomerId);
+          if (focused) this.openCustomerConfig(focused);
+          else this.errorMessage = 'No se encontró el cliente solicitado.';
+        }
+        const productId = this.route.snapshot.queryParamMap.get('productId');
+        if (productId && !this.configurationOnly && showLoading) {
+          const product = products.find(item => item.id === productId);
+          if (product) { this.activeTab = 'products'; this.editProduct(product); }
+        }
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
@@ -853,5 +1071,9 @@ export class AdminCatalogsComponent {
     }
 
     this.changeDetector.detectChanges();
+  }
+
+  private profileErrorText(error: unknown, fallback: string): string {
+    return error instanceof HttpErrorResponse && typeof error.error?.error === 'string' ? error.error.error : fallback;
   }
 }

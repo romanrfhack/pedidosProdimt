@@ -28,6 +28,8 @@ builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
 builder.Services.AddScoped<AdminDailyOrderService>();
 builder.Services.AddScoped<AdminOperationsService>();
+builder.Services.AddScoped<OrderChangeNoticePublisher>();
+builder.Services.AddScoped<OrderChangeNoticeService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
@@ -121,6 +123,17 @@ if (app.Environment.IsDevelopment())
 if (builder.Configuration.GetValue("Hosting:UseHttpsRedirection", true)) app.UseHttpsRedirection();
 if (app.Environment.IsDevelopment()) app.UseCors("ProdimtWeb");
 app.UsePilotStaticFiles();
+app.Use(async (HttpContext context, RequestDelegate next) =>
+{
+    try
+    {
+        await next(context);
+    }
+    catch (CatalogConflictException ex) when (!context.Response.HasStarted)
+    {
+        await Results.Conflict(new { error = ex.Message }).ExecuteAsync(context);
+    }
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapAdminOperationsEndpoints();
@@ -515,6 +528,26 @@ adminCustomers.MapGet("/{customerId:guid}/frequent-products", async (
 })
 .WithName("GetAdminCustomerFrequentProducts");
 
+adminCustomers.MapGet("/{customerId:guid}/ordering-profile", async (
+    Guid customerId,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetOrderingProfileAsync(customerId, cancellationToken));
+    }
+    catch (CatalogConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerOrderingProfile");
+
 adminCustomers.MapPut("/{customerId:guid}/frequent-products", async (
     Guid customerId,
     UpdateCustomerFrequentProductsRequest request,
@@ -525,6 +558,10 @@ adminCustomers.MapPut("/{customerId:guid}/frequent-products", async (
     try
     {
         return Results.Ok(await service.ReplaceFrequentProductsAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CatalogConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (ArgumentException ex)
     {

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminImports;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
@@ -19,7 +20,8 @@ public sealed class AdminDailyOrderService(
     IMachineRepository machines,
     ISalesChannelRepository salesChannels,
     IDateTimeProvider clock,
-    IOrderOperationStore operationStore)
+    IOrderOperationStore operationStore,
+    OrderChangeNoticePublisher changeNotices)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly OrderStatus[] ActiveStatuses = [OrderStatus.Submitted, OrderStatus.Accepted, OrderStatus.PendingAdminReview];
@@ -103,6 +105,7 @@ public sealed class AdminDailyOrderService(
             if (order.Version != request.ExpectedVersion || !ActiveStatuses.Contains(order.Status) || order.CustomerId is null)
                 throw new CustomerOrderConflictException("El pedido cambio o su estado no permite corregirlo. Recarga el detalle.");
             var before = Snapshot(order);
+            var previousDemand = OrderChangeNoticePublisher.Capture(order);
             var oldLines = order.Lines.ToDictionary(x => x.ProductId);
             var newInputs = request.Lines.Where(x => !oldLines.ContainsKey(x.ProductId))
                 .Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray();
@@ -119,11 +122,12 @@ public sealed class AdminDailyOrderService(
                     AssignedMachineId = previous.AssignedMachineId };
             }).ToArray();
             await orders.ReplaceLinesAsync(order, replacements, token);
+            await changeNotices.PublishAsync(order, previousDemand, "correction", request.Reason.Trim(), actor, clock.Now, token);
             await auditLogs.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderCorrected, clock.Now,
                 AuditActorType.Admin, "Correccion comercial: reemplazo completo de partidas.", actor?.ActorId,
                 actor?.ActorDisplayName, JsonSerializer.Serialize(new { operationKey, reason = request.Reason.Trim(), before,
                     after = Snapshot(order) }, JsonOptions)), token);
-            var detailService = new AdminOrderService(orders, auditLogs, customers, products, machines, salesChannels, clock);
+            var detailService = new AdminOrderService(orders, auditLogs, customers, products, machines, salesChannels, clock, changeNotices);
             return await detailService.MapDetailAsync(order, token);
         }, cancellationToken);
         return receipt.Result;

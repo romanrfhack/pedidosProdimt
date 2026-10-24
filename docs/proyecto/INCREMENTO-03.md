@@ -10,7 +10,7 @@
 
 ## Decisión de instalación
 
-Se prepara Linux/WSL con Docker Compose como opción portátil. La selección de servidor no recibió respuesta y no se ejecutan cambios remotos por suposición. El paquete no requiere instalar Node ni .NET globalmente en el servidor.
+Se prepara Linux/WSL con Docker Compose como opción portátil. Después de completar I03-A, el usuario eligió su VPS y `pedidos.prodimt.site`. La instalación I03-B comienza con un inventario de sólo lectura del host; no se da por ejecutada por preparar scripts o comprobar CI. El paquete no requiere instalar Node ni .NET globalmente en el servidor.
 
 - Frontend compilado para el mismo origen de la API.
 - SQL Server Express en un volumen propio; puerto SQL no publicado.
@@ -20,7 +20,7 @@ Se prepara Linux/WSL con Docker Compose como opción portátil. La selección de
 - Arranque HTTP normal sin migraciones ni clientes, productos o tokens de demostración.
 - Conexión privilegiada sólo durante inicialización; conexión de la aplicación con permisos limitados.
 
-La exposición pública mediante dominio/HTTPS es otro paso de instalación. No se modifica DNS, proxy ni servicios existentes desde este incremento de preparación.
+La exposición pública mediante dominio/HTTPS se prepara por etapas, con un virtual host propio, comprobación de conflictos y respaldo de sus cambios. El inventario del servidor debe revisarse antes de aplicar; no se modifican otros servicios ni se asume su configuración.
 
 ## Datos necesarios
 

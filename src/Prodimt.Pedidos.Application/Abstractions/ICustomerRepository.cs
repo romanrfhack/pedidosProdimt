@@ -20,6 +20,10 @@ public interface ICustomerRepository
 
     Task<IReadOnlyList<CustomerFrequentProduct>> GetAllFrequentProductsAsync(Guid customerId, CancellationToken cancellationToken);
 
+    Task<CustomerOrderingProfileSnapshot?> GetOrderingProfileSnapshotAsync(Guid customerId, CancellationToken cancellationToken);
+
+    Task<T> ExecuteOrderingProfileUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task ReplaceFrequentProductsAsync(
         Guid customerId,
         IReadOnlyList<CustomerFrequentProduct> frequentProducts,

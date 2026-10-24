@@ -49,11 +49,19 @@ public sealed record AdminCustomerFrequentProductResponse(
     bool IsActive,
     Guid? PreferredMachineId = null,
     int? InterpretationPosition = null,
-    string? UnitCode = null);
+    string? UnitCode = null,
+    bool ProductIsActive = true);
 
 public sealed record UpdateCustomerFrequentProductsRequest(
     IReadOnlyList<UpdateCustomerFrequentProductItemRequest> Items,
-    bool ApproveForInterpretation = false);
+    bool ApproveForInterpretation = false,
+    int? ExpectedProfileVersion = null);
+
+public sealed record AdminCustomerOrderingProfileResponse(
+    Guid CustomerId,
+    int OrderingProfileVersion,
+    bool IsOrderProfileApproved,
+    IReadOnlyList<AdminCustomerFrequentProductResponse> Items);
 
 public sealed record UpdateCustomerFrequentProductItemRequest(
     Guid ProductId,
@@ -61,7 +69,8 @@ public sealed record UpdateCustomerFrequentProductItemRequest(
     int SortOrder,
     bool IsActive,
     Guid? PreferredMachineId = null,
-    int? InterpretationPosition = null);
+    int? InterpretationPosition = null,
+    string? ExpectedUnitCode = null);
 
 public sealed record AdminCustomerMachineAssignmentResponse(
     Guid MachineId,

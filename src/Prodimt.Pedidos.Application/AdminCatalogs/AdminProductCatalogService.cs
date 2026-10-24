@@ -46,7 +46,11 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> UpdateAsync(
+    public Task<AdminProductResponse> UpdateAsync(Guid productId, UpsertAdminProductRequest request,
+        AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => UpdateCoreAsync(productId, request, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> UpdateCoreAsync(
         Guid productId,
         UpsertAdminProductRequest request,
         AdminActorContext? actor,
@@ -79,7 +83,10 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> ActivateAsync(
+    public Task<AdminProductResponse> ActivateAsync(Guid productId, AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => ActivateCoreAsync(productId, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> ActivateCoreAsync(
         Guid productId,
         AdminActorContext? actor,
         CancellationToken cancellationToken)
@@ -104,7 +111,10 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> DeactivateAsync(
+    public Task<AdminProductResponse> DeactivateAsync(Guid productId, AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => DeactivateCoreAsync(productId, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> DeactivateCoreAsync(
         Guid productId,
         AdminActorContext? actor,
         CancellationToken cancellationToken)

@@ -27,6 +27,7 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(x => x.RouteCode).HasMaxLength(80);
         builder.Property(x => x.PaymentTermCode).HasMaxLength(32);
         builder.Property(x => x.InternalDeliveryInstructions).HasMaxLength(1000);
+        builder.Property(x => x.OrderingProfileVersion).IsConcurrencyToken();
         builder.HasIndex(x => new { x.RouteCode, x.RouteStopOrder });
 
         builder.HasMany<Order>()

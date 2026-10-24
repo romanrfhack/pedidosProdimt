@@ -40,6 +40,7 @@ Avance de revisión I02: recibida hoja revisada del usuario, con identidad/ruta 
 | I01 | Recuperación técnica, unidades explícitas, configuración del piloto, datos internos de entrega/cobro, preferencia de máquina por producto y consulta de demanda | Etapa 0 y base de etapa 1 |
 | I02 | Validación/carga privada del piloto, importación diaria con vista previa y origen, identidad de operación, versiones/correcciones y manejo de concurrencia | Completar captura fiable de etapa 1 |
 | I03 | A: paquete de instalación y datos pendientes; B: instalación y carga revisada; C: ensayo de una semana y evaluación de diferencias. Listas/etiquetas y registro físico cuando se habiliten | Salida de etapa 1 e inicio de etapa 2 |
+| I04 | Avisos persistentes de cambios de demanda, reconocimiento por máquina y configuración enfocada/versionada del cliente | Refuerzo operativo para el ensayo; preparación de etapa 2 |
 
 No asignar fechas de terminación sin confirmar disponibilidad operativa, despliegue y calidad de los datos. Cada incremento debe tener una aceptación técnica y una aceptación de negocio separadas.
 

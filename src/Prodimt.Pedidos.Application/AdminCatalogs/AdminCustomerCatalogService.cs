@@ -151,34 +151,29 @@ public sealed class AdminCustomerCatalogService(
     public async Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> GetFrequentProductsAsync(
         Guid customerId,
         CancellationToken cancellationToken)
+        => (await GetOrderingProfileAsync(customerId, cancellationToken)).Items;
+
+    public async Task<AdminCustomerOrderingProfileResponse> GetOrderingProfileAsync(
+        Guid customerId,
+        CancellationToken cancellationToken)
     {
-        await GetRequiredCustomerAsync(customerId, cancellationToken);
-
-        var frequentProducts = await customers.GetAllFrequentProductsAsync(customerId, cancellationToken);
-        var productLookup = (await products.GetByIdsIncludingInactiveAsync(
-                frequentProducts.Select(x => x.ProductId),
-                cancellationToken))
-            .ToDictionary(x => x.Id);
-
-        return frequentProducts
-            .OrderBy(x => x.SortOrder)
-            .Select(item =>
-            {
-                productLookup.TryGetValue(item.ProductId, out var product);
-                return new AdminCustomerFrequentProductResponse(
-                    item.ProductId,
-                    product?.Name ?? "Producto no encontrado",
-                    item.DefaultQuantity,
-                    item.SortOrder,
-                    item.IsActive,
-                    item.PreferredMachineId,
-                    item.InterpretationPosition,
-                    product?.UnitCode);
-            })
-            .ToArray();
+        var snapshot = await customers.GetOrderingProfileSnapshotAsync(customerId, cancellationToken)
+            ?? throw new InvalidOperationException("El cliente no existe.");
+        return new(snapshot.CustomerId, snapshot.OrderingProfileVersion, snapshot.IsOrderProfileApproved,
+            snapshot.Items.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId, item.ProductName,
+                item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
+                item.InterpretationPosition, item.UnitCode, item.ProductIsActive)).ToArray());
     }
 
-    public async Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsAsync(
+    public Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsAsync(
+        Guid customerId,
+        UpdateCustomerFrequentProductsRequest request,
+        AdminActorContext? actor,
+        CancellationToken cancellationToken)
+        => customers.ExecuteOrderingProfileUpdateAsync(
+            token => ReplaceFrequentProductsCoreAsync(customerId, request, actor, token), cancellationToken);
+
+    private async Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsCoreAsync(
         Guid customerId,
         UpdateCustomerFrequentProductsRequest request,
         AdminActorContext? actor,
@@ -186,6 +181,10 @@ public sealed class AdminCustomerCatalogService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var customer = await GetRequiredCustomerForUpdateAsync(customerId, cancellationToken);
+        if (request.ExpectedProfileVersion < 0)
+            throw new ArgumentException("La version esperada del perfil no puede ser negativa.", nameof(request));
+        if (request.ExpectedProfileVersion is { } expectedVersion && expectedVersion != customer.OrderingProfileVersion)
+            throw new CatalogConflictException("El perfil cambio desde que lo abriste. Recarga la configuracion antes de guardar.");
         var items = request.Items ?? [];
         EnsureNoDuplicateIds(items.Select(x => x.ProductId), "No repitas productos frecuentes para el mismo cliente.");
 
@@ -209,6 +208,8 @@ public sealed class AdminCustomerCatalogService(
         var activeItems = items.Where(x => x.IsActive).ToArray();
         if (request.ApproveForInterpretation)
         {
+            if (activeItems.Any(x => x.ExpectedUnitCode is not null && x.ExpectedUnitCode != productLookup[x.ProductId].UnitCode))
+                throw new CatalogConflictException("La unidad de un producto cambio desde que la revisaste. Recarga la configuracion antes de aprobar.");
             if (activeItems.Length == 0 || activeItems.Any(x => !productLookup[x.ProductId].IsActive || productLookup[x.ProductId].UnitCode is null))
                 throw new ArgumentException("Para aprobar el perfil se requiere al menos un producto activo con unidad confirmada.", nameof(request));
             var positions = activeItems.Select(x => x.InterpretationPosition).OrderBy(x => x).ToArray();
@@ -247,7 +248,10 @@ public sealed class AdminCustomerCatalogService(
             }), cancellationToken);
         await customers.SaveChangesAsync(cancellationToken);
 
-        return await GetFrequentProductsAsync(customerId, cancellationToken);
+        return replacement.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId,
+            productLookup[item.ProductId].Name, item.DefaultQuantity, item.SortOrder, item.IsActive,
+            item.PreferredMachineId, item.InterpretationPosition, productLookup[item.ProductId].UnitCode,
+            productLookup[item.ProductId].IsActive)).ToArray();
     }
 
     public async Task<IReadOnlyList<AdminCustomerMachineAssignmentResponse>> GetMachineAssignmentsAsync(

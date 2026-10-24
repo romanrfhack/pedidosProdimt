@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
@@ -14,7 +15,8 @@ public sealed class AdminOrderService(
     IProductRepository products,
     IMachineRepository machines,
     ISalesChannelRepository salesChannels,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    OrderChangeNoticePublisher changeNotices)
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -219,6 +221,7 @@ public sealed class AdminOrderService(
             throw new CustomerOrderConflictException("El pedido ya cambio o no esta pendiente de revision. Recarga el detalle.");
         }
 
+        var previousDemand = OrderChangeNoticePublisher.Capture(order);
         var changes = request.Decision is AdminDecision.AcceptedWithChanges
             ? ApplyAcceptedWithChanges(order, request)
             : [];
@@ -262,6 +265,9 @@ public sealed class AdminOrderService(
                 ToMetadataJson(new { changes })), cancellationToken);
         }
 
+        await changeNotices.PublishAsync(order, previousDemand, "review",
+            string.IsNullOrWhiteSpace(request.InternalNotes) ? "Pedido autorizado tras revision administrativa." : request.InternalNotes,
+            actor, dateTimeProvider.Now, cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 
         var customerNames = await GetCustomerNamesAsync([order], cancellationToken);

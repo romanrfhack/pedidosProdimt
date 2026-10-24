@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 
@@ -8,6 +10,9 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomerRepository
 {
     private readonly Dictionary<Guid, IReadOnlyList<CustomerFrequentProduct>> _frequentProductReplacements = new();
+
+    public Task<T> ExecuteOrderingProfileUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+        => CatalogTransaction.ExecuteAsync(dbContext, action, cancellationToken);
 
     public async Task<IReadOnlyList<Customer>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -94,6 +99,39 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
         return Task.CompletedTask;
     }
 
+    public async Task<CustomerOrderingProfileSnapshot?> GetOrderingProfileSnapshotAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        // Keep version/approval, membership and current product meaning in the same short read.
+        // Product edits invalidate the profile in their own shared commit.
+        try
+        {
+            await using var transaction = dbContext.Database.CurrentTransaction is null
+                ? await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
+            var customer = await dbContext.Customers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == customerId, cancellationToken);
+            if (customer is null) return null;
+            var items = await (from item in dbContext.CustomerFrequentProducts.AsNoTracking()
+                               where item.CustomerId == customerId
+                               join product in dbContext.Products.AsNoTracking() on item.ProductId equals product.Id into matches
+                               from product in matches.DefaultIfEmpty()
+                               orderby item.SortOrder, item.ProductId
+                               select new CustomerOrderingProfileItem(item.ProductId,
+                                   product == null ? "Producto no encontrado" : product.Name,
+                                   item.DefaultQuantity, item.SortOrder, item.IsActive,
+                                   item.PreferredMachineId, item.InterpretationPosition,
+                                   product == null ? null : product.UnitCode,
+                                   product != null && product.IsActive)).ToArrayAsync(cancellationToken);
+            var result = new CustomerOrderingProfileSnapshot(customer.Id, customer.OrderingProfileVersion,
+                customer.IsOrderProfileApproved, items);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (Exception ex) when (CatalogPersistenceConflicts.IsConcurrentChange(ex))
+        {
+            throw new CatalogConflictException("El catalogo cambio durante la lectura. Recarga la configuracion.");
+        }
+    }
+
     public async Task<IReadOnlyList<CustomerMachineAssignment>> GetMachineAssignmentsAsync(
         Guid customerId,
         CancellationToken cancellationToken)
@@ -143,6 +181,18 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await SavePendingChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (CatalogPersistenceConflicts.IsConcurrentChange(ex))
+        {
+            throw new CatalogConflictException("El perfil o catalogo cambio al guardar. Recarga la configuracion antes de reintentar.");
+        }
+    }
+
+    private async Task SavePendingChangesAsync(CancellationToken cancellationToken)
     {
         if (_frequentProductReplacements.Count == 0)
         {

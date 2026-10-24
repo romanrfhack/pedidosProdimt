@@ -113,3 +113,16 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Smoke Docker Production completo correcto: inicialización, login, mismo origen, ausencia de demo, SQL con permisos limitados, secretos preservados, backup verificado y datos después de recrear la aplicación. Recursos desechables eliminados.
 - Preparado kit privado con fuente exacta, CSV revisado, hoja de pendientes e instrucciones; los datos privados se colocan fuera del contexto Docker. No incluye secretos operativos.
 - I03-B queda para ejecutar el paquete en el destino; I03-C para una semana real de comparación tras completar los datos mínimos. PR continúa en borrador, sin fusión ni despliegue.
+
+## 2026-10-24 — I04 autorizado: correcciones visibles y configuración por cliente
+
+- Usuario solicita que una modificación de la misma entrega se registre como corrección con nota, conserve historial y avise a la máquina aunque ya hubiera terminado de preparar. Confirma interés en captura asistida desde WhatsApp y control de duplicados entre puntos de entrada.
+- Se reutiliza la corrección I02. I04 guarda avisos persistentes junto con pedido/auditoría y añade reconocimiento idempotente; el total solicitado y lo físicamente producido permanecen separados.
+- Configuración enfocada por cliente sobre el catálogo existente, orden visual y posiciones explícitas. Snapshot coherente de perfil/productos, versión esperada y unidad observada evitan sobrescrituras/aprobaciones con datos obsoletos.
+- Revisión corrigió carreras entre modificación de producto y aprobación de un perfil nuevo; las transacciones cubren validación y escritura. El tablero lee plan y avisos con control de versión para evitar mostrar total anterior junto con aviso nuevo.
+- Recibido XLSX revisado: 67 entradas modificadas (30 unidades, 36 posiciones y un cero de máquina), sin cambios en filas ni fórmulas. Persisten faltantes; no se aprueban perfiles o fusionan productos automáticamente.
+- El término «Adicional» de la evidencia original se reconoce como rótulo impreciso, con significado pendiente. No se transforma la hipótesis de ampliaciones telefónicas en datos operativos históricos.
+- Destino y subdominio elegidos. Preparados inventario readonly, instalación aislada y Nginx/HTTPS por etapas. No se ejecutó despliegue porque no hay ruta SSH desde el entorno; el usuario ejecutará el primer paso desde WSL.
+- Validación local y controles remotos se registran en `../validation/2026-10-24-i04.md`. El código público sigue separado de clientes, archivos e instrucciones privados.
+
+- Cierre local I04: 203 pruebas .NET, 53 E2E y 15 pruebas Python correctas; 20 SQL compiladas, pendientes de ejecución remota. `graphify update .` intentado, herramienta no instalada (127).

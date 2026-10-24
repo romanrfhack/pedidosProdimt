@@ -46,7 +46,7 @@ public sealed class AdminOperationsService(
             return new OperationsOrderResponse(order.Id, order.CustomerId, Name(order), order.SequenceNumber,
                 order.Status, order.RouteCode, order.RouteStopOrder, order.HasStoreKey, order.PaymentTermCode,
                 order.InternalDeliveryInstructions, order.RequestedDeliveryTime, order.RequestedDeliveryWindowStart,
-                order.RequestedDeliveryWindowEnd, order.DeliveryNotes, order.OrderingProfileVersion, lines);
+                order.RequestedDeliveryWindowEnd, order.DeliveryNotes, order.OrderingProfileVersion, lines, order.Version);
         }).ToArray();
 
         var demand = operationalOrders.SelectMany(x => x.Lines)

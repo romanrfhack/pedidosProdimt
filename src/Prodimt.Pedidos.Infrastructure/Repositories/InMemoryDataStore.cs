@@ -49,6 +49,9 @@ public sealed class InMemoryDataStore
 
     public object SyncRoot { get; } = new();
 
+    // Serializes the demo profile editor and product invalidation, including snapshot reads.
+    internal SemaphoreSlim CatalogGate { get; } = new(1, 1);
+
     public List<Customer> Customers { get; } =
     [
         new()

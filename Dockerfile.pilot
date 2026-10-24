@@ -18,6 +18,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=api /app/publish/ ./
 COPY --from=web /src/web/dist/prodimt-pedidos-web/browser/ ./wwwroot/
+# A private ZIP extraction can leave copied configuration files mode 600.
+# Runtime assets contain no operational secrets and must be readable by app.
+RUN chmod -R a+rX /app
 ENV ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_HTTP_PORTS=8080
 USER app
 EXPOSE 8080

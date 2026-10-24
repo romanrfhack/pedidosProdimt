@@ -72,15 +72,26 @@ export interface AdminCustomerFrequentProductApiResponse {
   isActive: boolean;
   preferredMachineId: string | null;
   interpretationPosition: number | null;
+  unitCode?: UnitCode | null;
+  productIsActive?: boolean;
+}
+
+export interface AdminCustomerOrderingProfileApiResponse {
+  customerId: string;
+  orderingProfileVersion: number;
+  isOrderProfileApproved: boolean;
+  items: AdminCustomerFrequentProductApiResponse[];
 }
 
 export interface UpdateCustomerFrequentProductsApiRequest {
   items: UpdateCustomerFrequentProductItemApiRequest[];
   approveForInterpretation: boolean;
+  expectedProfileVersion?: number;
 }
 
 export interface UpdateCustomerFrequentProductItemApiRequest {
   productId: string;
+  expectedUnitCode?: UnitCode | null;
   defaultQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
@@ -200,6 +211,12 @@ export class AdminCatalogApiService {
   getFrequentProducts(customerId: string): Observable<AdminCustomerFrequentProductApiResponse[]> {
     return this.http.get<AdminCustomerFrequentProductApiResponse[]>(
       `${this.apiBaseUrl}/api/admin/customers/${customerId}/frequent-products`
+    );
+  }
+
+  getOrderingProfile(customerId: string): Observable<AdminCustomerOrderingProfileApiResponse> {
+    return this.http.get<AdminCustomerOrderingProfileApiResponse>(
+      `${this.apiBaseUrl}/api/admin/customers/${customerId}/ordering-profile`
     );
   }
 

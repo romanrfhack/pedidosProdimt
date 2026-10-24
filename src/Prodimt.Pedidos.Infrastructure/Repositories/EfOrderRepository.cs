@@ -113,7 +113,7 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception ex) when (CatalogPersistenceConflicts.IsConcurrentChange(ex))
         {
             throw new CustomerOrderConflictException("El pedido cambio durante la operacion. Recarga el detalle.");
         }

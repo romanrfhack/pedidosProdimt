@@ -1042,7 +1042,11 @@ public sealed class AdminImportService(
         return ToApplyResponse(plan, created, updated, skipped, auditLogIds);
     }
 
-    private async Task<ImportApplyResponse> ApplyProductsAsync(
+    private Task<ImportApplyResponse> ApplyProductsAsync(ImportPlan<ProductImportItem> plan,
+        AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => ApplyProductsCoreAsync(plan, actor, token), cancellationToken);
+
+    private async Task<ImportApplyResponse> ApplyProductsCoreAsync(
         ImportPlan<ProductImportItem> plan,
         AdminActorContext? actor,
         CancellationToken cancellationToken)

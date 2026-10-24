@@ -708,7 +708,8 @@ public sealed class CustomerOrderPersistenceTests
                 new EfProductRepository(dbContext),
                 new EfMachineRepository(dbContext),
                 new EfSalesChannelRepository(dbContext),
-                dateTimeProvider);
+                dateTimeProvider,
+                new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(dbContext), new EfMachineRepository(dbContext), customerRepository));
         }
 
         public PedidosDbContext DbContext { get; }
