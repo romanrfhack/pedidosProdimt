@@ -1,4 +1,5 @@
 const apiBaseUrl = (process.env.PRODIMT_API_BASE_URL ?? 'http://127.0.0.1:5088').replace(/\/$/, '');
+const smokeProvider = process.env.PRODIMT_SMOKE_PROVIDER ?? 'SqlServer';
 const demoCustomerId = process.env.PRODIMT_DEMO_CUSTOMER_ID ?? '11111111-1111-1111-1111-111111111111';
 const otherCustomerId = process.env.PRODIMT_OTHER_CUSTOMER_ID ?? '11111111-1111-1111-1111-111111111112';
 const thirdCustomerId = process.env.PRODIMT_THIRD_CUSTOMER_ID ?? '11111111-1111-1111-1111-111111111113';
@@ -13,7 +14,12 @@ const forbiddenCustomerTokens = [
   'machineid',
   'assignedmachineid',
   'assignedmachine',
-  'maquina'
+  'maquina',
+  'hasstorekey',
+  'internaldeliveryinstructions',
+  'paymenttermcode',
+  'routecode',
+  'routestoporder'
 ];
 
 function assert(condition, message) {
@@ -94,6 +100,7 @@ function assertArrayExcludesCustomer(customers, customerId, label) {
 function firstPositiveProduct(today) {
   assert(Array.isArray(today.products), 'Customer today response must include products.');
   assert(today.products.length > 0, 'Customer today response must include at least one product.');
+  assert(today.products.every((product) => ['kg', 'piece', 'dozen', 'package'].includes(product.unitCode)), 'Demo product has an undefined unit.');
   return today.products[0];
 }
 
@@ -104,9 +111,16 @@ async function main() {
   assert(health.status === 'ok', 'GET /health did not return ok.');
   console.log('OK /health');
 
-  const dbHealth = await requestJson('/health/db');
-  assert(dbHealth.status === 'ok' && dbHealth.database === 'reachable', 'GET /health/db did not return reachable.');
-  console.log('OK /health/db');
+  assert(['SqlServer', 'InMemory'].includes(smokeProvider), 'PRODIMT_SMOKE_PROVIDER must be SqlServer or InMemory.');
+  const dbHealth = await fetchJson('/health/db');
+  if (smokeProvider === 'InMemory') {
+    assert(dbHealth.status === 503 && dbHealth.body?.title === 'Database persistence is not registered.',
+      'InMemory smoke expected an unregistered relational database; check the selected API.');
+    console.log('INFO InMemory functional smoke: SQL Server persistence/migrations are NOT validated.');
+  } else {
+    assert(dbHealth.ok && dbHealth.body?.status === 'ok' && dbHealth.body?.database === 'reachable', 'GET /health/db did not return reachable.');
+    console.log('OK /health/db');
+  }
 
   const anonymousAdmin = await fetchJson('/api/admin/orders/today');
   assertUnauthorizedOrForbidden(anonymousAdmin, 'Anonymous admin endpoint');
@@ -156,8 +170,8 @@ async function main() {
     `${importCustomerCode},Smoke Import Cliente ${smokeSuffix},0000008800,true,10:30,,,Cliente importado por smoke`
   ].join('\n');
   const importProductCsv = [
-    'externalCode,name,description,isActive',
-    `${importProductCode},Smoke Import Molde ${smokeSuffix},Producto importado por smoke,true`
+    'externalCode,name,description,isActive,unitCode',
+    `${importProductCode},Smoke Import Molde ${smokeSuffix},Producto importado por smoke,true,kg`
   ].join('\n');
   const importFrequentCsv = [
     'customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive',
@@ -239,6 +253,7 @@ async function main() {
   });
   const importedProduct = importedProducts.find((product) => product.externalCode === importProductCode);
   assert(importedProduct?.id, 'Imported product was not found in catalog.');
+  assert(importedProduct.unitCode === 'kg', 'Imported product lost its explicit kg unit.');
 
   const importFrequentValidation = await requestJson('/api/admin/import/customer-frequent-products/validate', {
     method: 'POST',
@@ -341,7 +356,12 @@ async function main() {
       preferredDeliveryTime: '11:30',
       preferredDeliveryWindowStart: null,
       preferredDeliveryWindowEnd: null,
-      deliveryNotes: 'Horario actualizado por smoke catalogos'
+      deliveryNotes: 'Horario actualizado por smoke catalogos',
+      routeCode: 'R-SMOKE-DEMO',
+      routeStopOrder: 1,
+      hasStoreKey: true,
+      paymentTermCode: 'cash_on_delivery',
+      internalDeliveryInstructions: 'Mesa de demostracion'
     })
   });
   assert(updatedCatalogCustomer.preferredDeliveryTime?.startsWith('11:30'), 'Catalog customer delivery time was not updated.');
@@ -352,10 +372,12 @@ async function main() {
     headers: adminHeaders,
     body: JSON.stringify({
       name: `Smoke Molde ${smokeSuffix}`,
-      description: 'Producto temporal smoke catalogos'
+      description: 'Producto temporal smoke catalogos',
+      unitCode: 'dozen'
     })
   });
   assert(catalogProduct.id, 'Catalog product create did not return id.');
+  assert(catalogProduct.unitCode === 'dozen', 'Catalog product did not preserve dozen unit.');
   console.log(`OK catalog product created: ${catalogProduct.id}`);
 
   const frequentConfig = await requestJson(`/api/admin/customers/${catalogCustomer.id}/frequent-products`, {
@@ -523,6 +545,7 @@ async function main() {
   assert(firstOrderDetail.orderId === firstOrder.orderId, 'Admin detail returned unexpected order id.');
   assert(Array.isArray(firstOrderDetail.lines) && firstOrderDetail.lines.length > 0, 'Admin detail did not include order lines.');
   assert(firstOrderDetail.lines[0].productName, 'Admin detail line did not include productName.');
+  assert(firstOrderDetail.lines[0].unitCode === product.unitCode, 'Admin detail lost captured unit.');
   assert('assignedMachineId' in firstOrderDetail.lines[0], 'Admin detail line did not include assignedMachineId.');
   console.log(`OK admin order detail includes lines: ${firstOrderDetail.lines.length}`);
 
@@ -682,6 +705,7 @@ async function main() {
     headers: adminHeaders,
     body: JSON.stringify({
       decision: 'AcceptedWithChanges',
+      expectedVersion: adminSecondDetail.version,
       internalNotes: 'Smoke Fase 1 accepted with changes',
       requestedDeliveryTime: '13:00',
       requestedDeliveryWindowStart: null,
@@ -717,7 +741,22 @@ async function main() {
   assert(changedDetail.lines.some((line) => line.quantity === 5), 'AcceptedWithChanges did not persist line quantity adjustment.');
   console.log('OK AcceptedWithChanges persisted delivery and line changes');
 
-  console.log('Smoke Fase 1 authenticated completed successfully.');
+
+  const anonymousPlan = await fetchJson('/api/admin/operations/plan');
+  assert(anonymousPlan.status === 401, 'Anonymous operations plan must return 401.');
+  const customerPlan = await fetchJson('/api/admin/operations/plan', { headers: customerHeaders });
+  assert(customerPlan.status === 403, 'Customer JWT must not access the operations plan.');
+  const plan = await requestJson('/api/admin/operations/plan', { headers: adminHeaders });
+  assert(plan.demandLabel === 'Por producir' && plan.preparationLabel === 'Por preparar', 'Plan must label demand, not completed production.');
+  assert(plan.orders.some((order) => order.orderId === reviewed.orderId), 'Plan did not include accepted order.');
+  assert(!plan.orders.some((order) => order.orderId === secondOrder.orderId), 'Plan included pending order in demand.');
+  assert(plan.pendingReview.some((order) => order.orderId === secondOrder.orderId), 'Plan did not report pending review separately.');
+  assert(!plan.orders.some((order) => order.orderId === noOrder.orderId || order.orderId === adminNoOrder.orderId), 'Plan included NoOrder response in demand.');
+  const planLine = plan.orders.find((order) => order.orderId === reviewed.orderId).lines[0];
+  assert(planLine.quantity === 5 && planLine.unitCode === adminProduct.unitCode, 'Plan lost revised quantity or captured unit.');
+  console.log('OK protected operations plan separates accepted demand, pending review and units');
+
+  console.log(`Smoke Fase 1 authenticated completed successfully (${smokeProvider}).`);
 }
 
 main().catch((error) => {

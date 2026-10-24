@@ -68,11 +68,17 @@ jobs:
       - name: Install frontend dependencies from lockfile
         run: npm ci
         working-directory: apps/prodimt-pedidos-web
+      - name: Audit frontend and build dependencies
+        run: npm audit --audit-level=high
+        working-directory: apps/prodimt-pedidos-web
       - name: Build frontend
         run: npm run build
         working-directory: apps/prodimt-pedidos-web
       - name: Install test dependencies from lockfile
         run: npm ci
+        working-directory: tests/e2e
+      - name: Audit browser test dependencies
+        run: npm audit --audit-level=high
         working-directory: tests/e2e
       - name: Install Chromium and system dependencies
         run: npx playwright install --with-deps chromium

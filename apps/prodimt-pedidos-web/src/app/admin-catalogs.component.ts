@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import {
   AdminCatalogApiService,
@@ -45,7 +45,7 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule],
+  imports: [FormsModule, ReactiveFormsModule],
   template: `
     <section class="page stack" data-testid="admin-catalogs">
       <div class="page-title">
@@ -195,7 +195,7 @@ interface MachineForm {
                           }
                         </div>
                         <label class="inline-check">
-                          <input type="checkbox" name="approveProfile" [(ngModel)]="approveForInterpretation">
+                          <input type="checkbox" name="approveProfile" [formControl]="profileApproval">
                           <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
                         </label>
                         <small>Guardar sin esta confirmación deja el perfil pendiente de aprobación. Todavía no se interpretan mensajes automáticamente.</small>
@@ -394,7 +394,7 @@ export class AdminCatalogsComponent {
   protected customerForm: CustomerForm = this.emptyCustomerForm();
   protected productForm: ProductForm = this.emptyProductForm();
   protected machineForm: MachineForm = this.emptyMachineForm();
-  protected approveForInterpretation = false;
+  protected readonly profileApproval = new FormControl(false, { nonNullable: true });
   protected readonly unitLabel = unitLabel;
   protected readonly storeKeyLabel = storeKeyLabel;
   protected readonly paymentTermLabel = paymentTermLabel;
@@ -464,7 +464,7 @@ export class AdminCatalogsComponent {
 
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
     this.selectedCustomer = customer;
-    this.approveForInterpretation = false;
+    this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
     this.resultMessage = null;
     this.errorMessage = null;
@@ -518,7 +518,7 @@ export class AdminCatalogsComponent {
   }
 
   protected invalidateProfileApproval(): void {
-    this.approveForInterpretation = false;
+    this.profileApproval.setValue(false);
   }
 
   protected saveFrequentProducts(): void {
@@ -527,7 +527,7 @@ export class AdminCatalogsComponent {
     }
 
     this.api.updateFrequentProducts(this.selectedCustomer.id, {
-      approveForInterpretation: this.approveForInterpretation,
+      approveForInterpretation: this.profileApproval.value,
       items: this.frequentRows.map((row) => ({
         productId: row.productId,
         defaultQuantity: row.defaultQuantity === null ? null : Number(row.defaultQuantity),
@@ -539,7 +539,7 @@ export class AdminCatalogsComponent {
     }).subscribe({
       next: (rows) => {
         this.frequentRows = rows;
-        this.approveForInterpretation = false;
+        this.profileApproval.setValue(false);
         this.resultMessage = 'Productos frecuentes guardados.';
         this.loadCatalogs(false);
         this.changeDetector.detectChanges();

@@ -425,6 +425,12 @@ test('perfil requiere aprobación explícita y separa posición de orden visual'
   await approval.check();
   await config.getByLabel('Cantidad sugerida').first().fill('21');
   await expect(approval).not.toBeChecked();
+  const changedSave = page.waitForRequest((request) => request.method() === 'PUT' && request.url().endsWith('/frequent-products'));
+  await config.getByRole('button', { name: 'Guardar frecuentes' }).click();
+  const changedBody = (await changedSave).postDataJSON();
+  expect(changedBody.approveForInterpretation).toBe(false);
+  expect(changedBody.items[0].defaultQuantity).toBe(21);
+  await expect(config.getByText(/Perfil versión 2 · Pendiente de aprobación/)).toBeVisible();
 });
 
 test('plan móvil e impresión separan unidades y muestran preparación e instrucciones', async ({ page }) => {

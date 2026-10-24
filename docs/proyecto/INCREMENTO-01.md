@@ -63,3 +63,10 @@ Una prueba con API mock no equivale a prueba de persistencia SQL Server. Generar
 - Revisión: `expectedVersion` y conflicto HTTP 409 si el pedido cambió o dejó de estar pendiente; índice único cliente/fecha/secuencia protege colisiones de creación. No deduplica reenvíos secuenciales.
 
 Migración: `20261024164610_AddPilotCatalogAndOrderSnapshots`. Agrega columnas nullable para desconocidos y restricciones de unicidad; no convierte datos previos a kg.
+
+
+## Comprobación adicional de HTTP y dependencias
+
+Los ejemplos versionados de productos ya incluyen unidades explícitas. `scripts/dev/README-smokes.md` describe los dos smokes autenticados ejecutados con la API real y almacenamiento InMemory: ambos correctos. No reemplazan su ejecución pendiente contra SQL Server.
+
+El primer CI permitió corregir la sincronización visual de la aprobación del perfil. La prueba exige que una edición posterior desmarque la casilla y envíe aprobación false al servidor. Tras elevar únicamente parches compatibles de Angular 21 y dependencias de herramientas, la suite completa volvió a pasar (23/23). La auditoría npm completa no reporta vulnerabilidades en el catálogo consultado en esta sesión.

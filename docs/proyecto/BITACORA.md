@@ -50,3 +50,12 @@ Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente pa
 ### Publicación comprobada
 
 Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a5`, mediante [PR #1 en borrador](https://github.com/romanrfhack/pedidosProdimt/pull/1). Rama remota recuperada y comparada con el trabajo local; sin diferencias después de sincronizar. Los workflows remotos arrancaron; consultar su resultado en la PR. Este registro documental posterior no modifica el código probado.
+
+### Cierre de hallazgos de CI y comprobación HTTP
+
+- El primer CI remoto confirmó backend correcto y detectó una desincronización visual: al editar una cantidad, la aprobación interna quedaba false pero el checkbox podía seguir marcado. Se sustituyó ese control por `FormControl`, manteniendo la invalidación de negocio. El test comprueba tanto la pantalla como el siguiente PUT con aprobación false y perfil pendiente. Diez repeticiones del caso afectado correctas.
+- Actualizados Angular/framework/compiler a 21.2.25 y CLI/build a 21.2.28, manteniendo TypeScript 5.9. Se añadió override acotado de undici 7.30.1 en herramientas de build. Auditoría npm completa: de 33 hallazgos a cero; producción: de seis a cero; E2E: cero. No se forzaron peers ni se cambió a Angular 22.
+- Build frontend final: correcto, 423.30 kB. Suite completa posterior a los parches y corrección: 23/23 E2E correctos.
+- Ejemplos de productos y scripts de comprobación incluyen unidades explícitas. Los smokes autenticados de captura e importación pasan contra una API real de desarrollo InMemory; comprueban kg/docena, snapshots, privacidad y plan protegido. Esa API temporal se detuvo al terminar.
+- No hubo cambios nuevos de backend después de las 113 pruebas correctas. CI vuelve a comprobar ambos componentes sobre la versión publicada.
+- El estado remoto final se conserva en los checks de la PR; no confundir las corridas anteriores fallidas con el resultado del último commit.

@@ -6,7 +6,7 @@ Actualizado: 24 de octubre de 2026.
 
 - Repositorio: `romanrfhack/pedidosProdimt`.
 - Solicitud de cambios: [PR #1, borrador](https://github.com/romanrfhack/pedidosProdimt/pull/1). No fusionada ni desplegada.
-- Commit de implementación verificado localmente: `fde65007cb03614db0b1dcca11395a7451a374a5`.
+- Primer checkpoint de implementación verificado localmente (ver HEAD de la PR para correcciones posteriores): `fde65007cb03614db0b1dcca11395a7451a374a5`.
 - Base revisada: `492bbe9e1069d32ae22565889f149aaf529393fd`.
 - Rama: `codex/pilot-foundation-2026-10-24`.
 - Incremento: **I01 — Fundamentos del piloto, implementado y probado localmente**.
@@ -32,11 +32,12 @@ Actualizado: 24 de octubre de 2026.
 
 - Base anterior: **68 pruebas .NET** correctas.
 - Incremento integrado: **113 pruebas .NET** correctas (5 dominio + 108 aplicación); build Release con **0 errores y 0 advertencias**.
-- Frontend: build correcto; **23 pruebas E2E** con API mock correctas. Última corrección visual verificada con su prueba específica y build posterior.
+- Frontend actualizado a parches de Angular 21; build correcto; **23 pruebas E2E** con API mock correctas. Última corrección visual verificada con su prueba específica y build posterior.
 - Vista móvil de 390 px e impresión de una página inspeccionadas con datos ficticios.
 - EF confirma que no hay cambios del modelo sin migración; SQL idempotente de las seis migraciones generado y revisado, no aplicado.
 - Revisión estática independiente y comprobación de que no se agregaron datos reales al repositorio.
-- Dependencias NuGet elevadas a parches sin hallazgos en la consulta puntual del catálogo de vulnerabilidades.
+- Smokes autenticados de captura e importación ejecutados contra API real con almacenamiento InMemory: correctos. No acreditan persistencia SQL Server.
+- Dependencias NuGet elevadas a parches y frontend actualizado dentro de Angular 21. Consultas puntuales NuGet y npm sin vulnerabilidades reportadas; la auditoría completa npm pasó de 33 hallazgos a cero.
 
 Ver detalles y límites en `../validation/2026-10-24-preflight.md` y `INCREMENTO-01.md`. Las pruebas SQLite y API mock no sustituyen la prueba contra SQL Server. El estado del workflow remoto se consulta en GitHub; un resultado local no acredita un resultado remoto.
 
