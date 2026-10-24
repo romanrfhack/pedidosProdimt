@@ -25,6 +25,10 @@ En este punto, compartir el JSON permite preparar el siguiente paso con la confi
 - Certbot/OpenSSL disponibles y mecanismo de renovación existente identificado. Si falta una herramienta, resolverlo según la distribución real; estos scripts no ejecutan actualizaciones globales ni reinstalan Docker.
 - A de `pedidos.prodimt.site` hacia `194.238.26.70`; no publicar con un AAAA que apunte a otra máquina. El script de publicación de esta versión admite sólo la IPv4 elegida.
 
+## Instalación nativa encontrada
+
+El inventario posterior confirmó una instalación PRODIMT previa mediante systemd, con frontend/backend en releases y base SQL existente. En ese destino corresponde la actualización descrita en [DEPLOY-NATIVE.md](DEPLOY-NATIVE.md). Las etapas Docker que siguen sirven para una instalación nueva; no deben crear un despliegue paralelo encima del dominio activo.
+
 ## 2. Copiar y extraer la primera instalación
 
 Sólo después de revisar el inventario. El kit esperado es `PRODIMT_Piloto_I04_20261024.zip`, con raíz `prodimt-piloto/`, fuente en `app/` y datos reales en `datos-privados/` fuera del contexto Docker.

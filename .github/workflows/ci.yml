@@ -89,6 +89,8 @@ jobs:
           done
           printf 'SQL Server did not become ready within 120 seconds.\n' >&2
           exit 1
+      - name: Verify native inventory JSON with real sqlcmd
+        run: python3 tests/pilot/verify_sqlcmd_json.py
       - name: Restore SQL integration tests
         run: dotnet restore tests/Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj --disable-parallel -m:1 -nr:false
       - name: Test migrations, durable retries, rollback and corrections on SQL Server

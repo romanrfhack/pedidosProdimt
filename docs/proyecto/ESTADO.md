@@ -12,7 +12,7 @@ Actualizado: 24 de octubre de 2026.
 - **I03-A implementado y validado en CI**, código `26eb6d8d47786bb18f2fe8117596e74f4f277430`; [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40123481595). Instalación reproducible Linux/WSL, SQL aislado, acceso por túnel y credenciales propias. Hitos separados en `INCREMENTO-03.md`; instrucciones en `../../infra/pilot/README.md`.
 - **I04 implementado y validado en CI**, código `b630072ce67a691c3757d0590cc7f7d45f423d52`; [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40130113089). Avisos persistentes de cambios de demanda, configuración enfocada por cliente y control de edición simultánea. Contratos y límites en `INCREMENTO-04.md`.
 - **Etapa 1 en desarrollo; preparación operativa de etapa 0 aún incompleta.**
-- Piloto real: no iniciado. No se ha cargado la ruta en una base operativa.
+- I04 no está desplegado. El diagnóstico del usuario confirma una instalación PRODIMT previa activa; sus datos y uso operativo todavía requieren inspección. La ruta privada I04 no se ha cargado desde esta sesión.
 
 ## Terminado
 
@@ -52,11 +52,12 @@ Actualizado: 24 de octubre de 2026.
 - I04: **20/20 pruebas SQL Server reales correctas**, incluidos rollback de avisos y carrera de aprobación/unidad. Modelo/migración consistentes. [Evidencia de cierre](../validation/2026-10-24-i04.md).
 - 15/15 pruebas Python de inventario y publicación aislada correctas en local y CI. Smoke Docker Production completo correcto, incluidos archivos extraídos con permisos privados. No se ejecutaron Nginx ni certificado en el VPS.
 - Comprobación SSH directa: el entorno no tiene ruta de red al servidor. Se entregan comandos para ejecutar desde WSL; no hubo cambios remotos.
-- Inventario ejecutado por el usuario: DNS y disco aptos, Docker operativo; Compose no confirmado, memoria disponible menor al umbral previsto para compilar y configuración Nginx/certificado del dominio ya presentes. Se requiere revisión dirigida, sin crear un segundo virtual host ni sustituir la renovación existente.
+- Inventario dirigido del usuario confirma PRODIMT nativo activo mediante systemd, frontend/backend en releases y proxy hacia la API existente. Certificado del dominio vigente y renovación webroot previa. Compose v2/Buildx no están instalados; no se requieren para preparar una actualización nativa con binarios compilados fuera del VPS.
+- El antecedente identifica una base SQL Server nativa existente; su destino efectivo, esquema y permisos se comprobarán antes de respaldo o migración. La existencia del servicio no acredita que I04 esté publicado ni que se hayan validado sus datos.
 
 ## Siguiente paso
 
-1. Inventario VPS recibido y revisado. Resolver el diagnóstico de Compose, inspeccionar el virtual host/certificado preexistentes y elegir la compilación según capacidad disponible antes de instalar I03-B. Las rutas del stack I04 siguen ausentes; no inferir que la aplicación previa o el certificado funcionan sólo por existir sus archivos.
+1. Preparar actualización nativa I03-B del servicio PRODIMT existente. Confirmar configuración efectiva, destino SQL, migraciones y permisos para respaldo/verificación antes de publicar binarios I04. Preservar releases actuales, configuración privada, base, Nginx y renovación. El kit Docker queda para una instalación nueva, no para duplicar este despliegue.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
 3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.

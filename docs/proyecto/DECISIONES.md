@@ -36,6 +36,8 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-030 | 2026-10-24 | Usuario elige VPS y dominio; usar pedidos.prodimt.site. Preparar preflight de sólo lectura, aplicación aislada y Nginx/HTTPS propios. No sobrescribir otros proyectos. La red del entorno de trabajo no permite SSH directo; el usuario ejecutará los comandos desde WSL. |
 | OCT-031 | 2026-10-24 | Empezar con captura administrativa asistida de WhatsApp/llamadas; la interpretación automática queda para otro incremento. Reintentos técnicos y duplicados comerciales entre canales son problemas distintos. Un segundo envío del cliente/fecha requiere revisión, no suma automática ni deduplicación por parecido. |
 
+| OCT-032 | 2026-10-24 | El inventario descubre PRODIMT nativo activo con SQL, releases, Nginx y certificado existentes. Preparar actualización nativa I03-B con binarios externos, respaldo verificado y migración explícita; conservar esa infraestructura. El kit Docker queda como alternativa de instalación nueva. Confirmar estado actual antes de escribir; no reiniciar credenciales o crear otra base por suposición. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

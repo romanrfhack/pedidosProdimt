@@ -142,3 +142,10 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - La RAM disponible está por debajo del umbral previsto para la compilación inicial y no hay swap. Se revisará carga actual y opción de compilar fuera del VPS; no se cambian límites ni se detienen otras aplicaciones por suposición.
 - Existe un virtual host para el dominio con nombre distinto del gestionado por I04, y un certificado previo. Faltan upstream, vigencia y método de renovación; la existencia del archivo no acredita servicio válido. No ejecutar el publicador genérico ni crear otro virtual host antes de revisar esta evidencia.
 - Preparado siguiente diagnóstico dirigido de sólo lectura. No se instaló ni cambió nada remotamente; código funcional I04 conserva la validación registrada.
+
+## 2026-10-24 — Despliegue nativo existente identificado
+
+- El diagnóstico dirigido del usuario confirma servicio PRODIMT activo, frontend/backend con releases, proxy a su API y certificado vigente con renovación webroot. Compose v1 existe, pero faltan los plugins v2/Buildx y WSL no tiene Docker.
+- Se recuperó el antecedente de la instalación: SQL Server nativo y base propios ya usados por PRODIMT. Se requiere lectura actual de configuración y migraciones; no se publica ni se solicita ninguna contraseña.
+- Se prepara I03-B como actualización nativa de esa instalación: compilar API/Angular fuera del VPS, inspeccionar configuración efectiva/estado SQL, respaldar/verificar, migrar y cambiar releases conservando infraestructura. No crear otro SQL ni otro virtual host por defecto.
+- Binarios preparados desde el commit funcional probado b630072; no se modificó código de la aplicación ni se inició la actualización remota. La inspección nueva es de sólo lectura y sus resultados son condición de la fase de escritura.
