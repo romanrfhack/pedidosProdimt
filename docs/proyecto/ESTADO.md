@@ -7,7 +7,8 @@ Actualizado: 24 de octubre de 2026.
 - Repositorio: `romanrfhack/pedidosProdimt`.
 - [PR #1](https://github.com/romanrfhack/pedidosProdimt/pull/1), rama `codex/pilot-foundation-2026-10-24`. Borrador, sin fusión ni despliegue.
 - Base de I02: `a2eb7fb533982ba719ce74d0a73b4f631cd0d2f9` (I01 verificado).
-- **I02 implementado y validado localmente**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
+- Código I02 verificado: `192c8d7871e2b2021b4d485dd71b5ebd7abbda4d`; [CI](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407). El commit documental posterior conserva el mismo código.
+- **I02 implementado y validado en CI, incluido SQL Server real**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
 - **Etapa 1 en desarrollo; preparación operativa de etapa 0 aún incompleta.**
 - Piloto real: no iniciado. No se ha cargado la ruta en una base operativa.
 
@@ -30,18 +31,18 @@ Actualizado: 24 de octubre de 2026.
 - **157/157 pruebas .NET** correctas: 5 dominio y 152 aplicación; cero omitidas.
 - **37/37 E2E** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
 - Revisión estática independiente de contratos, privacidad, snapshots, fechas y transacciones completada; hallazgos corregidos.
-- Proyecto de **9 pruebas HTTP/SQL Server** compilado sin errores ni advertencias. La primera ejecución real pasó seis de ocho pruebas y detectó dos conflictos SQL envueltos por EF; su manejo fue corregido y se añadió cobertura de historial largo.
-- El entorno local no dispone de SQL Server/Docker. Falta comprobar el resultado remoto posterior a esas correcciones; ver último commit de la PR y `../validation/2026-10-24-i02.md`.
+- **9/9 pruebas HTTP/SQL Server reales correctas**: migraciones, persistencia entre hosts, concurrencia con deadlocks reales y respuesta 409, rollback, correcciones, auditoría extensa y perfiles. Los fallos encontrados en la primera ejecución quedaron corregidos.
+- SQL Server se ejecutó en CI contra una instancia desechable, eliminada al terminar. No se usaron datos reales ni una base operativa. Evidencia en `../validation/2026-10-24-i02.md`.
+- Vista previa HTTP del CSV privado: **23/23 clientes válidos, cero errores**, 23 advertencias por teléfono vacío. No aplicado.
 - InMemory conserva las funciones de I01 y la vista previa diaria. Aplicar lotes o corregir pedidos exige persistencia relacional; no se finge éxito durable.
 
 ## Siguiente paso
 
-1. Completar validación remota SQL Server y cerrar cualquier hallazgo del workflow.
-2. Definir instalación de prueba del piloto con SQL Server y acceso administrativo; aplicar migraciones allí.
-3. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
-4. Completar unidades, perfiles de producto, orden de visita, políticas de cobro faltantes e instrucciones de entrega. El XLSX no contiene esos valores en todas las filas.
-5. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
-6. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
+1. Definir instalación de prueba del piloto con SQL Server y acceso administrativo; aplicar migraciones allí.
+2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
+3. Completar unidades, perfiles de producto, orden de visita, políticas de cobro faltantes e instrucciones de entrega. El XLSX no contiene esos valores en todas las filas.
+4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
+5. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
 
 ## Límites vigentes
 

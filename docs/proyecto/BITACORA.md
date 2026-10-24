@@ -84,3 +84,11 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Revisión independiente sin bloqueadores estáticos pendientes y comprobación de privacidad del diff.
 - Paquete privado I02 con Excel recibido intacto, normalización, CSV parcial, evidencia de fórmulas y hashes persistido aparte.
 - I02 no equivale a despliegue, carga de la ruta o salida de etapa 1. Siguiente: prueba SQL remota, instalación del piloto y preparación de I03.
+
+### Cierre de SQL Server y publicación I02
+
+- I02 publicado como `b73eb435eb7fc2d0bbb2a4c3240b59638a34972a`. Backend157 e interfaz37 correctos en GitHub; primera corrida SQL encontró dos fallos de concurrencia por envoltura de excepciones.
+- Corrección publicada como `192c8d7871e2b2021b4d485dd71b5ebd7abbda4d`: reconocimiento de causas SQL envueltas y expansión de auditoría mediante `20261024181934_ExpandOrderAuditSnapshots`.
+- [SQL Server real: 9/9 correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407/job/120950109344). Confirmados deadlocks reales con 409, rollback total ante SQL 547, reintento persistente, auditoría extensa íntegra y migraciones consistentes. Contenedor desechable eliminado.
+- CSV privado validado por HTTP: 23/23 filas, cero errores, 23 advertencias por teléfono vacío; no se aplicó. Paquete privado actualizado con esa evidencia y hashes.
+- Documentación de estado/continuidad actualizada; rama remota recuperada y comparada con el trabajo local. No hay fusión, despliegue ni carga operativa. Próximo hito: instalación de prueba y ensayo I03 después de completar los datos mínimos faltantes.
