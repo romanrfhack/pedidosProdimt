@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../environments/environment';
+import { unitLabel } from './operational-labels';
 import {
   AdminDecisionApiValue,
   AdminOrderDetailApiResponse,
@@ -34,6 +35,7 @@ export interface CustomerToday {
 
 export interface AdminOrder {
   id: string;
+  orderDate: string;
   customerName: string;
   status: string;
   submittedAt: string;
@@ -47,6 +49,7 @@ export interface AdminOrder {
 
 export interface AdminOrderLine {
   id: string;
+  productId: string;
   productName: string;
   quantity: number;
   notes: string | null;
@@ -56,6 +59,8 @@ export interface AdminOrderLine {
 
 export interface AdminOrderDetail extends AdminOrder {
   version: number;
+  source: string | null;
+  externalOrderKey: string | null;
   deliveryNotes: string | null;
   internalNotes: string | null;
   salesChannel: string;
@@ -68,6 +73,7 @@ export interface AdminOrderAuditEvent {
   occurredAt: string;
   actorType: string;
   summary: string;
+  correction: { reason: string; changes: Array<{ productName: string; before: string; after: string; beforeNotes: string | null; afterNotes: string | null }> } | null;
 }
 
 export interface PendingCustomerOrder {
@@ -132,14 +138,14 @@ export class OrderDataService {
     return this.customerOrdersApi.markNoOrder(customerId);
   }
 
-  loadTodayOrders(): Observable<AdminOrder[]> {
-    return this.customerOrdersApi.getTodayOrders().pipe(
+  loadTodayOrders(date?: string): Observable<AdminOrder[]> {
+    return this.customerOrdersApi.getTodayOrders(date).pipe(
       map((orders) => orders.map((order) => this.mapAdminOrder(order)))
     );
   }
 
-  loadPendingReviewOrders(): Observable<AdminOrder[]> {
-    return this.customerOrdersApi.getPendingReviewOrders().pipe(
+  loadPendingReviewOrders(date?: string): Observable<AdminOrder[]> {
+    return this.customerOrdersApi.getPendingReviewOrders(date).pipe(
       map((orders) => orders.map((order) => this.mapAdminOrder(order)))
     );
   }
@@ -164,8 +170,8 @@ export class OrderDataService {
     );
   }
 
-  loadPendingCustomers(): Observable<PendingCustomerOrder[]> {
-    return this.customerOrdersApi.getPendingCustomers().pipe(
+  loadPendingCustomers(date?: string): Observable<PendingCustomerOrder[]> {
+    return this.customerOrdersApi.getPendingCustomers(date).pipe(
       map((customers) => customers.map((customer) => this.mapPendingCustomer(customer)))
     );
   }
@@ -182,8 +188,8 @@ export class OrderDataService {
     );
   }
 
-  markAdminNoOrder(customerId: string, internalNotes: string | null): Observable<AdminOrder> {
-    return this.customerOrdersApi.markAdminCustomerNoOrder(customerId, { internalNotes }).pipe(
+  markAdminNoOrder(customerId: string, internalNotes: string | null, serviceDate?: string): Observable<AdminOrder> {
+    return this.customerOrdersApi.markAdminCustomerNoOrder(customerId, { internalNotes, serviceDate }).pipe(
       map((order) => this.mapAdminOrder(order))
     );
   }
@@ -191,6 +197,7 @@ export class OrderDataService {
   private mapAdminOrder(order: AdminOrderSummaryApiResponse): AdminOrder {
     return {
       id: order.orderId,
+      orderDate: order.orderDate,
       customerName: order.customerName,
       status: order.status,
       submittedAt: this.formatDateTime(order.submittedAt),
@@ -209,11 +216,14 @@ export class OrderDataService {
     return {
       ...summary,
       version: order.version,
+      source: order.source ?? null,
+      externalOrderKey: order.externalOrderKey ?? null,
       deliveryNotes: order.deliveryNotes,
       internalNotes: order.internalNotes,
       salesChannel: order.salesChannelName ?? order.salesChannelType ?? 'Sin canal',
       lines: order.lines.map((line) => ({
         id: line.orderLineId,
+        productId: line.productId,
         productName: line.productName,
         unitCode: line.unitCode,
         quantity: line.quantity,
@@ -231,8 +241,40 @@ export class OrderDataService {
       eventType: event.eventType,
       occurredAt: this.formatDateTime(event.occurredAt),
       actorType: event.actorType,
-      summary: event.summary
+      summary: event.summary,
+      correction: this.parseCorrection(event)
     };
+  }
+
+  private parseCorrection(event: AdminOrderAuditApiResponse): AdminOrderAuditEvent['correction'] {
+    if (event.eventType !== 'OrderCorrected' || !event.metadataJson) return null;
+    try {
+      const data = JSON.parse(event.metadataJson);
+      if (typeof data?.reason !== 'string' || !Array.isArray(data?.before?.lines) || !Array.isArray(data?.after?.lines)) return null;
+      type SnapshotLine = { productId: string; productName: string | null; quantity: number; unitCode: string | null; notes: string | null };
+      const validLines = (items: unknown[]): SnapshotLine[] => items.filter((item): item is SnapshotLine => {
+        if (!item || typeof item !== 'object') return false;
+        const line = item as Record<string, unknown>;
+        return typeof line['productId'] === 'string' && typeof line['quantity'] === 'number' && Number.isFinite(line['quantity']) &&
+          (typeof line['productName'] === 'string' || line['productName'] === null) &&
+          (typeof line['unitCode'] === 'string' || line['unitCode'] === null) &&
+          (typeof line['notes'] === 'string' || line['notes'] === null);
+      });
+      const before = new Map(validLines(data.before.lines).map((line) => [line.productId, line]));
+      const after = new Map(validLines(data.after.lines).map((line) => [line.productId, line]));
+      const ids = [...new Set([...before.keys(), ...after.keys()])];
+      return { reason: data.reason, changes: ids.map((id) => {
+        const previous = before.get(id);
+        const current = after.get(id);
+        return {
+          productName: current?.productName || previous?.productName || 'Producto',
+          before: previous ? `${previous.quantity} ${unitLabel(previous.unitCode)}` : 'No incluido',
+          after: current ? `${current.quantity} ${unitLabel(current.unitCode)}` : 'Retirado',
+          beforeNotes: previous?.notes ?? null,
+          afterNotes: current?.notes ?? null
+        };
+      }) };
+    } catch { return null; }
   }
 
   private mapPendingCustomer(customer: PendingCustomerOrderApiResponse): PendingCustomerOrder {

@@ -8,6 +8,7 @@ import { AdminTodayComponent } from './admin-today.component';
 import { adminAuthGuard } from './admin-auth.guard';
 import { CustomerTodayComponent } from './customer-today.component';
 import { AdminOperationsComponent } from './admin-operations.component';
+import { AdminDailyImportComponent } from './admin-daily-import.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'cliente', pathMatch: 'full' },
@@ -18,5 +19,6 @@ export const routes: Routes = [
   { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/catalogos', component: AdminCatalogsComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/operacion', component: AdminOperationsComponent, canActivate: [adminAuthGuard] },
+  { path: 'admin/importar-pedidos', component: AdminDailyImportComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/importacion', component: AdminImportComponent, canActivate: [adminAuthGuard] }
 ];

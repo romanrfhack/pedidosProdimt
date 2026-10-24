@@ -50,6 +50,53 @@ jobs:
       - name: Generate SQL Server script without applying it
         run: dotnet tool run dotnet-ef migrations script --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/pilot-migrations.sql"
 
+  sqlserver:
+    name: SQL Server migrations and transactional HTTP tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        id: dotnet
+        with:
+          dotnet-version: '10.0.x'
+      - name: Select installed .NET 10 SDK
+        env:
+          TEST_DOTNET_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: dotnet new globaljson --sdk-version "$TEST_DOTNET_VERSION" --roll-forward latestPatch
+      - name: Start disposable SQL Server with a generated password
+        shell: bash
+        run: |
+          set -euo pipefail
+          test_sql_password="$(openssl rand -hex 24)Aa1!"
+          printf '::add-mask::%s\n' "$test_sql_password"
+          test_sql_connection="Server=127.0.0.1,14333;Database=master;User Id=sa;Password=$test_sql_password;Encrypt=True;TrustServerCertificate=True"
+          printf '::add-mask::%s\n' "$test_sql_connection"
+          printf 'PRODIMT_SQL_TEST_CONNECTION=%s\n' "$test_sql_connection" >> "$GITHUB_ENV"
+          docker run --detach --rm --name prodimt-i02-sqlserver \
+            --publish 127.0.0.1:14333:1433 \
+            --env ACCEPT_EULA=Y --env MSSQL_PID=Developer --env MSSQL_MEMORY_LIMIT_MB=2048 \
+            --env MSSQL_SA_PASSWORD="$test_sql_password" \
+            mcr.microsoft.com/mssql/server:2022-latest
+          for attempt in $(seq 1 60); do
+            if docker exec prodimt-i02-sqlserver /opt/mssql-tools18/bin/sqlcmd \
+                -C -S localhost -U sa -P "$test_sql_password" -Q 'SELECT 1' -b >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          printf 'SQL Server did not become ready within 120 seconds.\n' >&2
+          exit 1
+      - name: Restore SQL integration tests
+        run: dotnet restore tests/Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj --disable-parallel -m:1 -nr:false
+      - name: Test migrations, durable retries, rollback and corrections on SQL Server
+        run: dotnet test tests/Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj --configuration Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false --logger 'console;verbosity=normal'
+      - name: Remove disposable SQL Server
+        if: always()
+        run: docker rm --force prodimt-i02-sqlserver || true
+
   frontend:
     name: Angular build and browser tests
     runs-on: ubuntu-24.04

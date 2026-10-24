@@ -59,3 +59,28 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Ejemplos de productos y scripts de comprobación incluyen unidades explícitas. Los smokes autenticados de captura e importación pasan contra una API real de desarrollo InMemory; comprueban kg/docena, snapshots, privacidad y plan protegido. Esa API temporal se detuvo al terminar.
 - No hubo cambios nuevos de backend después de las 113 pruebas correctas. CI vuelve a comprobar ambos componentes sobre la versión publicada.
 - El estado remoto final se conserva en los checks de la PR; no confundir las corridas anteriores fallidas con el resultado del último commit.
+
+## 2026-10-24 — I02 autorizado tras revisión del XLSX
+
+### Datos y alcance
+
+- Usuario devolvió la hoja revisada, confirmó los valores detectados y autorizó el siguiente incremento.
+- Revisión de sólo lectura: 23 clientes, 52 fórmulas simples con cachés correctos, ruta y acceso explícitos; dos instrucciones internas y cinco políticas de contraentrega. Productos y otros campos incompletos siguen separados de lo listo para cargar.
+- Las fechas de revisión arrastradas no se utilizaron como fecha de servicio. Nada del archivo privado se publicó en git ni se envió al workflow.
+
+### Implementación
+
+- Fecha de servicio administrativa y consulta/revisión por fecha.
+- Importación diaria CSV con preview, origen, referencias externas, clave de lote y resultados persistentes.
+- Correcciones con motivo, versión y clave de operación; reemplazo completo y evidencia antes/después.
+- Transacciones y restricciones SQL para evitar duplicados y cambios parciales; demo InMemory no simula esta garantía.
+- Corregidos casos encontrados: rehidratación/reemplazo EF de líneas, colisión de claves compuestas, unidades históricas en la interfaz, falta de revisión por fecha, notas NoOrder perdidas, CSV malformado y marca UTF-8 de Excel.
+- Añadido proyecto SQL Server separado, job CI con base desechable y script de ejecución local.
+
+### Validación y continuidad
+
+- 157/157 pruebas .NET y 37/37 E2E correctos; build Angular y revisión móvil correctos.
+- Proyecto SQL de ocho pruebas compilado; falta acreditar ejecución remota en este checkpoint.
+- Revisión independiente sin bloqueadores estáticos pendientes y comprobación de privacidad del diff.
+- Paquete privado I02 con Excel recibido intacto, normalización, CSV parcial, evidencia de fórmulas y hashes persistido aparte.
+- I02 no equivale a despliegue, carga de la ruta o salida de etapa 1. Siguiente: prueba SQL remota, instalación del piloto y preparación de I03.

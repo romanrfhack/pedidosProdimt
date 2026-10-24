@@ -347,6 +347,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("ExternalOrderKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<bool?>("HasStoreKey")
                         .HasColumnType("bit");
 
@@ -396,6 +400,14 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<int>("SequenceNumber")
                         .HasColumnType("int");
 
+                    b.Property<string>("Source")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("SourcePayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -413,6 +425,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SalesChannelId");
+
+                    b.HasIndex("Source", "ExternalOrderKey")
+                        .IsUnique()
+                        .HasFilter("[Source] IS NOT NULL AND [ExternalOrderKey] IS NOT NULL");
 
                     b.HasIndex("CustomerId", "OrderDate", "SequenceNumber")
                         .IsUnique()
@@ -525,6 +541,29 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderLines");
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.OrderOperation", b =>
+                {
+                    b.Property<string>("OperationKey")
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("OperationKey");
+
+                    b.ToTable("OrderOperations");
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Product", b =>

@@ -22,7 +22,9 @@ public sealed record AdminOrderDetailResponse(
     string? SalesChannelName,
     SalesChannelType? SalesChannelType,
     IReadOnlyList<AdminOrderLineResponse> Lines,
-    int Version = 1);
+    int Version = 1,
+    string? Source = null,
+    string? ExternalOrderKey = null);
 
 public sealed record AdminOrderLineResponse(
     Guid OrderLineId,

@@ -18,15 +18,15 @@ public sealed class AdminOrderService(
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<IReadOnlyList<AdminOrderSummaryResponse>> GetTodayAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AdminOrderSummaryResponse>> GetTodayAsync(CancellationToken cancellationToken, DateOnly? date = null)
     {
-        var todayOrders = await orders.GetByDateAsync(dateTimeProvider.Today, cancellationToken);
+        var todayOrders = await orders.GetByDateAsync(date ?? dateTimeProvider.Today, cancellationToken);
         return await MapSummariesAsync(todayOrders, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AdminOrderSummaryResponse>> GetPendingReviewAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<AdminOrderSummaryResponse>> GetPendingReviewAsync(CancellationToken cancellationToken, DateOnly? date = null)
     {
-        var pendingOrders = await orders.GetPendingReviewAsync(dateTimeProvider.Today, cancellationToken);
+        var pendingOrders = await orders.GetPendingReviewAsync(date ?? dateTimeProvider.Today, cancellationToken);
         return await MapSummariesAsync(pendingOrders, cancellationToken);
     }
 
@@ -107,11 +107,12 @@ public sealed class AdminOrderService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var serviceDate = request.ServiceDate ?? dateTimeProvider.Today;
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
-        var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
-        var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
-        var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
+        var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, serviceDate, cancellationToken);
+        var existingCount = await orders.CountCustomerOrdersAsync(customerId, serviceDate, cancellationToken);
+        var evaluation = ServiceDatePolicy.Evaluate(serviceDate, dateTimeProvider, hasExistingOrder);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
             customers, products, machines, cancellationToken);
@@ -119,7 +120,7 @@ public sealed class AdminOrderService(
         var order = Order.CreateSubmitted(
             customer.Id,
             channel.Id,
-            dateTimeProvider.Today,
+            serviceDate,
             dateTimeProvider.Now,
             existingCount + 1,
             evaluation,
@@ -151,13 +152,14 @@ public sealed class AdminOrderService(
         AdminActorContext? actor,
         CancellationToken cancellationToken)
     {
+        var serviceDate = request.ServiceDate ?? dateTimeProvider.Today;
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
-        var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
+        var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, serviceDate, cancellationToken);
 
-        if (await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken))
+        if (await orders.HasActiveCustomerOrderAsync(customerId, serviceDate, cancellationToken))
         {
-            throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy desde administracion.");
+            throw new CustomerOrderConflictException("Ya existe un pedido para la fecha de servicio; no se puede registrar que no pidio.");
         }
 
         if (latestOrder?.Status is OrderStatus.NoOrder)
@@ -166,11 +168,11 @@ public sealed class AdminOrderService(
             return MapSummary(latestOrder, existingCustomerNames);
         }
 
-        var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
+        var existingCount = await orders.CountCustomerOrdersAsync(customerId, serviceDate, cancellationToken);
         var order = Order.CreateNoOrder(
             customer.Id,
             channel.Id,
-            dateTimeProvider.Today,
+            serviceDate,
             dateTimeProvider.Now,
             existingCount + 1,
             customer);
@@ -186,7 +188,7 @@ public sealed class AdminOrderService(
             OrderAuditEventType.AdminNoOrderMarked,
             order.SubmittedAt,
             AuditActorType.Admin,
-            "No pedir hoy registrado por administracion.",
+            "Sin pedido para la fecha de servicio, registrado por administracion.",
             actor?.ActorId,
             actor?.ActorDisplayName,
             ToMetadataJson(new { request.InternalNotes })), cancellationToken);
@@ -457,7 +459,7 @@ public sealed class AdminOrderService(
         return sourceOrders.Select(order => MapSummary(order, customerNames)).ToArray();
     }
 
-    private async Task<AdminOrderDetailResponse> MapDetailAsync(Order order, CancellationToken cancellationToken)
+    internal async Task<AdminOrderDetailResponse> MapDetailAsync(Order order, CancellationToken cancellationToken)
     {
         var customerNames = await GetCustomerNamesAsync([order], cancellationToken);
         var customerName = GetCustomerName(order, customerNames);
@@ -509,7 +511,9 @@ public sealed class AdminOrderService(
             salesChannel?.Name,
             salesChannel?.Type,
             lines,
-            order.Version);
+            order.Version,
+            order.Source,
+            order.ExternalOrderKey);
     }
 
     private async Task<IReadOnlyDictionary<Guid, string>> GetCustomerNamesAsync(

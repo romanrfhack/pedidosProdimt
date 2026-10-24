@@ -144,6 +144,9 @@ public sealed class AuthApiAuthorizationTests
     [InlineData("GET", "/api/admin/customers/11111111-1111-1111-1111-111111111111/order-template")]
     [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/submit")]
     [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/no-order")]
+    [InlineData("POST", "/api/admin/daily-orders/validate")]
+    [InlineData("POST", "/api/admin/daily-orders/apply")]
+    [InlineData("POST", "/api/admin/orders/11111111-1111-1111-1111-111111111111/corrections")]
     public async Task AdminCustomerEndpoints_RejectCustomerJwt(string method, string path)
     {
         await using var factory = new AuthApiFactory();
@@ -160,6 +163,46 @@ public sealed class AuthApiAuthorizationTests
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/admin/daily-orders/validate")]
+    [InlineData("/api/admin/daily-orders/apply")]
+    [InlineData("/api/admin/orders/11111111-1111-1111-1111-111111111111/corrections")]
+    public async Task DailyOrderEndpoints_RejectAnonymousCaller(string path)
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(path, new { });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DailyOrderWrites_InMemory_ReturnExplicitUnavailableInsteadOfPretendingPersistence()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetAdminBearerAsync(client);
+
+        var import = await client.PostAsJsonAsync("/api/admin/daily-orders/apply", new
+        {
+            source = "DEMO", batchKey = "BATCH-DEMO", fileName = "demo.csv",
+            content = "externalOrderKey,serviceDate,customerExternalCode,action,productExternalCode,quantity,unitCode,notes\nDEMO-1,2026-10-25,C-DEMO,order,P-DEMO,5,kg,"
+        });
+        var correction = await client.PostAsJsonAsync($"/api/admin/orders/{Guid.NewGuid()}/corrections", new
+        {
+            operationKey = "CORRECTION-DEMO", expectedVersion = 1, reason = "Corrección de prueba",
+            lines = new[] { new { productId = Guid.NewGuid(), quantity = 5m, notes = (string?)null } }
+        });
+
+        foreach (var response in new[] { import, correction })
+        {
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("PersistenceNotSupported", body, StringComparison.Ordinal);
+        }
     }
 
     [Theory]

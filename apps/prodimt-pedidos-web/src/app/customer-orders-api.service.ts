@@ -69,6 +69,8 @@ export interface AdminOrderSummaryApiResponse {
 }
 
 export interface AdminOrderDetailApiResponse extends AdminOrderSummaryApiResponse {
+  source?: string | null;
+  externalOrderKey?: string | null;
   internalNotes: string | null;
   salesChannelName: string | null;
   salesChannelType: string | null;
@@ -151,6 +153,7 @@ export interface AdminOrderTemplateProductApiResponse {
 }
 
 export interface AdminSubmitCustomerOrderApiRequest {
+  serviceDate?: string;
   lines: SubmitCustomerOrderLineApiRequest[];
   requestedDeliveryTime: string | null;
   requestedDeliveryWindowStart: string | null;
@@ -161,6 +164,7 @@ export interface AdminSubmitCustomerOrderApiRequest {
 
 export interface AdminMarkNoOrderApiRequest {
   internalNotes: string | null;
+  serviceDate?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -190,15 +194,15 @@ export class CustomerOrdersApiService {
     );
   }
 
-  getTodayOrders(): Observable<AdminOrderSummaryApiResponse[]> {
+  getTodayOrders(date?: string): Observable<AdminOrderSummaryApiResponse[]> {
     return this.http.get<AdminOrderSummaryApiResponse[]>(
-      `${environment.apiBaseUrl}/api/admin/orders/today`
+      `${environment.apiBaseUrl}/api/admin/orders/today`, { params: date ? { date } : {} }
     );
   }
 
-  getPendingReviewOrders(): Observable<AdminOrderSummaryApiResponse[]> {
+  getPendingReviewOrders(date?: string): Observable<AdminOrderSummaryApiResponse[]> {
     return this.http.get<AdminOrderSummaryApiResponse[]>(
-      `${environment.apiBaseUrl}/api/admin/orders/pending-review`
+      `${environment.apiBaseUrl}/api/admin/orders/pending-review`, { params: date ? { date } : {} }
     );
   }
 
@@ -221,9 +225,9 @@ export class CustomerOrdersApiService {
     );
   }
 
-  getPendingCustomers(): Observable<PendingCustomerOrderApiResponse[]> {
+  getPendingCustomers(date?: string): Observable<PendingCustomerOrderApiResponse[]> {
     return this.http.get<PendingCustomerOrderApiResponse[]>(
-      `${environment.apiBaseUrl}/api/admin/customers/pending-orders`
+      `${environment.apiBaseUrl}/api/admin/customers/pending-orders`, { params: date ? { date } : {} }
     );
   }
 

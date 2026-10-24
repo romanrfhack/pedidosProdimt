@@ -95,6 +95,18 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
             .SingleOrDefaultAsync(x => x.Id == orderId, cancellationToken);
     }
 
+    public Task<Order?> GetBySourceAsync(string source, string externalOrderKey, CancellationToken cancellationToken)
+        => dbContext.Orders.AsNoTracking().Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Source == source && x.ExternalOrderKey == externalOrderKey, cancellationToken);
+
+    public Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken)
+    {
+        dbContext.OrderLines.RemoveRange(order.Lines);
+        order.ReplaceLines(lines);
+        dbContext.OrderLines.AddRange(lines);
+        return Task.CompletedTask;
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         try

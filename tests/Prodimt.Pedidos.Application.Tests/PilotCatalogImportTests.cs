@@ -15,6 +15,18 @@ public sealed class PilotCatalogImportTests
     private const string FrequentHeader = "customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive";
 
     [Fact]
+    public async Task CustomerCsvWithExcelUtf8Bom_ValidatesWithoutMutation()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var before = await fixture.Db.Customers.CountAsync();
+        var response = await fixture.Validate(AdminImportTypes.Customers,
+            $"\uFEFF{CustomerHeader}\r\nC-NEW-BOM,Cliente Ejemplo BOM,,true,,,,");
+        Assert.Empty(response.Errors);
+        Assert.Equal(before, await fixture.Db.Customers.CountAsync());
+        Assert.False(await fixture.Db.Customers.AnyAsync(x => x.ExternalCode == "C-NEW-BOM"));
+    }
+
+    [Fact]
     public async Task LegacyCustomerImport_PreservesPrivatePilotFields_AndNewCustomerStaysUnknown()
     {
         await using var fixture = await Fixture.CreateAsync();

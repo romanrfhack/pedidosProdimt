@@ -32,6 +32,11 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.RouteCode).HasMaxLength(80);
         builder.Property(x => x.PaymentTermCode).HasMaxLength(32);
         builder.Property(x => x.InternalDeliveryInstructions).HasMaxLength(1000);
+        builder.Property(x => x.Source).HasMaxLength(80);
+        builder.Property(x => x.ExternalOrderKey).HasMaxLength(100);
+        builder.Property(x => x.SourcePayloadHash).HasMaxLength(64);
+        builder.HasIndex(x => new { x.Source, x.ExternalOrderKey }).IsUnique()
+            .HasFilter("[Source] IS NOT NULL AND [ExternalOrderKey] IS NOT NULL");
         builder.Property(x => x.Version).IsConcurrencyToken().HasDefaultValue(1);
 
         builder.HasIndex(x => new { x.CustomerId, x.OrderDate, x.SequenceNumber }).IsUnique();

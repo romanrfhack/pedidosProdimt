@@ -1,4 +1,4 @@
-import { unitLabel } from './operational-labels';
+import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -13,6 +13,11 @@ import { AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './or
         <p class="eyebrow">Admin</p>
         <h2>Clientes pendientes</h2>
       </div>
+
+      <form class="operations-filters" (ngSubmit)="load()">
+        <label><span>Fecha de servicio</span><input name="serviceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="changeDate()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"></label>
+        <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!submittingCustomerId || !!loadingCustomerId">Consultar clientes</button>
+      </form>
 
       @if (isLoading) {
         <div class="notice">Cargando clientes pendientes...</div>
@@ -55,13 +60,14 @@ import { AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './or
                     class="secondary compact"
                     [disabled]="submittingCustomerId === customer.id"
                     (click)="markNoOrder(customer)">
-                    No pedir hoy
+                    {{ isToday() ? 'No pedir hoy' : 'No pide en esta fecha' }}
                   </button>
                 </div>
 
                 @if (getTemplate(customer); as selectedTemplate) {
                   <form class="detail-panel stack" (ngSubmit)="submitCapture()">
                     <strong>Captura para {{ selectedTemplate.customerName }}</strong>
+                    <p class="notice">Fecha de servicio: {{ serviceDate }}</p>
                     <label>
                       <span>Hora entrega</span>
                       <input name="requestedDeliveryTime" type="time" [(ngModel)]="selectedTemplate.requestedDeliveryTime">
@@ -120,6 +126,16 @@ export class AdminPendingCustomersComponent {
   protected submittingCustomerId: string | null = null;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
+  protected serviceDate = businessDateToday();
+
+  protected isToday(): boolean { return this.serviceDate === businessDateToday(); }
+
+  protected changeDate(): void {
+    this.cancelCapture();
+    this.customers = [];
+    this.errorMessage = null;
+    this.resultMessage = null;
+  }
 
   constructor() {
     this.load();
@@ -180,6 +196,7 @@ export class AdminPendingCustomersComponent {
     this.submittingCustomerId = this.template.customerId;
 
     this.data.submitAdminCustomerOrder(this.template.customerId, {
+      serviceDate: this.serviceDate,
       lines,
       requestedDeliveryTime: this.emptyToNull(this.template.requestedDeliveryTime),
       requestedDeliveryWindowStart: this.emptyToNull(this.template.requestedDeliveryWindowStart),
@@ -205,9 +222,9 @@ export class AdminPendingCustomersComponent {
     this.resultMessage = null;
     this.submittingCustomerId = customer.id;
 
-    this.data.markAdminNoOrder(customer.id, 'Cliente confirmo que no pedira hoy.').subscribe({
+    this.data.markAdminNoOrder(customer.id, 'Cliente confirmó que no pedirá en la fecha de servicio.', this.serviceDate).subscribe({
       next: () => {
-        this.resultMessage = 'No pedir hoy registrado por administracion.';
+        this.resultMessage = this.isToday() ? 'No pedir hoy registrado por administracion.' : 'No pide en esta fecha registrado por administración.';
         this.cancelCapture();
         this.load(false);
       },
@@ -228,12 +245,13 @@ export class AdminPendingCustomersComponent {
     return this.template?.customerId === customer.id ? this.template : null;
   }
 
-  private load(showLoading = true): void {
+  protected load(showLoading = true): void {
+    if (!this.serviceDate) return;
     if (showLoading) {
       this.isLoading = true;
     }
 
-    this.data.loadPendingCustomers().subscribe({
+    this.data.loadPendingCustomers(this.serviceDate).subscribe({
       next: (customers) => {
         this.customers = customers;
         this.isLoading = false;

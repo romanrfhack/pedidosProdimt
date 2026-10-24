@@ -2,62 +2,53 @@
 
 Actualizado: 24 de octubre de 2026.
 
-## Ubicación del trabajo
+## Ubicación y etapa
 
 - Repositorio: `romanrfhack/pedidosProdimt`.
-- Solicitud de cambios: [PR #1, borrador](https://github.com/romanrfhack/pedidosProdimt/pull/1). No fusionada ni desplegada.
-- Primer checkpoint de implementación verificado localmente (ver HEAD de la PR para correcciones posteriores): `fde65007cb03614db0b1dcca11395a7451a374a5`.
-- Base revisada: `492bbe9e1069d32ae22565889f149aaf529393fd`.
-- Rama: `codex/pilot-foundation-2026-10-24`.
-- Incremento: **I01 — Fundamentos del piloto, implementado y probado localmente**.
-- Etapa general: **0 pendiente de validación operativa de datos; base de etapa 1 construida**.
-- Piloto real: **no iniciado**. No hay despliegue nuevo ni datos reales cargados.
+- [PR #1](https://github.com/romanrfhack/pedidosProdimt/pull/1), rama `codex/pilot-foundation-2026-10-24`. Borrador, sin fusión ni despliegue.
+- Base de I02: `a2eb7fb533982ba719ce74d0a73b4f631cd0d2f9` (I01 verificado).
+- **I02 implementado y validado localmente**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
+- **Etapa 1 en desarrollo; preparación operativa de etapa 0 aún incompleta.**
+- Piloto real: no iniciado. No se ha cargado la ruta en una base operativa.
 
 ## Terminado
 
-- Recuperación técnica y elección del repositorio existente.
-- Unidades explícitas, desconocidos conservados y validación antes de capturar.
-- Configuración de ruta/parada, llave, condición de cobro e instrucciones interiores, sólo para administración.
-- Perfiles con versión, aprobación expresa, posiciones de interpretación y preferencia de máquina por producto.
-- Invalidación de aprobación si cambia nombre, unidad o disponibilidad de un producto.
-- Copia del contexto de producto/unidad, perfil, ruta y entrega en cada pedido nuevo.
-- Fecha operativa CDMX, revisión administrativa con control de versión y secuencia única por cliente/fecha.
-- Consulta e impresión de demanda por máquina y preparación por cliente/ruta, con pendientes separados.
-- Compatibilidad de los cinco importadores de catálogos con CSV anteriores y campos nuevos opcionales.
-- Migración EF aditiva, comprobaciones de código, pruebas y workflow de CI sin despliegue.
-- Paquete privado persistido: hoja revisable de 23 clientes, 36 relaciones candidatas y evidencia de las fuentes. Aprobaciones inicialmente vacías.
-- Registro de continuidad, plan, decisiones y bitácora en este repositorio.
+- I01: catálogos, unidades, perfiles versionados, máquina por producto, snapshots y demanda por máquina/ruta.
+- I02: fecha de servicio explícita para administración y consulta/revisión por fecha.
+- CSV diario revisable, origen y referencia externa persistentes, protección de reintentos dentro y entre lotes.
+- Aplicación transaccional: lote inválido o fallo de base no deja pedidos ni recibos parciales.
+- Corrección con motivo, versión esperada y clave de operación; reemplazo completo de partidas con historial antes/después.
+- Preservación del nombre/unidad/máquina históricos al ajustar una partida existente; productos agregados usan el catálogo vigente.
+- Interfaz de importación separada de catálogos, reintentos con el mismo contenido e historial legible.
+- CSV de catálogos compatible con la marca UTF-8 de Excel.
+- Migración aditiva `20261024181206_AddDailyOrderOperations`.
+- Revisión del XLSX devuelto: 23 identidades/ruta, acceso explícito, cinco condiciones de contraentrega y dos instrucciones internas. 52 fórmulas simples verificadas. CSV privado preparado; productos incompletos separados.
+- Código/documentación públicos separados de los datos privados.
 
-## Verificado
+## Validación
 
-- Base anterior: **68 pruebas .NET** correctas.
-- Incremento integrado: **113 pruebas .NET** correctas (5 dominio + 108 aplicación); build Release con **0 errores y 0 advertencias**.
-- Frontend actualizado a parches de Angular 21; build correcto; **23 pruebas E2E** con API mock correctas. Última corrección visual verificada con su prueba específica y build posterior.
-- Vista móvil de 390 px e impresión de una página inspeccionadas con datos ficticios.
-- EF confirma que no hay cambios del modelo sin migración; SQL idempotente de las seis migraciones generado y revisado, no aplicado.
-- Revisión estática independiente y comprobación de que no se agregaron datos reales al repositorio.
-- Smokes autenticados de captura e importación ejecutados contra API real con almacenamiento InMemory: correctos. No acreditan persistencia SQL Server.
-- Dependencias NuGet elevadas a parches y frontend actualizado dentro de Angular 21. Consultas puntuales NuGet y npm sin vulnerabilidades reportadas; la auditoría completa npm pasó de 33 hallazgos a cero.
+- **157/157 pruebas .NET** correctas: 5 dominio y 152 aplicación; cero omitidas.
+- **37/37 E2E** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
+- Revisión estática independiente de contratos, privacidad, snapshots, fechas y transacciones completada; hallazgos corregidos.
+- Proyecto de **8 pruebas HTTP/SQL Server** compilado sin errores ni advertencias; ejecución real preparada en el job `sqlserver` de CI.
+- El entorno local no dispone de SQL Server/Docker. La ejecución remota se comprobará al publicar; ver resultados del último commit en la PR y `../validation/2026-10-24-i02.md`.
+- InMemory conserva las funciones de I01 y la vista previa diaria. Aplicar lotes o corregir pedidos exige persistencia relacional; no se finge éxito durable.
 
-Ver detalles y límites en `../validation/2026-10-24-preflight.md` y `INCREMENTO-01.md`. Las pruebas SQLite y API mock no sustituyen la prueba contra SQL Server. El estado del workflow remoto se consulta en GitHub; un resultado local no acredita un resultado remoto.
+## Siguiente paso
 
-## Siguiente incremento: I02
+1. Completar validación remota SQL Server y cerrar cualquier hallazgo del workflow.
+2. Definir instalación de prueba del piloto con SQL Server y acceso administrativo; aplicar migraciones allí.
+3. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
+4. Completar unidades, perfiles de producto, orden de visita, políticas de cobro faltantes e instrucciones de entrega. El XLSX no contiene esos valores en todas las filas.
+5. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
+6. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
 
-1. Abrir el XLSX privado y validar los campos amarillos: identidad/orden de clientes, ruta, productos, unidades, posiciones, máquinas, llave, instrucciones y cobro. No incorporar automáticamente cantidades manuscritas ni datos comerciales históricos.
-2. Confirmar fecha de las hojas y vigencia del corte de 10:00 a.m.; `10:30 AM` de la fotografía no se convirtió en corte.
-3. Preparar SQL Server de prueba, aplicar la migración y ejecutar smoke real; definir credenciales y acceso para un despliegue del piloto.
-4. Cargar sólo catálogos revisados mediante vista previa y aplicación controlada.
-5. Completar captura con fecha de servicio explícita, importación diaria con origen e identidad de operación, reintentos idempotentes y correcciones comerciales auditables.
-6. Preparar una semana de ensayo de la ruta incluyendo todas sus máquinas/centros de preparación.
+## Límites vigentes
 
-## Límites que no deben perderse al retomar
-
-- Captura actual para la fecha de negocio de hoy. El plan permite consultar otras fechas; eso no habilita capturar pedidos históricos/futuros.
-- No existe parser ni conexión real con WhatsApp.
-- No hay importador diario de pedidos; los CSV actuales importan catálogos.
-- La versión técnica protege revisión simultánea, pero no es historial completo de correcciones ni idempotencia de reintentos secuenciales.
-- No hay división de una línea entre máquinas ni edición operativa de máquina por pedido.
-- No hay registro físico de producido/preparado/cargado/entregado ni pagos.
-- El indicador de ticket diario es una condición del cliente. No se generan tickets con precios/saldos ni se marca cobrado al imprimir.
-- Se conservan desconocidos históricos; no se rellenan unidades o instrucciones desde suposiciones.
-- Los datos privados se recuperan con el paquete de esta sesión; nunca desde este repositorio público.
+- No hay parser ni conexión real con WhatsApp, producción física, empaque/carga/entrega ni pagos.
+- La importación diaria requiere CSV depurado con códigos y unidades explícitos; no interpreta `15 + 20` ni importa XLSM.
+- El historial de correcciones conserva evidencia, pero no representa ajustes de producción/entrega ya ejecutadas; ese control debe añadirse al incorporar etapa 2.
+- La corrección conserva el estado del pedido. Un pendiente sigue excluido de demanda hasta su aceptación; un adicional sigue siendo otro pedido sujeto a revisión.
+- El ticket es una condición operativa; no se generan tickets monetarios ni se marca pago al imprimir.
+- Los campos vacíos y las fechas arrastradas del Excel no se convierten en valores operativos por suposición.
+- Validación técnica, carga privada, despliegue y uso real son hitos distintos.

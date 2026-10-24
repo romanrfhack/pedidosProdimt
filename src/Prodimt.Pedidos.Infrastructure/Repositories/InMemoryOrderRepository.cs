@@ -106,6 +106,18 @@ public sealed class InMemoryOrderRepository(InMemoryDataStore store) : IOrderRep
         }
     }
 
+    public Task<Order?> GetBySourceAsync(string source, string externalOrderKey, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot)
+            return Task.FromResult(store.Orders.SingleOrDefault(x => x.Source == source && x.ExternalOrderKey == externalOrderKey));
+    }
+
+    public Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot) order.ReplaceLines(lines);
+        return Task.CompletedTask;
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;

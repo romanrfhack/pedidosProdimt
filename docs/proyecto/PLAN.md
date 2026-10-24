@@ -31,6 +31,8 @@ Los marcadores de llave y ticket se capturan por separado. La ausencia de un ico
 
 Antes del piloto operativo se validan identidad de clientes, productos habituales, unidades, orden de interpretación, asignaciones y calendario. Las cifras manuscritas de la fotografía no se importan como pedidos actuales. La hora impresa `10:30 AM` no se transforma en hora límite ni ventana de entrega sin confirmación.
 
+Avance de revisión I02: recibida hoja revisada del usuario, con identidad/ruta y condiciones explícitas de acceso, además de dos notas internas. Los campos todavía vacíos permanecen separados del catálogo listo para cargar. La validación de código y SQL Server no activa por sí sola el ensayo de la ruta.
+
 ## Incrementos
 
 | ID | Entrega | Relación con etapas |

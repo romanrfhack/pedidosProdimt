@@ -20,5 +20,9 @@ public interface IOrderRepository
 
     Task<Order?> GetByIdAsync(Guid orderId, CancellationToken cancellationToken);
 
+    Task<Order?> GetBySourceAsync(string source, string externalOrderKey, CancellationToken cancellationToken);
+
+    Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

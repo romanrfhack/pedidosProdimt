@@ -17,13 +17,20 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-011 | 2026-10-24 | Fecha operativa en `America/Mexico_City`; timestamps de auditoría en UTC. Hora de reenvío, fecha del servicio y hora límite son datos distintos. |
 | OCT-012 | 2026-10-24 | El usuario autoriza el siguiente incremento del plan integral: ampliar campos y consulta de demanda. Esto no habilita todavía WhatsApp real, cobros, saldos calculados ni producción física. |
 | OCT-013 | 2026-10-24 | Registro de continuidad en git: `CONTINUAR.md`, estado, plan, decisiones, bitácora e incrementos con validaciones. |
+| OCT-014 | 2026-10-24 | El usuario devuelve la hoja revisada y autoriza I02. Se reconocen nombres, ruta y valores de acceso explícitos; no se infieren unidades, posiciones ni orden de visita que siguen vacíos. Fórmulas simples verificadas contra celdas fuente y caché. |
+| OCT-015 | 2026-10-24 | La referencia externa del pedido pertenece a un origen estable y evita duplicarlo incluso si aparece en otro lote. La clave del lote identifica un intento completo; contenido diferente con la misma clave es conflicto. |
+| OCT-016 | 2026-10-24 | La corrección administrativa requiere motivo, versión y clave de operación; reemplaza explícitamente el conjunto completo de partidas y conserva antes/después. Un adicional continúa siendo otro pedido sujeto a revisión. |
+| OCT-017 | 2026-10-24 | La fecha de servicio administrativa se separa del timestamp de captura. Omitirla conserva hoy; la clasificación tardío usa el corte de la fecha elegida. No tomar fechas de revisión del Excel como fechas de servicio. |
+| OCT-018 | 2026-10-24 | I02 requiere persistencia relacional para aplicar lotes o correcciones atómicas. La demo InMemory mantiene I01 y vista previa, pero no simula transacciones durables ni resultados guardados de I02. |
+| OCT-019 | 2026-10-24 | La validación SQL de CI usa una instancia desechable y sólo datos ficticios. No cargar el paquete privado en workflows, logs, artifacts ni fixtures públicos. |
+| OCT-020 | 2026-10-24 | El ticket confirmado y la política de cobro no son equivalentes en todos los casos: la marca positiva permite aplicar la regla de contraentrega ya confirmada; ausencia/No de ticket no prueba crédito o corte semanal. Se conserva evidencia privada. |
 
 ## Pendientes de negocio
 
-1. Confirmar nombre/código operativo de la ruta y si el orden de la hoja es el de visita. No equiparar códigos históricos automáticamente.
-2. Confirmar cada producto, unidad, máquina y posición del perfil privado. Nombres parecidos o sucursales diferentes no se fusionan sin evidencia.
-3. Capturar las instrucciones reales de colocación de mercancía. No inventar “mesa derecha” o “barra” como asignación de un cliente.
-4. Confirmar cobro y acceso cuando no hay icono, y tratamiento operativo cuando ambos aplican.
+1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.
+2. Completar unidades y posiciones del perfil privado; las columnas de revisión de productos siguen vacías. Nombres parecidos o sucursales diferentes no se fusionan sin evidencia.
+3. Conservar las dos instrucciones explícitas proporcionadas y completar las faltantes para entrega con llave. No inventar ubicación interior.
+4. El acceso con llave quedó explícito para los 23 clientes; completar política de cobro de quienes no tienen ticket y tratamiento operativo cuando ambos aplican.
 5. Confirmar fecha de servicio de las hojas de embarques, cuyos encabezados y mensajes no coinciden de forma segura.
 6. Ratificar si sigue vigente el corte de pedidos a las 10:00 a.m. y la revisión de adicionales. Se conserva la regla existente mientras no se cambie explícitamente. La foto `10:30 AM` no responde esta duda.
 7. Antes de etapa 3, acordar precios vigentes, criterio de cargo, periodos de crédito/corte, pagos parciales y aplicación de abonos.

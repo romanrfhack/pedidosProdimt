@@ -8,7 +8,7 @@ public sealed class CsvImportParser
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        var rawRows = ParseRows(content);
+        var rawRows = ParseRows(content.TrimStart('\uFEFF'));
         if (rawRows.Count == 0)
         {
             return new CsvParseResult([], []);

@@ -23,6 +23,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<AdminDailyOrderService>();
 builder.Services.AddScoped<AdminOperationsService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
@@ -96,6 +97,7 @@ app.UseCors("ProdimtWeb");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapAdminOperationsEndpoints();
+app.MapDailyOrderEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -264,18 +266,20 @@ var adminOrders = app.MapGroup("/api/admin/orders")
     .RequireAuthorization("AdminAccess");
 
 adminOrders.MapGet("/today", async (
+    DateOnly? date,
     AdminOrderService service,
     CancellationToken cancellationToken) =>
 {
-    return Results.Ok(await service.GetTodayAsync(cancellationToken));
+    return Results.Ok(await service.GetTodayAsync(cancellationToken, date));
 })
 .WithName("GetAdminOrdersToday");
 
 adminOrders.MapGet("/pending-review", async (
+    DateOnly? date,
     AdminOrderService service,
     CancellationToken cancellationToken) =>
 {
-    return Results.Ok(await service.GetPendingReviewAsync(cancellationToken));
+    return Results.Ok(await service.GetPendingReviewAsync(cancellationToken, date));
 })
 .WithName("GetAdminOrdersPendingReview");
 

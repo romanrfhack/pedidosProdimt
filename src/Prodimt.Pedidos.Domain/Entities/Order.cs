@@ -48,6 +48,23 @@ public sealed class Order
     public string? PaymentTermCode { get; set; }
     public string? InternalDeliveryInstructions { get; set; }
     public int Version { get; set; } = 1;
+    public string? Source { get; set; }
+    public string? ExternalOrderKey { get; set; }
+    public string? SourcePayloadHash { get; set; }
+
+    public void ReplaceLines(IEnumerable<OrderLine> lines)
+    {
+        var replacements = lines.ToArray();
+        if (replacements.Length == 0 || replacements.Any(x => x.Quantity <= 0))
+            throw new ArgumentException("La correccion requiere partidas con cantidad positiva.");
+        _lines.Clear();
+        foreach (var line in replacements)
+        {
+            line.OrderId = Id;
+            _lines.Add(line);
+        }
+        Version++;
+    }
 
     public IReadOnlyCollection<OrderLine> Lines => _lines;
 

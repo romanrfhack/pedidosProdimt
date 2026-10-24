@@ -2,9 +2,11 @@
 
 ## Alcance vigente desde 2026-10-24
 
-El usuario autorizó el plan integral y el incremento I01 del piloto. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+El usuario autorizó el plan integral, I01 y, tras devolver la hoja revisada, el incremento I02 de pedidos diarios y correcciones. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
 
 I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
+
+I02 permite fecha de servicio administrativa, CSV de pedidos diarios con vista previa, claves persistentes para reintentos y correcciones explícitas auditadas. Un pedido adicional y una corrección son acciones diferentes. No interpretar automáticamente mensajes de WhatsApp ni inferir pedidos de cantidades históricas. Validación técnica en SQL Server con datos ficticios no equivale a despliegue o carga de la ruta real.
 
 ## Que es
 

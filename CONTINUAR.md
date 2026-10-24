@@ -11,7 +11,8 @@ Este archivo es el punto de entrada para retomar el proyecto en otro chat o equi
 3. `docs/proyecto/PLAN.md` (objetivo integral y etapas).
 4. `docs/proyecto/DECISIONES.md` (decisiones vigentes y pendientes).
 5. `docs/proyecto/BITACORA.md` (cambios y pruebas por sesión).
-6. `docs/proyecto/INCREMENTO-01.md` (contratos y aceptación del incremento actual).
+6. `docs/proyecto/INCREMENTO-02.md` (contratos y aceptación del incremento actual).
+7. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
 
 La documentación de mayo de 2026 es antecedente. Cuando difiera, las decisiones de octubre en `docs/proyecto/` prevalecen. No confundir capacidad implementada, prueba técnica, dato validado y operación real.
 
@@ -25,7 +26,7 @@ pendientes y continúa el siguiente incremento, sin repetir el análisis inicial
 No publiques datos reales de clientes ni instrucciones de acceso a locales.
 ```
 
-El paquete privado de preparación del piloto se adjunta al chat de esta sesión. Puede volver a proporcionarse en un chat nuevo si se necesita cargar o validar clientes. Sus candidatos no equivalen a una importación aprobada. No recuperar pedidos, precios o saldos actuales a partir de fotografías históricas.
+El paquete privado de preparación del piloto se adjunta al chat de esta sesión. El usuario devolvió una revisión del XLSX y autorizó I02. Su normalización distingue valores confirmados, fórmulas resueltas y campos todavía ausentes. Consultar el paquete privado I02 más reciente antes de preparar una carga; no asumir que todas las celdas o perfiles quedaron completos. No recuperar pedidos, precios o saldos actuales a partir de fotografías históricas.
 
 ## Al cerrar cada sesión
 
