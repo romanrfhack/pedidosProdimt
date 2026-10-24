@@ -11,8 +11,9 @@ Este archivo es el punto de entrada para retomar el proyecto en otro chat o equi
 3. `docs/proyecto/PLAN.md` (objetivo integral y etapas).
 4. `docs/proyecto/DECISIONES.md` (decisiones vigentes y pendientes).
 5. `docs/proyecto/BITACORA.md` (cambios y pruebas por sesión).
-6. `docs/proyecto/INCREMENTO-02.md` (contratos y aceptación del incremento actual).
-7. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
+6. `docs/proyecto/INCREMENTO-03.md` (instalación y preparación del ensayo actual).
+7. `docs/proyecto/INCREMENTO-02.md` (captura diaria y correcciones).
+8. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
 
 La documentación de mayo de 2026 es antecedente. Cuando difiera, las decisiones de octubre en `docs/proyecto/` prevalecen. No confundir capacidad implementada, prueba técnica, dato validado y operación real.
 
@@ -27,6 +28,8 @@ No publiques datos reales de clientes ni instrucciones de acceso a locales.
 ```
 
 El paquete privado de preparación del piloto se adjunta al chat de esta sesión. El usuario devolvió una revisión del XLSX y autorizó I02. Su normalización distingue valores confirmados, fórmulas resueltas y campos todavía ausentes. Consultar el paquete privado I02 más reciente antes de preparar una carga; no asumir que todas las celdas o perfiles quedaron completos. No recuperar pedidos, precios o saldos actuales a partir de fotografías históricas.
+
+I03 agrega un paquete instalable y una hoja breve de pendientes que conserva esas confirmaciones. Antes de instalar, leer `infra/pilot/README.md`. No regenerar `.env` si ya existe un volumen del piloto; recuperar las credenciales privadas. CI usa exclusivamente datos ficticios y no prueba que el VPS del usuario esté instalado.
 
 ## Al cerrar cada sesión
 

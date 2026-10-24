@@ -13,6 +13,11 @@ TestResults/
 data/local-imports/
 *.real.csv
 *.private.csv
+ACCESO-PRIVADO.txt
+*.bak
+infra/pilot/local/
+__pycache__/
+*.pyc
 
 # Node / Angular
 node_modules/

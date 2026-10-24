@@ -24,6 +24,10 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-018 | 2026-10-24 | I02 requiere persistencia relacional para aplicar lotes o correcciones atómicas. La demo InMemory mantiene I01 y vista previa, pero no simula transacciones durables ni resultados guardados de I02. |
 | OCT-019 | 2026-10-24 | La validación SQL de CI usa una instancia desechable y sólo datos ficticios. No cargar el paquete privado en workflows, logs, artifacts ni fixtures públicos. |
 | OCT-020 | 2026-10-24 | El ticket confirmado y la política de cobro no son equivalentes en todos los casos: la marca positiva permite aplicar la regla de contraentrega ya confirmada; ausencia/No de ticket no prueba crédito o corte semanal. Se conserva evidencia privada. |
+| OCT-021 | 2026-10-24 | Usuario autoriza continuar con I03. Se separan preparación técnica, instalación efectiva y ensayo de una semana; no se marca el ensayo como realizado por completar código o CI. |
+| OCT-022 | 2026-10-24 | Paquete portátil Linux/WSL con Docker Compose, SQL Express aislado y aplicación en loopback con túnel SSH. El destino no fue seleccionado; no se ejecutan cambios remotos ni se modifican DNS/proxy/servicios existentes. |
+| OCT-023 | 2026-10-24 | Production usa credenciales generadas en el destino, JWT propio y bootstrap explícito. El proceso HTTP no migra ni crea datos demo; la conexión habitual no tiene permisos de DDL. Repetir bootstrap no rota ni restablece cuentas. |
+| OCT-024 | 2026-10-24 | Para pedidos explícitos se requieren cliente, producto y unidad; para demanda por máquina, asignación aplicable. Posiciones de interpretación son una confirmación posterior; cobro desconocido no se rellena para probar pedidos. |
 
 ## Pendientes de negocio
 

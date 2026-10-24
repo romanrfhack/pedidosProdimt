@@ -92,3 +92,16 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - [SQL Server real: 9/9 correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407/job/120950109344). Confirmados deadlocks reales con 409, rollback total ante SQL 547, reintento persistente, auditoría extensa íntegra y migraciones consistentes. Contenedor desechable eliminado.
 - CSV privado validado por HTTP: 23/23 filas, cero errores, 23 advertencias por teléfono vacío; no se aplicó. Paquete privado actualizado con esa evidencia y hashes.
 - Documentación de estado/continuidad actualizada; rama remota recuperada y comparada con el trabajo local. No hay fusión, despliegue ni carga operativa. Próximo hito: instalación de prueba y ensayo I03 después de completar los datos mínimos faltantes.
+
+## 2026-10-24 — I03-A, paquete de instalación autorizado
+
+- Usuario indica «OK, adelante». Se continúa la preparación del siguiente incremento; se distinguen paquete técnico, instalación y ensayo operativo.
+- Preparada instalación Linux/WSL con Docker Compose, frontend/API del mismo origen, SQL Express aislado y acceso inicial por loopback/túnel SSH. No se accedió al servidor ni se eligió un destino remoto por suposición.
+- Production rechaza clave JWT demo, semillas de desarrollo y persistencia InMemory. Bootstrap explícito crea esquema, canales y administrador; arranque HTTP no ejecuta DDL.
+- Credenciales únicas en el destino, configuración privada no ejecutada como shell, conexión SQL habitual sin permisos de esquema, respaldo verificado y rollback de imagen separado del esquema.
+- Revisión independiente corrigió generación parcial de secretos, exclusiones en carpetas personalizadas, remapeo de usuario SQL al restaurar y unidad del producto ficticio del smoke.
+- Hoja privada de pendientes con dos pestañas y 120 fórmulas; conserva los datos reconocidos y no aprueba perfiles ni inventa unidades/posiciones. Original intacto, auditoría XML contra fuente y revisión visual correctas.
+- Validación local: 182 pruebas .NET, 37 E2E, build API y smoke HTTP Production. Cuatro pruebas adicionales SQL compiladas; ejecución real del stack pendiente del workflow en este checkpoint.
+- La última corrida documental I02 había encontrado tres fallos E2E de habilitación de formulario. Se agregó sincronización explícita del estado inicial sin relajar aserciones, más trazas sólo ante fallo; no se afirma una causa no reproducida.
+- Diff revisado contra nombres e instrucciones privados, sin coincidencias. Datos reales y kit privado permanecen fuera del repositorio público y CI.
+- `graphify` sigue no disponible y no existe grafo versionado que actualizar. Los detalles y el resultado remoto se registran en `../validation/2026-10-24-i03.md`.

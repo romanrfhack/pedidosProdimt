@@ -24,8 +24,16 @@ async function setupDaily(page: Page) {
   });
   await login(page);
   await page.getByRole('link', { name: 'Importar pedidos', exact: true }).click();
-  await page.getByLabel('Origen de los pedidos').fill('ruta-demo');
-  await page.getByLabel('Contenido CSV de pedidos').fill(csv);
+  // NgModel writes the generated reference asynchronously when the route opens.
+  // Wait for that visible initialization before editing the same form.
+  await expect(page.getByLabel('Referencia del lote')).toHaveValue(/\S+/);
+  const source = page.getByLabel('Origen de los pedidos');
+  const content = page.getByLabel('Contenido CSV de pedidos');
+  await source.fill('ruta-demo');
+  await expect(source).toHaveValue('ruta-demo');
+  await content.fill(csv);
+  await expect(content).toHaveValue(csv);
+  await expect(page.getByRole('button', { name: 'Validar pedidos' })).toBeEnabled();
 }
 
 test.beforeEach(async ({ request }) => {

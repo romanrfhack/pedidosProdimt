@@ -131,5 +131,25 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: tests/e2e
       - name: Browser tests (local mock API)
+        id: browser-tests
         run: npm test -- --workers=1 --reporter=line
         working-directory: tests/e2e
+      - name: Preserve browser failure diagnostics (fictional mock data only)
+        if: failure() && steps.browser-tests.conclusion == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-failures-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tests/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: warn
+
+  pilot-package:
+    name: Production package and isolated pilot smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and exercise a disposable production stack with fictional data
+        run: bash scripts/pilot/smoke-compose.sh

@@ -16,8 +16,11 @@ using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
-var builder = WebApplication.CreateBuilder(args);
+var initializePilot = args.Contains("--initialize-pilot", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(x => x != "--initialize-pilot").ToArray());
 var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
+if (builder.Environment.IsProduction())
+    PilotRuntimeConfiguration.ValidateProduction(builder.Configuration, jwtSettings);
 
 builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -78,6 +81,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var app = builder.Build();
 
+if (initializePilot)
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetService<PedidosDbContext>()
+            ?? throw new InvalidOperationException("La inicializacion requiere SQL Server.");
+        var result = await PilotBootstrapper.InitializeAsync(db,
+            scope.ServiceProvider.GetRequiredService<Prodimt.Pedidos.Application.Abstractions.IPasswordHashService>(),
+            PilotBootstrapOptions.FromConfiguration(builder.Configuration));
+        app.Logger.LogInformation("Pilot initialization completed. Administrator created: {Created}; channels created: {Channels}.",
+            result.AdministratorCreated, result.ChannelsCreated);
+    }
+    catch (Exception ex)
+    {
+        // Configuration and SQL exceptions can contain connection details. Keep command output generic.
+        app.Logger.LogError("Pilot initialization failed ({FailureType}). Verify isolated SQL configuration and bootstrap settings.", ex.GetType().Name);
+        Environment.ExitCode = 1;
+    }
+    await app.DisposeAsync();
+    return;
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -92,8 +118,9 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-app.UseHttpsRedirection();
-app.UseCors("ProdimtWeb");
+if (builder.Configuration.GetValue("Hosting:UseHttpsRedirection", true)) app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment()) app.UseCors("ProdimtWeb");
+app.UsePilotStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapAdminOperationsEndpoints();
@@ -973,6 +1000,7 @@ adminUsers.MapPatch("/{userId:guid}/deactivate", async (
 })
 .WithName("DeactivateAdminUser");
 
+app.MapPilotWeb();
 app.Run();
 
 static IResult? ValidateCustomerAccess(ClaimsPrincipal user, Guid customerId)
