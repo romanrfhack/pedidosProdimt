@@ -1,0 +1,82 @@
+name: Build and tests
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: '1'
+  NG_CLI_ANALYTICS: 'false'
+  CI: 'true'
+
+jobs:
+  backend:
+    name: .NET build and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        id: dotnet
+        with:
+          dotnet-version: '10.0.x'
+      - name: Select installed .NET 10 SDK
+        env:
+          TEST_DOTNET_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: dotnet new globaljson --sdk-version "$TEST_DOTNET_VERSION" --roll-forward latestPatch
+      - name: Restore
+        run: dotnet restore src/Prodimt.Pedidos.sln --disable-parallel -m:1 -nr:false
+      - name: Build
+        run: dotnet build src/Prodimt.Pedidos.sln --configuration Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false
+      - name: Test (SQLite and in-memory fixtures)
+        run: dotnet test src/Prodimt.Pedidos.sln --configuration Release --no-build --no-restore -m:1 -nr:false
+      - name: Restore EF tools
+        run: dotnet tool restore
+      - name: Check migration matches the model
+        run: dotnet tool run dotnet-ef migrations has-pending-model-changes --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build
+      - name: Generate SQL Server script without applying it
+        run: dotnet tool run dotnet-ef migrations script --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/pilot-migrations.sql"
+
+  frontend:
+    name: Angular build and browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            apps/prodimt-pedidos-web/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Install frontend dependencies from lockfile
+        run: npm ci
+        working-directory: apps/prodimt-pedidos-web
+      - name: Build frontend
+        run: npm run build
+        working-directory: apps/prodimt-pedidos-web
+      - name: Install test dependencies from lockfile
+        run: npm ci
+        working-directory: tests/e2e
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+        working-directory: tests/e2e
+      - name: Browser tests (local mock API)
+        run: npm test -- --workers=1 --reporter=line
+        working-directory: tests/e2e

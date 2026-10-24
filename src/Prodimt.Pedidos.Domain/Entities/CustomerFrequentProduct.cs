@@ -10,5 +10,10 @@ public sealed class CustomerFrequentProduct
 
     public int SortOrder { get; set; }
 
+    public Guid? PreferredMachineId { get; set; }
+
+    // Explicit interpretation position; SortOrder is only a visual preference.
+    public int? InterpretationPosition { get; set; }
+
     public bool IsActive { get; set; } = true;
 }

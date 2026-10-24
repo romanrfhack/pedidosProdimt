@@ -1,3 +1,4 @@
+import { unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { AdminOrder, AdminOrderDetail, OrderDataService } from './order-data.service';
@@ -66,7 +67,7 @@ import { AdminOrder, AdminOrderDetail, OrderDataService } from './order-data.ser
                         <div class="line-row">
                           <span>
                             <strong>{{ line.productName }}</strong>
-                            <small>Cantidad: {{ line.quantity }}</small>
+                            <small>Cantidad: {{ line.quantity }} {{ unitLabel(line.unitCode) }}</small>
                             @if (line.notes) {
                               <small>Notas: {{ line.notes }}</small>
                             }
@@ -86,6 +87,7 @@ import { AdminOrder, AdminOrderDetail, OrderDataService } from './order-data.ser
   `
 })
 export class AdminTodayComponent {
+  protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 

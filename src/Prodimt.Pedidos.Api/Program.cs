@@ -4,8 +4,10 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Prodimt.Pedidos.Api;
 using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminImports;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
@@ -21,6 +23,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<AdminOperationsService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
@@ -92,6 +95,7 @@ app.UseHttpsRedirection();
 app.UseCors("ProdimtWeb");
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapAdminOperationsEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -213,6 +217,10 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
     {
         return Results.Ok(await service.SubmitAsync(customerId, request, cancellationToken));
     }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
     catch (ArgumentException ex)
     {
         return Results.BadRequest(new { error = ex.Message });
@@ -313,6 +321,10 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     try
     {
         return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, GetAdminActor(user)));
+    }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (ArgumentException ex)
     {
@@ -599,6 +611,10 @@ adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
     try
     {
         return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (ArgumentException ex)
     {

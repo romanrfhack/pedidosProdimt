@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../environments/environment';
+import { PaymentTermCode, UnitCode } from './operational-labels';
 
 export interface AdminCustomerCatalogApiResponse {
   id: string;
@@ -12,6 +13,13 @@ export interface AdminCustomerCatalogApiResponse {
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;
   deliveryNotes: string | null;
+  routeCode: string | null;
+  routeStopOrder: number | null;
+  hasStoreKey: boolean | null;
+  paymentTermCode: PaymentTermCode | null;
+  internalDeliveryInstructions: string | null;
+  orderingProfileVersion: number;
+  isOrderProfileApproved: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +31,11 @@ export interface UpsertAdminCustomerApiRequest {
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;
   deliveryNotes: string | null;
+  routeCode: string | null;
+  routeStopOrder: number | null;
+  hasStoreKey: boolean | null;
+  paymentTermCode: PaymentTermCode | null;
+  internalDeliveryInstructions: string | null;
 }
 
 export interface AdminProductCatalogApiResponse {
@@ -30,11 +43,13 @@ export interface AdminProductCatalogApiResponse {
   name: string;
   description: string | null;
   isActive: boolean;
+  unitCode: UnitCode | null;
 }
 
 export interface UpsertAdminProductApiRequest {
   name: string;
   description: string | null;
+  unitCode: UnitCode | null;
 }
 
 export interface AdminMachineCatalogApiResponse {
@@ -55,10 +70,13 @@ export interface AdminCustomerFrequentProductApiResponse {
   defaultQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
+  preferredMachineId: string | null;
+  interpretationPosition: number | null;
 }
 
 export interface UpdateCustomerFrequentProductsApiRequest {
   items: UpdateCustomerFrequentProductItemApiRequest[];
+  approveForInterpretation: boolean;
 }
 
 export interface UpdateCustomerFrequentProductItemApiRequest {
@@ -66,6 +84,8 @@ export interface UpdateCustomerFrequentProductItemApiRequest {
   defaultQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
+  preferredMachineId: string | null;
+  interpretationPosition: number | null;
 }
 
 export interface AdminCustomerMachineAssignmentApiResponse {

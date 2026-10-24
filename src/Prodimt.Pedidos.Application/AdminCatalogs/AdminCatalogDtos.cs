@@ -11,7 +11,14 @@ public sealed record AdminCustomerResponse(
     TimeOnly? PreferredDeliveryWindowEnd,
     string? DeliveryNotes,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    string? RouteCode = null,
+    int? RouteStopOrder = null,
+    bool? HasStoreKey = null,
+    string? PaymentTermCode = null,
+    string? InternalDeliveryInstructions = null,
+    int OrderingProfileVersion = 0,
+    bool IsOrderProfileApproved = false);
 
 public sealed record UpsertAdminCustomerRequest(
     string Name,
@@ -19,11 +26,16 @@ public sealed record UpsertAdminCustomerRequest(
     TimeOnly? PreferredDeliveryTime,
     TimeOnly? PreferredDeliveryWindowStart,
     TimeOnly? PreferredDeliveryWindowEnd,
-    string? DeliveryNotes);
+    string? DeliveryNotes,
+    string? RouteCode = null,
+    int? RouteStopOrder = null,
+    bool? HasStoreKey = null,
+    string? PaymentTermCode = null,
+    string? InternalDeliveryInstructions = null);
 
-public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive);
+public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null);
 
-public sealed record UpsertAdminProductRequest(string Name, string? Description);
+public sealed record UpsertAdminProductRequest(string Name, string? Description, string? UnitCode = null);
 
 public sealed record AdminMachineResponse(Guid Id, int Number, string? ExternalCode, string? Name, bool IsActive);
 
@@ -34,16 +46,22 @@ public sealed record AdminCustomerFrequentProductResponse(
     string ProductName,
     decimal? DefaultQuantity,
     int SortOrder,
-    bool IsActive);
+    bool IsActive,
+    Guid? PreferredMachineId = null,
+    int? InterpretationPosition = null,
+    string? UnitCode = null);
 
 public sealed record UpdateCustomerFrequentProductsRequest(
-    IReadOnlyList<UpdateCustomerFrequentProductItemRequest> Items);
+    IReadOnlyList<UpdateCustomerFrequentProductItemRequest> Items,
+    bool ApproveForInterpretation = false);
 
 public sealed record UpdateCustomerFrequentProductItemRequest(
     Guid ProductId,
     decimal? DefaultQuantity,
     int SortOrder,
-    bool IsActive);
+    bool IsActive,
+    Guid? PreferredMachineId = null,
+    int? InterpretationPosition = null);
 
 public sealed record AdminCustomerMachineAssignmentResponse(
     Guid MachineId,

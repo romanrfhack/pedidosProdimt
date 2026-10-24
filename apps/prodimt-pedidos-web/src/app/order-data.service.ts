@@ -21,6 +21,7 @@ export interface FrequentProduct {
   name: string;
   description: string | null;
   suggestedQuantity: number;
+  unitCode: string | null;
   quantity: number;
 }
 
@@ -50,9 +51,11 @@ export interface AdminOrderLine {
   quantity: number;
   notes: string | null;
   machineLabel: string;
+  unitCode: string | null;
 }
 
 export interface AdminOrderDetail extends AdminOrder {
+  version: number;
   deliveryNotes: string | null;
   internalNotes: string | null;
   salesChannel: string;
@@ -81,6 +84,7 @@ export interface AdminOrderTemplateProduct {
   name: string;
   description: string | null;
   suggestedQuantity: number;
+  unitCode: string | null;
   quantity: number;
   notes: string | null;
 }
@@ -109,6 +113,7 @@ export class OrderDataService {
           id: product.productId,
           name: product.name,
           description: product.description,
+          unitCode: product.unitCode,
           suggestedQuantity: product.suggestedQuantity,
           quantity: product.suggestedQuantity
         }))
@@ -203,12 +208,14 @@ export class OrderDataService {
 
     return {
       ...summary,
+      version: order.version,
       deliveryNotes: order.deliveryNotes,
       internalNotes: order.internalNotes,
       salesChannel: order.salesChannelName ?? order.salesChannelType ?? 'Sin canal',
       lines: order.lines.map((line) => ({
         id: line.orderLineId,
         productName: line.productName,
+        unitCode: line.unitCode,
         quantity: line.quantity,
         notes: line.notes,
         machineLabel: line.assignedMachineNumber || line.assignedMachineName
@@ -255,6 +262,7 @@ export class OrderDataService {
         id: product.productId,
         name: product.name,
         description: product.description,
+        unitCode: product.unitCode,
         suggestedQuantity: product.suggestedQuantity,
         quantity: product.suggestedQuantity,
         notes: null
@@ -301,7 +309,8 @@ export class OrderDataService {
   private formatDateTime(value: string): string {
     return new Intl.DateTimeFormat('es-MX', {
       dateStyle: 'short',
-      timeStyle: 'short'
+      timeStyle: 'short',
+      timeZone: 'America/Mexico_City'
     }).format(new Date(value));
   }
 }

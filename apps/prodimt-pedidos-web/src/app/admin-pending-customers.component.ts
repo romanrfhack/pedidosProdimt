@@ -1,3 +1,4 @@
+import { unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -78,13 +79,13 @@ import { AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './or
                         <label class="line-row">
                           <span>
                             <strong>{{ product.name }}</strong>
-                            <small>Sugerido: {{ product.suggestedQuantity }}</small>
+                            <small>Sugerido: {{ product.suggestedQuantity }} {{ unitLabel(product.unitCode) }}</small>
                           </span>
                           <input
                             type="number"
                             min="0"
-                            step="1"
-                            inputmode="numeric"
+                            step="0.01"
+                            inputmode="decimal"
                             [name]="'captureQuantity' + product.id"
                             [(ngModel)]="product.quantity">
                         </label>
@@ -107,6 +108,7 @@ import { AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './or
   `
 })
 export class AdminPendingCustomersComponent {
+  protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -151,6 +153,11 @@ export class AdminPendingCustomersComponent {
     if (this.template.products.some((product) => Number(product.quantity) < 0)) {
       this.errorMessage = 'No uses cantidades negativas.';
       this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (this.template.products.some((product) => Number(product.quantity) > 0 && !product.unitCode)) {
+      this.errorMessage = 'Confirma la unidad de los productos en Catálogos antes de capturar el pedido.';
       return;
     }
 

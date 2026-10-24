@@ -34,6 +34,8 @@ public interface ICustomerRepository
         IReadOnlyList<CustomerMachineAssignment> assignments,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<Customer>> GetCustomersReferencingProductForUpdateAsync(Guid productId, CancellationToken cancellationToken);
+
     Task AddAsync(Customer customer, CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);

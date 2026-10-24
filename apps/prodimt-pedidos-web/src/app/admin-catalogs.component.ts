@@ -11,6 +11,7 @@ import {
   AdminMachineCatalogApiResponse,
   AdminProductCatalogApiResponse
 } from './admin-catalog-api.service';
+import { PaymentTermCode, UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operational-labels';
 
 type CatalogTab = 'customers' | 'products' | 'machines';
 
@@ -22,12 +23,18 @@ interface CustomerForm {
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;
   deliveryNotes: string | null;
+  routeCode: string | null;
+  routeStopOrder: number | null;
+  hasStoreKey: boolean | null;
+  paymentTermCode: PaymentTermCode | null;
+  internalDeliveryInstructions: string | null;
 }
 
 interface ProductForm {
   id: string | null;
   name: string;
   description: string | null;
+  unitCode: UnitCode | null;
 }
 
 interface MachineForm {
@@ -95,6 +102,37 @@ interface MachineForm {
                 <span>Notas entrega</span>
                 <input name="customerDeliveryNotes" [(ngModel)]="customerForm.deliveryNotes">
               </label>
+              <div class="catalog-grid">
+                <label>
+                  <span>Código de ruta</span>
+                  <input name="customerRouteCode" maxlength="80" [(ngModel)]="customerForm.routeCode">
+                </label>
+                <label>
+                  <span>Orden de visita</span>
+                  <input name="customerRouteStop" type="number" min="1" step="1" [(ngModel)]="customerForm.routeStopOrder">
+                </label>
+                <label>
+                  <span>Llave del local</span>
+                  <select name="customerStoreKey" [(ngModel)]="customerForm.hasStoreKey">
+                    <option [ngValue]="null">Por confirmar</option>
+                    <option [ngValue]="true">Tenemos llave</option>
+                    <option [ngValue]="false">No tenemos llave</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                <span>Forma de cobro</span>
+                <select name="customerPaymentTerm" [(ngModel)]="customerForm.paymentTermCode">
+                  <option [ngValue]="null">Por confirmar</option>
+                  <option value="cash_on_delivery">Diario contraentrega · requiere ticket</option>
+                  <option value="credit">Crédito</option>
+                </select>
+              </label>
+              <label>
+                <span>Instrucciones internas de entrega</span>
+                <textarea name="customerInternalDeliveryInstructions" rows="3" maxlength="1000" [(ngModel)]="customerForm.internalDeliveryInstructions"></textarea>
+                <small>Indica dónde y cómo dejar el pedido. Visible solo para la operación interna.</small>
+              </label>
               <div class="review-actions">
                 <button type="submit" class="primary compact">{{ customerForm.id ? 'Guardar cliente' : 'Crear cliente' }}</button>
                 <button type="button" class="secondary compact" (click)="resetCustomerForm()">Limpiar</button>
@@ -108,6 +146,8 @@ interface MachineForm {
                     <strong>{{ customer.name }}</strong>
                     <small>Telefono: {{ customer.phoneNumber || 'Sin telefono' }}</small>
                     <small>Entrega: {{ formatCustomerDelivery(customer) }}</small>
+                    <small>Ruta: {{ customer.routeCode || 'Por confirmar' }} · Visita: {{ customer.routeStopOrder ?? 'Por confirmar' }}</small>
+                    <small>{{ storeKeyLabel(customer.hasStoreKey) }} · {{ paymentTermLabel(customer.paymentTermCode) }}</small>
                   </div>
                   <div class="badges">
                     <span class="badge" [class.neutral]="customer.isActive" [class.danger]="!customer.isActive">
@@ -128,24 +168,37 @@ interface MachineForm {
 
                       <div class="stack">
                         <strong>Productos frecuentes</strong>
+                        <p class="notice">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}. El orden visual y la posición en mensajes como “15 + 20” se configuran por separado.</p>
                         <div class="line-list">
                           @for (row of frequentRows; track row.productId; let i = $index) {
-                            <div class="line-row catalog-line">
-                              <select [(ngModel)]="row.productId" [name]="'frequentProduct' + i">
+                            <div class="line-row frequent-line">
+                              <label><span>Producto</span><select [(ngModel)]="row.productId" [name]="'frequentProduct' + i" (ngModelChange)="invalidateProfileApproval()">
                                 @for (product of products; track product.id) {
-                                  <option [value]="product.id">{{ product.name }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
+                                  <option [value]="product.id">{{ product.name }} · {{ unitLabel(product.unitCode) }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
                                 }
-                              </select>
-                              <input type="number" min="0" step="1" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" aria-label="Cantidad default">
-                              <input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" aria-label="Orden">
+                              </select></label>
+                              <label><span>Cantidad sugerida</span><input type="number" min="0" step="0.01" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" (ngModelChange)="invalidateProfileApproval()"></label>
+                              <label><span>Orden visual</span><input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
+                              <label><span>Posición en mensaje</span><input type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
+                              <label><span>Máquina para este producto</span><select [(ngModel)]="row.preferredMachineId" [name]="'frequentMachine' + i" (ngModelChange)="invalidateProfileApproval()">
+                                <option [ngValue]="null">Usar asignación del cliente</option>
+                                @for (machine of machines; track machine.id) {
+                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
+                                }
+                              </select></label>
                               <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i">
+                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i" (ngModelChange)="invalidateProfileApproval()">
                                 <span>Activo</span>
                               </label>
                               <button type="button" class="secondary compact" (click)="removeFrequentRow(i)">Quitar</button>
                             </div>
                           }
                         </div>
+                        <label class="inline-check">
+                          <input type="checkbox" name="approveProfile" [(ngModel)]="approveForInterpretation">
+                          <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
+                        </label>
+                        <small>Guardar sin esta confirmación deja el perfil pendiente de aprobación. Todavía no se interpretan mensajes automáticamente.</small>
                         <div class="review-actions">
                           <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
                           <button type="button" class="primary compact" (click)="saveFrequentProducts()">Guardar frecuentes</button>
@@ -233,6 +286,17 @@ interface MachineForm {
                 <span>Descripcion</span>
                 <input name="productDescription" [(ngModel)]="productForm.description">
               </label>
+              <label>
+                <span>Unidad de venta</span>
+                <select name="productUnit" [(ngModel)]="productForm.unitCode">
+                  <option [ngValue]="null">Por confirmar</option>
+                  <option value="kg">Kilogramos</option>
+                  <option value="piece">Piezas</option>
+                  <option value="dozen">Docenas</option>
+                  <option value="package">Paquetes</option>
+                </select>
+                <small>Confirma la unidad antes de capturar pedidos. Un paquete no se convierte automáticamente a kilos.</small>
+              </label>
               <div class="review-actions">
                 <button type="submit" class="primary compact">{{ productForm.id ? 'Guardar producto' : 'Crear producto' }}</button>
                 <button type="button" class="secondary compact" (click)="resetProductForm()">Limpiar</button>
@@ -245,6 +309,7 @@ interface MachineForm {
                   <div>
                     <strong>{{ product.name }}</strong>
                     <small>{{ product.description || 'Sin descripcion' }}</small>
+                    <small>Unidad: {{ unitLabel(product.unitCode) }}</small>
                   </div>
                   <div class="badges">
                     <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
@@ -329,6 +394,10 @@ export class AdminCatalogsComponent {
   protected customerForm: CustomerForm = this.emptyCustomerForm();
   protected productForm: ProductForm = this.emptyProductForm();
   protected machineForm: MachineForm = this.emptyMachineForm();
+  protected approveForInterpretation = false;
+  protected readonly unitLabel = unitLabel;
+  protected readonly storeKeyLabel = storeKeyLabel;
+  protected readonly paymentTermLabel = paymentTermLabel;
 
   constructor() {
     this.loadCatalogs();
@@ -341,7 +410,12 @@ export class AdminCatalogsComponent {
       preferredDeliveryTime: this.emptyToNull(this.customerForm.preferredDeliveryTime),
       preferredDeliveryWindowStart: this.emptyToNull(this.customerForm.preferredDeliveryWindowStart),
       preferredDeliveryWindowEnd: this.emptyToNull(this.customerForm.preferredDeliveryWindowEnd),
-      deliveryNotes: this.emptyToNull(this.customerForm.deliveryNotes)
+      deliveryNotes: this.emptyToNull(this.customerForm.deliveryNotes),
+      routeCode: this.emptyToNull(this.customerForm.routeCode),
+      routeStopOrder: this.customerForm.routeStopOrder,
+      hasStoreKey: this.customerForm.hasStoreKey,
+      paymentTermCode: this.customerForm.paymentTermCode,
+      internalDeliveryInstructions: this.emptyToNull(this.customerForm.internalDeliveryInstructions)
     };
     const operation = this.customerForm.id
       ? this.api.updateCustomer(this.customerForm.id, request)
@@ -365,7 +439,12 @@ export class AdminCatalogsComponent {
       preferredDeliveryTime: this.toTimeInput(customer.preferredDeliveryTime),
       preferredDeliveryWindowStart: this.toTimeInput(customer.preferredDeliveryWindowStart),
       preferredDeliveryWindowEnd: this.toTimeInput(customer.preferredDeliveryWindowEnd),
-      deliveryNotes: customer.deliveryNotes
+      deliveryNotes: customer.deliveryNotes,
+      routeCode: customer.routeCode ?? null,
+      routeStopOrder: customer.routeStopOrder ?? null,
+      hasStoreKey: customer.hasStoreKey ?? null,
+      paymentTermCode: customer.paymentTermCode ?? null,
+      internalDeliveryInstructions: customer.internalDeliveryInstructions ?? null
     };
   }
 
@@ -385,6 +464,7 @@ export class AdminCatalogsComponent {
 
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
     this.selectedCustomer = customer;
+    this.approveForInterpretation = false;
     this.generatedPlainToken = null;
     this.resultMessage = null;
     this.errorMessage = null;
@@ -409,6 +489,7 @@ export class AdminCatalogsComponent {
   }
 
   protected addFrequentRow(): void {
+    this.invalidateProfileApproval();
     const used = new Set(this.frequentRows.map((row) => row.productId));
     const product = this.products.find((item) => item.isActive && !used.has(item.id));
 
@@ -424,13 +505,20 @@ export class AdminCatalogsComponent {
         productName: product.name,
         defaultQuantity: 0,
         sortOrder: this.frequentRows.length + 1,
-        isActive: true
+        isActive: true,
+        preferredMachineId: null,
+        interpretationPosition: null
       }
     ];
   }
 
   protected removeFrequentRow(index: number): void {
+    this.invalidateProfileApproval();
     this.frequentRows = this.frequentRows.filter((_, currentIndex) => currentIndex !== index);
+  }
+
+  protected invalidateProfileApproval(): void {
+    this.approveForInterpretation = false;
   }
 
   protected saveFrequentProducts(): void {
@@ -439,16 +527,21 @@ export class AdminCatalogsComponent {
     }
 
     this.api.updateFrequentProducts(this.selectedCustomer.id, {
+      approveForInterpretation: this.approveForInterpretation,
       items: this.frequentRows.map((row) => ({
         productId: row.productId,
         defaultQuantity: row.defaultQuantity === null ? null : Number(row.defaultQuantity),
         sortOrder: Number(row.sortOrder) || 0,
-        isActive: row.isActive
+        isActive: row.isActive,
+        preferredMachineId: row.preferredMachineId ?? null,
+        interpretationPosition: row.interpretationPosition ?? null
       }))
     }).subscribe({
       next: (rows) => {
         this.frequentRows = rows;
+        this.approveForInterpretation = false;
         this.resultMessage = 'Productos frecuentes guardados.';
+        this.loadCatalogs(false);
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => this.showError(error, 'No se pudieron guardar los productos frecuentes.')
@@ -552,7 +645,8 @@ export class AdminCatalogsComponent {
   protected saveProduct(): void {
     const request = {
       name: this.productForm.name,
-      description: this.emptyToNull(this.productForm.description)
+      description: this.emptyToNull(this.productForm.description),
+      unitCode: this.productForm.unitCode
     };
     const operation = this.productForm.id
       ? this.api.updateProduct(this.productForm.id, request)
@@ -572,7 +666,8 @@ export class AdminCatalogsComponent {
     this.productForm = {
       id: product.id,
       name: product.name,
-      description: product.description
+      description: product.description,
+      unitCode: product.unitCode ?? null
     };
   }
 
@@ -674,6 +769,9 @@ export class AdminCatalogsComponent {
     }).subscribe({
       next: ({ customers, products, machines }) => {
         this.customers = customers;
+        if (this.selectedCustomer) {
+          this.selectedCustomer = customers.find((customer) => customer.id === this.selectedCustomer?.id) ?? null;
+        }
         this.products = products;
         this.machines = machines;
         this.isLoading = false;
@@ -709,7 +807,12 @@ export class AdminCatalogsComponent {
       preferredDeliveryTime: null,
       preferredDeliveryWindowStart: null,
       preferredDeliveryWindowEnd: null,
-      deliveryNotes: null
+      deliveryNotes: null,
+      routeCode: null,
+      routeStopOrder: null,
+      hasStoreKey: null,
+      paymentTermCode: null,
+      internalDeliveryInstructions: null
     };
   }
 
@@ -717,7 +820,8 @@ export class AdminCatalogsComponent {
     return {
       id: null,
       name: '',
-      description: null
+      description: null,
+      unitCode: null
     };
   }
 

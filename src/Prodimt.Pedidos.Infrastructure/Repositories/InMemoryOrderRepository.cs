@@ -1,4 +1,5 @@
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 
@@ -63,6 +64,8 @@ public sealed class InMemoryOrderRepository(InMemoryDataStore store) : IOrderRep
     {
         lock (store.SyncRoot)
         {
+            if (order.CustomerId is not null && store.Orders.Any(x => x.CustomerId == order.CustomerId && x.OrderDate == order.OrderDate && x.SequenceNumber == order.SequenceNumber))
+                throw new CustomerOrderConflictException("Se registro otro pedido al mismo tiempo. Recarga antes de volver a intentar.");
             store.Orders.Add(order);
         }
 

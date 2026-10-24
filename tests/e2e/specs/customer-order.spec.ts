@@ -326,3 +326,167 @@ test('admin sin login ve pantalla de login', async ({ page }) => {
   await expect(page.getByTestId('admin-login')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
 });
+
+const operationsFixture = {
+  date: '2026-10-24', routeCode: 'PILOTO-DEMO', demandLabel: 'Por producir', preparationLabel: 'Por preparar',
+  orders: [{
+    orderId: '33333333-3333-3333-3333-333333333310', customerId: '11111111-1111-1111-1111-111111111110',
+    customerName: 'Cliente Piloto Demo', sequenceNumber: 1, status: 'Accepted', routeCode: 'PILOTO-DEMO', routeStopOrder: 1,
+    hasStoreKey: true, paymentTermCode: 'cash_on_delivery', internalDeliveryInstructions: 'Dejar en la mesa derecha.',
+    requestedDeliveryTime: '10:30:00', requestedDeliveryWindowStart: null, requestedDeliveryWindowEnd: null,
+    deliveryNotes: null, orderingProfileVersion: 3,
+    lines: [
+      { orderLineId: 'line-a', productId: 'product-a', productName: 'Tortilla demo #11', unitCode: 'kg', quantity: 15,
+        assignedMachineId: 'machine-a', assignedMachineNumber: 1, assignedMachineName: null, notes: null },
+      { orderLineId: 'line-b', productId: 'product-b', productName: 'Huarache demo', unitCode: 'dozen', quantity: 2,
+        assignedMachineId: 'machine-b', assignedMachineNumber: 2, assignedMachineName: null, notes: null }
+    ]
+  }],
+  machineDemand: [
+    { machineId: 'machine-a', machineNumber: 1, machineName: null, productId: 'product-a', productName: 'Tortilla demo #11', unitCode: 'kg', quantity: 15 },
+    { machineId: 'machine-b', machineNumber: 2, machineName: null, productId: 'product-b', productName: 'Huarache demo', unitCode: 'dozen', quantity: 2 }
+  ],
+  pendingReview: [{ orderId: 'pending-demo', customerId: 'customer-pending', customerName: 'Cliente Pendiente Demo', sequenceNumber: 2, reviewReason: 'AdditionalOrderSameDay' }],
+  warnings: []
+};
+
+async function mockOperationsPlan(page: Page) {
+  await page.route(/\/api\/admin\/operations\/plan\?/, async (route) => {
+    const requestUrl = new URL(route.request().url());
+    await route.fulfill({ json: {
+      ...operationsFixture,
+      date: requestUrl.searchParams.get('date'),
+      routeCode: requestUrl.searchParams.get('routeCode')
+    } });
+  });
+}
+
+test('catálogo conserva desconocido, llave y cobro como campos independientes', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/admin/catalogos');
+  const form = page.getByTestId('catalog-customers').locator('form');
+  await expect(form.getByLabel('Llave del local')).toHaveValue('0: null');
+  await expect(form.getByLabel('Forma de cobro')).toHaveValue('0: null');
+  await form.getByLabel('Nombre', { exact: true }).fill('Cliente Piloto Prueba');
+  await form.getByLabel('Código de ruta').fill('PILOTO-DEMO');
+  await form.getByLabel('Orden de visita').fill('3');
+  await form.getByLabel('Llave del local').selectOption({ label: 'Tenemos llave' });
+  await form.getByLabel('Forma de cobro').selectOption('cash_on_delivery');
+  await form.getByLabel('Instrucciones internas de entrega').fill('Dejar en la barra de prueba.');
+  const createdRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/api/admin/customers'));
+  await form.getByRole('button', { name: 'Crear cliente' }).click();
+  expect((await createdRequest).postDataJSON()).toMatchObject({
+    routeCode: 'PILOTO-DEMO', routeStopOrder: 3, hasStoreKey: true,
+    paymentTermCode: 'cash_on_delivery', internalDeliveryInstructions: 'Dejar en la barra de prueba.'
+  });
+  await expect(page.getByText('Cliente guardado.')).toBeVisible();
+  const customer = page.locator('article').filter({ has: page.getByText('Cliente Piloto Prueba', { exact: true }) });
+  await customer.getByRole('button', { name: 'Editar', exact: true }).click();
+  await expect(form.getByLabel('Llave del local')).toHaveValue('1: true');
+  await expect(form.getByLabel('Forma de cobro')).toHaveValue('cash_on_delivery');
+  await form.getByLabel('Llave del local').selectOption({ label: 'Por confirmar' });
+  const updatedRequest = page.waitForRequest((request) => request.method() === 'PUT' && /\/api\/admin\/customers\/[^/]+$/.test(request.url()));
+  await form.getByRole('button', { name: 'Guardar cliente' }).click();
+  expect((await updatedRequest).postDataJSON()).toMatchObject({ hasStoreKey: null, paymentTermCode: 'cash_on_delivery' });
+});
+
+test('producto nuevo no presupone kilos y permite guardar docenas', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/admin/catalogos');
+  await page.getByRole('button', { name: 'Productos', exact: true }).click();
+  const form = page.getByTestId('catalog-products').locator('form');
+  await expect(form.getByLabel('Unidad de venta')).toHaveValue('0: null');
+  await form.getByLabel('Nombre', { exact: true }).fill('Huarache catálogo demo');
+  await form.getByLabel('Unidad de venta').selectOption('dozen');
+  const request = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/api/admin/products'));
+  await form.getByRole('button', { name: 'Crear producto' }).click();
+  expect((await request).postDataJSON().unitCode).toBe('dozen');
+  await expect(page.getByText('Unidad: docenas')).toBeVisible();
+});
+
+test('perfil requiere aprobación explícita y separa posición de orden visual', async ({ page }) => {
+  await loginAdmin(page);
+  await page.goto('/admin/catalogos');
+  await page.getByRole('button', { name: 'Configurar' }).first().click();
+  const config = page.getByTestId('customer-config');
+  const approval = config.getByLabel('He verificado los productos y sus posiciones; aprobar este perfil');
+  await expect(approval).not.toBeChecked();
+  await config.getByLabel('Posición en mensaje', { exact: true }).nth(0).fill('2');
+  await config.getByLabel('Posición en mensaje', { exact: true }).nth(1).fill('1');
+  await config.getByLabel('Máquina para este producto').nth(0).selectOption('44444444-4444-4444-4444-444444444402');
+  await approval.check();
+  const saveRequest = page.waitForRequest((request) => request.method() === 'PUT' && request.url().endsWith('/frequent-products'));
+  await config.getByRole('button', { name: 'Guardar frecuentes' }).click();
+  const body = (await saveRequest).postDataJSON();
+  expect(body.approveForInterpretation).toBe(true);
+  expect(body.items[0]).toMatchObject({ sortOrder: 1, interpretationPosition: 2, preferredMachineId: '44444444-4444-4444-4444-444444444402' });
+  await expect(config.getByText(/Perfil versión 1 · Aprobado/)).toBeVisible();
+  await expect(approval).not.toBeChecked();
+  await approval.check();
+  await config.getByLabel('Cantidad sugerida').first().fill('21');
+  await expect(approval).not.toBeChecked();
+});
+
+test('plan móvil e impresión separan unidades y muestran preparación e instrucciones', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockOperationsPlan(page);
+  await loginAdmin(page);
+  await page.getByRole('link', { name: 'Operación' }).click();
+  const plan = page.getByTestId('operations-plan');
+  await expect(plan.getByRole('heading', { name: 'Por producir', exact: true })).toBeVisible();
+  await expect(page.getByTestId('machine-demand').locator('tbody tr')).toHaveCount(2);
+  await expect(page.getByTestId('machine-demand').locator('tbody tr').nth(0)).toContainText('kg');
+  await expect(page.getByTestId('machine-demand').locator('tbody tr').nth(1)).toContainText('docenas');
+  await expect(page.getByTestId('preparation-order')).toContainText('Con llave del local');
+  await expect(page.getByTestId('preparation-order')).toContainText('Cobro diario contraentrega · requiere ticket');
+  await expect(page.getByText('Dejar en la mesa derecha.', { exact: false })).toBeVisible();
+  await expect(page.getByTestId('plan-pending-review')).toContainText('Cliente Pendiente Demo');
+  await expect(page.getByTestId('machine-demand')).not.toContainText('Cliente Pendiente Demo');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('operations-mobile.png'), fullPage: true });
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByRole('button', { name: 'Imprimir plan' })).not.toBeVisible();
+  await expect(page.locator('.app-shell__header')).not.toBeVisible();
+  await expect(page.getByText('Plan de preparación. No es comprobante de entrega ni de pago.')).toBeVisible();
+  await expect(page.getByTestId('preparation-order')).toBeVisible();
+  await page.pdf({ path: test.info().outputPath('operations-print.pdf'), format: 'A4', printBackground: true });
+});
+
+test('cambiar filtro retira el plan anterior y un error no permite imprimir datos viejos', async ({ page }) => {
+  await mockOperationsPlan(page);
+  await loginAdmin(page);
+  await page.goto('/admin/operacion');
+  await expect(page.getByTestId('preparation-order')).toBeVisible();
+  await page.getByLabel('Código de ruta').fill('OTRA-RUTA');
+  await expect(page.getByTestId('preparation-order')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Imprimir plan' })).toHaveCount(0);
+  await page.route(/\/api\/admin\/operations\/plan\?/, async (route) => {
+    expect(new URL(route.request().url()).searchParams.get('routeCode')).toBe('OTRA-RUTA');
+    await route.fulfill({ status: 503, json: { error: 'Plan temporalmente no disponible.' } });
+  });
+  await page.getByRole('button', { name: 'Consultar plan' }).click();
+  await expect(page.getByRole('alert')).toContainText('Plan temporalmente no disponible.');
+  await expect(page.getByRole('button', { name: 'Imprimir plan' })).toHaveCount(0);
+});
+
+test('captura cliente bloquea producto con unidad desconocida sin inventar kilos', async ({ page, request }) => {
+  await page.route(/\/api\/customer-orders\/[^/]+\/today$/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.products[0].unitCode = null;
+    await route.fulfill({ response, json: body });
+  });
+  await loginCustomer(page);
+  await expect(page.getByText(/unidad por confirmar/)).toBeVisible();
+  await page.getByRole('button', { name: 'Enviar pedido' }).click();
+  await expect(page.getByText(/La unidad de un producto está pendiente de confirmar/)).toBeVisible();
+  const state = await (await request.get(`${mockApiBaseUrl}/__test/state`)).json();
+  expect(state.submitCalls).toBe(0);
+});
+
+test('cliente no puede abrir el plan de operación', async ({ page }) => {
+  await loginCustomer(page);
+  await expect(page.getByRole('link', { name: 'Operación' })).toHaveCount(0);
+  await page.goto('/admin/operacion');
+  await expect(page.getByTestId('admin-login')).toBeVisible();
+});

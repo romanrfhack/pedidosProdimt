@@ -51,6 +51,9 @@ public sealed class AuthApiAuthorizationTests
         Assert.DoesNotContain("machine", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("maquina", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("audit", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("hasStoreKey", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("internalDeliveryInstructions", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("paymentTermCode", body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -164,6 +167,7 @@ public sealed class AuthApiAuthorizationTests
     [InlineData("/api/admin/products")]
     [InlineData("/api/admin/machines")]
     [InlineData("/api/admin/users")]
+    [InlineData("/api/admin/operations/plan?date=2026-10-24")]
     public async Task AdminCatalogEndpoints_RequireAdminAccess(string path)
     {
         await using var factory = new AuthApiFactory();
@@ -211,6 +215,27 @@ public sealed class AuthApiAuthorizationTests
 
         var adminValidate = await client.PostAsJsonAsync("/api/admin/import/customers/validate", validateRequest);
         Assert.Equal(HttpStatusCode.OK, adminValidate.StatusCode);
+    }
+
+
+    [Fact]
+    public async Task AdminReview_StaleVersionAndRepeatedDecisionReturnConflict()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetCustomerBearerAsync(client);
+        var request = new SubmitCustomerOrderRequest(
+            [new SubmitCustomerOrderLineRequest(DevelopmentSeedIds.ProductNineAndHalfId, 1, null)]);
+        (await client.PostAsJsonAsync($"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit", request)).EnsureSuccessStatusCode();
+        var additional = await client.PostAsJsonAsync($"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit", request);
+        var orderId = await ReadOrderIdAsync(additional);
+        await SetAdminBearerAsync(client);
+        var stale = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Accepted", expectedVersion = 99 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        var accepted = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Accepted", expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        var repeated = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Rejected", expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode);
     }
 
     private static async Task SetCustomerBearerAsync(HttpClient client)

@@ -41,6 +41,7 @@ public sealed class AdminCustomerCatalogService(
             request.DeliveryNotes,
             now);
 
+        ApplyPilotDelivery(customer, request, now);
         await customers.AddAsync(customer, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Customer,
@@ -69,6 +70,8 @@ public sealed class AdminCustomerCatalogService(
         }
 
         var now = dateTimeProvider.Now;
+        // Validate before mutating a tracked entity (including the in-memory provider).
+        ApplyPilotDelivery(new Customer(), request, now);
         customer.Update(
             request.Name,
             request.PhoneNumber,
@@ -77,6 +80,7 @@ public sealed class AdminCustomerCatalogService(
             request.PreferredDeliveryWindowEnd,
             request.DeliveryNotes,
             now);
+        ApplyPilotDelivery(customer, request, now);
 
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Customer,
@@ -89,7 +93,12 @@ public sealed class AdminCustomerCatalogService(
             {
                 customer.PreferredDeliveryTime,
                 customer.PreferredDeliveryWindowStart,
-                customer.PreferredDeliveryWindowEnd
+                customer.PreferredDeliveryWindowEnd,
+                customer.RouteCode,
+                customer.RouteStopOrder,
+                customer.HasStoreKey,
+                customer.PaymentTermCode,
+                hasInternalDeliveryInstructions = customer.InternalDeliveryInstructions is not null
             }), cancellationToken);
         await customers.SaveChangesAsync(cancellationToken);
 
@@ -161,7 +170,10 @@ public sealed class AdminCustomerCatalogService(
                     product?.Name ?? "Producto no encontrado",
                     item.DefaultQuantity,
                     item.SortOrder,
-                    item.IsActive);
+                    item.IsActive,
+                    item.PreferredMachineId,
+                    item.InterpretationPosition,
+                    product?.UnitCode);
             })
             .ToArray();
     }
@@ -173,51 +185,65 @@ public sealed class AdminCustomerCatalogService(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        await GetRequiredCustomerAsync(customerId, cancellationToken);
-
+        var customer = await GetRequiredCustomerForUpdateAsync(customerId, cancellationToken);
         var items = request.Items ?? [];
         EnsureNoDuplicateIds(items.Select(x => x.ProductId), "No repitas productos frecuentes para el mismo cliente.");
 
         if (items.Any(x => x.DefaultQuantity < 0))
-        {
             throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades default no pueden ser negativas.");
-        }
+        if (items.Any(x => x.InterpretationPosition <= 0))
+            throw new ArgumentException("La posicion de interpretacion debe ser positiva.", nameof(request));
+        if (items.Where(x => x.InterpretationPosition.HasValue).GroupBy(x => x.InterpretationPosition).Any(x => x.Count() > 1))
+            throw new ArgumentException("No repitas posiciones de interpretacion para el mismo cliente.", nameof(request));
 
         var productIds = items.Select(x => x.ProductId).Distinct().ToArray();
-        var productLookup = (await products.GetByIdsIncludingInactiveAsync(productIds, cancellationToken))
-            .ToDictionary(x => x.Id);
+        var productLookup = (await products.GetByIdsIncludingInactiveAsync(productIds, cancellationToken)).ToDictionary(x => x.Id);
+        if (productIds.Any(productId => !productLookup.ContainsKey(productId)))
+            throw new ArgumentException("Uno de los productos frecuentes no existe.", nameof(request));
 
-        var missingProductId = productIds.FirstOrDefault(productId => !productLookup.ContainsKey(productId));
-        if (missingProductId != Guid.Empty)
+        var preferredMachineIds = items.Where(x => x.PreferredMachineId.HasValue).Select(x => x.PreferredMachineId!.Value).Distinct().ToArray();
+        var machineLookup = (await machines.GetByIdsAsync(preferredMachineIds, cancellationToken)).ToDictionary(x => x.Id);
+        if (preferredMachineIds.Any(id => !machineLookup.TryGetValue(id, out var machine) || !machine.IsActive))
+            throw new ArgumentException("La maquina preferida debe existir y estar activa.", nameof(request));
+
+        var activeItems = items.Where(x => x.IsActive).ToArray();
+        if (request.ApproveForInterpretation)
         {
-            throw new ArgumentException($"El producto {missingProductId} no existe.", nameof(request));
+            if (activeItems.Length == 0 || activeItems.Any(x => !productLookup[x.ProductId].IsActive || productLookup[x.ProductId].UnitCode is null))
+                throw new ArgumentException("Para aprobar el perfil se requiere al menos un producto activo con unidad confirmada.", nameof(request));
+            var positions = activeItems.Select(x => x.InterpretationPosition).OrderBy(x => x).ToArray();
+            if (!positions.SequenceEqual(Enumerable.Range(1, activeItems.Length).Select(x => (int?)x)))
+                throw new ArgumentException("Para aprobar el perfil, asigna posiciones consecutivas desde 1 a todos los productos activos.", nameof(request));
         }
 
-        var replacement = items
-            .Select((item, index) => new CustomerFrequentProduct
-            {
-                CustomerId = customerId,
-                ProductId = item.ProductId,
-                DefaultQuantity = item.DefaultQuantity,
-                SortOrder = item.SortOrder > 0 ? item.SortOrder : index + 1,
-                IsActive = item.IsActive
-            })
-            .OrderBy(x => x.SortOrder)
-            .ToArray();
+        var replacement = items.Select((item, index) => new CustomerFrequentProduct
+        {
+            CustomerId = customerId,
+            ProductId = item.ProductId,
+            DefaultQuantity = item.DefaultQuantity,
+            SortOrder = item.SortOrder > 0 ? item.SortOrder : index + 1,
+            IsActive = item.IsActive,
+            PreferredMachineId = item.PreferredMachineId,
+            InterpretationPosition = item.InterpretationPosition
+        }).OrderBy(x => x.SortOrder).ToArray();
 
+        var now = dateTimeProvider.Now;
         await customers.ReplaceFrequentProductsAsync(customerId, replacement, cancellationToken);
+        customer.RecordOrderingProfileChange(request.ApproveForInterpretation, now);
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Customer,
             customerId,
             CatalogAuditEventTypes.CustomerFrequentProductsUpdated,
-            dateTimeProvider.Now,
+            now,
             actor,
-            "Productos frecuentes del cliente actualizados.",
+            "Productos frecuentes y version del perfil actualizados.",
             new
             {
                 count = replacement.Length,
                 activeCount = replacement.Count(x => x.IsActive),
-                productIds = replacement.Select(x => x.ProductId).ToArray()
+                productIds = replacement.Select(x => x.ProductId).ToArray(),
+                customer.OrderingProfileVersion,
+                customer.IsOrderProfileApproved
             }), cancellationToken);
         await customers.SaveChangesAsync(cancellationToken);
 
@@ -371,6 +397,12 @@ public sealed class AdminCustomerCatalogService(
         }
     }
 
+    private static void ApplyPilotDelivery(Customer customer, UpsertAdminCustomerRequest request, DateTimeOffset now)
+    {
+        customer.SetPilotDelivery(request.RouteCode, request.RouteStopOrder, request.HasStoreKey,
+            request.PaymentTermCode, request.InternalDeliveryInstructions, now);
+    }
+
     private static AdminCustomerResponse MapCustomer(Customer customer)
     {
         return new AdminCustomerResponse(
@@ -384,6 +416,13 @@ public sealed class AdminCustomerCatalogService(
             customer.PreferredDeliveryWindowEnd,
             customer.DeliveryNotes,
             customer.CreatedAt,
-            customer.UpdatedAt);
+            customer.UpdatedAt,
+            customer.RouteCode,
+            customer.RouteStopOrder,
+            customer.HasStoreKey,
+            customer.PaymentTermCode,
+            customer.InternalDeliveryInstructions,
+            customer.OrderingProfileVersion,
+            customer.IsOrderProfileApproved);
     }
 }

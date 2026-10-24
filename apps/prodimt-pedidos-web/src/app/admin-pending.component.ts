@@ -1,3 +1,4 @@
+import { unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +8,7 @@ import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } 
 interface ChangeLineForm {
   orderLineId: string;
   productName: string;
+  unitCode: string | null;
   quantity: number;
   notes: string | null;
 }
@@ -99,13 +101,13 @@ interface ChangeLineForm {
                         <label class="line-row">
                           <span>
                             <strong>{{ line.productName }}</strong>
-                            <small>Cantidad actualizable</small>
+                            <small>Cantidad actualizable · {{ unitLabel(line.unitCode) }}</small>
                           </span>
                           <input
                             type="number"
-                            min="1"
-                            step="1"
-                            inputmode="numeric"
+                            min="0.01"
+                            step="0.01"
+                            inputmode="decimal"
                             [name]="'lineQuantity' + line.orderLineId"
                             [(ngModel)]="line.quantity">
                         </label>
@@ -144,6 +146,7 @@ interface ChangeLineForm {
   `
 })
 export class AdminPendingComponent {
+  protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -197,6 +200,7 @@ export class AdminPendingComponent {
         this.changeLines = detail.lines.map((line) => ({
           orderLineId: line.id,
           productName: line.productName,
+          unitCode: line.unitCode,
           quantity: line.quantity,
           notes: line.notes
         }));
@@ -227,6 +231,7 @@ export class AdminPendingComponent {
 
     this.data.reviewOrderWithRequest(order.id, {
       decision: 'AcceptedWithChanges',
+      expectedVersion: this.changeDetail?.version ?? null,
       internalNotes: this.emptyToNull(this.internalNotes),
       requestedDeliveryTime: this.emptyToNull(this.requestedDeliveryTime),
       requestedDeliveryWindowStart: null,

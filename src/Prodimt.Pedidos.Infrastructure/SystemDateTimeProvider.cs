@@ -4,9 +4,15 @@ namespace Prodimt.Pedidos.Infrastructure;
 
 public sealed class SystemDateTimeProvider : IDateTimeProvider
 {
-    public DateTimeOffset Now => DateTimeOffset.Now;
+    private static readonly TimeZoneInfo BusinessTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City");
+    private readonly TimeProvider _clock;
 
-    public DateOnly Today => DateOnly.FromDateTime(Now.DateTime);
+    public SystemDateTimeProvider() : this(TimeProvider.System) { }
 
-    public TimeOnly LocalTimeOfDay => TimeOnly.FromDateTime(Now.DateTime);
+    public SystemDateTimeProvider(TimeProvider clock) => _clock = clock;
+
+    // Event timestamps use UTC; business dates and cutoffs use Mexico City.
+    public DateTimeOffset Now => _clock.GetUtcNow();
+    public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Now, BusinessTimeZone).DateTime);
+    public TimeOnly LocalTimeOfDay => TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(Now, BusinessTimeZone).DateTime);
 }

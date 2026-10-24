@@ -22,12 +22,14 @@ const customerTodayBase = {
       productId: '22222222-2222-2222-2222-222222222201',
       name: '#9 1/2',
       description: 'Producto demo',
+      unitCode: 'kg',
       suggestedQuantity: 20
     },
     {
       productId: '22222222-2222-2222-2222-222222222202',
       name: '#10 1/2',
       description: 'Producto demo',
+      unitCode: 'kg',
       suggestedQuantity: 10
     }
   ]
@@ -65,6 +67,7 @@ const pendingOrderBase = {
 
 const pendingOrderDetail = {
   ...pendingOrderBase,
+  version: 1,
   internalNotes: 'Pedido demo pendiente.',
   salesChannelName: 'Cliente',
   salesChannelType: 'Customer',
@@ -73,6 +76,7 @@ const pendingOrderDetail = {
       orderLineId: '77777777-7777-7777-7777-777777777701',
       productId: '22222222-2222-2222-2222-222222222201',
       productName: '#9 1/2',
+      unitCode: 'kg',
       quantity: 20,
       notes: 'Linea demo',
       assignedMachineId: '44444444-4444-4444-4444-444444444401',
@@ -115,6 +119,7 @@ const catalogCustomersBase = [
     preferredDeliveryWindowStart: '12:00:00',
     preferredDeliveryWindowEnd: '14:00:00',
     deliveryNotes: 'Cliente demo.',
+    routeCode: null, routeStopOrder: null, hasStoreKey: null, paymentTermCode: null, internalDeliveryInstructions: null, orderingProfileVersion: 0, isOrderProfileApproved: false,
     createdAt: '2026-05-27T00:00:00Z',
     updatedAt: '2026-05-27T00:00:00Z'
   },
@@ -127,6 +132,7 @@ const catalogCustomersBase = [
     preferredDeliveryWindowStart: null,
     preferredDeliveryWindowEnd: null,
     deliveryNotes: 'Llamar antes de enviar.',
+    routeCode: null, routeStopOrder: null, hasStoreKey: null, paymentTermCode: null, internalDeliveryInstructions: null, orderingProfileVersion: 0, isOrderProfileApproved: false,
     createdAt: '2026-05-27T00:00:00Z',
     updatedAt: '2026-05-27T00:00:00Z'
   }
@@ -137,18 +143,21 @@ const catalogProductsBase = [
     id: '22222222-2222-2222-2222-222222222201',
     name: '#9 1/2',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   },
   {
     id: '22222222-2222-2222-2222-222222222202',
     name: '#10 1/2',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   },
   {
     id: '22222222-2222-2222-2222-222222222203',
     name: '#11',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   }
 ];
@@ -692,6 +701,7 @@ const server = http.createServer(async (request, response) => {
           productId: '22222222-2222-2222-2222-222222222203',
           name: '#11',
           description: 'Producto demo',
+      unitCode: 'kg',
           suggestedQuantity: 8
         }
       ]
@@ -759,6 +769,7 @@ const server = http.createServer(async (request, response) => {
       requestedDeliveryWindowStart: null,
       requestedDeliveryWindowEnd: null,
       deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
       adminDecision: null
     });
     return;
@@ -788,6 +799,7 @@ const server = http.createServer(async (request, response) => {
       preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
       preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
       deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -817,6 +829,7 @@ const server = http.createServer(async (request, response) => {
         preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
         preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
         deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
         updatedAt: new Date().toISOString()
       });
     }
@@ -851,6 +864,8 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'PUT') {
       const body = await readJson(request);
+      const customer = catalogCustomers.find((item) => item.id === frequentMatch[1]);
+      if (customer) { customer.orderingProfileVersion = (customer.orderingProfileVersion ?? 0) + 1; customer.isOrderProfileApproved = body.approveForInterpretation === true; }
       frequentProductsByCustomer[frequentMatch[1]] = (body.items ?? []).map((item) => {
         const product = catalogProducts.find((candidate) => candidate.id === item.productId);
         return {
@@ -858,7 +873,8 @@ const server = http.createServer(async (request, response) => {
           productName: product?.name ?? 'Producto',
           defaultQuantity: item.defaultQuantity ?? null,
           sortOrder: item.sortOrder,
-          isActive: item.isActive
+          isActive: item.isActive,
+          preferredMachineId: item.preferredMachineId ?? null, interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null
         };
       });
     }
@@ -958,6 +974,7 @@ const server = http.createServer(async (request, response) => {
       id: randomUUID(),
       name: body.name,
       description: body.description ?? null,
+      unitCode: body.unitCode ?? null,
       isActive: true
     };
     catalogProducts.push(product);
@@ -981,6 +998,7 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request);
       product.name = body.name;
       product.description = body.description ?? null;
+      product.unitCode = body.unitCode ?? null;
     }
 
     sendJson(response, 200, product);

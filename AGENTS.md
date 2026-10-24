@@ -1,5 +1,11 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## Alcance vigente desde 2026-10-24
+
+El usuario autorizó el plan integral y el incremento I01 del piloto. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+
+I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
+
 ## Que es
 
 PRODIMT Pedidos es la aplicacion web mobile first para capturar pedidos de clientes de PRODIMT y reemplazar gradualmente el flujo manual basado en WhatsApp, llamadas, mensajes en grupo y captura en Excel.

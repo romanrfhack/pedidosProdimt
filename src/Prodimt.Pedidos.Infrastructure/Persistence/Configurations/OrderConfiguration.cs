@@ -28,7 +28,13 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(x => x.InternalNotes)
             .HasMaxLength(1000);
 
-        builder.HasIndex(x => new { x.CustomerId, x.OrderDate, x.SequenceNumber });
+        builder.Property(x => x.CustomerNameSnapshot).HasMaxLength(200);
+        builder.Property(x => x.RouteCode).HasMaxLength(80);
+        builder.Property(x => x.PaymentTermCode).HasMaxLength(32);
+        builder.Property(x => x.InternalDeliveryInstructions).HasMaxLength(1000);
+        builder.Property(x => x.Version).IsConcurrencyToken().HasDefaultValue(1);
+
+        builder.HasIndex(x => new { x.CustomerId, x.OrderDate, x.SequenceNumber }).IsUnique();
 
         builder.HasMany(x => x.Lines)
             .WithOne()

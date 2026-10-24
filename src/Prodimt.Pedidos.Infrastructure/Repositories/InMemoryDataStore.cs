@@ -86,10 +86,10 @@ public sealed class InMemoryDataStore
 
     public List<Product> Products { get; } =
     [
-        new() { Id = ProductNineAndHalfId, Name = "#9 1/2", Description = "Producto demo", IsActive = true },
-        new() { Id = ProductTenAndHalfId, Name = "#10 1/2", Description = "Producto demo", IsActive = true },
-        new() { Id = ProductElevenId, Name = "#11", Description = "Producto demo", IsActive = true },
-        new() { Id = ProductFifteenId, Name = "#15", Description = "Producto demo", IsActive = true }
+        new() { Id = ProductNineAndHalfId, Name = "#9 1/2", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+        new() { Id = ProductTenAndHalfId, Name = "#10 1/2", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+        new() { Id = ProductElevenId, Name = "#11", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+        new() { Id = ProductFifteenId, Name = "#15", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true }
     ];
 
     public List<CustomerFrequentProduct> CustomerFrequentProducts { get; } =

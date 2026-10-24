@@ -75,7 +75,7 @@ public sealed class AdminOrderService(
             .ToDictionary(x => x.Id);
 
         var templateProducts = frequentProducts
-            .Where(x => x.IsActive && productLookup.ContainsKey(x.ProductId))
+            .Where(x => x.IsActive && productLookup.TryGetValue(x.ProductId, out var availableProduct) && availableProduct.IsActive)
             .OrderBy(x => x.SortOrder)
             .Select(x =>
             {
@@ -84,7 +84,8 @@ public sealed class AdminOrderService(
                     product.Id,
                     product.Name,
                     product.Description,
-                    x.DefaultQuantity ?? 0);
+                    x.DefaultQuantity ?? 0,
+                    product.UnitCode);
             })
             .ToArray();
 
@@ -111,8 +112,9 @@ public sealed class AdminOrderService(
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
-        var machineAssignments = await customers.GetMachineAssignmentsAsync(customerId, cancellationToken);
-        var lines = ValidateAndCreateAdminLines(request.Lines, machineAssignments);
+        var lines = await OrderLineFactory.CreateAsync(customerId,
+            request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
+            customers, products, machines, cancellationToken);
 
         var order = Order.CreateSubmitted(
             customer.Id,
@@ -153,15 +155,15 @@ public sealed class AdminOrderService(
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
         var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
 
+        if (await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken))
+        {
+            throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy desde administracion.");
+        }
+
         if (latestOrder?.Status is OrderStatus.NoOrder)
         {
             var existingCustomerNames = await GetCustomerNamesAsync([latestOrder], cancellationToken);
             return MapSummary(latestOrder, existingCustomerNames);
-        }
-
-        if (latestOrder is not null && IsActiveCustomerOrder(latestOrder.Status))
-        {
-            throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy desde administracion.");
         }
 
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
@@ -207,6 +209,12 @@ public sealed class AdminOrderService(
         if (request.Decision is not (AdminDecision.Accepted or AdminDecision.Rejected or AdminDecision.AcceptedWithChanges))
         {
             throw new ArgumentException("La decision administrativa debe ser Accepted, Rejected o AcceptedWithChanges.", nameof(request));
+        }
+
+        if (order.Status != OrderStatus.PendingAdminReview || !order.RequiresAdminReview ||
+            (request.ExpectedVersion is { } expectedVersion && expectedVersion != order.Version))
+        {
+            throw new CustomerOrderConflictException("El pedido ya cambio o no esta pendiente de revision. Recarga el detalle.");
         }
 
         var changes = request.Decision is AdminDecision.AcceptedWithChanges
@@ -295,46 +303,28 @@ public sealed class AdminOrderService(
         return customer;
     }
 
-    private static OrderLine[] ValidateAndCreateAdminLines(
-        IReadOnlyList<AdminSubmitCustomerOrderLineRequest>? requestLines,
-        IReadOnlyList<CustomerMachineAssignment> machineAssignments)
-    {
-        if (requestLines is null || requestLines.Count == 0)
-        {
-            throw new ArgumentException("Captura al menos una cantidad o marca No pedir hoy.", nameof(requestLines));
-        }
-
-        if (requestLines.Any(line => line.Quantity < 0))
-        {
-            throw new ArgumentOutOfRangeException(nameof(requestLines), "Las cantidades no pueden ser negativas.");
-        }
-
-        var assignedMachineId = machineAssignments
-            .FirstOrDefault(x => x.IsDefault)
-            ?.MachineId;
-
-        var lines = requestLines
-            .Where(line => line.Quantity > 0)
-            .Select(line => new OrderLine
-            {
-                Id = Guid.NewGuid(),
-                ProductId = line.ProductId,
-                Quantity = line.Quantity,
-                AssignedMachineId = assignedMachineId,
-                Notes = line.Notes
-            })
-            .ToArray();
-
-        if (lines.Length == 0)
-        {
-            throw new ArgumentException("Captura al menos una cantidad o marca No pedir hoy.", nameof(requestLines));
-        }
-
-        return lines;
-    }
-
     private static List<AdminOrderChangeSummary> ApplyAcceptedWithChanges(Order order, ReviewOrderRequest request)
     {
+        // Validate the entire command before mutating (also protects the development in-memory provider).
+        if (request.LineAdjustments is { } adjustments)
+        {
+            if (adjustments.Select(x => x.OrderLineId).Distinct().Count() != adjustments.Count)
+                throw new ArgumentException("Una linea no puede ajustarse dos veces.", nameof(request));
+            foreach (var adjustment in adjustments)
+            {
+                if (adjustment.Quantity <= 0 || decimal.Round(adjustment.Quantity, 2) != adjustment.Quantity || adjustment.Quantity > 9999999999999999.99m)
+                    throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades ajustadas deben ser positivas y tener hasta dos decimales.");
+                if (!order.Lines.Any(x => x.Id == adjustment.OrderLineId))
+                    throw new ArgumentException("La linea de pedido a ajustar no existe.", nameof(request));
+                if (adjustment.Notes?.Length > 500)
+                    throw new ArgumentException("La nota de una linea no puede exceder 500 caracteres.", nameof(request));
+            }
+        }
+        var start = request.RequestedDeliveryWindowStart ?? order.RequestedDeliveryWindowStart;
+        var end = request.RequestedDeliveryWindowEnd ?? order.RequestedDeliveryWindowEnd;
+        if (start is { } from && end is { } to && from > to)
+            throw new ArgumentException("La ventana de entrega no puede estar invertida.", nameof(request));
+
         var changes = new List<AdminOrderChangeSummary>();
 
         AddDeliveryChange(changes, "requestedDeliveryTime", order.RequestedDeliveryTime, request.RequestedDeliveryTime);
@@ -489,12 +479,13 @@ public sealed class AdminOrderService(
                 return new AdminOrderLineResponse(
                     line.Id,
                     line.ProductId,
-                    product?.Name ?? "Producto no encontrado",
+                    line.ProductNameSnapshot ?? product?.Name ?? "Producto no encontrado",
                     line.Quantity,
                     line.Notes,
                     line.AssignedMachineId,
                     machine?.Name,
-                    machine?.Number);
+                    machine?.Number,
+                    line.UnitCode);
             })
             .ToArray();
 
@@ -517,7 +508,8 @@ public sealed class AdminOrderService(
             order.InternalNotes,
             salesChannel?.Name,
             salesChannel?.Type,
-            lines);
+            lines,
+            order.Version);
     }
 
     private async Task<IReadOnlyDictionary<Guid, string>> GetCustomerNamesAsync(
@@ -556,6 +548,7 @@ public sealed class AdminOrderService(
 
     private static string GetCustomerName(Order order, IReadOnlyDictionary<Guid, string> customerNames)
     {
+        if (order.CustomerNameSnapshot is { } snapshot) return snapshot;
         return order.CustomerId is { } customerId && customerNames.TryGetValue(customerId, out var name)
             ? name
             : "Mostrador";
@@ -577,11 +570,6 @@ public sealed class AdminOrderService(
             auditLog.AdminDecision,
             auditLog.Summary,
             auditLog.MetadataJson);
-    }
-
-    private static bool IsActiveCustomerOrder(OrderStatus status)
-    {
-        return status is OrderStatus.Submitted or OrderStatus.PendingAdminReview or OrderStatus.Accepted;
     }
 
     private static string FormatChangeSummary(IReadOnlyList<AdminOrderChangeSummary> changes)

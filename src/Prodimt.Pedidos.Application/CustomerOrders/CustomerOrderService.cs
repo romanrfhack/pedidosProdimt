@@ -11,7 +11,8 @@ public sealed class CustomerOrderService(
     ISalesChannelRepository salesChannels,
     IOrderRepository orders,
     IOrderAuditLogRepository auditLogs,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IMachineRepository machines)
 {
     public async Task<CustomerOrderTodayResponse> GetTodayAsync(Guid customerId, CancellationToken cancellationToken)
     {
@@ -22,7 +23,7 @@ public sealed class CustomerOrderService(
             .ToDictionary(x => x.Id);
 
         var suggestions = frequentProducts
-            .Where(x => x.IsActive && productLookup.ContainsKey(x.ProductId))
+            .Where(x => x.IsActive && productLookup.TryGetValue(x.ProductId, out var availableProduct) && availableProduct.IsActive)
             .OrderBy(x => x.SortOrder)
             .Select(x =>
             {
@@ -31,7 +32,8 @@ public sealed class CustomerOrderService(
                     product.Id,
                     product.Name,
                     product.Description,
-                    x.DefaultQuantity ?? 0);
+                    x.DefaultQuantity ?? 0,
+                    product.UnitCode);
             })
             .ToArray();
 
@@ -57,8 +59,10 @@ public sealed class CustomerOrderService(
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
-        var machineAssignments = await customers.GetMachineAssignmentsAsync(customerId, cancellationToken);
-        var lines = ValidateAndCreateLines(request, machineAssignments);
+        ArgumentNullException.ThrowIfNull(request);
+        var lines = await OrderLineFactory.CreateAsync(customerId,
+            request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
+            customers, products, machines, cancellationToken);
 
         var order = Order.CreateSubmitted(
             customer.Id,
@@ -83,15 +87,13 @@ public sealed class CustomerOrderService(
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.Customer, cancellationToken);
         var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
 
-        if (latestOrder?.Status is OrderStatus.NoOrder)
-        {
-            return MapCustomerResponse(latestOrder);
-        }
-
-        if (latestOrder is not null && IsActiveCustomerOrder(latestOrder.Status))
+        if (await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken))
         {
             throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy.");
         }
+
+        if (latestOrder?.Status is OrderStatus.NoOrder)
+            return MapCustomerResponse(latestOrder);
 
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
 
@@ -125,58 +127,6 @@ public sealed class CustomerOrderService(
         }
 
         return customer;
-    }
-
-    private static OrderLine[] ValidateAndCreateLines(
-        SubmitCustomerOrderRequest request,
-        IReadOnlyList<CustomerMachineAssignment> machineAssignments)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (request.Lines is null || request.Lines.Count == 0)
-        {
-            throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.", nameof(request));
-        }
-
-        if (request.Lines.Any(line => line.Quantity < 0))
-        {
-            throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades no pueden ser negativas.");
-        }
-
-        var lines = request.Lines
-            .Where(line => line.Quantity > 0)
-            .Select(line => CreateLine(line, machineAssignments))
-            .ToArray();
-
-        if (lines.Length == 0)
-        {
-            throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.", nameof(request));
-        }
-
-        return lines;
-    }
-
-    private static OrderLine CreateLine(
-        SubmitCustomerOrderLineRequest line,
-        IReadOnlyList<CustomerMachineAssignment> machineAssignments)
-    {
-        var assignedMachineId = machineAssignments
-            .FirstOrDefault(x => x.IsDefault)
-            ?.MachineId;
-
-        return new OrderLine
-        {
-            Id = Guid.NewGuid(),
-            ProductId = line.ProductId,
-            Quantity = line.Quantity,
-            AssignedMachineId = assignedMachineId,
-            Notes = line.Notes
-        };
-    }
-
-    private static bool IsActiveCustomerOrder(OrderStatus status)
-    {
-        return status is OrderStatus.Submitted or OrderStatus.PendingAdminReview or OrderStatus.Accepted;
     }
 
     private async Task AddSubmittedOrderAuditLogsAsync(

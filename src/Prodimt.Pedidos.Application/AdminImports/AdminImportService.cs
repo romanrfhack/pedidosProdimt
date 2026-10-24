@@ -17,6 +17,14 @@ public sealed class AdminImportService(
 {
     public const int MaxFileSizeBytes = 2 * 1024 * 1024;
 
+    // These headers are additive: legacy files keep their existing contract and
+    // must not erase pilot data merely because an optional column is absent.
+    private static readonly IReadOnlySet<string> PilotOptionalHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "routeCode", "routeStopOrder", "hasStoreKey", "paymentTermCode", "internalDeliveryInstructions",
+        "unitCode", "preferredMachineExternalCode", "preferredMachineNumber", "interpretationPosition"
+    };
+
     private static readonly IReadOnlyDictionary<string, TemplateDefinition> Templates =
         new Dictionary<string, TemplateDefinition>(StringComparer.OrdinalIgnoreCase)
         {
@@ -33,7 +41,12 @@ public sealed class AdminImportService(
                     new("preferredDeliveryTime", false, "Hora deseada en formato HH:mm."),
                     new("preferredDeliveryWindowStart", false, "Inicio de ventana en formato HH:mm."),
                     new("preferredDeliveryWindowEnd", false, "Fin de ventana en formato HH:mm."),
-                    new("deliveryNotes", false, "Notas de entrega.")
+                    new("deliveryNotes", false, "Notas de entrega."),
+                    new("routeCode", false, "Ruta interna. Columna ausente conserva el valor; vacio lo elimina."),
+                    new("routeStopOrder", false, "Orden positivo de parada; no es el identificador del cliente."),
+                    new("hasStoreKey", false, "true/false o vacio = desconocido. Solo interno."),
+                    new("paymentTermCode", false, "cash_on_delivery o credit; vacio = pendiente de confirmar."),
+                    new("internalDeliveryInstructions", false, "Instrucciones privadas de entrega; maximo 1000 caracteres.")
                 ]),
             [AdminImportTypes.Products] = new(
                 AdminImportTypes.Products,
@@ -44,7 +57,8 @@ public sealed class AdminImportService(
                     new("externalCode", false, "Codigo externo opcional."),
                     new("name", true, "Nombre del producto o molde."),
                     new("description", false, "Descripcion interna opcional."),
-                    new("isActive", false, "true/false, 1/0 o si/no. Default true.")
+                    new("isActive", false, "true/false, 1/0 o si/no. Default true."),
+                    new("unitCode", false, "kg, piece, dozen o package. Ausente conserva; vacio = unidad pendiente.")
                 ]),
             [AdminImportTypes.CustomerFrequentProducts] = new(
                 AdminImportTypes.CustomerFrequentProducts,
@@ -58,7 +72,10 @@ public sealed class AdminImportService(
                     new("productName", false, "Nombre del producto si no hay codigo externo."),
                     new("defaultQuantity", false, "Cantidad sugerida en formato invariante."),
                     new("sortOrder", false, "Orden. Si viene vacio o <= 0 se normaliza."),
-                    new("isActive", false, "true/false, 1/0 o si/no. Default true.")
+                    new("isActive", false, "true/false, 1/0 o si/no. Default true."),
+                    new("preferredMachineExternalCode", false, "Codigo de maquina activa preferida para este producto."),
+                    new("preferredMachineNumber", false, "Numero de maquina activa si no se proporciona codigo."),
+                    new("interpretationPosition", false, "Posicion explicita positiva y unica. No se infiere del orden visual.")
                 ]),
             [AdminImportTypes.Machines] = new(
                 AdminImportTypes.Machines,
@@ -194,6 +211,11 @@ public sealed class AdminImportService(
             var preferredDeliveryWindowStart = ParseTimeField(row, "preferredDeliveryWindowStart", context);
             var preferredDeliveryWindowEnd = ParseTimeField(row, "preferredDeliveryWindowEnd", context);
             var deliveryNotes = NullIfWhiteSpace(row.Get("deliveryNotes"));
+            var routeCode = ParseLimitedText(row, "routeCode", 80, context);
+            var routeStopOrder = ParseOptionalPositiveInt(row, "routeStopOrder", context);
+            var hasStoreKey = ParseOptionalBoolean(row, "hasStoreKey", context);
+            var paymentTermCode = ParseOptionalCode(row, "paymentTermCode", ["cash_on_delivery", "credit"], context);
+            var internalDeliveryInstructions = ParseLimitedText(row, "internalDeliveryInstructions", 1000, context);
 
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -278,6 +300,15 @@ public sealed class AdminImportService(
                     externalCode));
             }
 
+            var resolvedRouteCode = row.Values.ContainsKey("routeCode") ? routeCode : existing?.RouteCode;
+            var resolvedRouteStopOrder = row.Values.ContainsKey("routeStopOrder") ? routeStopOrder : existing?.RouteStopOrder;
+            if (resolvedRouteStopOrder is not null && resolvedRouteCode is null)
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "routeStopOrder", "RouteRequiredForStop",
+                    "Una parada requiere una ruta; conserva ambos valores o elimina ambos.", row.Get("routeStopOrder")));
+                continue;
+            }
+
             var action = DetermineCatalogAction(existing?.IsActive, isActive);
             if (existing is not null)
             {
@@ -299,6 +330,11 @@ public sealed class AdminImportService(
                 preferredDeliveryWindowStart,
                 preferredDeliveryWindowEnd,
                 deliveryNotes,
+                resolvedRouteCode,
+                resolvedRouteStopOrder,
+                row.Values.ContainsKey("hasStoreKey") ? hasStoreKey : existing?.HasStoreKey,
+                row.Values.ContainsKey("paymentTermCode") ? paymentTermCode : existing?.PaymentTermCode,
+                row.Values.ContainsKey("internalDeliveryInstructions") ? internalDeliveryInstructions : existing?.InternalDeliveryInstructions,
                 existing?.Id,
                 action));
             proposedChanges.Add(new ImportProposedChangeDto(
@@ -340,6 +376,7 @@ public sealed class AdminImportService(
             var name = row.Get("name").Trim();
             var description = NullIfWhiteSpace(row.Get("description"));
             var isActive = ParseBooleanField(row, "isActive", defaultValue: true, context);
+            var unitCode = ParseOptionalCode(row, "unitCode", ["kg", "piece", "dozen", "package"], context);
 
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -414,6 +451,7 @@ public sealed class AdminImportService(
                 name,
                 description,
                 isActive,
+                row.Values.ContainsKey("unitCode") ? unitCode : existing?.UnitCode,
                 existing?.Id,
                 action));
             proposedChanges.Add(new ImportProposedChangeDto(
@@ -569,6 +607,22 @@ public sealed class AdminImportService(
         var productByExternalCode = BuildLookup(allProducts, x => x.ExternalCode, NormalizeExternalCode);
         var productByName = BuildLookup(allProducts, x => x.Name, NormalizeName);
         var seenPairs = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenPositions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var existingMachines = await machines.GetAllAsync(cancellationToken);
+        var allMachines = existingMachines
+            .Concat(allowReferenceContents ? GetReferencedMachines(request, existingMachines) : [])
+            .ToArray();
+        var machineByExternalCode = BuildLookup(allMachines, x => x.ExternalCode, NormalizeExternalCode);
+        var machineByNumber = allMachines.GroupBy(x => x.Number).Where(x => x.Count() == 1)
+            .ToDictionary(x => x.Key, x => x.Single());
+        var existingPreferences = new Dictionary<(Guid CustomerId, Guid ProductId), CustomerFrequentProduct>();
+        foreach (var existingCustomer in existingCustomers)
+        {
+            foreach (var preference in await customers.GetAllFrequentProductsAsync(existingCustomer.Id, cancellationToken))
+            {
+                existingPreferences[(preference.CustomerId, preference.ProductId)] = preference;
+            }
+        }
 
         foreach (var row in context.Rows)
         {
@@ -580,6 +634,34 @@ public sealed class AdminImportService(
             var defaultQuantity = ParseOptionalDecimal(row, "defaultQuantity", context);
             var sortOrder = ParseOptionalInt(row, "sortOrder", context);
             var isActive = ParseBooleanField(row, "isActive", defaultValue: true, context);
+            var interpretationPosition = ParseOptionalPositiveInt(row, "interpretationPosition", context);
+            var preferredMachineExternalCode = NullIfWhiteSpace(row.Get("preferredMachineExternalCode"));
+            var preferredMachineNumber = ParseOptionalPositiveInt(row, "preferredMachineNumber", context);
+            Machine? preferredMachine = null;
+            if (preferredMachineExternalCode is not null)
+            {
+                machineByExternalCode.TryGetValue(NormalizeExternalCode(preferredMachineExternalCode), out preferredMachine);
+            }
+            else if (preferredMachineNumber is not null)
+            {
+                machineByNumber.TryGetValue(preferredMachineNumber.Value, out preferredMachine);
+            }
+
+            if ((preferredMachineExternalCode is not null || preferredMachineNumber is not null) && preferredMachine is null)
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "preferredMachineExternalCode", "PreferredMachineNotFound",
+                    "La maquina preferida no existe.", preferredMachineExternalCode ?? row.Get("preferredMachineNumber")));
+            }
+            else if (preferredMachine is not null && !preferredMachine.IsActive)
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "preferredMachineExternalCode", "InactivePreferredMachine",
+                    "La maquina preferida debe estar activa.", preferredMachineExternalCode ?? row.Get("preferredMachineNumber")));
+            }
+            else if (preferredMachine is not null && preferredMachineNumber is not null && preferredMachine.Number != preferredMachineNumber)
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "preferredMachineNumber", "PreferredMachineMismatch",
+                    "El codigo y numero de maquina deben identificar la misma maquina.", row.Get("preferredMachineNumber")));
+            }
 
             if (defaultQuantity < 0)
             {
@@ -654,6 +736,23 @@ public sealed class AdminImportService(
                     context);
             }
 
+            existingPreferences.TryGetValue((customer?.Id ?? Guid.Empty, product?.Id ?? Guid.Empty), out var previousPreference);
+            var preferredMachineId = row.Values.ContainsKey("preferredMachineExternalCode") || row.Values.ContainsKey("preferredMachineNumber")
+                ? preferredMachine?.Id : previousPreference?.PreferredMachineId;
+            interpretationPosition = row.Values.ContainsKey("interpretationPosition")
+                ? interpretationPosition : previousPreference?.InterpretationPosition;
+            if (customer is not null && interpretationPosition is not null)
+            {
+                TrackDuplicate(seenPositions, $"{customer.Id:N}:{interpretationPosition}", row,
+                    "interpretationPosition", "DuplicateInterpretationPosition",
+                    "La posicion de interpretacion no puede repetirse para el mismo cliente.", context);
+            }
+            if (preferredMachine is null && preferredMachineId is not null && !allMachines.Any(x => x.Id == preferredMachineId && x.IsActive))
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "preferredMachineExternalCode", "InactivePreferredMachine",
+                    "La maquina preferida debe existir y estar activa; revise tambien el valor conservado.", null));
+            }
+
             if (context.Errors.Count != errorsBefore)
             {
                 continue;
@@ -667,7 +766,9 @@ public sealed class AdminImportService(
                 product.Name,
                 defaultQuantity,
                 sortOrder,
-                isActive));
+                isActive,
+                preferredMachineId,
+                interpretationPosition));
             proposedChanges.Add(new ImportProposedChangeDto(
                 row.RowNumber,
                 "Replace",
@@ -922,6 +1023,9 @@ public sealed class AdminImportService(
                 eventType = CatalogAuditEventTypes.CustomerImportedUpdated;
             }
 
+            customer.SetPilotDelivery(item.RouteCode, item.RouteStopOrder, item.HasStoreKey,
+                item.PaymentTermCode, item.InternalDeliveryInstructions, now);
+
             await AddAuditAsync(
                 auditLogIds,
                 CatalogEntityTypes.Customer,
@@ -952,6 +1056,7 @@ public sealed class AdminImportService(
         {
             Product? product;
             string eventType;
+            var requiresProfileReview = false;
 
             if (item.ExistingId is null)
             {
@@ -979,6 +1084,7 @@ public sealed class AdminImportService(
                     continue;
                 }
 
+                requiresProfileReview = product.Name != item.Name || product.UnitCode != item.UnitCode || product.IsActive != item.IsActive;
                 product.Update(item.Name, item.Description);
                 if (item.ExternalCode is not null)
                 {
@@ -996,6 +1102,13 @@ public sealed class AdminImportService(
 
                 updated++;
                 eventType = CatalogAuditEventTypes.ProductImportedUpdated;
+            }
+
+            product.SetUnitCode(item.UnitCode);
+            if (requiresProfileReview)
+            {
+                await OrderingProfileInvalidation.InvalidateForProductAsync(
+                    product.Id, customers, auditLogs, dateTimeProvider.Now, actor, cancellationToken);
             }
 
             await AddAuditAsync(
@@ -1107,12 +1220,17 @@ public sealed class AdminImportService(
                     ProductId = item.ProductId,
                     DefaultQuantity = item.DefaultQuantity,
                     SortOrder = item.SortOrder is > 0 ? item.SortOrder.Value : index + 1,
-                    IsActive = item.IsActive
+                    IsActive = item.IsActive,
+                    PreferredMachineId = item.PreferredMachineId,
+                    InterpretationPosition = item.InterpretationPosition
                 })
                 .OrderBy(x => x.SortOrder)
                 .ToArray();
 
+            var customer = await customers.GetByIdForUpdateAsync(group.Key, cancellationToken)
+                ?? throw new InvalidOperationException("El cliente desaparecio durante la importacion.");
             await customers.ReplaceFrequentProductsAsync(group.Key, replacement, cancellationToken);
+            customer.RecordOrderingProfileChange(approved: false, dateTimeProvider.Now);
             updated++;
 
             await AddAuditAsync(
@@ -1124,6 +1242,8 @@ public sealed class AdminImportService(
                 new
                 {
                     plan.ImportType,
+                    customer.OrderingProfileVersion,
+                    customer.IsOrderProfileApproved,
                     count = replacement.Length,
                     productIds = replacement.Select(x => x.ProductId).ToArray()
                 },
@@ -1229,7 +1349,7 @@ public sealed class AdminImportService(
 
         foreach (var expectedHeader in expected)
         {
-            if (!headerSet.Contains(expectedHeader))
+            if (!headerSet.Contains(expectedHeader) && !PilotOptionalHeaders.Contains(expectedHeader))
             {
                 errors.Add(new ImportIssueDto(
                     1,
@@ -1614,6 +1734,45 @@ public sealed class AdminImportService(
             "Required",
             $"Campo requerido vacio: {field}.",
             row.Get(field));
+    }
+
+    private static string? ParseLimitedText(CsvImportRow row, string field, int maxLength, ImportParseContext context)
+    {
+        var value = NullIfWhiteSpace(row.Get(field));
+        if (value?.Length > maxLength)
+        {
+            // Internal access instructions must not be copied into validation logs.
+            context.Errors.Add(new ImportIssueDto(row.RowNumber, field, "TextTooLong",
+                $"El campo admite como maximo {maxLength} caracteres.", null));
+        }
+        return value;
+    }
+
+    private static string? ParseOptionalCode(CsvImportRow row, string field, string[] allowed, ImportParseContext context)
+    {
+        var value = NullIfWhiteSpace(row.Get(field))?.ToLowerInvariant();
+        if (value is not null && !allowed.Contains(value))
+        {
+            context.Errors.Add(new ImportIssueDto(row.RowNumber, field, "InvalidCode",
+                $"Valor invalido. Usa {string.Join(", ", allowed)} o vacio si no se conoce.", row.Get(field)));
+        }
+        return value;
+    }
+
+    private static bool? ParseOptionalBoolean(CsvImportRow row, string field, ImportParseContext context)
+    {
+        return string.IsNullOrWhiteSpace(row.Get(field)) ? null : ParseBooleanField(row, field, false, context);
+    }
+
+    private static int? ParseOptionalPositiveInt(CsvImportRow row, string field, ImportParseContext context)
+    {
+        var value = ParseOptionalInt(row, field, context);
+        if (value is <= 0)
+        {
+            context.Errors.Add(new ImportIssueDto(row.RowNumber, field, "InvalidPositiveInteger",
+                "El numero debe ser mayor a cero o quedar vacio si no se conoce.", row.Get(field)));
+        }
+        return value;
     }
 
     private static bool ParseBooleanField(
@@ -2024,6 +2183,11 @@ public sealed class AdminImportService(
         TimeOnly? PreferredDeliveryWindowStart,
         TimeOnly? PreferredDeliveryWindowEnd,
         string? DeliveryNotes,
+        string? RouteCode,
+        int? RouteStopOrder,
+        bool? HasStoreKey,
+        string? PaymentTermCode,
+        string? InternalDeliveryInstructions,
         Guid? ExistingId,
         string Action);
 
@@ -2033,6 +2197,7 @@ public sealed class AdminImportService(
         string Name,
         string? Description,
         bool IsActive,
+        string? UnitCode,
         Guid? ExistingId,
         string Action);
 
@@ -2053,7 +2218,9 @@ public sealed class AdminImportService(
         string ProductName,
         decimal? DefaultQuantity,
         int? SortOrder,
-        bool IsActive);
+        bool IsActive,
+        Guid? PreferredMachineId,
+        int? InterpretationPosition);
 
     private sealed record MachineAssignmentImportItem(
         int RowNumber,

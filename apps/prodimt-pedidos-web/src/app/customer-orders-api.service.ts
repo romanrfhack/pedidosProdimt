@@ -32,6 +32,7 @@ export interface CustomerOrderProductApiResponse {
   name: string;
   description: string | null;
   suggestedQuantity: number;
+  unitCode: string | null;
 }
 
 export interface SubmitCustomerOrderApiRequest {
@@ -72,6 +73,7 @@ export interface AdminOrderDetailApiResponse extends AdminOrderSummaryApiRespons
   salesChannelName: string | null;
   salesChannelType: string | null;
   lines: AdminOrderLineApiResponse[];
+  version: number;
 }
 
 export interface AdminOrderLineApiResponse {
@@ -83,6 +85,7 @@ export interface AdminOrderLineApiResponse {
   assignedMachineId: string | null;
   assignedMachineName: string | null;
   assignedMachineNumber: number | null;
+  unitCode: string | null;
 }
 
 export interface AdminOrderAuditApiResponse {
@@ -103,6 +106,7 @@ export interface AdminOrderAuditApiResponse {
 
 export interface ReviewOrderApiRequest {
   decision: AdminDecisionApiValue;
+  expectedVersion?: number | null;
   internalNotes: string | null;
   requestedDeliveryTime?: string | null;
   requestedDeliveryWindowStart?: string | null;
@@ -143,6 +147,7 @@ export interface AdminOrderTemplateProductApiResponse {
   name: string;
   description: string | null;
   suggestedQuantity: number;
+  unitCode: string | null;
 }
 
 export interface AdminSubmitCustomerOrderApiRequest {

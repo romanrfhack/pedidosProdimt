@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
         <a routerLink="/cliente" routerLinkActive="active">Cliente</a>
         @if (auth.isAdminSession()) {
           <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a>
+          <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a>
           <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
           <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a>
           <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a>

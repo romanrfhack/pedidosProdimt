@@ -1,5 +1,9 @@
 # 08 — Contexto para Codex
 
+## Continuidad vigente
+
+Desde el 24 de octubre de 2026, iniciar en `../CONTINUAR.md` y `proyecto/ESTADO.md`. El plan integral de `proyecto/PLAN.md` y sus decisiones sustituyen el alcance histórico cuando difieran. Actualizar siempre el estado y la bitácora al terminar, y comprobar commit/PR remoto. El usuario confirmó que no existe base operativa a preservar y autorizó preparar un piloto de ruta. Los datos reales permanecen privados.
+
 ## Proyecto
 
 PRODIMT Pedidos.

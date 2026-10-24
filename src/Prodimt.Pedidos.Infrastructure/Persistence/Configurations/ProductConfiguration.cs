@@ -20,6 +20,8 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(x => x.Description)
             .HasMaxLength(500);
 
+        builder.Property(x => x.UnitCode).HasMaxLength(16);
+
         builder.HasMany<OrderLine>()
             .WithOne()
             .HasForeignKey(x => x.ProductId)

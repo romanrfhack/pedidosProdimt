@@ -7,6 +7,8 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomerRepository
 {
+    private readonly Dictionary<Guid, IReadOnlyList<CustomerFrequentProduct>> _frequentProductReplacements = new();
+
     public async Task<IReadOnlyList<Customer>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Customers
@@ -80,17 +82,16 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
             .ToArrayAsync(cancellationToken);
     }
 
-    public async Task ReplaceFrequentProductsAsync(
+    public Task ReplaceFrequentProductsAsync(
         Guid customerId,
         IReadOnlyList<CustomerFrequentProduct> frequentProducts,
         CancellationToken cancellationToken)
     {
-        var existing = await dbContext.CustomerFrequentProducts
-            .Where(x => x.CustomerId == customerId)
-            .ToArrayAsync(cancellationToken);
-
-        dbContext.CustomerFrequentProducts.RemoveRange(existing);
-        await dbContext.CustomerFrequentProducts.AddRangeAsync(frequentProducts, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        // Defer replacement to the shared commit. Updating rows one at a time cannot swap
+        // unique interpretation positions. Delete + insert must share the profile/audit transaction.
+        _frequentProductReplacements[customerId] = frequentProducts.ToArray();
+        return Task.CompletedTask;
     }
 
     public async Task<IReadOnlyList<CustomerMachineAssignment>> GetMachineAssignmentsAsync(
@@ -129,13 +130,44 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
         await dbContext.CustomerMachineAssignments.AddRangeAsync(assignments, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Customer>> GetCustomersReferencingProductForUpdateAsync(Guid productId, CancellationToken cancellationToken)
+    {
+        return await dbContext.Customers.Where(customer =>
+                dbContext.CustomerFrequentProducts.Any(item => item.CustomerId == customer.Id && item.ProductId == productId))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task AddAsync(Customer customer, CancellationToken cancellationToken)
     {
         await dbContext.Customers.AddAsync(customer, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        if (_frequentProductReplacements.Count == 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var ownsTransaction = dbContext.Database.CurrentTransaction is null;
+        await using var transaction = ownsTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        foreach (var (customerId, replacement) in _frequentProductReplacements)
+        {
+            foreach (var entry in dbContext.ChangeTracker.Entries<CustomerFrequentProduct>()
+                         .Where(x => x.Entity.CustomerId == customerId).ToArray())
+                entry.State = EntityState.Detached;
+
+            await dbContext.CustomerFrequentProducts.Where(x => x.CustomerId == customerId)
+                .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.CustomerFrequentProducts.AddRangeAsync(replacement, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+        _frequentProductReplacements.Clear();
     }
 }

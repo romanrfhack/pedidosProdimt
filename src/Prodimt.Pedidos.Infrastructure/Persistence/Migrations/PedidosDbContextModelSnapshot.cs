@@ -127,13 +127,30 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<bool?>("HasStoreKey")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InternalDeliveryInstructions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOrderProfileApproved")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OrderingProfileVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -149,6 +166,13 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<TimeOnly?>("PreferredDeliveryWindowStart")
                         .HasColumnType("time");
 
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("RouteStopOrder")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -157,6 +181,8 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("ExternalCode")
                         .IsUnique()
                         .HasFilter("[ExternalCode] IS NOT NULL");
+
+                    b.HasIndex("RouteCode", "RouteStopOrder");
 
                     b.ToTable("Customers");
                 });
@@ -214,15 +240,27 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("InterpretationPosition")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<Guid?>("PreferredMachineId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
                     b.HasKey("CustomerId", "ProductId");
 
+                    b.HasIndex("PreferredMachineId");
+
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("CustomerId", "InterpretationPosition")
+                        .IsUnique()
+                        .HasFilter("[InterpretationPosition] IS NOT NULL");
 
                     b.ToTable("CustomerFrequentProducts");
                 });
@@ -301,9 +339,20 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CustomerNameSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("DeliveryNotes")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool?>("HasStoreKey")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InternalDeliveryInstructions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("InternalNotes")
                         .HasMaxLength(1000)
@@ -314,6 +363,13 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("OrderDate")
                         .HasColumnType("date");
+
+                    b.Property<int?>("OrderingProfileVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<TimeOnly?>("RequestedDeliveryTime")
                         .HasColumnType("time");
@@ -326,6 +382,13 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("RequiresAdminReview")
                         .HasColumnType("bit");
+
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("RouteStopOrder")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("SalesChannelId")
                         .HasColumnType("uniqueidentifier");
@@ -341,11 +404,19 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("SubmittedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("SalesChannelId");
 
-                    b.HasIndex("CustomerId", "OrderDate", "SequenceNumber");
+                    b.HasIndex("CustomerId", "OrderDate", "SequenceNumber")
+                        .IsUnique()
+                        .HasFilter("[CustomerId] IS NOT NULL");
 
                     b.ToTable("Orders");
                 });
@@ -433,9 +504,17 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ProductNameSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnitCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.HasKey("Id");
 
@@ -469,6 +548,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("UnitCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.HasKey("Id");
 
@@ -522,6 +605,11 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("PreferredMachineId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
                         .WithMany()

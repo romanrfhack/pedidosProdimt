@@ -468,7 +468,8 @@ public sealed class AdminImportServiceTests
                 salesChannelRepository,
                 orderRepository,
                 orderAuditRepository,
-                dateTimeProvider);
+                dateTimeProvider,
+                machineRepository);
 
             return new ImportFixture(connection, dbContext, import, customerOrders);
         }

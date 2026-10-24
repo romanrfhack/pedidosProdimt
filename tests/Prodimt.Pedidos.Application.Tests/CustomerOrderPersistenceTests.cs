@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOrders;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
@@ -479,6 +480,197 @@ public sealed class CustomerOrderPersistenceTests
         ]);
     }
 
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("inactive")]
+    [InlineData("unknown-unit")]
+    public async Task SubmitAsync_RejectsUnusableProductBeforeSaving(string mode)
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var product = await fixture.DbContext.Products.SingleAsync(x => x.Id == DevelopmentSeedIds.ProductNineAndHalfId);
+        var productId = product.Id;
+        if (mode == "missing") productId = Guid.NewGuid();
+        if (mode == "inactive") product.IsActive = false;
+        if (mode == "unknown-unit") product.UnitCode = null;
+        await fixture.DbContext.SaveChangesAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId, CreateSubmitRequest(productId, 2), CancellationToken.None));
+        Assert.Empty(await fixture.DbContext.Orders.ToArrayAsync());
+        Assert.Empty(await fixture.DbContext.OrderAuditLogs.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task SubmitAsync_SnapshotsUnitProductDeliveryAndPrefersProductMachine()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var customer = await fixture.DbContext.Customers.SingleAsync(x => x.Id == DevelopmentSeedIds.GranTakitoCustomerId);
+        customer.RouteCode = "PILOT-DEMO"; customer.RouteStopOrder = 2; customer.HasStoreKey = true;
+        customer.PaymentTermCode = "cash_on_delivery"; customer.InternalDeliveryInstructions = "Mesa de demostracion";
+        customer.OrderingProfileVersion = 3;
+        var machine = new Machine { Id = Guid.NewGuid(), Number = 99, Name = "Centro demo", IsActive = true };
+        fixture.DbContext.Machines.Add(machine);
+        var frequent = await fixture.DbContext.CustomerFrequentProducts.SingleAsync(x => x.CustomerId == customer.Id && x.ProductId == DevelopmentSeedIds.ProductNineAndHalfId);
+        frequent.PreferredMachineId = machine.Id;
+        var product = await fixture.DbContext.Products.SingleAsync(x => x.Id == frequent.ProductId);
+        var originalName = product.Name;
+        product.UnitCode = "dozen";
+        await fixture.DbContext.SaveChangesAsync();
+        var response = await fixture.CustomerOrders.SubmitAsync(customer.Id, CreateSubmitRequest(product.Id, 2), CancellationToken.None);
+        product.Name = "Nombre posterior"; product.UnitCode = "kg";
+        customer.Name = "Nombre cliente posterior"; customer.RouteCode = "OTRA"; customer.InternalDeliveryInstructions = "Otra instruccion";
+        await fixture.DbContext.SaveChangesAsync();
+        var detail = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
+        Assert.Equal(originalName, detail.Lines.Single().ProductName);
+        Assert.Equal("dozen", detail.Lines.Single().UnitCode);
+        Assert.Equal(machine.Id, detail.Lines.Single().AssignedMachineId);
+        var plan = await fixture.Operations.GetPlanAsync(new DateOnly(2026, 10, 24), "PILOT-DEMO", CancellationToken.None);
+        var order = Assert.Single(plan.Orders);
+        Assert.True(order.HasStoreKey); Assert.Equal("Mesa de demostracion", order.InternalDeliveryInstructions);
+        Assert.Equal(3, order.OrderingProfileVersion); Assert.Equal("cash_on_delivery", order.PaymentTermCode);
+        Assert.Equal("dozen", Assert.Single(plan.MachineDemand).UnitCode);
+        Assert.DoesNotContain("posterior", order.CustomerName);
+    }
+
+    [Fact]
+    public async Task SubmitAsync_RejectsInactivePreferredMachine()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var frequent = await fixture.DbContext.CustomerFrequentProducts.FirstAsync(x => x.CustomerId == DevelopmentSeedIds.GranTakitoCustomerId);
+        var machine = await fixture.DbContext.Machines.FirstAsync();
+        machine.IsActive = false; frequent.PreferredMachineId = machine.Id;
+        await fixture.DbContext.SaveChangesAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.CustomerOrders.SubmitAsync(
+            DevelopmentSeedIds.GranTakitoCustomerId, CreateSubmitRequest(frequent.ProductId, 2), CancellationToken.None));
+        Assert.Empty(await fixture.DbContext.Orders.ToArrayAsync());
+    }
+
+    [Fact]
+    public async Task OperationsPlan_ExcludesPendingRejectedNoOrderAndKeepsUnitsSeparate()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var first = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        var pending = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 50), CancellationToken.None);
+        var product = await fixture.DbContext.Products.SingleAsync(x => x.Id == DevelopmentSeedIds.ProductNineAndHalfId);
+        product.UnitCode = "package"; await fixture.DbContext.SaveChangesAsync();
+        var accepted = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(product.Id, 3), CancellationToken.None);
+        await fixture.AdminOrders.ReviewAsync(accepted.OrderId, new ReviewOrderRequest(AdminDecision.Accepted, null), CancellationToken.None);
+        var rejected = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(product.Id, 100), CancellationToken.None);
+        await fixture.AdminOrders.ReviewAsync(rejected.OrderId, new ReviewOrderRequest(AdminDecision.Rejected, null), CancellationToken.None);
+        await fixture.CustomerOrders.MarkNoOrderAsync(DevelopmentSeedIds.DemoCustomer2Id, CancellationToken.None);
+        var plan = await fixture.Operations.GetPlanAsync(null, null, CancellationToken.None);
+        Assert.Equal("Por producir", plan.DemandLabel); Assert.Equal("Por preparar", plan.PreparationLabel);
+        Assert.Equal(2, plan.Orders.Count); Assert.Equal(pending.OrderId, Assert.Single(plan.PendingReview).OrderId);
+        Assert.Equal(20, plan.MachineDemand.Single(x => x.UnitCode == "kg").Quantity);
+        Assert.Equal(3, plan.MachineDemand.Single(x => x.UnitCode == "package").Quantity);
+        Assert.DoesNotContain(plan.Orders, x => x.OrderId == rejected.OrderId);
+    }
+
+    [Fact]
+    public async Task OperationsPlan_ExcludesUnknownHistoricalUnitFromTotals()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var response = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        var line = await fixture.DbContext.OrderLines.SingleAsync(); line.UnitCode = null;
+        await fixture.DbContext.SaveChangesAsync();
+        var plan = await fixture.Operations.GetPlanAsync(null, null, CancellationToken.None);
+        Assert.Single(plan.Orders); Assert.Empty(plan.MachineDemand);
+        Assert.Contains(plan.Warnings, x => x.Code == "UNIT_UNKNOWN" && x.OrderId == response.OrderId);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_RejectsStaleOrAlreadyReviewedCommand()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 11, 0, 0, TimeSpan.Zero));
+        var response = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => fixture.AdminOrders.ReviewAsync(response.OrderId,
+            new ReviewOrderRequest(AdminDecision.Accepted, null, ExpectedVersion: 9), CancellationToken.None));
+        await fixture.AdminOrders.ReviewAsync(response.OrderId, new ReviewOrderRequest(AdminDecision.Accepted, null, ExpectedVersion: 1), CancellationToken.None);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => fixture.AdminOrders.ReviewAsync(response.OrderId,
+            new ReviewOrderRequest(AdminDecision.Rejected, null, ExpectedVersion: 1), CancellationToken.None));
+        Assert.Equal(2, (await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None)).Version);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_InvalidAdjustmentDoesNotPartiallyMutateDelivery()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 11, 0, 0, TimeSpan.Zero));
+        var response = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        var before = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(response.OrderId,
+            new ReviewOrderRequest(AdminDecision.AcceptedWithChanges, null, DeliveryNotes: "No debe guardarse",
+                LineAdjustments: [new(Guid.NewGuid(), 5, null)]), CancellationToken.None));
+        var after = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
+        Assert.Equal(before.DeliveryNotes, after.DeliveryNotes); Assert.Equal(before.Status, after.Status);
+    }
+
+    [Fact]
+    public async Task MarkNoOrderAsync_RejectsWhenAnEarlierOrderRemainsActive()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        var additional = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 5), CancellationToken.None);
+        await fixture.AdminOrders.ReviewAsync(additional.OrderId, new ReviewOrderRequest(AdminDecision.Rejected, null), CancellationToken.None);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => fixture.CustomerOrders.MarkNoOrderAsync(DevelopmentSeedIds.GranTakitoCustomerId, CancellationToken.None));
+    }
+
+
+    [Fact]
+    public async Task ReviewAsync_ConcurrentDatabaseChangeReturnsConflict()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 11, 0, 0, TimeSpan.Zero));
+        var response = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        await using var concurrentContext = new PedidosDbContext(new DbContextOptionsBuilder<PedidosDbContext>()
+            .UseSqlite(fixture.DbContext.Database.GetDbConnection()).Options);
+        var staleOrder = await concurrentContext.Orders.SingleAsync(x => x.Id == response.OrderId);
+        await fixture.AdminOrders.ReviewAsync(response.OrderId, new ReviewOrderRequest(AdminDecision.Accepted, null), CancellationToken.None);
+        staleOrder.ApplyAdminDecision(AdminDecision.Rejected);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => new EfOrderRepository(concurrentContext).SaveChangesAsync(CancellationToken.None));
+        Assert.Equal(OrderStatus.Accepted, (await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None)).Status);
+    }
+
+    [Fact]
+    public async Task Orders_DatabaseRejectsDuplicateCustomerDateSequence()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), CancellationToken.None);
+        var existing = await fixture.DbContext.Orders.SingleAsync();
+        var duplicate = Order.CreateNoOrder(existing.CustomerId!.Value, existing.SalesChannelId, existing.OrderDate,
+            existing.SubmittedAt, existing.SequenceNumber);
+        fixture.DbContext.Orders.Add(duplicate);
+        await Assert.ThrowsAsync<DbUpdateException>(() => fixture.DbContext.SaveChangesAsync());
+    }
+
+
+    [Fact]
+    public async Task OperationsPlan_KeepsDifferentProductNameSnapshotsSeparate()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 10, 24, 9, 0, 0, TimeSpan.Zero));
+        var product = await fixture.DbContext.Products.SingleAsync(x => x.Id == DevelopmentSeedIds.ProductNineAndHalfId);
+        var originalName = product.Name;
+        await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(product.Id, 20), CancellationToken.None);
+        product.Name = "Variante renombrada"; await fixture.DbContext.SaveChangesAsync();
+        var additional = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(product.Id, 5), CancellationToken.None);
+        await fixture.AdminOrders.ReviewAsync(additional.OrderId, new ReviewOrderRequest(AdminDecision.Accepted, null), CancellationToken.None);
+        var plan = await fixture.Operations.GetPlanAsync(null, null, CancellationToken.None);
+        Assert.Equal(2, plan.MachineDemand.Count);
+        Assert.Equal(20, plan.MachineDemand.Single(x => x.ProductName == originalName).Quantity);
+        Assert.Equal(5, plan.MachineDemand.Single(x => x.ProductName == "Variante renombrada").Quantity);
+    }
+
     private sealed class MutableDateTimeProvider(DateTimeOffset now) : IDateTimeProvider
     {
         public DateTimeOffset Now { get; set; } = now;
@@ -507,7 +699,8 @@ public sealed class CustomerOrderPersistenceTests
                 new EfSalesChannelRepository(dbContext),
                 orderRepository,
                 auditLogRepository,
-                dateTimeProvider);
+                dateTimeProvider,
+                new EfMachineRepository(dbContext));
             AdminOrders = new AdminOrderService(
                 orderRepository,
                 auditLogRepository,
@@ -525,6 +718,8 @@ public sealed class CustomerOrderPersistenceTests
         public CustomerOrderService CustomerOrders { get; }
 
         public AdminOrderService AdminOrders { get; }
+
+        public AdminOperationsService Operations => new(new EfOrderRepository(DbContext), new EfCustomerRepository(DbContext), new EfMachineRepository(DbContext), DateTimeProvider);
 
         public static async Task<SqliteFixture> CreateAsync(DateTimeOffset now)
         {
