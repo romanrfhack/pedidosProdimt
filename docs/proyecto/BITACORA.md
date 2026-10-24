@@ -105,3 +105,11 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - La última corrida documental I02 había encontrado tres fallos E2E de habilitación de formulario. Se agregó sincronización explícita del estado inicial sin relajar aserciones, más trazas sólo ante fallo; no se afirma una causa no reproducida.
 - Diff revisado contra nombres e instrucciones privados, sin coincidencias. Datos reales y kit privado permanecen fuera del repositorio público y CI.
 - `graphify` sigue no disponible y no existe grafo versionado que actualizar. Los detalles y el resultado remoto se registran en `../validation/2026-10-24-i03.md`.
+
+### Cierre técnico I03-A
+
+- Publicado `26eb6d8d47786bb18f2fe8117596e74f4f277430`; rama remota recuperada y comparada sin diferencias.
+- [CI 40123481595](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40123481595): cuatro jobs correctos, 182 pruebas backend, 13 SQL reales y 37 navegador. Modelo/migraciones consistentes.
+- Smoke Docker Production completo correcto: inicialización, login, mismo origen, ausencia de demo, SQL con permisos limitados, secretos preservados, backup verificado y datos después de recrear la aplicación. Recursos desechables eliminados.
+- Preparado kit privado con fuente exacta, CSV revisado, hoja de pendientes e instrucciones; los datos privados se colocan fuera del contexto Docker. No incluye secretos operativos.
+- I03-B queda para ejecutar el paquete en el destino; I03-C para una semana real de comparación tras completar los datos mínimos. PR continúa en borrador, sin fusión ni despliegue.
