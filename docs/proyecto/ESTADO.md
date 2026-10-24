@@ -5,6 +5,8 @@ Actualizado: 24 de octubre de 2026.
 ## Ubicación del trabajo
 
 - Repositorio: `romanrfhack/pedidosProdimt`.
+- Solicitud de cambios: [PR #1, borrador](https://github.com/romanrfhack/pedidosProdimt/pull/1). No fusionada ni desplegada.
+- Commit de implementación verificado localmente: `fde65007cb03614db0b1dcca11395a7451a374a5`.
 - Base revisada: `492bbe9e1069d32ae22565889f149aaf529393fd`.
 - Rama: `codex/pilot-foundation-2026-10-24`.
 - Incremento: **I01 — Fundamentos del piloto, implementado y probado localmente**.
