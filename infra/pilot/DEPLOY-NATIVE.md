@@ -16,9 +16,33 @@ La comprobación de API `/health` con configuración Production y conexión fict
 4. Preparar nuevos releases y sus permisos sin cambiar `current`. Programar una ventana breve, detener sólo PRODIMT, aplicar las migraciones que faltan y cambiar enlaces. Mantener secretos en la configuración privada existente. No ejecutar el bootstrap de instalación nueva, que puede crear usuarios/canales.
 5. Reiniciar únicamente el servicio PRODIMT y comprobar salud, login, catálogos, pedidos e I04. Ante fallo, restaurar enlaces de binarios y servicio anterior; el rollback de código no deshace el esquema SQL.
 
-La inspección y el paquete son preparación. La fase de escritura queda pendiente hasta revisar su resultado y concretar respaldo y actualización para la instalación observada. Nginx y certificado actuales se conservan durante esta fase.
+La inspección del usuario confirmó configuración compatible, runtime 10.0.13, cinco migraciones y ausencia de pedidos/duplicados. La cuenta cotidiana carece de DDL y permisos de respaldo/verificación. La fase de escritura se prepara con `scripts/pilot/update-native.py` y el ZIP nativo exacto, sin usar bootstrap. Nginx y certificado actuales se conservan.
+
+## Actualizador acotado
+
+`update-native.py --package RUTA` consulta el plan por defecto. `--apply` prepara el respaldo y actualiza; necesita root y una terminal interactiva para introducir una identidad SQL administrativa existente. Sus credenciales sólo viven en memoria y entorno privado del cliente SQL; nunca se solicitan en el chat ni se añaden a la cuenta cotidiana.
+
+El programa acepta el ZIP nativo original por su hash, verifica manifiesto y rutas, contrasta configuración efectiva y de reinicio y comprueba el estado observado de releases/base. Después de autenticar SQL valida permisos antes de detener únicamente PRODIMT. Captura los enlaces y configuración privada, verifica el respaldo antes de DDL y sólo activa el candidato tras completar las migraciones. La reversión de enlaces no restaura automáticamente la base ni deshace DDL parcial; el resultado indica si el esquema puede haber cambiado y dónde quedó el respaldo.
+
+La preparación puede normalizar a root:www-data los cinco directorios estructurales propios para publicar con seguridad; conserva metadatos previos y los releases existentes. Si el nuevo valor predeterminado de vigencia de tokens difiere, conserva el valor efectivo anterior mediante un ajuste no secreto en el JSON del release nuevo, sin cambiar api.env, la clave JWT ni su emisor/audiencia. Los cambios de permisos SQL se limitan a DML de OrderOperations y OrderChangeNotices cuando hacen falta. No se instalan paquetes ni se cambian otros servicios.
+
+El payload sigue siendo el código funcional b630072 validado. Ejecutar el actualizador no equivale a confirmar que terminó: revisar su JSON final y comprobar después login, configuración y pedidos desde el navegador.
 
 ## Referencias
 
 - [Despliegue de migraciones EF Core](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying).
 - [RESTORE VERIFYONLY y permisos](https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-statements-verifyonly-transact-sql).
+
+## Ejecución desde WSL
+
+Descargar `PRODIMT_Actualizar_I04.py` junto al ZIP nativo ya entregado. Copiar ambos al VPS y ejecutar con una terminal interactiva; no introducir las credenciales administrativas en el comando ni en el chat. El usuario y la contraseña SQL se piden ocultos en el servidor. El antecedente usó la cuenta sa; la contraseña SQL es distinta de la autenticación SSH.
+
+```bash
+scp /mnt/c/Users/TUF/Downloads/PRODIMT_Actualizar_I04.py \
+    /mnt/c/Users/TUF/Downloads/PRODIMT_I04_Nativo_20261024.zip \
+    root@194.238.26.70:/root/ &&
+ssh -t root@194.238.26.70 \
+    'python3 /root/PRODIMT_Actualizar_I04.py --package /root/PRODIMT_I04_Nativo_20261024.zip --apply'
+```
+
+No envolver el último SSH en un heredoc sin reenviar `/dev/tty`: la interacción privada SQL necesita la terminal. Revisar JSON final y ruta del backup; después entrar a la aplicación y validar login/configuración. El actualizador no requiere reiniciar Nginx, SQL ni otras aplicaciones.

@@ -53,11 +53,12 @@ Actualizado: 24 de octubre de 2026.
 - 15/15 pruebas Python de inventario y publicación aislada correctas en local y CI. Smoke Docker Production completo correcto, incluidos archivos extraídos con permisos privados. No se ejecutaron Nginx ni certificado en el VPS.
 - Comprobación SSH directa: el entorno no tiene ruta de red al servidor. Se entregan comandos para ejecutar desde WSL; no hubo cambios remotos.
 - Inventario dirigido del usuario confirma PRODIMT nativo activo mediante systemd, frontend/backend en releases y proxy hacia la API existente. Certificado del dominio vigente y renovación webroot previa. Compose v2/Buildx no están instalados; no se requieren para preparar una actualización nativa con binarios compilados fuera del VPS.
-- El antecedente identifica una base SQL Server nativa existente; su destino efectivo, esquema y permisos se comprobarán antes de respaldo o migración. La existencia del servicio no acredita que I04 esté publicado ni que se hayan validado sus datos.
+- Inspector nativo ejecutado por el usuario: destino SQL y principal coinciden; Production/JWT/seed compatibles, runtime .NET/ASP.NET 10.0.13, cinco migraciones de mayo, índice anterior no único y cero pedidos/grupos duplicados. La cuenta de aplicación no tiene permisos DDL, BACKUP ni verificación. La base conserva sus otros datos; no se considera una instalación vacía ni se ejecuta bootstrap.
+- I03-B prepara un actualizador para ese despliegue exacto: payload verificado, credenciales administrativas ocultas sólo en la sesión, respaldo COPY_ONLY/CHECKSUM verificado antes de migrar y cambio/reversión de releases. No se ha ejecutado la fase de escritura en el VPS.
 
 ## Siguiente paso
 
-1. Preparar actualización nativa I03-B del servicio PRODIMT existente. Confirmar configuración efectiva, destino SQL, migraciones y permisos para respaldo/verificación antes de publicar binarios I04. Preservar releases actuales, configuración privada, base, Nginx y renovación. El kit Docker queda para una instalación nueva, no para duplicar este despliegue.
+1. Aplicar la actualización nativa I03-B preparada tras respaldo/verificación con una identidad SQL administrativa independiente. El inspector del usuario ya confirmó configuración compatible, runtime, cinco migraciones y ausencia de pedidos/duplicados; la cuenta cotidiana carece de DDL y respaldo. El actualizador debe conservar configuración, base, Nginx y certificado, con reversión de releases ante fallo. El kit Docker queda para una instalación nueva.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
 3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
