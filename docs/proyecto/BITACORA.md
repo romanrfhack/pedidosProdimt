@@ -126,3 +126,11 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Validación local y controles remotos se registran en `../validation/2026-10-24-i04.md`. El código público sigue separado de clientes, archivos e instrucciones privados.
 
 - Cierre local I04: 203 pruebas .NET, 53 E2E y 15 pruebas Python correctas; 20 SQL compiladas, pendientes de ejecución remota. `graphify update .` intentado, herramienta no instalada (127).
+
+### Cierre técnico I04
+
+- Publicado `b630072ce67a691c3757d0590cc7f7d45f423d52`; rama remota recuperada y comparada sin diferencias.
+- [CI 40130113089](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40130113089): cuatro jobs correctos, 203 pruebas .NET, 20 SQL Server reales, 53 E2E y 15 Python. Modelo/migración consistentes.
+- Smoke Docker Production correcto incluso con configuración extraída con permisos 600; bootstrap, permisos SQL limitados, respaldo y persistencia después de recrear aplicación verificados. Recursos de prueba eliminados.
+- Revisión independiente y diff sin datos privados. Preparado paquete I04 con fuente exacta, revisión privada y workbook original intacto; sin secretos operativos.
+- PR sigue en borrador y main sin cambios. Próximo paso: JSON del inventario de sólo lectura en el VPS; instalación, HTTPS, carga real y ensayo aún pendientes.

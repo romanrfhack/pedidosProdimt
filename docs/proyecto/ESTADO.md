@@ -10,7 +10,7 @@ Actualizado: 24 de octubre de 2026.
 - Código I02 verificado: `192c8d7871e2b2021b4d485dd71b5ebd7abbda4d`; [CI](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407). El commit documental posterior conserva el mismo código.
 - **I02 implementado y validado en CI, incluido SQL Server real**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
 - **I03-A implementado y validado en CI**, código `26eb6d8d47786bb18f2fe8117596e74f4f277430`; [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40123481595). Instalación reproducible Linux/WSL, SQL aislado, acceso por túnel y credenciales propias. Hitos separados en `INCREMENTO-03.md`; instrucciones en `../../infra/pilot/README.md`.
-- **I04 implementado; validación remota en curso**. Avisos persistentes de cambios de demanda, configuración enfocada por cliente y control de edición simultánea. Contratos y límites en `INCREMENTO-04.md`.
+- **I04 implementado y validado en CI**, código `b630072ce67a691c3757d0590cc7f7d45f423d52`; [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40130113089). Avisos persistentes de cambios de demanda, configuración enfocada por cliente y control de edición simultánea. Contratos y límites en `INCREMENTO-04.md`.
 - **Etapa 1 en desarrollo; preparación operativa de etapa 0 aún incompleta.**
 - Piloto real: no iniciado. No se ha cargado la ruta en una base operativa.
 
@@ -40,22 +40,22 @@ Actualizado: 24 de octubre de 2026.
 
 ## Validación
 
-- **203/203 pruebas .NET locales** correctas: 5 dominio y 198 aplicación; cero omitidas. I04 añade avisos, perfiles y protección concurrente.
-- **53/53 E2E I04** con API mock correctas, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
+- **203/203 pruebas .NET locales y remotas** correctas: 5 dominio y 198 aplicación; cero omitidas. I04 añade avisos, perfiles y protección concurrente.
+- **53/53 E2E I04** con API mock correctas en local y CI, build Angular correcto y revisión móvil a 390 px sin desbordamiento.
 - Revisión estática independiente de contratos, privacidad, snapshots, fechas y transacciones completada; hallazgos corregidos.
-- **9/9 pruebas HTTP/SQL Server reales correctas**: migraciones, persistencia entre hosts, concurrencia con deadlocks reales y respuesta 409, rollback, correcciones, auditoría extensa y perfiles. Los fallos encontrados en la primera ejecución quedaron corregidos.
+- I02: **9/9 pruebas HTTP/SQL Server reales correctas**: migraciones, persistencia entre hosts, concurrencia con deadlocks reales y respuesta 409, rollback, correcciones, auditoría extensa y perfiles. Los fallos encontrados en la primera ejecución quedaron corregidos.
 - SQL Server se ejecutó en CI contra una instancia desechable, eliminada al terminar. No se usaron datos reales ni una base operativa. Evidencia en `../validation/2026-10-24-i02.md`.
 - Vista previa HTTP del CSV privado: **23/23 clientes válidos, cero errores**, 23 advertencias por teléfono vacío. No aplicado.
 - InMemory conserva las funciones de I01 y la vista previa diaria. Aplicar lotes o corregir pedidos exige persistencia relacional; no se finge éxito durable.
 - La última corrida documental de I02 encontró tres fallos E2E durante el llenado inicial de formularios. I03 hace explícita la espera del estado editable y conserva trazas sólo ante fallo; **37/37 locales y remotos correctos**.
-- **13/13 pruebas SQL Server reales correctas**, incluidas cuatro nuevas de bootstrap. **Smoke completo Docker Production correcto**: login, mismo origen, sin demos, permisos limitados, reintentos, respaldo y persistencia. Evidencia en `../validation/2026-10-24-i03.md`.
-- I04 amplía SQL a 20 pruebas compiladas, incluye rollback de avisos y carrera de aprobación/unidad. Ejecución remota pendiente en este checkpoint.
-- 15/15 pruebas Python de inventario y publicación aislada correctas. No se ejecutaron Nginx ni certificado en el VPS.
+- I03: **13/13 pruebas SQL Server reales correctas**, incluidas cuatro nuevas de bootstrap. **Smoke completo Docker Production correcto**: login, mismo origen, sin demos, permisos limitados, reintentos, respaldo y persistencia. Evidencia en `../validation/2026-10-24-i03.md`.
+- I04: **20/20 pruebas SQL Server reales correctas**, incluidos rollback de avisos y carrera de aprobación/unidad. Modelo/migración consistentes. [Evidencia de cierre](../validation/2026-10-24-i04.md).
+- 15/15 pruebas Python de inventario y publicación aislada correctas en local y CI. Smoke Docker Production completo correcto, incluidos archivos extraídos con permisos privados. No se ejecutaron Nginx ni certificado en el VPS.
 - Comprobación SSH directa: el entorno no tiene ruta de red al servidor. Se entregan comandos para ejecutar desde WSL; no hubo cambios remotos.
 
 ## Siguiente paso
 
-1. Verificar CI I04 y ejecutar el preflight de sólo lectura en el VPS elegido. Revisar ese JSON antes de instalar I03-B; el destino no está instalado desde esta sesión.
+1. Ejecutar el preflight de sólo lectura en el VPS elegido. Revisar ese JSON antes de instalar I03-B; el destino no está instalado desde esta sesión.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
 3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
