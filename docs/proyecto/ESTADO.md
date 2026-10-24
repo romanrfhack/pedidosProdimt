@@ -52,10 +52,11 @@ Actualizado: 24 de octubre de 2026.
 - I04: **20/20 pruebas SQL Server reales correctas**, incluidos rollback de avisos y carrera de aprobación/unidad. Modelo/migración consistentes. [Evidencia de cierre](../validation/2026-10-24-i04.md).
 - 15/15 pruebas Python de inventario y publicación aislada correctas en local y CI. Smoke Docker Production completo correcto, incluidos archivos extraídos con permisos privados. No se ejecutaron Nginx ni certificado en el VPS.
 - Comprobación SSH directa: el entorno no tiene ruta de red al servidor. Se entregan comandos para ejecutar desde WSL; no hubo cambios remotos.
+- Inventario ejecutado por el usuario: DNS y disco aptos, Docker operativo; Compose no confirmado, memoria disponible menor al umbral previsto para compilar y configuración Nginx/certificado del dominio ya presentes. Se requiere revisión dirigida, sin crear un segundo virtual host ni sustituir la renovación existente.
 
 ## Siguiente paso
 
-1. Ejecutar el preflight de sólo lectura en el VPS elegido. Revisar ese JSON antes de instalar I03-B; el destino no está instalado desde esta sesión.
+1. Inventario VPS recibido y revisado. Resolver el diagnóstico de Compose, inspeccionar el virtual host/certificado preexistentes y elegir la compilación según capacidad disponible antes de instalar I03-B. Las rutas del stack I04 siguen ausentes; no inferir que la aplicación previa o el certificado funcionan sólo por existir sus archivos.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
 3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.

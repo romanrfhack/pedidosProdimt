@@ -134,3 +134,11 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Smoke Docker Production correcto incluso con configuración extraída con permisos 600; bootstrap, permisos SQL limitados, respaldo y persistencia después de recrear aplicación verificados. Recursos de prueba eliminados.
 - Revisión independiente y diff sin datos privados. Preparado paquete I04 con fuente exacta, revisión privada y workbook original intacto; sin secretos operativos.
 - PR sigue en borrador y main sin cambios. Próximo paso: JSON del inventario de sólo lectura en el VPS; instalación, HTTPS, carga real y ensayo aún pendientes.
+
+## 2026-10-24 — Inventario del VPS recibido
+
+- El usuario ejecutó el preflight de sólo lectura y compartió su JSON. Confirma Ubuntu x86-64, Docker operativo, resolución IPv4 elegida y espacio disponible; el puerto previsto del nuevo stack está libre.
+- `compose_version: null` indica que la consulta de versión falló, no prueba por sí sola que Compose esté ausente. Falta inspeccionar salida de error y paquetes instalados/candidatos.
+- La RAM disponible está por debajo del umbral previsto para la compilación inicial y no hay swap. Se revisará carga actual y opción de compilar fuera del VPS; no se cambian límites ni se detienen otras aplicaciones por suposición.
+- Existe un virtual host para el dominio con nombre distinto del gestionado por I04, y un certificado previo. Faltan upstream, vigencia y método de renovación; la existencia del archivo no acredita servicio válido. No ejecutar el publicador genérico ni crear otro virtual host antes de revisar esta evidencia.
+- Preparado siguiente diagnóstico dirigido de sólo lectura. No se instaló ni cambió nada remotamente; código funcional I04 conserva la validación registrada.
