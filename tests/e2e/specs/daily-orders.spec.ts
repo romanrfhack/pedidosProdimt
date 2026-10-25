@@ -41,6 +41,8 @@ test.beforeEach(async ({ request }) => {
 });
 
 test('captura administrativa consulta y envía la fecha de servicio seleccionada', async ({ page }) => {
+  // Keep the selected service date different from today as the calendar moves.
+  await page.clock.setFixedTime(new Date('2026-10-24T18:00:00Z'));
   await login(page);
   await page.goto('/admin/clientes-pendientes');
   await page.getByLabel('Fecha de servicio').fill('2026-10-25');
