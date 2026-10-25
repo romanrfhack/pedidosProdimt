@@ -2,6 +2,8 @@
 
 El VPS elegido ya tiene PRODIMT activo mediante systemd, frontend/backend en releases, SQL Server nativo y certificado con renovación webroot. Actualizar esa instalación conserva su base y evita compilar o crear otro SQL en un host compartido.
 
+**Estado comprobado el 25 de octubre de 2026:** el usuario completó la reanudación `20261025-resume5`: nueve migraciones, releases I04 y salud/proceso/frontend HTTPS verificados. La secuencia de actualización de esta guía queda como referencia; no repetirla sobre la instalación ya actualizada. Continuar con login, revisión de catálogos y carga privada mediante vista previa. Evidencia y respaldos en `../../docs/validation/2026-10-25-native-resume.md`.
+
 ## Paquete preparado
 
 API .NET 10 framework-dependent linux-x64 y Angular Production compilados fuera del VPS desde `b630072ce67a691c3757d0590cc7f7d45f423d52`, el mismo código validado en CI I04. El frontend usa la API del mismo origen y sus credenciales demo están vacías. Incluye SQL idempotente con nueve migraciones, cinco anteriores y cuatro de octubre. Los binarios no incluyen datos reales, archivos privados del servidor ni credenciales operativas.
@@ -26,7 +28,7 @@ El programa acepta el ZIP nativo original por su hash, verifica manifiesto y rut
 
 Tras un fallo en `database-migrations` con recuperación anterior saludable, primero usar `scripts/pilot/diagnose-native-update.py --package ZIP`. Este diagnóstico sólo consulta el servicio, respaldo, staging, historial/esquema y opciones originales de sesión SQL; no autentica una cuenta administrativa ni repite DDL. Los releases nuevos ya pueden existir y la base conservar parte del esquema: el actualizador normal no es un mecanismo de reanudación. No borrar staging ni restaurar la base para saltar sus guardas; preparar la recuperación según la evidencia del diagnóstico.
 
-El protocolo SQL corregido en código usa `-I` y opciones de sesión explícitas para índices filtrados. La prueba anterior de migraciones por SqlClient no ejercitaba los valores predeterminados del ejecutable ODBC; el workflow ahora añade el salto cinco→nueve/repetición mediante sqlcmd y el mismo transporte de script. El script distribuido para el siguiente paso es sólo de diagnóstico, mientras se confirma el estado real.
+El protocolo SQL corregido en código usa `-I` y opciones de sesión explícitas para índices filtrados. La prueba anterior de migraciones por SqlClient no ejercitaba los valores predeterminados del ejecutable ODBC; el workflow añade el salto cinco→nueve/repetición mediante sqlcmd y el mismo transporte de script. Tras el diagnóstico y la validación administrativa del esquema se distribuyó `resume5`, cuya ejecución satisfactoria queda registrada en la evidencia enlazada.
 
 La preparación puede normalizar a root:www-data los cinco directorios estructurales propios para publicar con seguridad; conserva metadatos previos y los releases existentes. Si el nuevo valor predeterminado de vigencia de tokens difiere, conserva el valor efectivo anterior mediante un ajuste no secreto en el JSON del release nuevo, sin cambiar api.env, la clave JWT ni su emisor/audiencia. Los cambios de permisos SQL se limitan a DML de OrderOperations y OrderChangeNotices cuando hacen falta. No se instalan paquetes ni se cambian otros servicios.
 
@@ -38,7 +40,7 @@ La revisión `20261025-env2` sustituye el lector reducido inicial por un lector 
 
 El resultado incluye la revisión del actualizador y contadores/estados fijos de sintaxis, nunca nombres o valores del archivo. Si un intento anterior se detuvo en `read-only-preflight` con `changes_made: false` y `migrations_may_have_changed: false`, se puede sustituir el script y volver a ejecutar con el mismo ZIP. Otros fallos requieren revisar primero la fase y los indicadores de recuperación; no borrar releases ni repetir a ciegas. No pegar el archivo privado en el chat.
 
-La revisión vigente `20261025-tty3` también corrige la apertura del canal de prompts: `getpass` requiere un stream escribible y gestiona su propia entrada de terminal sin eco. Abrir un TTY con `r+` buffered exigía seek y fallaba aun con SSH interactivo; se usa `w` y se mantienen el rechazo sin terminal y la advertencia como error. Cinco pruebas con PTY real verifican ocultación, errores y restauración de la terminal. Un bloqueo en `admin-authentication` con ambos indicadores de cambios falsos permite reemplazar sólo el script y repetir; no requiere revertir aplicación o base.
+Desde la revisión `20261025-tty3` se corrige la apertura del canal de prompts: `getpass` requiere un stream escribible y gestiona su propia entrada de terminal sin eco. Abrir un TTY con `r+` buffered exigía seek y fallaba aun con SSH interactivo; se usa `w` y se mantienen el rechazo sin terminal y la advertencia como error. Cinco pruebas con PTY real verifican ocultación, errores y restauración de la terminal. La revisión vigente `20261025-resume5` conserva esa corrección. Un bloqueo en `admin-authentication` con ambos indicadores de cambios falsos permite reemplazar sólo el script y repetir; no requiere revertir aplicación o base.
 
 ## Referencias
 
