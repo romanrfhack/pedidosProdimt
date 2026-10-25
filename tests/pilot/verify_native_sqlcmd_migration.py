@@ -226,6 +226,60 @@ def main():
         require(result == {'preserved_customers': 1, 'preserved_administrators': 1, 'orders_count': 0,
                            'order_index_unique': 1, 'new_tables': 1, 'audit_max_length': -1},
                 'native_cli_schema_or_preservation_failed')
+
+        # The separate root recovery tool must update only the selected active
+        # web account, atomically with audit, while preserving the old inactive
+        # administrator and the rest of this synthetic database.
+        recovery = load_module('native_admin_reset_fixture', root / 'scripts/pilot/reset-native-admin.py')
+        recovery.DATABASE = target
+        recovery_user = 'synthetic-recovery-admin'
+        updater.sql_run(credentials, query="""INSERT INTO dbo.AdminUsers
+          (Id,UserName,PasswordHash,DisplayName,IsActive,CreatedAt) VALUES
+          ('91c8c3c3-319a-4bed-8dd9-d4118deef85f',N'synthetic-recovery-admin',
+          N'fictional-prior-recovery-hash',N'Fictional recovery display',1,'2026-10-24T12:00:00+00:00');""")
+
+        def account_snapshot():
+            output = updater.sql_run(credentials, script=recovery.OPTIONS + recovery.snapshot_sql(recovery_user))
+            return recovery.validate_snapshot(recovery.parse_json(output), recovery_user)
+
+        before = account_snapshot()
+        new_hash = recovery.identity_hash('Fictional recovery password ñ 2026!')
+        operation = str(uuid.uuid4())
+        output = updater.sql_run(credentials, script=recovery.OPTIONS + recovery.reset_sql(before, new_hash, operation))
+        require(recovery.parse_json(output) == {'password_reset': 1, 'audit_recorded': 1}, 'reset_receipt_failed')
+        after = account_snapshot()
+        require(after == dict(before, password_hash=new_hash), 'reset_changed_unrelated_account_fields')
+
+        def reset_rejected(script, code, kind):
+            try:
+                updater.sql_run(credentials, script=recovery.OPTIONS + script)
+            except update.UpdateError:
+                require(code in updater.state.get('sql_failure', {}).get('error_numbers', []),
+                        'reset_wrong_sql_failure_' + kind)
+            else:
+                raise FixtureFailure('reset_accepted_' + kind)
+
+        reset_rejected(recovery.reset_sql(before, new_hash, str(uuid.uuid4())), 51001, 'stale_password_hash')
+        updater.sql_run(credentials, script="""CREATE TRIGGER dbo.NativeRecoveryRejectAudit ON dbo.AuditLogs
+          AFTER INSERT AS BEGIN THROW 51003,N'Fictional audit failure',1; END;""")
+        try:
+            reset_rejected(recovery.reset_sql(after, recovery.identity_hash('Fictional second password 2026!'),
+                                             str(uuid.uuid4())), 51003, 'audit_failure')
+        finally:
+            updater.sql_run(credentials, query='DROP TRIGGER dbo.NativeRecoveryRejectAudit;')
+        require(account_snapshot() == after, 'reset_audit_failure_did_not_roll_back_password')
+        audit = updater.sql_json(credentials, """SELECT
+          (SELECT COUNT(*) FROM dbo.AuditLogs WHERE EventType=N'AdminUserPasswordReset') AS resets,
+          (SELECT COUNT(*) FROM dbo.AuditLogs WHERE EventType=N'AdminUserPasswordReset'
+            AND ActorType=2 AND MetadataJson NOT LIKE N'%hash%' AND MetadataJson NOT LIKE N'%password%') AS safe_audits,
+          (SELECT COUNT(*) FROM dbo.AdminUsers WHERE UserName=N'synthetic-native-cli-admin'
+            AND PasswordHash=N'synthetic-existing-hash' AND IsActive=0) AS preserved_inactive_admins,
+          (SELECT COUNT(*) FROM dbo.AdminUsers) AS admins,
+          (SELECT COUNT(*) FROM dbo.Customers) AS customers,
+          (SELECT COUNT(*) FROM dbo.Orders) AS orders_count
+          FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;""")
+        require(audit == {'resets': 1, 'safe_audits': 1, 'preserved_inactive_admins': 1,
+                         'admins': 2, 'customers': 1, 'orders_count': 0}, 'reset_scope_or_audit_invalid')
     finally:
         if created:
             update.DATABASE = 'master'
@@ -236,7 +290,8 @@ def main():
     print('Native ODBC sqlcmd migration contract passed: default QI OFF/error 1934; fixed 5-to-9 upgrade, '
           'required session options, repeat and preserved synthetic data; resume baseline rejects '
           'partial DDL, restricted metadata and already-upgraded history; original failed script '
-          'rolls back to the complete five-migration baseline.')
+          'rolls back to the complete five-migration baseline; web admin reset preserves scope, '
+          'rejects stale credentials and rolls back the password when audit fails.')
 
 
 if __name__ == '__main__':

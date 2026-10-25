@@ -75,3 +75,11 @@ ssh -t root@194.238.26.70 \
 ```
 
 Usar el script actualizado distribuido tras validar la revisión. Omitir `--apply` conserva el plan de lectura; omitir `--resume-from` mantiene el rechazo normal de staging ya existente. Esta reanudación no es una autorización genérica para otros fallos o historiales.
+
+## Restablecer acceso de administrador web
+
+La contraseña web pertenece a `dbo.AdminUsers`, distinta de la contraseña del login SQL. `scripts/pilot/reset-native-admin.py --user admin --apply` recupera una cuenta web existente y activa en el despliegue I04 revisado. Sin `--apply` sólo describe el plan y no pide secretos.
+
+Ejecutar en una terminal SSH interactiva con root; solicita usuario/contraseña SQL existentes de manera oculta y la nueva contraseña web dos veces (16–128 caracteres). Usa el formato Identity V3 de la aplicación, conserva una copia privada del estado anterior con hash en `/var/backups/prodimt-pedidos/admin-reset-*/administrator-before.json` y cambia únicamente PasswordHash, con comparación de la versión observada y auditoría atómica. No pegar esa copia, hashes, contraseñas ni tokens en el chat. No crea/activa cuentas, cambia contraseñas SQL, hace bootstrap ni reinicia servicios.
+
+La verificación usa HTTPS con certificado válido contra el mismo virtual host: login y GET administrativo autenticado. Un resultado completo exige `password_reset: true`, `login_verified: true`, `login_http_status: 200` y `admin_http_status: 200`. Si ocurre un error después de enviar SQL, revisar `password_reset` y `changes_may_have_occurred`; conservar el respaldo y no repetir por suposición. No se revierte la cuenta automáticamente. Evidencia en `../../docs/validation/2026-10-25-admin-recovery.md`.
