@@ -184,13 +184,15 @@ class NativeResumeTests(unittest.TestCase):
 
     def test_new_preflight_without_resume_still_rejects_existing_stage(self):
         updater = update.Updater('unused-package.zip')
-        with patch.object(update, 'verify_package', return_value=self.updater.payload), patch.object(updater, 'load_inspector'):
+        with patch.object(update.os, 'geteuid', return_value=0), \
+                patch.object(update, 'verify_package', return_value=self.updater.payload), patch.object(updater, 'load_inspector'):
             with self.assertRaisesRegex(update.UpdateError, 'new_release_already_exists'):
                 updater.readonly_preflight()
 
     def test_resume_requires_already_secured_structural_directories(self):
         entry = {'path': str(update.ROOT), 'uid': 33, 'gid': 33, 'mode': 0o755}
-        with patch.object(update, 'verify_package', return_value=self.updater.payload), \
+        with patch.object(update.os, 'geteuid', return_value=0), \
+                patch.object(update, 'verify_package', return_value=self.updater.payload), \
                 patch.object(self.updater, 'load_inspector'), patch.object(update, 'structure_metadata', return_value=entry):
             with self.assertRaisesRegex(update.UpdateError, 'resume_structure_no_longer_secured'):
                 self.updater.readonly_preflight()

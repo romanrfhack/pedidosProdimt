@@ -22,4 +22,6 @@ Las pruebas de filesystem/lifecycle cubren procedencia, cambios de configuració
 
 Comprobación local: **108/108 pruebas Python correctas**, incluidas catorce de reanudación, cinco con PTY real y oráculo systemd, sin omisiones. `git diff --check` correcto. Revisión independiente del flujo y esquema; la prueba ampliada de ODBC real se ejecuta en el job SQL del nuevo workflow. `graphify update .` intentado, herramienta no disponible (127).
 
+La [corrida SQL real de 85bc5c9](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40205493674) confirmó rollback del script original completo a cinco migraciones, rechazo de restos DDL/metadatos restringidos e historial nueve, y posterior migración/repetición correctas. SQL, .NET y navegador pasaron; el job Python detectó dos fixtures de preflight que necesitaban simular root cuando el runner no es privilegiado. Se corrigen sólo esas fixtures, manteniendo la guarda productiva; las catorce pruebas de reanudación pasan también con geteuid global no privilegiado y las dos simulaciones internas acotadas. El script distribuido conserva los mismos bytes.
+
 Estos ensayos verifican el mecanismo, no su ejecución real en el VPS. La distribución incluye los resultados locales/remotos y se mantiene el despliegue pendiente hasta obtener el JSON `status: updated` con verificación de salud y revisar el acceso a la aplicación.
