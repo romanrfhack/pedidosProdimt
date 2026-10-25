@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 24 de octubre de 2026.
+Actualizado: 25 de octubre de 2026.
 
 ## Ubicación y etapa
 
@@ -55,10 +55,11 @@ Actualizado: 24 de octubre de 2026.
 - Inventario dirigido del usuario confirma PRODIMT nativo activo mediante systemd, frontend/backend en releases y proxy hacia la API existente. Certificado del dominio vigente y renovación webroot previa. Compose v2/Buildx no están instalados; no se requieren para preparar una actualización nativa con binarios compilados fuera del VPS.
 - Inspector nativo ejecutado por el usuario: destino SQL y principal coinciden; Production/JWT/seed compatibles, runtime .NET/ASP.NET 10.0.13, cinco migraciones de mayo, índice anterior no único y cero pedidos/grupos duplicados. La cuenta de aplicación no tiene permisos DDL, BACKUP ni verificación. La base conserva sus otros datos; no se considera una instalación vacía ni se ejecuta bootstrap.
 - I03-B prepara un actualizador para ese despliegue exacto: payload verificado, credenciales administrativas ocultas sólo en la sesión, respaldo COPY_ONLY/CHECKSUM verificado antes de migrar y cambio/reversión de releases. No se ha ejecutado la fase de escritura en el VPS.
+- Primer intento `--apply` del usuario detenido en `read-only-preflight` con `environment_file_format_unsupported`, `changes_made: false` y `migrations_may_have_changed: false`. El lector anterior sólo admitía un subconjunto de EnvironmentFile; se amplía siguiendo systemd 255, con diagnóstico de sintaxis sin claves ni valores. La configuración efectiva de reinicio sigue debiendo coincidir con la del proceso activo antes de autenticar SQL o preparar releases. No se conoce todavía la construcción exacta del archivo que disparó el bloqueo; no se solicita ni modifica su contenido privado. Evidencia en `../validation/2026-10-25-native-env.md`.
 
 ## Siguiente paso
 
-1. Aplicar la actualización nativa I03-B preparada tras respaldo/verificación con una identidad SQL administrativa independiente. El inspector del usuario ya confirmó configuración compatible, runtime, cinco migraciones y ausencia de pedidos/duplicados; la cuenta cotidiana carece de DDL y respaldo. El actualizador debe conservar configuración, base, Nginx y certificado, con reversión de releases ante fallo. El kit Docker queda para una instalación nueva.
+1. Reemplazar únicamente el actualizador por la revisión `20261025-env2` y repetir la actualización nativa I03-B con el mismo ZIP, tras respaldo/verificación con una identidad SQL administrativa independiente. El primer intento no llegó a modificar configuración, releases ni esquema. El inspector del usuario ya confirmó configuración compatible, runtime, cinco migraciones y ausencia de pedidos/duplicados; la cuenta cotidiana carece de DDL y respaldo. El actualizador debe conservar configuración, base, Nginx y certificado, con reversión de releases ante fallo. El kit Docker queda para una instalación nueva.
 2. Cargar mediante vista previa los catálogos privados ya preparados. No publicar ni sembrar clientes reales en CI.
 3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.

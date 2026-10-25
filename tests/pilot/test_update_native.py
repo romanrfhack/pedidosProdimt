@@ -34,29 +34,176 @@ class NativeEnvironmentFileTests(unittest.TestCase):
         self.assertEqual('literal value', values['SINGLE'])
         self.assertEqual('', values['EMPTY'])
 
-    def test_malformed_and_ambiguous_environment_is_rejected_without_echoing_secret(self):
-        for text in (
-            'KEY="' + SECRET,
-            'KEY=' + SECRET + '\nKEY=different\n',
-            'export KEY=' + SECRET,
-            'INVALID KEY=' + SECRET,
-            'KEY=' + SECRET + '\\\ncontinuation',
-        ):
-            with self.subTest(text_kind=text[:12]):
+    # Expected values follow systemd 255, the Ubuntu 24.04 target version.
+    SYSTEMD_CASES = (
+        ('bare note\n# comment\\\nKEY=kept\n; comment\n', {'KEY': 'kept'}),
+        ('KEY=first\nKEY=last\n', {'KEY': 'last'}),
+        ("KEY='first\nsecond'\n", {'KEY': 'first\nsecond'}),
+        ('KEY="first\nsecond"\n', {'KEY': 'first\nsecond'}),
+        ('KEY=first\\\nsecond\n', {'KEY': 'firstsecond'}),
+        ('KEY="first\\\nsecond"\n', {'KEY': 'firstsecond'}),
+        ("KEY='first\\\nsecond'\n", {'KEY': 'first\\\nsecond'}),
+        ("KEY='one' \"two\" tail\n", {'KEY': 'onetwotail'}),
+        ('KEY=one"two" \'three\'\n', {'KEY': 'one"two" \'three\''}),
+        ('KEY=  inner  spaces \t\r\n', {'KEY': 'inner  spaces'}),
+        ('KEY=\\ leading\\ \n', {'KEY': ' leading '}),
+        ('KEY="literal\\q\\$\\`\\\"\\\\end"\n', {'KEY': 'literal\\q$`"\\end'}),
+        ('KEY=literal#hash;semicolon\n', {'KEY': 'literal#hash;semicolon'}),
+        ('KEY=first\vsecond\fthird\u2028fourth\n', {'KEY': 'first\vsecond\fthird\u2028fourth'}),
+        ('KEY=value\rNEXT=other\r\n', {'KEY': 'value', 'NEXT': 'other'}),
+        ('KEY=first\\\r\nNEXT=other\n', {'KEY': 'first', 'NEXT': 'other'}),
+        ('KEY="first\\\r\nsecond"\n', {'KEY': 'first\\\r\nsecond'}),
+        ('KEY="unterminated', {'KEY': 'unterminated'}),
+        ("KEY='unterminated", {'KEY': 'unterminated'}),
+        ('KEY=value\\', {'KEY': 'value'}),
+        ('KEY="value\\', {'KEY': 'value'}),
+        ('KEY=\nEMPTY=""\nSINGLE=\'\'\n', {'KEY': '', 'EMPTY': '', 'SINGLE': ''}),
+    )
+
+    def test_systemd_multiline_continuations_quotes_and_whitespace(self):
+        for index, (text, expected) in enumerate(self.SYSTEMD_CASES):
+            with self.subTest(case=index):
+                self.assertEqual(expected, update.parse_env_file(text))
+
+    def test_parser_matches_real_systemd_255_when_oracle_is_available(self):
+        # Only fictitious fixture bytes enter the real parser. No service runs.
+        import ctypes
+        library_path = Path('/usr/lib/x86_64-linux-gnu/systemd/libsystemd-shared-255.so')
+        if not library_path.is_file():
+            self.skipTest('Optional systemd 255 parser oracle is unavailable')
+        library = ctypes.CDLL(str(library_path))
+        vector_type = ctypes.POINTER(ctypes.c_char_p)
+        library.load_env_file.argtypes = (ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(vector_type))
+        library.load_env_file.restype = ctypes.c_int
+        library.strv_free.argtypes = (vector_type,)
+        library.strv_free.restype = ctypes.c_void_p
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / 'fictional.env'
+            for index, (text, expected) in enumerate(self.SYSTEMD_CASES):
+                with self.subTest(case=index):
+                    fixture.write_bytes(text.encode('utf-8'))
+                    entries = vector_type()
+                    code = library.load_env_file(None, os.fsencode(fixture), ctypes.byref(entries))
+                    self.assertEqual(0, code)
+                    try:
+                        actual, offset = {}, 0
+                        while entries[offset] is not None:
+                            name, value = entries[offset].decode('utf-8').split('=', 1)
+                            actual[name] = value
+                            offset += 1
+                        self.assertEqual(expected, actual)
+                        self.assertEqual(actual, update.parse_env_file(text))
+                    finally:
+                        library.strv_free(entries)
+
+    def test_ignored_invalid_names_and_overrides_report_only_fixed_metadata(self):
+        diagnostics = {}
+        values = update.parse_env_file(
+            'export KEY=' + SECRET + '\nINVALID KEY=' + SECRET + '\n'
+            '9KEY=' + SECRET + '\nKEY=first\nKEY=last\nplain note\n',
+            diagnostics=diagnostics,
+        )
+        self.assertEqual({'KEY': 'last'}, values)
+        self.assertEqual(3, diagnostics['ignored_invalid_names'])
+        self.assertEqual(1, diagnostics['overwritten_assignments'])
+        self.assertEqual(1, diagnostics['ignored_without_assignment'])
+        self.assertNotIn(SECRET, json.dumps(diagnostics))
+        self.assertNotIn('KEY', json.dumps(diagnostics))
+
+    def test_invalid_unicode_is_rejected_with_fixed_reason_and_line_without_secret(self):
+        for char in ('\0', '\ufeff', '\ud800', '\ufdd0', '\ufffe', '\U0001ffff'):
+            with self.subTest(codepoint=ord(char)):
+                diagnostics = {}
                 with self.assertRaises(update.UpdateError) as error:
-                    update.parse_env_file(text)
-                self.assertNotIn(SECRET, str(error.exception))
+                    update.parse_env_file('KEY=' + SECRET + '\nOTHER=' + char, diagnostics=diagnostics)
+                self.assertEqual('environment_file_invalid_character', str(error.exception))
+                self.assertEqual('invalid_unicode_character', diagnostics['failure_kind'])
+                self.assertEqual(2, diagnostics['failure_line'])
+                self.assertNotIn(SECRET, json.dumps(diagnostics) + str(error.exception))
 
     def test_environment_file_is_never_executed_as_shell(self):
         with tempfile.TemporaryDirectory() as directory:
             marker = Path(directory) / 'must-not-exist'
-            text = 'KEY=$(touch ' + str(marker) + ')\n'
-            try:
-                values = update.parse_env_file(text)
-                self.assertEqual('$(touch ' + str(marker) + ')', values['KEY'])
-            except update.UpdateError:
-                pass  # A strict parser may reject shell-looking literal values.
+            text = 'KEY=$(touch ' + str(marker) + ')\nLITERAL=${KEY}`id`\n'
+            values = update.parse_env_file(text)
+            self.assertEqual('$(touch ' + str(marker) + ')', values['KEY'])
+            self.assertEqual('${KEY}`id`', values['LITERAL'])
             self.assertFalse(marker.exists())
+
+
+class NativeRestartConfigurationTests(unittest.TestCase):
+    def configuration_fixture(self, stack, *, mismatch=False):
+        directory = stack.enter_context(tempfile.TemporaryDirectory())
+        root = Path(directory)
+        old = root / 'backend/releases/previous'
+        old.mkdir(parents=True)
+        (root / 'backend/current').mkdir()
+        env_path = root / 'api.env'
+        jwt = SECRET + '\nfictional signing material'
+        connection = 'Server=127.0.0.1,14330;Database=ProdimtPedidos;User Id=prodimt_pedidos_app;Password=' + SECRET
+        env_text = (
+            'ASPNETCORE_ENVIRONMENT=Production\nASPNETCORE_URLS=http://127.0.0.1:5080\n'
+            'Authentication__Jwt__SigningKey=shadowed\n'
+            "Authentication__Jwt__SigningKey='" + jwt + "'\n"
+            'ConnectionStrings__Pedidos="Server=127.0.0.1,14330;\\\n'
+            'Database=ProdimtPedidos;User Id=prodimt_pedidos_app;Password=' + SECRET + '"\n'
+        )
+        running = {'ASPNETCORE_ENVIRONMENT': 'Production', 'ASPNETCORE_URLS': 'http://127.0.0.1:5080',
+                   'Authentication__Jwt__SigningKey': jwt if not mismatch else 'different-' + jwt,
+                   'ConnectionStrings__Pedidos': connection}
+        spec = importlib.util.spec_from_file_location('restart_fixture_inspector', Path(__file__).parents[2] / 'scripts/pilot/inspect-native.py')
+        inspector = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(inspector)
+        argv = ['/usr/bin/dotnet', str(root / 'backend/current/Prodimt.Pedidos.Api.dll')]
+        metadata = {'MainPID': '101', 'ActiveState': 'active', 'User': 'www-data', 'Group': '',
+                    'WorkingDirectory': str(root / 'backend/current'), 'EnvironmentFiles': str(env_path) + ' (ignore_errors=no)',
+                    'KillMode': 'control-group', 'ControlGroup': '/system.slice/' + update.SERVICE,
+                    'ExecStart': '{ argv[]=' + ' '.join(argv) + ' ; ignore_errors=no ; }'}
+        original_lstat, original_resolve = Path.lstat, Path.resolve
+        def lstat(path, *args, **kwargs):
+            if path == env_path:
+                return types.SimpleNamespace(st_mode=stat.S_IFREG | 0o640, st_nlink=1, st_uid=0, st_gid=33)
+            return original_lstat(path, *args, **kwargs)
+        def resolve(path, *args, **kwargs):
+            return old if path == Path('/proc/101/cwd') else original_resolve(path, *args, **kwargs)
+        for name, value in (('ROOT', root), ('OLD_BACKEND', old), ('ENV_FILE', env_path)):
+            stack.enter_context(patch.object(update, name, value))
+        stack.enter_context(patch.object(Path, 'lstat', lstat))
+        stack.enter_context(patch.object(Path, 'resolve', resolve))
+        stack.enter_context(patch.object(update, 'read_file', return_value=env_text.encode()))
+        stack.enter_context(patch.object(inspector, 'process_identity', return_value='fictional-identity'))
+        stack.enter_context(patch.object(inspector, 'process_environment', return_value=running))
+        stack.enter_context(patch.object(inspector, 'read_limited', return_value='\0'.join(argv)))
+        stack.enter_context(patch.object(inspector, 'assert_same_process'))
+        updater = update.Updater('unused-package.zip')
+        updater.inspector = inspector
+        updater.payload = {'files': {'backend/appsettings.json': b'{}', 'backend/appsettings.Production.json': b'{}'}}
+        stack.enter_context(patch.object(updater, 'systemd_values', return_value=metadata))
+        return updater
+
+    def test_multiline_and_last_assignment_reach_real_configuration_and_candidate_guards(self):
+        with contextlib.ExitStack() as stack:
+            updater = self.configuration_fixture(stack)
+            updater.inspect_restart_configuration()
+            self.assertEqual(SECRET, updater.app_credentials.password)
+            self.assertEqual(1, updater.state['environment_file_syntax']['overwritten_assignments'])
+            self.assertNotIn(SECRET, json.dumps(updater.state))
+            self.assertEqual('Production', updater.snapshot['source_environment'])
+
+    def test_restart_configuration_mismatch_blocks_before_prompt_or_mutation(self):
+        with contextlib.ExitStack() as stack:
+            updater = self.configuration_fixture(stack, mismatch=True)
+            stack.enter_context(patch.object(update, 'own_lock', contextlib.nullcontext))
+            stack.enter_context(patch.object(update, 'interruption_guard', contextlib.nullcontext))
+            stack.enter_context(patch.object(updater, 'readonly_preflight', updater.inspect_restart_configuration))
+            forbidden = [stack.enter_context(patch.object(updater, name)) for name in ('prompt_admin', 'stage', 'stop', 'migrate', 'switch_links')]
+            report = updater.run(apply=True)
+            self.assertEqual('environment_file_differs_from_running_configuration', report['issue'])
+            self.assertFalse(report['changes_made'])
+            self.assertFalse(report['migrations_may_have_changed'])
+            self.assertNotIn(SECRET, json.dumps(report))
+            for action in forbidden:
+                action.assert_not_called()
 
 
 class NativePackageTests(unittest.TestCase):
@@ -211,6 +358,7 @@ class NativeLifecycleTests(unittest.TestCase):
         report, events = self.execute(apply=False)
         self.assertEqual(['readonly_preflight'], events)
         self.assertEqual('ready', report['status'])
+        self.assertEqual('20261025-env2', report['updater_revision'])
         self.assertFalse(report['changes_made'])
         self.assertFalse(report['migrations_may_have_changed'])
 

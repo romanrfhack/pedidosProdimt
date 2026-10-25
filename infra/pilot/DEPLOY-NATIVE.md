@@ -28,10 +28,18 @@ La preparación puede normalizar a root:www-data los cinco directorios estructur
 
 El payload sigue siendo el código funcional b630072 validado. Ejecutar el actualizador no equivale a confirmar que terminó: revisar su JSON final y comprobar después login, configuración y pedidos desde el navegador.
 
+### Compatibilidad de EnvironmentFile
+
+La revisión `20261025-env2` sustituye el lector reducido inicial por un lector con estados de systemd 255: valores entre comillas de varias líneas, continuaciones, segmentos de comillas consecutivos, líneas sin asignación ignoradas y último valor de una clave repetida. No evalúa shell, expande variables ni modifica `api.env`. Mantiene la comparación de configuración crítica entre el archivo, el proceso activo y el candidato antes de cualquier preparación de releases o parada del servicio.
+
+El resultado incluye la revisión del actualizador y contadores/estados fijos de sintaxis, nunca nombres o valores del archivo. Si un intento anterior se detuvo en `read-only-preflight` con `changes_made: false` y `migrations_may_have_changed: false`, se puede sustituir el script y volver a ejecutar con el mismo ZIP. Otros fallos requieren revisar primero la fase y los indicadores de recuperación; no borrar releases ni repetir a ciegas. No pegar el archivo privado en el chat.
+
 ## Referencias
 
 - [Despliegue de migraciones EF Core](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying).
 - [RESTORE VERIFYONLY y permisos](https://learn.microsoft.com/en-us/sql/t-sql/statements/restore-statements-verifyonly-transact-sql).
+- [EnvironmentFile en systemd 255](https://www.freedesktop.org/software/systemd/man/255/systemd.exec.html#EnvironmentFile=).
+- [Estados del lector de systemd 255](https://github.com/systemd/systemd/blob/v255/src/basic/env-file.c).
 
 ## Ejecución desde WSL
 

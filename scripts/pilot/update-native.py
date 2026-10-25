@@ -29,6 +29,7 @@ import uuid
 import warnings
 import zipfile
 
+UPDATER_REVISION = '20261025-env2'
 EXPECTED_PACKAGE_SHA = '43520c99c4906603fc3613e46ebdac9a460f02c78193511f3dae3bcff34bdf32'
 SOURCE_COMMIT = 'b630072ce67a691c3757d0590cc7f7d45f423d52'
 PACKAGE_ROOT = 'prodimt-i04-nativo/'
@@ -142,48 +143,123 @@ def verify_package(path):
         raise UpdateError('package_unreadable') from None
 
 
-def parse_env_file(text):
-    """Strict single-line EnvironmentFile subset; no shell evaluation/expansion."""
-    require('\0' not in text, 'environment_file_format_unsupported')
-    result = {}
-    for original in text.splitlines():
-        line = original.strip()
-        if not line or line.startswith(('#', ';')):
-            continue
-        match = re.fullmatch(r'([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)', line)
-        require(match is not None, 'environment_file_format_unsupported')
-        name, raw = match.groups()
-        value = ''
-        if raw.startswith("'"):
-            require(len(raw) >= 2 and raw.endswith("'") and "'" not in raw[1:-1], 'environment_file_format_unsupported')
-            value = raw[1:-1]
-        elif raw.startswith('"'):
-            index, closed = 1, False
-            while index < len(raw):
-                char = raw[index]
-                if char == '"':
-                    require(not raw[index + 1:].strip(), 'environment_file_format_unsupported')
-                    closed = True
-                    break
-                if char == '\\':
-                    require(index + 1 < len(raw), 'environment_file_format_unsupported')
-                    index += 1
-                    next_char = raw[index]
-                    value += next_char if next_char in ('\\', '"', '$', '`') else '\\' + next_char
-                else:
-                    value += char
-                index += 1
-            require(closed, 'environment_file_format_unsupported')
+def parse_env_file(text, *, diagnostics=None):
+    """Read EnvironmentFile data without a shell, matching systemd 255 states.
+
+    Unlike a shell, unquoted interior spaces and quotes remain literal. Quotes
+    at the start of a value may span lines, and closing quotes return to the
+    value prefix state. See systemd.exec(5) and systemd v255 src/basic/env-file.c.
+    Only fixed counters/state names and physical line numbers reach diagnostics.
+    """
+    info = diagnostics if diagnostics is not None else {}
+    info.update(assignments=0, ignored_without_assignment=0, ignored_invalid_names=0,
+                overwritten_assignments=0, multiline_values=0, continuations=0)
+    for offset, char in enumerate(text):
+        code = ord(char)
+        if code == 0 or code == 0xfeff or 0xd800 <= code <= 0xdfff or 0xfdd0 <= code <= 0xfdef or code & 0xffff in (0xfffe, 0xffff):
+            info.update(failure_kind='invalid_unicode_character', failure_line=text.count('\n', 0, offset) + 1)
+            raise UpdateError('environment_file_invalid_character')
+
+    result, state, key, value = {}, 'before_key', [], []
+    trailing_space = None
+    assignment_line, physical_line = 1, 1
+    multiline = False
+    whitespace, newlines = ' \t\r\n', '\r\n'
+
+    def emit(trim=False):
+        nonlocal key, value, trailing_space, multiline
+        name = ''.join(key).rstrip(whitespace)
+        if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name):
+            info['assignments'] += 1
+            info['overwritten_assignments'] += int(name in result)
+            info['multiline_values'] += int(multiline)
+            result[name] = ''.join(value[:trailing_space] if trim and trailing_space is not None else value)
         else:
-            index = 0
-            while index < len(raw):
-                if raw[index] == '\\':
-                    index += 1
-                    require(index < len(raw), 'environment_file_format_unsupported')
-                value += raw[index]
-                index += 1
-        require(name not in result or result[name] == value, 'environment_file_duplicate_key')
-        result[name] = value
+            # systemd removes invalid environment names before executing a unit.
+            info['ignored_invalid_names'] += 1
+        key, value, trailing_space, multiline = [], [], None, False
+
+    for char in text:
+        if state == 'before_key':
+            if char in '#;':
+                state = 'comment'
+            elif char not in whitespace:
+                key, assignment_line, state = [char], physical_line, 'key'
+        elif state == 'key':
+            if char in newlines:
+                info['ignored_without_assignment'] += 1
+                key, state = [], 'before_key'
+            elif char == '=':
+                state, trailing_space = 'before_value', None
+            else:
+                key.append(char)
+        elif state == 'before_value':
+            if char in newlines:
+                emit()
+                state = 'before_key'
+            elif char == "'":
+                state = 'single_quote'
+            elif char == '"':
+                state = 'double_quote'
+            elif char == '\\':
+                state = 'value_escape'
+            elif char not in whitespace:
+                value.append(char)
+                state = 'value'
+        elif state == 'value':
+            if char in newlines:
+                emit(trim=True)
+                state = 'before_key'
+            elif char == '\\':
+                state, trailing_space = 'value_escape', None
+            else:
+                if char not in whitespace:
+                    trailing_space = None
+                elif trailing_space is None:
+                    trailing_space = len(value)
+                value.append(char)
+        elif state == 'value_escape':
+            state = 'value'
+            if char in newlines:
+                info['continuations'] += 1
+            else:
+                value.append(char)
+        elif state == 'single_quote':
+            if char == "'":
+                state = 'before_value'
+            else:
+                value.append(char)
+        elif state == 'double_quote':
+            if char == '"':
+                state = 'before_value'
+            elif char == '\\':
+                state = 'double_quote_escape'
+            else:
+                value.append(char)
+        elif state == 'double_quote_escape':
+            state = 'double_quote'
+            if char in '\\"$`':
+                value.append(char)
+            elif char == '\n':
+                info['continuations'] += 1
+            else:
+                value.extend(('\\', char))
+        elif state == 'comment':
+            # Since systemd 254, a backslash does not continue a comment.
+            if char in newlines:
+                state = 'before_key'
+        if char == '\n':
+            physical_line += 1
+            if state not in ('before_key', 'key', 'comment'):
+                multiline = True
+    info['eof_state'] = state
+    if state == 'key':
+        info['ignored_without_assignment'] += 1
+    elif state not in ('before_key', 'comment'):
+        # systemd also emits values ending at EOF inside a quote or escape.
+        emit(trim=state == 'value')
+        if state in ('single_quote', 'double_quote', 'value_escape', 'double_quote_escape'):
+            info.update(eof_assignment_line=assignment_line)
     return result
 
 
@@ -389,7 +465,13 @@ class Updater:
             name, value = row.split('=', 1)
             require(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name) is not None, 'unit_environment_format_unsupported')
             restart_env[name] = value
-        restart_env.update(parse_env_file(self.env_bytes.decode('utf-8-sig')))
+        syntax = self.state['environment_file_syntax'] = {}
+        try:
+            env_text = self.env_bytes.decode('utf-8-sig')
+        except UnicodeError:
+            syntax['failure_kind'] = 'invalid_utf8'
+            raise UpdateError('environment_file_encoding_unsupported') from None
+        restart_env.update(parse_env_file(env_text, diagnostics=syntax))
         pid = int(values['MainPID'])
         identity = self.inspector.process_identity(pid)
         running_env = self.inspector.process_environment(pid)
@@ -723,7 +805,7 @@ class Updater:
         return dict(state)
 
     def run(self, apply=False):
-        self.state = {'mode': 'apply' if apply else 'plan', 'status': 'pending', 'phase': 'read-only-preflight',
+        self.state = {'updater_revision': UPDATER_REVISION, 'mode': 'apply' if apply else 'plan', 'status': 'pending', 'phase': 'read-only-preflight',
                       'migrations_may_have_changed': False, 'database_automatically_restored': False}
         if not apply:
             return self.execute(False)
