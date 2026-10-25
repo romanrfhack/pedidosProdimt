@@ -34,6 +34,8 @@ La revisión `20261025-env2` sustituye el lector reducido inicial por un lector 
 
 El resultado incluye la revisión del actualizador y contadores/estados fijos de sintaxis, nunca nombres o valores del archivo. Si un intento anterior se detuvo en `read-only-preflight` con `changes_made: false` y `migrations_may_have_changed: false`, se puede sustituir el script y volver a ejecutar con el mismo ZIP. Otros fallos requieren revisar primero la fase y los indicadores de recuperación; no borrar releases ni repetir a ciegas. No pegar el archivo privado en el chat.
 
+La revisión vigente `20261025-tty3` también corrige la apertura del canal de prompts: `getpass` requiere un stream escribible y gestiona su propia entrada de terminal sin eco. Abrir un TTY con `r+` buffered exigía seek y fallaba aun con SSH interactivo; se usa `w` y se mantienen el rechazo sin terminal y la advertencia como error. Cinco pruebas con PTY real verifican ocultación, errores y restauración de la terminal. Un bloqueo en `admin-authentication` con ambos indicadores de cambios falsos permite reemplazar sólo el script y repetir; no requiere revertir aplicación o base.
+
 ## Referencias
 
 - [Despliegue de migraciones EF Core](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/applying).

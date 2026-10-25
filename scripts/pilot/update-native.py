@@ -29,7 +29,7 @@ import uuid
 import warnings
 import zipfile
 
-UPDATER_REVISION = '20261025-env2'
+UPDATER_REVISION = '20261025-tty3'
 EXPECTED_PACKAGE_SHA = '43520c99c4906603fc3613e46ebdac9a460f02c78193511f3dae3bcff34bdf32'
 SOURCE_COMMIT = 'b630072ce67a691c3757d0590cc7f7d45f423d52'
 PACKAGE_ROOT = 'prodimt-i04-nativo/'
@@ -553,7 +553,9 @@ class Updater:
 
     def prompt_admin(self):
         try:
-            with open('/dev/tty', 'r+') as tty, warnings.catch_warnings():
+            # getpass uses stream only for prompts and opens its own raw TTY
+            # input. Buffered r+ requires seekability, which a TTY lacks.
+            with open('/dev/tty', 'w', encoding='utf-8') as tty, warnings.catch_warnings():
                 require(tty.isatty(), 'apply_requires_interactive_tty')
                 warnings.simplefilter('error', getpass.GetPassWarning)
                 login = getpass.getpass('Usuario administrador SQL existente (oculto): ', stream=tty).strip()

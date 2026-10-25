@@ -358,7 +358,7 @@ class NativeLifecycleTests(unittest.TestCase):
         report, events = self.execute(apply=False)
         self.assertEqual(['readonly_preflight'], events)
         self.assertEqual('ready', report['status'])
-        self.assertEqual('20261025-env2', report['updater_revision'])
+        self.assertEqual('20261025-tty3', report['updater_revision'])
         self.assertFalse(report['changes_made'])
         self.assertFalse(report['migrations_may_have_changed'])
 
