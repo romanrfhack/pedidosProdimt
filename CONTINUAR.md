@@ -36,6 +36,8 @@ El usuario devolvió la hoja I03 con 30 unidades y 36 posiciones completadas. La
 
 I04 quedó desplegado en el VPS el 25 de octubre: el usuario compartió `status: updated`, nueve migraciones, permisos DML y salud/proceso/frontend HTTPS verificados con `20261025-resume5`. Se conservan el respaldo previo y uno nuevo verificado; no repetir el actualizador ni el bootstrap. El siguiente paso es comprobar login/catálogos desde el navegador y preparar la vista previa de la carga privada contra los datos existentes. La instalación no importó la ruta del Excel ni completó el ensayo operativo. Ver `ESTADO.md` y la evidencia de reanudación para las rutas de releases/respaldo.
 
+La cuenta web `admin` existe/está activa, pero el usuario reportó contraseña inválida y autorizó su restablecimiento. Se entregó `PRODIMT_Restablecer_Admin.py` (`scripts/pilot/reset-native-admin.py`), con TTY oculta, copia privada de la fila anterior, reset/auditoría atómicos y prueba de login/acceso HTTPS. CI final 40213743976 correcto; falta el JSON de ejecución remota. No confundir contraseña web con contraseña SQL ni volver a ejecutar bootstrap para recuperarla.
+
 ## Al cerrar cada sesión
 
 - Actualizar `ESTADO.md`: terminado, en curso, siguiente paso, bloqueos y rama/PR.
