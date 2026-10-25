@@ -60,3 +60,16 @@ ssh -t root@194.238.26.70 \
 ```
 
 No envolver el último SSH en un heredoc sin reenviar `/dev/tty`: la interacción privada SQL necesita la terminal. Revisar JSON final y ruta del backup; después entrar a la aplicación y validar login/configuración. El actualizador no requiere reiniciar Nginx, SQL ni otras aplicaciones.
+
+## Reanudación del intento SQL revisado
+
+Después del diagnóstico que confirmó cinco migraciones, cero pedidos y la versión anterior saludable, `20261025-resume5` permite reutilizar los releases preparados exclusivamente con el snapshot revisado. La comprobación no supone que metadatos null de la cuenta habitual signifiquen ausencia: una identidad SQL con VIEW DEFINITION debe confirmar el esquema previo exacto antes de preparar archivos o detener el servicio.
+
+El programa valida bytes/permisos/conjunto completo de staging frente al ZIP/configuración conservada y contrasta snapshot, enlaces y unidad anterior. Conserva y verifica el primer respaldo, crea otro independiente tras la parada y revalida antes de migrar. No cambia staging ni aplica una restauración de SQL. Las opciones `-I` y SET explícitas se mantienen para los índices filtrados. Los errores e interrupciones conservan la recuperación de releases bajo el mismo lock; un resultado satisfactorio requiere nueve migraciones y salud/proceso/frontend verificados.
+
+```bash
+ssh -t root@194.238.26.70 \
+  'python3 /root/PRODIMT_Actualizar_I04.py --package /root/PRODIMT_I04_Nativo_20261024.zip --resume-from /var/backups/prodimt-pedidos/i04-20261025T142158Z-11ceb110bb44 --apply'
+```
+
+Usar el script actualizado distribuido tras validar la revisión. Omitir `--apply` conserva el plan de lectura; omitir `--resume-from` mantiene el rechazo normal de staging ya existente. Esta reanudación no es una autorización genérica para otros fallos o historiales.

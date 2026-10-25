@@ -29,7 +29,7 @@ import uuid
 import warnings
 import zipfile
 
-UPDATER_REVISION = '20261025-sql4-protocol'
+UPDATER_REVISION = '20261025-resume5'
 EXPECTED_PACKAGE_SHA = '43520c99c4906603fc3613e46ebdac9a460f02c78193511f3dae3bcff34bdf32'
 SOURCE_COMMIT = 'b630072ce67a691c3757d0590cc7f7d45f423d52'
 PACKAGE_ROOT = 'prodimt-i04-nativo/'
@@ -39,6 +39,8 @@ ENV_FILE = Path('/etc/prodimt-pedidos/api.env')
 LOCK = Path('/run/lock/prodimt-pedidos-i04.lock')
 PRIVATE_ROOT = Path('/var/backups/prodimt-pedidos')
 SQL_BACKUP_ROOT = Path('/var/opt/mssql/backup')
+RECOVERY_SOURCE = PRIVATE_ROOT / 'i04-20261025T142158Z-11ceb110bb44'
+RECOVERY_BACKUP = SQL_BACKUP_ROOT / 'prodimt-i04-20261025T142158Z-11ceb110bb44/ProdimtPedidos-copy-only.bak'
 RELEASE = '20261024-i04-b630072'
 OLD_BACKEND = ROOT / 'backend/releases/20260528151723-492bbe9'
 OLD_FRONTEND = ROOT / 'frontend/releases/20260529120920-frontend-api-relative'
@@ -68,6 +70,42 @@ DML_QUERY = """SELECT
  HAS_PERMS_BY_NAME('dbo.OrderChangeNotices','OBJECT','INSERT') AS notices_insert,
  HAS_PERMS_BY_NAME('dbo.OrderChangeNotices','OBJECT','UPDATE') AS notices_update,
  HAS_PERMS_BY_NAME('dbo.OrderChangeNotices','OBJECT','DELETE') AS notices_delete
+ FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;"""
+RESUME_SCHEMA_BASELINE_QUERY = """SELECT DB_NAME() AS database_name,
+ HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','VIEW DEFINITION') AS can_view_database_definition,
+ (SELECT COUNT_BIG(*) FROM dbo.Orders) AS orders_count,
+ (SELECT COUNT(*) FROM (VALUES (N'Customers'),(N'Machines'),(N'Products'),(N'SalesChannels'),(N'CustomerMachineAssignments'),(N'CustomerFrequentProducts'),(N'Orders'),(N'OrderLines'),(N'OrderAuditLogs'),(N'AdminUsers'),(N'CustomerAccessTokens'),(N'AuditLogs'),(N'__EFMigrationsHistory')) v(t)
+  JOIN sys.tables t ON t.schema_id=SCHEMA_ID(N'dbo') AND t.name=v.t) AS core_tables,
+ (SELECT COUNT(*) FROM (VALUES
+  (N'Products',N'UnitCode'),
+  (N'Orders',N'CustomerNameSnapshot'),(N'Orders',N'HasStoreKey'),(N'Orders',N'InternalDeliveryInstructions'),(N'Orders',N'OrderingProfileVersion'),(N'Orders',N'PaymentTermCode'),(N'Orders',N'RouteCode'),(N'Orders',N'RouteStopOrder'),(N'Orders',N'Version'),
+  (N'OrderLines',N'ProductNameSnapshot'),(N'OrderLines',N'UnitCode'),
+  (N'Customers',N'HasStoreKey'),(N'Customers',N'InternalDeliveryInstructions'),(N'Customers',N'IsOrderProfileApproved'),(N'Customers',N'OrderingProfileVersion'),(N'Customers',N'PaymentTermCode'),(N'Customers',N'RouteCode'),(N'Customers',N'RouteStopOrder'),
+  (N'CustomerFrequentProducts',N'InterpretationPosition'),(N'CustomerFrequentProducts',N'PreferredMachineId'),
+  (N'Orders',N'ExternalOrderKey'),(N'Orders',N'Source'),(N'Orders',N'SourcePayloadHash')) v(t,c)
+  JOIN sys.tables t ON t.schema_id=SCHEMA_ID(N'dbo') AND t.name=v.t
+  JOIN sys.columns c ON c.object_id=t.object_id AND c.name=v.c) AS new_columns,
+ (SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN (N'OrderOperations',N'OrderChangeNotices')) AS new_tables,
+ (SELECT COUNT(*) FROM (VALUES
+  (N'Customers',N'IX_Customers_RouteCode_RouteStopOrder'),
+  (N'CustomerFrequentProducts',N'IX_CustomerFrequentProducts_CustomerId_InterpretationPosition'),
+  (N'CustomerFrequentProducts',N'IX_CustomerFrequentProducts_PreferredMachineId'),
+  (N'Orders',N'IX_Orders_Source_ExternalOrderKey'),
+  (N'OrderChangeNotices',N'IX_OrderChangeNotices_OrderId_OrderVersion_MachineId'),
+  (N'OrderChangeNotices',N'IX_OrderChangeNotices_ServiceDate_MachineId_AcknowledgedAt')) v(t,i)
+  JOIN sys.tables t ON t.schema_id=SCHEMA_ID(N'dbo') AND t.name=v.t
+  JOIN sys.indexes i ON i.object_id=t.object_id AND i.name=v.i) AS new_indexes,
+ (SELECT COUNT(*) FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'dbo.CustomerFrequentProducts') AND name=N'FK_CustomerFrequentProducts_Machines_PreferredMachineId') AS new_foreign_keys,
+ (SELECT COUNT(*) FROM sys.indexes i
+  WHERE i.object_id=OBJECT_ID(N'dbo.Orders') AND i.name=N'IX_Orders_CustomerId_OrderDate_SequenceNumber'
+   AND i.is_unique=0 AND i.has_filter=0 AND i.filter_definition IS NULL AND i.type=2 AND i.is_disabled=0 AND i.is_hypothetical=0
+   AND (SELECT COUNT(*) FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id AND ic.key_ordinal>0)=3
+   AND NOT EXISTS (SELECT 1 FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id AND ic.is_included_column=1)
+   AND (SELECT COUNT(*) FROM sys.index_columns ic
+    JOIN (VALUES (1,N'CustomerId'),(2,N'OrderDate'),(3,N'SequenceNumber')) v(n,c)
+      ON ic.key_ordinal=v.n AND COL_NAME(ic.object_id,ic.column_id)=v.c AND ic.is_descending_key=0
+    WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id)=3) AS original_order_index,
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.OrderAuditLogs') AND name=N'MetadataJson' AND system_type_id=231 AND max_length=4000 AND is_nullable=1) AS original_audit_metadata
  FOR JSON PATH, WITHOUT_ARRAY_WRAPPER;"""
 
 
@@ -325,6 +363,36 @@ def exclusive_write(path, data, mode=0o600):
     os.chmod(path, mode)
 
 
+def checked_regular_bytes(path, *, uid=0, gid=0, mode=0o600, limit=1024 * 1024):
+    """Read a reviewed file without following links or accepting shared inodes."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'rb') as stream:
+            st = os.fstat(stream.fileno())
+            require(stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and st.st_uid == uid and st.st_gid == gid and
+                    st.st_mode & 0o7777 == mode and st.st_size <= limit, 'resume_file_metadata_unexpected')
+            data = stream.read(limit + 1)
+            require(len(data) <= limit, 'resume_file_too_large')
+            return data
+    except OSError:
+        raise UpdateError('resume_file_unreadable') from None
+
+
+def unit_restart_signature(values):
+    """Ignore process-specific ExecStart timestamps/PID after the old restart."""
+    require(isinstance(values, dict), 'resume_unit_snapshot_invalid')
+    match = re.search(r'argv\[\]=(.*?)\s*;\s*ignore_errors=', values.get('ExecStart', ''))
+    executable = re.search(r'(?:^|[;{])\s*path=(.*?)\s*;', values.get('ExecStart', ''))
+    ignore_errors = re.search(r'\bignore_errors=(yes|no)\s*[;}]', values.get('ExecStart', ''))
+    require(match is not None and executable is not None and ignore_errors is not None, 'resume_unit_snapshot_invalid')
+    try:
+        argv = shlex.split(match[1])
+    except ValueError:
+        raise UpdateError('resume_unit_snapshot_invalid') from None
+    return {**{key: value for key, value in values.items() if key not in ('MainPID', 'ExecStart')},
+            'ExecStartArguments': argv, 'ExecStartExecutable': executable[1], 'ExecStartIgnoreErrors': ignore_errors[1]}
+
+
 @contextmanager
 def own_lock():
     require(os.geteuid() == 0, 'apply_requires_root')
@@ -360,8 +428,12 @@ def interruption_guard(ignore=False):
 
 
 class Updater:
-    def __init__(self, package):
+    def __init__(self, package, resume_from=None):
         self.package_path = Path(package)
+        self.resume_from = Path(resume_from) if resume_from is not None else None
+        self.resume_source_fingerprint = None
+        self.resume_backup_fingerprint = None
+        self.mutations_started = False
         self.payload = None
         self.inspector = None
         self.snapshot = {}
@@ -519,13 +591,17 @@ class Updater:
         self.load_inspector()
         plain_owned_directory(ROOT.parent)
         self.structure = [structure_metadata(parent) for parent in structural_directories()]
+        if self.resume_from is not None:
+            require(all((entry['uid'], entry['gid'], entry['mode']) == (0, 33, 0o755) for entry in self.structure),
+                    'resume_structure_no_longer_secured')
         self.state['structure_adoption'] = [entry['path'] for entry in self.structure
                                            if (entry['uid'], entry['gid'], entry['mode']) != (0, 33, 0o755)]
         for part in ('backend', 'frontend'):
             current = ROOT / part / 'current'
             require(current.is_symlink() and current.resolve(strict=True) == self.old[part], 'current_release_unexpected')
             self.old_links[part] = os.readlink(current)
-            require(not self.new[part].exists() and not self.new[part].is_symlink(), 'new_release_already_exists')
+            if self.resume_from is None:
+                require(not self.new[part].exists() and not self.new[part].is_symlink(), 'new_release_already_exists')
         require(sha(read_file(OLD_BACKEND / 'Prodimt.Pedidos.Api.dll', 20 * 1024 * 1024)) == OLD_DLL_SHA, 'current_backend_hash_mismatch')
         require(shutil.disk_usage(ROOT).free >= 256 * 1024 * 1024, 'insufficient_release_disk_space')
         backup_st = plain_owned_directory(SQL_BACKUP_ROOT, uid=999)
@@ -550,6 +626,104 @@ class Updater:
         self.state.update(package_sha256=EXPECTED_PACKAGE_SHA, old_releases={k: str(v) for k, v in self.old.items()},
                           new_releases={k: str(v) for k, v in self.new.items()}, database=DATABASE,
                           migrations_before=5, migrations_expected=9, env_preserved=True)
+        if self.resume_from is not None:
+            self.verify_resume_source()
+            self.verify_staged_releases()
+            self.verify_previous_health()
+            self.state.pop('previous_application_health_verified', None)
+            self.state['resume_previous_health_verified'] = True
+
+    def resume_records(self):
+        require(self.resume_from == RECOVERY_SOURCE, 'resume_source_not_reviewed')
+        plain_owned_directory(PRIVATE_ROOT, private=True)
+        source = plain_owned_directory(self.resume_from, private=True)
+        require(source.st_gid == 0 and source.st_mode & 0o7777 == 0o700 and
+                self.resume_from.resolve(strict=True) == self.resume_from, 'resume_snapshot_directory_unexpected')
+        entries = list(self.resume_from.iterdir())
+        result_names = [path.name for path in entries if re.fullmatch(r'result-[a-f0-9]{8}\.json', path.name)]
+        require(len(result_names) == 1, 'resume_result_record_unexpected')
+        names = {'api.env', 'unit-private.json', 'old-links.json', 'structure-before.json',
+                 'migrations-idempotent.sql', 'database-backup.json', result_names[0]}
+        if self.state.get('configuration_override'):
+            names.add('configuration-override.json')
+        require({path.name for path in entries} == names, 'resume_snapshot_files_unexpected')
+        return {name: checked_regular_bytes(self.resume_from / name) for name in sorted(names)}, result_names[0]
+
+    def previous_backup_metadata(self):
+        parent = plain_owned_directory(RECOVERY_BACKUP.parent, uid=999, private=True)
+        require(parent.st_gid == 988 and parent.st_mode & 0o7777 == 0o700 and
+                RECOVERY_BACKUP.resolve(strict=True) == RECOVERY_BACKUP, 'resume_backup_directory_unexpected')
+        st = RECOVERY_BACKUP.lstat()
+        require(stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and st.st_uid == 999 and st.st_gid == 988 and
+                st.st_mode & 0o7777 == 0o600 and st.st_size == 4872704, 'resume_backup_metadata_unexpected')
+        return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_uid, st.st_gid, st.st_mode)
+
+    def verify_resume_source(self):
+        records, result_name = self.resume_records()
+        try:
+            previous = json.loads(records[result_name])
+            backup = json.loads(records['database-backup.json'])
+            links = json.loads(records['old-links.json'])
+            unit = json.loads(records['unit-private.json'])
+            override = json.loads(records['configuration-override.json']) if 'configuration-override.json' in records else None
+        except (ValueError, UnicodeError):
+            raise UpdateError('resume_snapshot_json_invalid') from None
+        expected = {'updater_revision': '20261025-tty3', 'mode': 'apply', 'status': 'failed',
+                    'phase': 'database-migrations', 'issue': 'sql_operation_failed', 'migrations_may_have_changed': True,
+                    'database_automatically_restored': False, 'changes_made': True,
+                    'package_sha256': EXPECTED_PACKAGE_SHA, 'database': DATABASE,
+                    'private_backup_directory': str(RECOVERY_SOURCE), 'verified_database_backup': str(RECOVERY_BACKUP),
+                    'old_releases': {k: str(v) for k, v in self.old.items()},
+                    'new_releases': {k: str(v) for k, v in self.new.items()},
+                    'migrations_before': 5, 'migrations_expected': 9, 'env_preserved': True,
+                    'structure_adopted': True, 'rollback_errors': [], 'stop_completed': True,
+                    'restore_links_completed': True, 'start_previous_completed': True,
+                    'previous_application_health_verified': True, 'previous_release_start_requested': True}
+        require(isinstance(previous, dict) and all(type(previous.get(key)) is type(value) and previous[key] == value
+                                                 for key, value in expected.items()), 'resume_previous_result_unexpected')
+        require(backup == {'path': str(RECOVERY_BACKUP), 'bytes': 4872704, 'copy_only': True,
+                           'checksum': True, 'verifyonly_completed': True}, 'resume_backup_record_unexpected')
+        require(records['api.env'] == self.env_bytes and links == self.old_links, 'resume_original_configuration_changed')
+        require(unit_restart_signature(unit) == unit_restart_signature(self.unit_values), 'resume_service_configuration_changed')
+        require(records['migrations-idempotent.sql'] == self.payload['files']['migrations-idempotent.sql'], 'resume_migration_payload_changed')
+        require(override == self.state.get('configuration_override') == previous.get('configuration_override'),
+                'resume_configuration_override_changed')
+        fingerprint = {name: sha(data) for name, data in records.items()}
+        backup_fingerprint = self.previous_backup_metadata()
+        if self.resume_source_fingerprint is not None:
+            require(fingerprint == self.resume_source_fingerprint and backup_fingerprint == self.resume_backup_fingerprint,
+                    'resume_source_changed_during_update')
+        self.resume_source_fingerprint = fingerprint
+        self.resume_backup_fingerprint = backup_fingerprint
+        require(self.private_dir != RECOVERY_SOURCE and self.backup_file != RECOVERY_BACKUP,
+                'resume_new_backup_not_distinct')
+        self.state.update(resume_from=str(RECOVERY_SOURCE), previous_verified_database_backup=str(RECOVERY_BACKUP),
+                          resume_source_verified=True)
+
+    def verify_staged_releases(self):
+        for part, root in self.new.items():
+            require(root.resolve(strict=True) == root, 'resume_staged_path_not_canonical')
+            expected_files = {name[len(part) + 1:]: self.config_overrides.get(name, data)
+                              for name, data in self.payload['files'].items() if name.startswith(part + '/')}
+            expected_dirs = {'.'}
+            for name in expected_files:
+                expected_dirs.update(str(parent) for parent in PurePosixPath(name).parents)
+            found_files, found_dirs = set(), {'.'}
+            for path in [root, *root.rglob('*')]:
+                st = path.lstat()
+                relative = str(path.relative_to(root))
+                require(st.st_uid == 0 and st.st_gid == 0 and path.resolve(strict=True) == path,
+                        'resume_staged_owner_or_path_unexpected')
+                if stat.S_ISDIR(st.st_mode):
+                    require(st.st_mode & 0o7777 == 0o755, 'resume_staged_directory_mode_unexpected')
+                    found_dirs.add(relative)
+                else:
+                    require(relative in expected_files, 'resume_staged_file_set_unexpected')
+                    data = checked_regular_bytes(path, mode=0o644, limit=20 * 1024 * 1024)
+                    require(data == expected_files[relative], 'resume_staged_file_changed')
+                    found_files.add(relative)
+            require(found_files == set(expected_files) and found_dirs == expected_dirs, 'resume_staged_file_set_unexpected')
+        self.state['staged_releases_verified'] = True
 
     def prompt_admin(self):
         try:
@@ -596,6 +770,31 @@ class Updater:
         require(data.get('sysadmin') == 1 or (data.get('db_owner') == 1 and data.get('backup_permission') == 1 and
                 (data.get('verify_permission') == 1 or data.get('dbcreator') == 1)), 'sql_admin_permissions_insufficient')
 
+    def verify_resume_schema_baseline(self, credentials):
+        rows = self.sql_json(credentials, self.inspector.SQL_MIGRATIONS)
+        if not isinstance(rows, list) or rows != [{'MigrationId': value} for value in MIGRATIONS[:5]]:
+            self.state.update(resume_administrative_schema_verified=False, resume_schema_failed_checks=['migration_history'])
+            raise UpdateError('resume_database_history_unexpected')
+        data = self.sql_json(credentials, RESUME_SCHEMA_BASELINE_QUERY)
+        expected = {'database_name': DATABASE, 'can_view_database_definition': 1, 'orders_count': 0,
+                    'core_tables': 13, 'new_columns': 0, 'new_tables': 0, 'new_indexes': 0,
+                    'new_foreign_keys': 0, 'original_order_index': 1, 'original_audit_metadata': 1}
+        failed = ['metadata'] if not isinstance(data, dict) else [key for key, value in expected.items()
+                      if type(data.get(key)) is not type(value) or data[key] != value]
+        if isinstance(data, dict) and set(data) != set(expected):
+            failed.append('field_set')
+        if failed:
+            self.state.update(resume_administrative_schema_verified=False, resume_schema_failed_checks=failed)
+            raise UpdateError('resume_database_schema_baseline_unexpected')
+        self.state.pop('resume_schema_failed_checks', None)
+        self.state['resume_administrative_schema_verified'] = True
+
+    def verify_previous_backup(self, credentials):
+        self.verify_resume_source()
+        self.sql_run(credentials, query="RESTORE VERIFYONLY FROM DISK=N'" + str(RECOVERY_BACKUP) + "' WITH CHECKSUM;", timeout=300)
+        self.verify_resume_source()
+        self.state['previous_database_backup_reverified'] = True
+
     def unchanged_before_stop(self):
         require(sha(read_file(ENV_FILE)) == self.snapshot['env_sha256'], 'environment_file_changed_during_update')
         current = self.systemd_values()
@@ -605,6 +804,9 @@ class Updater:
         for part in ('backend', 'frontend'):
             require((ROOT / part / 'current').is_symlink() and (ROOT / part / 'current').resolve(strict=True) == self.old[part], 'current_release_changed_during_update')
         require(sha(read_file(OLD_BACKEND / 'Prodimt.Pedidos.Api.dll', 20 * 1024 * 1024)) == OLD_DLL_SHA, 'current_backend_changed_during_update')
+        if self.resume_from is not None:
+            self.verify_resume_source()
+            self.verify_staged_releases()
 
     def stage(self):
         for part in ('backend', 'frontend'):
@@ -649,6 +851,8 @@ class Updater:
             secure_create_directory(PRIVATE_ROOT)
         plain_owned_directory(PRIVATE_ROOT, private=True)
         secure_create_directory(self.private_dir)
+        self.mutations_started = True
+        self.state['private_backup_directory'] = str(self.private_dir)
         exclusive_write(self.private_dir / 'api.env', self.env_bytes)
         # Unit properties may contain secrets: this snapshot is never printed.
         exclusive_write(self.private_dir / 'unit-private.json', json.dumps(self.unit_values, ensure_ascii=False).encode())
@@ -657,7 +861,6 @@ class Updater:
         if self.state.get('configuration_override'):
             exclusive_write(self.private_dir / 'configuration-override.json', json.dumps(self.state['configuration_override'], indent=2).encode())
         exclusive_write(self.private_dir / 'migrations-idempotent.sql', self.payload['files']['migrations-idempotent.sql'])
-        self.state['private_backup_directory'] = str(self.private_dir)
 
     def stop(self):
         code, _ = command(['systemctl', 'stop', SERVICE], timeout=45)
@@ -674,6 +877,8 @@ class Updater:
 
     def backup_database(self, credentials):
         self.preflight_admin(credentials)  # Recheck the 0-order baseline after writes have stopped.
+        if self.resume_from is not None:
+            self.verify_resume_schema_baseline(credentials)
         secure_create_directory(self.sql_backup_dir, uid=999, gid=988)
         path = str(self.backup_file)
         require(re.fullmatch(r'/var/opt/mssql/backup/prodimt-i04-[A-Za-z0-9-]+/ProdimtPedidos-copy-only\.bak', path) is not None, 'backup_path_unexpected')
@@ -844,11 +1049,15 @@ class Updater:
             self.stage_name('admin-authentication')
             credentials = self.prompt_admin()
             self.preflight_admin(credentials)
+            if self.resume_from is not None:
+                self.verify_resume_schema_baseline(credentials)
+                self.verify_previous_backup(credentials)
             self.stage_name('prepare-private-backup-and-owned-directories')
             self.save_private_backup()
-            self.adopt_structure()
-            self.stage_name('stage-releases')
-            self.stage()
+            if self.resume_from is None:
+                self.adopt_structure()
+                self.stage_name('stage-releases')
+                self.stage()
             self.unchanged_before_stop()
             self.stage_name('stop-prodimt-api')
             stopped = True  # A failed stop can still have stopped the process.
@@ -856,9 +1065,14 @@ class Updater:
             self.stage_name('database-backup-and-verification')
             self.backup_database(credentials)
             self.stage_name('database-migrations')
+            if self.resume_from is not None:
+                self.verify_resume_schema_baseline(credentials)
+                self.verify_staged_releases()
             self.state['migrations_may_have_changed'] = True
             self.migrate(credentials)
             self.verify_history(credentials)
+            if self.resume_from is not None:
+                self.verify_staged_releases()
             self.stage_name('activate-releases')
             self.switch_links()
             self.start()
@@ -869,7 +1083,8 @@ class Updater:
         except (Exception, KeyboardInterrupt) as exc:
             self.state['issue'] = str(exc) if isinstance(exc, UpdateError) else 'update_step_failed'
             self.state['status'] = 'failed' if apply else 'blocked'
-            self.state['changes_made'] = bool(apply and self.state.get('phase') not in ('read-only-preflight', 'admin-authentication'))
+            self.state['changes_made'] = bool(apply and (self.mutations_started if self.resume_from is not None else
+                                             self.state.get('phase') not in ('read-only-preflight', 'admin-authentication')))
             if stopped:
                 self.state['rollback_errors'] = []
                 with interruption_guard(ignore=True):
@@ -898,9 +1113,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', required=True, help='Exact previously delivered PRODIMT_I04_Nativo_20261024.zip')
     parser.add_argument('--apply', action='store_true', help='Apply after private interactive SQL administrator authentication')
+    parser.add_argument('--resume-from', help='Resume only the reviewed failed attempt after verifying its private snapshot')
     args = parser.parse_args()
     try:
-        result = Updater(args.package).run(apply=args.apply)
+        result = Updater(args.package, resume_from=args.resume_from).run(apply=args.apply)
     except Exception:
         result = {'status': 'failed', 'issue': 'native_update_unavailable', 'database_automatically_restored': False}
     print(json.dumps(result, ensure_ascii=False, indent=2))

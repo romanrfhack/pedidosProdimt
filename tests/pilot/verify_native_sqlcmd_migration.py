@@ -75,6 +75,7 @@ def main():
     updater.sql_tool = SQLCMD
     credentials = update.Credentials('sa', password)
     last_result = {}
+    restricted_metadata = False
 
     def container_command(args, *, env=None, timeout=30, input_text=None):
         require(args[0] == SQLCMD and '-b' in args and '-x' in args, 'sqlcmd_protocol_unexpected')
@@ -85,6 +86,14 @@ def main():
         require(env['SQLCMDUSER'] == 'sa' and env['SQLCMDPASSWORD'] == password,
                 'sqlcmd_test_identity_unexpected')
         require(password not in '\0'.join(args), 'sqlcmd_password_in_arguments')
+        if restricted_metadata:
+            # Use real database impersonation to exercise metadata permissions,
+            # rather than faking a response for the baseline guard.
+            require('-Q' in args and input_text is None, 'restricted_probe_must_be_query_only')
+            args = list(args)
+            query_position = args.index('-Q') + 1
+            args[query_position] = ("EXECUTE AS USER=N'native_resume_reader';\n" +
+                                    args[query_position] + '\nREVERT;')
         transport = ['/usr/bin/docker', 'exec', '--interactive',
                      '--env', 'SQLCMDUSER', '--env', 'SQLCMDPASSWORD', CONTAINER, *args]
         result = subprocess.run(transport, input=input_text, capture_output=True, text=True,
@@ -130,6 +139,58 @@ def main():
         updater.migrate(credentials)
         rows = updater.sql_json(credentials, inventory.SQL_MIGRATIONS)
         require([row.get('MigrationId') for row in rows] == update.MIGRATIONS[:5], 'five_migration_baseline_failed')
+
+        # Reusing staged releases is allowed only after an administrator proves
+        # that no unrecorded migration DDL remains. Exercise that exact guard
+        # against real catalog metadata and the original five-migration schema.
+        def baseline_rejected(expected_issue, kind):
+            try:
+                updater.verify_resume_schema_baseline(credentials)
+            except update.UpdateError as error:
+                require(str(error) == expected_issue, 'resume_baseline_wrong_rejection_' + kind)
+            else:
+                raise FixtureFailure('resume_baseline_accepted_' + kind)
+
+        updater.verify_resume_schema_baseline(credentials)
+        # Reproduce the user's exact transition through the original native
+        # script protocol. sqlcmd abort/disconnect must roll back all DDL in
+        # the first new migration, including its earlier DROP INDEX/ADD COLUMN.
+        code, _ = container_command(negative_args, env=env, input_text=(
+            'SET NOCOUNT ON;\nSET XACT_ABORT ON;\nSET LOCK_TIMEOUT 10000;\nGO\n' +
+            full_script.decode('utf-8-sig')))
+        diagnostics = last_result['stdout'] + '\n' + last_result['stderr']
+        require(code != 0 and re.search(r'\b1934\b', diagnostics) is not None,
+                'original_native_upgrade_did_not_reproduce_1934')
+        updater.verify_resume_schema_baseline(credentials)
+
+        for kind, inject, restore in (
+            ('partial_column',
+             'ALTER TABLE dbo.Products ADD UnitCode nvarchar(16) NULL;',
+             'ALTER TABLE dbo.Products DROP COLUMN UnitCode;'),
+            ('missing_old_index',
+             'DROP INDEX IX_Orders_CustomerId_OrderDate_SequenceNumber ON dbo.Orders;',
+             'CREATE INDEX IX_Orders_CustomerId_OrderDate_SequenceNumber ON dbo.Orders '
+             '(CustomerId,OrderDate,SequenceNumber);'),
+            ('altered_audit_column',
+             'ALTER TABLE dbo.OrderAuditLogs ALTER COLUMN MetadataJson nvarchar(max) NULL;',
+             'ALTER TABLE dbo.OrderAuditLogs ALTER COLUMN MetadataJson nvarchar(2000) NULL;'),
+        ):
+            updater.sql_run(credentials, query=inject)
+            try:
+                baseline_rejected('resume_database_schema_baseline_unexpected', kind)
+            finally:
+                updater.sql_run(credentials, query=restore)
+            updater.verify_resume_schema_baseline(credentials)
+
+        updater.sql_run(credentials, query="""CREATE USER [native_resume_reader] WITHOUT LOGIN;
+          GRANT SELECT ON SCHEMA::dbo TO [native_resume_reader];""")
+        restricted_metadata = True
+        try:
+            baseline_rejected('resume_database_schema_baseline_unexpected', 'restricted_metadata')
+        finally:
+            restricted_metadata = False
+        updater.verify_resume_schema_baseline(credentials)
+
         updater.sql_run(credentials, query="""INSERT INTO dbo.Customers
           (Id,Name,PhoneNumber,IsActive,CreatedAt,UpdatedAt,ExternalCode)
           VALUES ('9ef84f64-8ff4-4a47-a114-ce22ea244589',N'Synthetic native CLI customer',N'5550000000',0,
@@ -146,6 +207,8 @@ def main():
             require('-I' in last_result['args'], 'fixed_native_command_missing_I')
             rows = updater.sql_json(credentials, inventory.SQL_MIGRATIONS)
             require([row.get('MigrationId') for row in rows] == update.MIGRATIONS, 'nine_migration_upgrade_failed')
+
+        baseline_rejected('resume_database_history_unexpected', 'already_upgraded_history')
 
         result = updater.sql_json(credentials, """SELECT
           (SELECT COUNT(*) FROM dbo.Customers WHERE ExternalCode=N'SYNTHETIC-NATIVE-CLI'
@@ -171,7 +234,9 @@ def main():
         credentials.password = ''
         password = ''
     print('Native ODBC sqlcmd migration contract passed: default QI OFF/error 1934; fixed 5-to-9 upgrade, '
-          'required session options, repeat and preserved synthetic data.')
+          'required session options, repeat and preserved synthetic data; resume baseline rejects '
+          'partial DDL, restricted metadata and already-upgraded history; original failed script '
+          'rolls back to the complete five-migration baseline.')
 
 
 if __name__ == '__main__':
