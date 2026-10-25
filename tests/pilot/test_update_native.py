@@ -358,7 +358,7 @@ class NativeLifecycleTests(unittest.TestCase):
         report, events = self.execute(apply=False)
         self.assertEqual(['readonly_preflight'], events)
         self.assertEqual('ready', report['status'])
-        self.assertEqual('20261025-tty3', report['updater_revision'])
+        self.assertEqual('20261025-sql4-protocol', report['updater_revision'])
         self.assertFalse(report['changes_made'])
         self.assertFalse(report['migrations_may_have_changed'])
 
@@ -618,6 +618,7 @@ class NativeSqlAndFilesystemTests(unittest.TestCase):
         self.assertNotIn('-h', args)
         self.assertNotIn('-W', args)
         self.assertIn('-x', args)
+        self.assertIn('-I', args)
         self.assertEqual(update.SERVER, args[args.index('-S') + 1])
         self.assertEqual(update.DATABASE, args[args.index('-d') + 1])
         self.assertEqual(set(update.CLEAN_ENV) | {'SQLCMDUSER', 'SQLCMDPASSWORD'}, set(env))
@@ -633,6 +634,19 @@ class NativeSqlAndFilesystemTests(unittest.TestCase):
             with self.assertRaises(update.UpdateError) as error:
                 updater.sql_run(update.Credentials('fictional_admin', SECRET), query='SELECT 1;')
         self.assertNotIn(SECRET, str(error.exception))
+
+    def test_sql_failure_retains_only_numeric_headers_without_message_or_credentials(self):
+        updater = update.Updater('/not-read/mock-package.zip')
+        updater.inspector = types.SimpleNamespace(SQL_TOOLS=('/opt/mssql-tools/bin/sqlcmd',))
+        updater.sql_tool = updater.inspector.SQL_TOOLS[0]
+        raw = ('Msg 1934, Level 16, State 1, Server private-host, Line 22\n'
+               + SECRET + '\nMsg 1934, Level 16, State 1, Server private-host, Line 23\n')
+        with patch.object(update, 'command', return_value=(1, raw)):
+            with self.assertRaisesRegex(update.UpdateError, '^sql_operation_failed$'):
+                updater.sql_run(update.Credentials('fictional_admin', SECRET), script='SELECT 1;')
+        self.assertEqual({'exit_code': 1, 'error_numbers': [1934]}, updater.state['sql_failure'])
+        self.assertNotIn(SECRET, json.dumps(updater.state))
+        self.assertNotIn('private-host', json.dumps(updater.state))
 
     def test_partial_link_switch_can_restore_both_original_targets(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(update, 'ROOT', Path(directory)):

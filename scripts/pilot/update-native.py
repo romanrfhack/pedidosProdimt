@@ -29,7 +29,7 @@ import uuid
 import warnings
 import zipfile
 
-UPDATER_REVISION = '20261025-tty3'
+UPDATER_REVISION = '20261025-sql4-protocol'
 EXPECTED_PACKAGE_SHA = '43520c99c4906603fc3613e46ebdac9a460f02c78193511f3dae3bcff34bdf32'
 SOURCE_COMMIT = 'b630072ce67a691c3757d0590cc7f7d45f423d52'
 PACKAGE_ROOT = 'prodimt-i04-nativo/'
@@ -569,11 +569,18 @@ class Updater:
         require(self.sql_tool in self.inspector.SQL_TOOLS, 'sqlcmd_path_unexpected')
         require(isinstance(credentials, Credentials) and credentials.login and credentials.password, 'sql_credentials_missing')
         env = dict(CLEAN_ENV, SQLCMDUSER=credentials.login, SQLCMDPASSWORD=credentials.password)
-        args = [self.sql_tool, '-S', SERVER, '-d', DATABASE, '-C', '-b', '-l', '5', '-t', str(max(10, timeout - 5)), '-x']
+        args = [self.sql_tool, '-S', SERVER, '-d', DATABASE, '-C', '-I', '-b', '-l', '5', '-t', str(max(10, timeout - 5)), '-x']
         if query is not None:
             args += ['-y', '0', '-w', '65535', '-Q', 'SET NOCOUNT ON; SET LOCK_TIMEOUT 10000; ' + query]
         code, output = command(args, env=env, timeout=timeout, input_text=script)
-        require(code == 0, 'sql_operation_failed')
+        if code != 0:
+            # Preserve only numeric SQL headers, never message text or credentials.
+            self.state['sql_failure'] = {
+                'exit_code': code,
+                'error_numbers': sorted({int(number) for number in re.findall(
+                    r'(?m)^\s*Msg ([1-9][0-9]{0,5}), Level [0-9]{1,2}, State [0-9]{1,3},', output)})[:10],
+            }
+            raise UpdateError('sql_operation_failed')
         return output
 
     def sql_json(self, credentials, query):
@@ -680,7 +687,13 @@ class Updater:
 
     def migrate(self, credentials):
         script = self.payload['files']['migrations-idempotent.sql'].decode('utf-8-sig')
-        self.sql_run(credentials, script='SET NOCOUNT ON;\nSET XACT_ABORT ON;\nSET LOCK_TIMEOUT 10000;\nGO\n' + script, timeout=300)
+        # Filtered indexes require these session options. SqlClient and ODBC
+        # sqlcmd have different defaults; make the actual CLI path explicit.
+        prologue = ('SET NOCOUNT ON;\nSET XACT_ABORT ON;\nSET LOCK_TIMEOUT 10000;\n'
+                    'SET ANSI_NULLS ON;\nSET ANSI_PADDING ON;\nSET ANSI_WARNINGS ON;\n'
+                    'SET ARITHABORT ON;\nSET CONCAT_NULL_YIELDS_NULL ON;\n'
+                    'SET QUOTED_IDENTIFIER ON;\nSET NUMERIC_ROUNDABORT OFF;\nGO\n')
+        self.sql_run(credentials, script=prologue + script, timeout=300)
 
     def verify_history(self, credentials):
         rows = self.sql_json(credentials, self.inspector.SQL_MIGRATIONS)

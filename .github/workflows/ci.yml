@@ -95,6 +95,14 @@ jobs:
         run: dotnet restore tests/Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj --disable-parallel -m:1 -nr:false
       - name: Test migrations, durable retries, rollback and corrections on SQL Server
         run: dotnet test tests/Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj --configuration Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false --logger 'console;verbosity=normal'
+      - name: Verify native migration scripts with actual ODBC sqlcmd
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool restore
+          dotnet tool run dotnet-ef migrations script 0 20260528131416_AddCatalogExternalCodesAndImportSupport --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-baseline.sql"
+          dotnet tool run dotnet-ef migrations script --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-migrations.sql"
+          python3 tests/pilot/verify_native_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-baseline.sql" --script "$RUNNER_TEMP/native-cli-migrations.sql"
       - name: Remove disposable SQL Server
         if: always()
         run: docker rm --force prodimt-i02-sqlserver || true
