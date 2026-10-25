@@ -231,30 +231,42 @@ def main():
         # web account, atomically with audit, while preserving the old inactive
         # administrator and the rest of this synthetic database.
         recovery = load_module('native_admin_reset_fixture', root / 'scripts/pilot/reset-native-admin.py')
+        recovery.SERVER = 'localhost'
         recovery.DATABASE = target
         recovery_user = 'synthetic-recovery-admin'
+        resetter = recovery.Recovery(recovery_user)
+        resetter.sql_tool = SQLCMD
+        resetter.sql_login = credentials.login
+        resetter.sql_password = credentials.password
+
+        def reset_container_command(args, *, data=None, env=None, timeout=25):
+            code, output = container_command(args, env=env, timeout=timeout, input_text=data)
+            return subprocess.CompletedProcess(args, code, output, last_result['stderr'])
+
+        # Keep the recovery tool's own stdin, output-width, -I/-x and clean-env
+        # protocol; only translate its process boundary into the CI container.
+        recovery.command = reset_container_command
         updater.sql_run(credentials, query="""INSERT INTO dbo.AdminUsers
           (Id,UserName,PasswordHash,DisplayName,IsActive,CreatedAt) VALUES
           ('91c8c3c3-319a-4bed-8dd9-d4118deef85f',N'synthetic-recovery-admin',
           N'fictional-prior-recovery-hash',N'Fictional recovery display',1,'2026-10-24T12:00:00+00:00');""")
 
         def account_snapshot():
-            output = updater.sql_run(credentials, script=recovery.OPTIONS + recovery.snapshot_sql(recovery_user))
-            return recovery.validate_snapshot(recovery.parse_json(output), recovery_user)
+            return recovery.validate_snapshot(resetter.sql(recovery.snapshot_sql(recovery_user)), recovery_user)
 
         before = account_snapshot()
         new_hash = recovery.identity_hash('Fictional recovery password ñ 2026!')
         operation = str(uuid.uuid4())
-        output = updater.sql_run(credentials, script=recovery.OPTIONS + recovery.reset_sql(before, new_hash, operation))
-        require(recovery.parse_json(output) == {'password_reset': 1, 'audit_recorded': 1}, 'reset_receipt_failed')
+        receipt = resetter.sql(recovery.reset_sql(before, new_hash, operation))
+        require(receipt == {'password_reset': 1, 'audit_recorded': 1}, 'reset_receipt_failed')
         after = account_snapshot()
         require(after == dict(before, password_hash=new_hash), 'reset_changed_unrelated_account_fields')
 
         def reset_rejected(script, code, kind):
             try:
-                updater.sql_run(credentials, script=recovery.OPTIONS + script)
-            except update.UpdateError:
-                require(code in updater.state.get('sql_failure', {}).get('error_numbers', []),
+                resetter.sql(script)
+            except recovery.RecoveryError:
+                require(code in resetter.state.get('sql_error_numbers', []),
                         'reset_wrong_sql_failure_' + kind)
             else:
                 raise FixtureFailure('reset_accepted_' + kind)
