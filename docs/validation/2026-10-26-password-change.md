@@ -17,7 +17,7 @@ Código funcional `304a0cda39bacefa72f41533e99cb7beb22af11f`; [CI 40409593142](h
 
 Staging y archivos se contrastan completos antes de activar; enlaces se cambian bajo lock compartido y sólo se reinicia PRODIMT. Verifica proceso/DLL, base, protección del endpoint y bytes de HTML/JS/CSS por HTTPS. Recupera ambos enlaces y salud anterior si falla tras parar. No ejecuta DDL, restaura SQL, cambia Nginx ni cambia contraseñas automáticamente. 135 pruebas Python locales correctas, incluidas seis nuevas de empaquetado/guardas/reversión; graphify no disponible (127). La validación final del instalador y artefacto se registra abajo.
 
-La aplicación funcional está probada, pero I05 todavía no está instalado. La operación final de contraseña la hará el usuario desde la pantalla después de ejecutar la actualización nativa y volver a iniciar sesión. No repetir el script de alta: su referencia inicial se volverá obsoleta tras cambiar la contraseña.
+La aplicación funcional está probada e I05 quedó instalado según el resultado remoto registrado abajo. La operación final de contraseña la hará el usuario desde la pantalla después de volver a iniciar sesión. No repetir el script de alta: su referencia inicial se volverá obsoleta tras cambiar la contraseña.
 
 ## Cierre técnico y artefacto entregado
 
@@ -27,4 +27,17 @@ Artefacto `PRODIMT_Cambio_Contrasena_I05.zip`, 5,591,118 bytes; SHA256 `03a993f8
 
 Se verificaron checksums exteriores, manifiesto completo de 54 archivos mediante el instalador fijado, sourceCommit exacto y ejecución sin `--apply`: `status: planned`, `changes_made: false`. Compilación framework-dependent linux-x64 con SDK 10.0.403 y frontend Production con base API vacía. No se usaron datos ni contraseñas reales para pruebas o empaquetado.
 
-Pendiente: ejecución del usuario desde WSL, JSON `updated`/salud y cambio desde el navegador. No se ha conectado por SSH ni modificado el VPS desde este entorno. La cuenta actual sigue siendo la del alta verificada; no volver a ejecutar ese script después del cambio de contraseña.
+Pendiente: cambio desde el navegador e inicio con la nueva contraseña. La instalación ya fue ejecutada por el usuario desde WSL; no hubo SSH directo desde este entorno. La cuenta actual sigue siendo la del alta verificada; no volver a ejecutar ese script después del cambio de contraseña.
+
+## Resultado remoto recibido — 26 de octubre de 2026
+
+El usuario verificó el SHA256 exterior, extrajo el ZIP, verificó checksums interiores y ejecutó `PRODIMT_Instalar_I05.py --package /root/prodimt-password-payload.zip --apply` desde WSL/SSH. Resultado `20261026-password-install1`: `status: updated`, `phase: completed`, `changes_made: true`, `health_verified: true`.
+
+- Código activo `886bee7b2202b399ee063fe65d524b7f444e205c`.
+- Backend `/var/www/prodimt-pedidos/backend/releases/password-886bee7b2202`.
+- Frontend `/var/www/prodimt-pedidos/frontend/releases/password-886bee7b2202`.
+- Historial de nueve migraciones, I04 presente y permisos read_admin/update_admin/write_audit verificados; `database_migrations_run: false`.
+- Snapshot privado `/var/backups/prodimt-pedidos/password-update-20261026T231120Z-318fd2a6fc3f`.
+- `password_changed: false` esperado: instalar no rota credenciales. Falta que el usuario ejecute el cambio desde la pantalla y confirme el login posterior.
+
+El resultado acredita las verificaciones de salud del instalador, no todavía el uso del formulario por el usuario ni la carga privada/ensayo operativo. Se actualizan únicamente documentos; se conserva la evidencia técnica anterior sin repetir suites. PR en borrador y main sin fusión.
