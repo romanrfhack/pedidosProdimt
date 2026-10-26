@@ -295,6 +295,8 @@ def main():
 
         creator = load_module('native_generated_admin_fixture', root / 'scripts/pilot/create-native-admin.py')
         creator.USER = 'synthetic-generated-admin'
+        require(creator.baseline(recovery, resetter.sql(recovery.snapshot_sql(creator.USER))) == [],
+                'generated_admin_missing_user_baseline_invalid')
         generated = creator.new_record(recovery)
         for expected_created in (1, 0):
             receipt = resetter.sql(creator.creation_sql(recovery, generated))
@@ -318,7 +320,7 @@ def main():
         finally:
             updater.sql_run(credentials, query='DROP TRIGGER dbo.NativeCreationRejectAudit;')
         absent = resetter.sql(recovery.snapshot_sql(creator.USER))
-        require(absent['users'] == [], 'generated_admin_audit_failure_left_account')
+        require(creator.baseline(recovery, absent) == [], 'generated_admin_audit_failure_left_account')
         scope = updater.sql_json(credentials, """SELECT
           (SELECT COUNT(*) FROM dbo.AuditLogs WHERE EventType=N'AdminUserCreated'
             AND ActorType=2 AND MetadataJson LIKE N'%native-new-admin%') AS creations,

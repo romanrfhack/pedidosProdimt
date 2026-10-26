@@ -89,7 +89,11 @@ class NativeAdminCreationTests(unittest.TestCase):
 
     def test_baseline_rejects_wrong_database_and_duplicate_user(self):
         self.assertEqual([], creator.baseline(base, data([])))
-        for invalid in (dict(data([]), database_name='other'), dict(data([]), migrations_count=5), data([{}, {}])):
+        empty = data([])
+        del empty['users']
+        self.assertEqual([], creator.baseline(base, empty))
+        for invalid in (dict(data([]), database_name='other'), dict(data([]), migrations_count=5),
+                        dict(data([]), users=None), data([{}, {}])):
             with self.subTest(invalid=invalid), self.assertRaises(creator.CreationError):
                 creator.baseline(base, invalid)
 

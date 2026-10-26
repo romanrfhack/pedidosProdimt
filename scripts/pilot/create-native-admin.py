@@ -120,10 +120,13 @@ def stored_record(base):
 
 
 def baseline(base, data):
+    # SQL Server can omit the JSON_QUERY property when its subquery has no
+    # rows. The successful fixed query and schema checks distinguish this
+    # legitimate empty account result from a failed SQL/JSON response.
     require(isinstance(data, dict) and data.get('database_name') == base.DATABASE
             and data.get('migrations_count') == 9 and data.get('i04_migration_present') == 1
-            and isinstance(data.get('users'), list) and len(data['users']) <= 1, 'database_not_reviewed_i04')
-    return data['users']
+            and isinstance(data.get('users', []), list) and len(data.get('users', [])) <= 1, 'database_not_reviewed_i04')
+    return data.get('users', [])
 
 
 def creation_sql(base, record):
