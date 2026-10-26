@@ -37,6 +37,7 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-031 | 2026-10-24 | Empezar con captura administrativa asistida de WhatsApp/llamadas; la interpretación automática queda para otro incremento. Reintentos técnicos y duplicados comerciales entre canales son problemas distintos. Un segundo envío del cliente/fecha requiere revisión, no suma automática ni deduplicación por parecido. |
 
 | OCT-032 | 2026-10-24 | El inventario descubre PRODIMT nativo activo con SQL, releases, Nginx y certificado existentes. Preparar actualización nativa I03-B con binarios externos, respaldo verificado y migración explícita; conservar esa infraestructura. El kit Docker queda como alternativa de instalación nueva. Confirmar estado actual antes de escribir; no reiniciar credenciales o crear otra base por suposición. |
+| OCT-033 | 2026-10-26 | Tras corregir la ruta del navegador y recibir 401, el usuario autoriza crear una nueva cuenta administrativa con contraseña generada y probar acceso. Generar/entregar credenciales localmente en el VPS tras login y consulta HTTPS correctos, preservando cuentas previas. Después de confirmar acceso en navegador se desarrollará cambio de contraseña propia desde la aplicación; no se declara implementado con la herramienta local. |
 
 ## Pendientes de negocio
 

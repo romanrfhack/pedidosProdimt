@@ -292,6 +292,44 @@ def main():
           FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;""")
         require(audit == {'resets': 1, 'safe_audits': 1, 'preserved_inactive_admins': 1,
                          'admins': 2, 'customers': 1, 'orders_count': 0}, 'reset_scope_or_audit_invalid')
+
+        creator = load_module('native_generated_admin_fixture', root / 'scripts/pilot/create-native-admin.py')
+        creator.USER = 'synthetic-generated-admin'
+        generated = creator.new_record(recovery)
+        for expected_created in (1, 0):
+            receipt = resetter.sql(creator.creation_sql(recovery, generated))
+            require(receipt == {'account_created': expected_created, 'account_verified': 1, 'audit_verified': 1},
+                    'generated_admin_create_or_retry_failed')
+        created_account = recovery.validate_snapshot(resetter.sql(recovery.snapshot_sql(creator.USER)), creator.USER)
+        require(created_account['id'].lower() == generated['user_id']
+                and created_account['password_hash'] == generated['password_hash']
+                and created_account['is_active'] == 1, 'generated_admin_fields_invalid')
+        reset_rejected(creator.creation_sql(recovery, creator.new_record(recovery)), 51021, 'adopt_other_account')
+        updater.sql_run(credentials, query="UPDATE dbo.AdminUsers SET IsActive=0 WHERE UserName=N'synthetic-generated-admin';")
+        reset_rejected(creator.creation_sql(recovery, generated), 51021, 'reactivate_generated_account')
+        updater.sql_run(credentials, query="UPDATE dbo.AdminUsers SET IsActive=1 WHERE UserName=N'synthetic-generated-admin';")
+
+        creator.USER = 'synthetic-create-rollback'
+        rejected = creator.new_record(recovery)
+        updater.sql_run(credentials, script="""CREATE TRIGGER dbo.NativeCreationRejectAudit ON dbo.AuditLogs
+          AFTER INSERT AS BEGIN THROW 51004,N'Fictional creation audit failure',1; END;""")
+        try:
+            reset_rejected(creator.creation_sql(recovery, rejected), 51004, 'creation_audit_failure')
+        finally:
+            updater.sql_run(credentials, query='DROP TRIGGER dbo.NativeCreationRejectAudit;')
+        absent = resetter.sql(recovery.snapshot_sql(creator.USER))
+        require(absent['users'] == [], 'generated_admin_audit_failure_left_account')
+        scope = updater.sql_json(credentials, """SELECT
+          (SELECT COUNT(*) FROM dbo.AuditLogs WHERE EventType=N'AdminUserCreated'
+            AND ActorType=2 AND MetadataJson LIKE N'%native-new-admin%') AS creations,
+          (SELECT COUNT(*) FROM dbo.AdminUsers) AS administrators,
+          (SELECT COUNT(*) FROM dbo.AdminUsers WHERE UserName=N'synthetic-native-cli-admin'
+            AND PasswordHash=N'synthetic-existing-hash' AND IsActive=0) AS preserved_original,
+          (SELECT COUNT(*) FROM dbo.Customers) AS customers,
+          (SELECT COUNT(*) FROM dbo.Orders) AS orders_count
+          FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;""")
+        require(scope == {'creations': 1, 'administrators': 3, 'preserved_original': 1,
+                          'customers': 1, 'orders_count': 0}, 'generated_admin_scope_or_duplicate_audit_invalid')
     finally:
         if created:
             update.DATABASE = 'master'
@@ -303,7 +341,8 @@ def main():
           'required session options, repeat and preserved synthetic data; resume baseline rejects '
           'partial DDL, restricted metadata and already-upgraded history; original failed script '
           'rolls back to the complete five-migration baseline; web admin reset preserves scope, '
-          'rejects stale credentials and rolls back the password when audit fails.')
+          'rejects stale credentials and rolls back the password when audit fails; generated account '
+          'creation and retry are idempotent, reject adoption/reactivation and roll back on audit failure.')
 
 
 if __name__ == '__main__':

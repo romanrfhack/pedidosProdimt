@@ -1,6 +1,6 @@
 # Continuar PRODIMT
 
-Última sesión: 25 de octubre de 2026. Zona operativa: `America/Mexico_City`.
+Última sesión: 26 de octubre de 2026. Zona operativa: `America/Mexico_City`.
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
@@ -37,6 +37,8 @@ El usuario devolvió la hoja I03 con 30 unidades y 36 posiciones completadas. La
 I04 quedó desplegado en el VPS el 25 de octubre: el usuario compartió `status: updated`, nueve migraciones, permisos DML y salud/proceso/frontend HTTPS verificados con `20261025-resume5`. Se conservan el respaldo previo y uno nuevo verificado; no repetir el actualizador ni el bootstrap. El siguiente paso es comprobar login/catálogos desde el navegador y preparar la vista previa de la carga privada contra los datos existentes. La instalación no importó la ruta del Excel ni completó el ensayo operativo. Ver `ESTADO.md` y la evidencia de reanudación para las rutas de releases/respaldo.
 
 La cuenta web `admin` existe/está activa. Su recuperación preparada pasó CI 40213743976; el intento del usuario se detuvo por confirmaciones distintas antes de escribir. Después mostró 404 de `/api/api/auth/admin/login`; se pausa el reset. La ruta pública correcta responde 401 con credenciales ficticias y el bundle publicado `main-ZDENE75O.js` tiene apiBaseUrl vacío. Apunta a frontend anterior en caché: recargar sin caché/incógnito, verificar un solo `/api` y probar contraseña anterior. Usar el reset sólo si la petición correcta rechaza sus credenciales. No confundir contraseña web con SQL ni repetir bootstrap.
+
+El 26 de octubre el usuario confirma ruta correcta y captura 401 con su contraseña. Autoriza una cuenta nueva y contraseña generada, pruebas y entrega del acceso. `create-native-admin.py` prepara `roman.prodimt` usando el módulo previo exacto, genera la contraseña en el VPS, conserva su referencia privada para reintentos y crea cuenta/auditoría atómicamente. Sólo muestra los datos al operador después de verificar login y lectura administrativa HTTPS. La conexión SSH directa sigue sin ruta; el usuario ejecuta desde WSL. Falta JSON remoto y confirmar acceso en navegador. El desarrollo de cambiar contraseña propia queda autorizado para después de esa confirmación; aún no está implementado.
 
 ## Al cerrar cada sesión
 

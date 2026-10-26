@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 25 de octubre de 2026.
+Actualizado: 26 de octubre de 2026.
 
 ## Ubicación y etapa
 
@@ -68,14 +68,16 @@ Actualizado: 25 de octubre de 2026.
 - Recuperación validada en [CI 40213743976](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40213743976): cuatro jobs correctos, 120 Python, 205 .NET, 21 SQL, 53 E2E y smoke Production. El servicio .NET acepta los hashes generados (incluido Unicode); la CLI real rechaza conflictos y revierte la contraseña ante fallo de auditoría. Script de recuperación entregado; faltan ejecución y JSON remoto.
 - El reset del usuario se detuvo en `new-web-password`, `password_confirmation_mismatch`, sin cambios ni reset. Su nueva captura muestra POST `/api/api/auth/admin/login` con 404; no acredita contraseña incorrecta. Se pausa el reset para resolver la ruta.
 - HTTPS público comprobado: POST `/api/auth/admin/login` con identidad ficticia inexistente devuelve 401; el doble prefijo devuelve 404. El bundle publicado `main-ZDENE75O.js` contiene apiBaseUrl vacío y un solo `/api` para login, como Production I04. Apunta a frontend anterior en caché del navegador; falta confirmar tras recarga sin caché. No se cambió servidor/configuración ni se usaron contraseñas reales.
+- El 26 de octubre el usuario confirma ruta correcta y aporta 401 con sus credenciales. Autoriza crear una cuenta nueva con contraseña generada y probarla. Preparado `create-native-admin.py`: cuenta `roman.prodimt`, contraseña aleatoria de 32 caracteres generada en el VPS, referencia privada root/600 para repetir sin rotación y transacción de alta/auditoría. Reutiliza el módulo de recuperación previo por SHA256; verifica login/consulta administrativa HTTPS antes de mostrar datos sólo en terminal. No modifica cuentas previas. 129 Python locales correctas; CI y ejecución real pendientes en la evidencia de esta preparación.
 
 ## Siguiente paso
 
-1. Recargar sin caché o abrir incógnito en `https://pedidos.prodimt.site/admin/login`, comprobar que el POST use `/api/auth/admin/login` y probar `admin` con la contraseña anterior. El reset se detuvo sin cambios. Usar la recuperación preparada sólo si la ruta correcta devuelve 401 con sus credenciales. Después comprobar Catálogos → Clientes → Configurar, y Operación → Consultar plan. No repetir actualización ni bootstrap.
-2. Conciliar los catálogos existentes con la revisión privada I04 y preparar su vista previa antes de aplicar la carga. La actualización no cargó el Excel ni borró la base previa. No publicar ni sembrar clientes reales en CI.
-3. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
-4. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
-5. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
+1. Ejecutar la creación de `roman.prodimt` desde WSL y revisar JSON de alta/login/consulta HTTPS. Guardar la contraseña que el programa muestra tras verificarla y confirmar acceso en navegador. Se usa SQL administrativo sólo mediante prompt oculto. No repetir actualización ni bootstrap.
+2. Una vez confirmado acceso, implementar cambio de contraseña propia desde la aplicación, según autorización nueva del usuario. No confundirlo con la herramienta local de alta ya preparada.
+3. Conciliar los catálogos existentes con la revisión privada I04 y preparar su vista previa antes de aplicar la carga. La actualización no cargó el Excel ni borró la base previa. No publicar ni sembrar clientes reales en CI.
+4. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
+5. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
+6. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
 
 ## Límites vigentes
 
