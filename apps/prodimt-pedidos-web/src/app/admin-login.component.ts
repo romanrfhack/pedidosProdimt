@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { environment } from '../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -14,6 +14,9 @@ import { AuthService } from './auth.service';
         <p class="eyebrow">Admin</p>
         <h2>Entrar</h2>
       </div>
+
+      @if (passwordChanged) { <div class="alert" role="status">Contraseña actualizada. Inicia sesión con la nueva contraseña.</div> }
+      @if (sessionExpired && !passwordChanged) { <div class="alert" role="status">Tu sesión terminó. Inicia sesión de nuevo.</div> }
 
       <form class="login-form" (ngSubmit)="login()">
         <label>
@@ -39,6 +42,9 @@ export class AdminLoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  protected readonly passwordChanged = this.route.snapshot.queryParamMap.get('passwordChanged') === '1';
+  protected readonly sessionExpired = this.route.snapshot.queryParamMap.get('sessionExpired') === '1';
 
   protected userName = environment.demoAdminUserName;
   protected password = environment.demoAdminPassword;

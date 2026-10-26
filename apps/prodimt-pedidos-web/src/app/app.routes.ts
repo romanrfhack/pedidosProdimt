@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AdminLoginComponent } from './admin-login.component';
+import { AdminPasswordComponent } from './admin-password.component';
 import { AdminCatalogsComponent } from './admin-catalogs.component';
 import { AdminImportComponent } from './admin-import.component';
 import { AdminPendingComponent } from './admin-pending.component';
@@ -14,6 +15,7 @@ export const routes: Routes = [
   { path: '', redirectTo: 'cliente', pathMatch: 'full' },
   { path: 'cliente', component: CustomerTodayComponent },
   { path: 'admin/login', component: AdminLoginComponent },
+  { path: 'admin/cambiar-contrasena', component: AdminPasswordComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/pedidos', component: AdminTodayComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/pendientes', component: AdminPendingComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [adminAuthGuard] },

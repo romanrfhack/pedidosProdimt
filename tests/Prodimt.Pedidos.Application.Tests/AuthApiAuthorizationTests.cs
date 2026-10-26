@@ -312,7 +312,7 @@ public sealed class AuthApiAuthorizationTests
         return Guid.Parse(document.RootElement.GetProperty("orderId").GetString()!);
     }
 
-    private sealed class AuthApiFactory : WebApplicationFactory<Program>
+    internal sealed class AuthApiFactory : WebApplicationFactory<Program>
     {
         public AuthApiFactory()
         {

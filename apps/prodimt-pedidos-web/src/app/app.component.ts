@@ -21,6 +21,7 @@ import { AuthService } from './auth.service';
           <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a>
           <a routerLink="/admin/importacion" routerLinkActive="active">Importacion</a>
           <a routerLink="/admin/importar-pedidos" routerLinkActive="active">Importar pedidos</a>
+          <a routerLink="/admin/cambiar-contrasena" routerLinkActive="active">Cambiar contraseña</a>
         }
         @if (auth.session()) {
           <button type="button" class="nav-action" (click)="logout()">Salir</button>

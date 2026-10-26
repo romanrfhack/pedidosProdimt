@@ -34,6 +34,7 @@ public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvi
             new Claim(ProdimtAuthClaims.ActorType, ProdimtActorTypes.Admin),
             new Claim(ProdimtAuthClaims.UserId, adminUser.Id.ToString()),
             new Claim(ProdimtAuthClaims.UserName, adminUser.UserName),
+            new Claim(ProdimtAuthClaims.AdminSessionStamp, AdminSessionStamp.Create(configuration, adminUser.PasswordHash)),
             new Claim(ProdimtAuthClaims.DisplayName, adminUser.DisplayName),
             new Claim(ClaimTypes.NameIdentifier, adminUser.Id.ToString()),
             new Claim(ClaimTypes.Name, adminUser.UserName)

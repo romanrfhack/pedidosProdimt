@@ -10,6 +10,7 @@ using Prodimt.Pedidos.Application.AdminImports;
 using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
 using Prodimt.Pedidos.Infrastructure.Authentication;
@@ -38,6 +39,7 @@ builder.Services.AddScoped<AdminUserCatalogService>();
 builder.Services.AddScoped<CsvImportParser>();
 builder.Services.AddScoped<AdminImportService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
+builder.Services.AddScoped<AdminPasswordService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -51,6 +53,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (context.Principal?.FindFirstValue(ProdimtAuthClaims.ActorType) != ProdimtActorTypes.Admin) return;
+                var identity = context.Principal.FindFirstValue(ProdimtAuthClaims.UserId);
+                var stamp = context.Principal.FindFirstValue(ProdimtAuthClaims.AdminSessionStamp);
+                if (!Guid.TryParse(identity, out var userId) || stamp is null)
+                {
+                    context.Fail("La sesión administrativa debe renovarse.");
+                    return;
+                }
+                var provider = context.HttpContext.RequestServices;
+                var user = await provider.GetRequiredService<IAdminUserRepository>()
+                    .GetByIdAsync(userId, context.HttpContext.RequestAborted);
+                if (user is null || !user.IsActive || !AdminSessionStamp.Matches(
+                    provider.GetRequiredService<IConfiguration>(), user.PasswordHash, stamp))
+                    context.Fail("La sesión administrativa debe renovarse.");
+            }
         };
     });
 builder.Services.AddAuthorization(options =>
@@ -976,6 +998,20 @@ adminImports.MapPost("/{importType}/apply", async (
 var adminUsers = app.MapGroup("/api/admin/users")
     .WithTags("Admin users")
     .RequireAuthorization("AdminAccess");
+
+app.MapPost("/api/admin/account/change-password", async (ChangeAdminPasswordRequest request, ClaimsPrincipal principal,
+    AdminPasswordService service, CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(principal.FindFirstValue(ProdimtAuthClaims.UserId), out var userId))
+        return Results.Unauthorized();
+    try
+    {
+        await service.ChangeAsync(userId, request, cancellationToken);
+        return Results.NoContent();
+    }
+    catch (AuthenticationFailedException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+}).RequireAuthorization("AdminAccess").WithName("ChangeOwnAdminPassword");
 
 adminUsers.MapGet("", async (
     AdminUserCatalogService service,

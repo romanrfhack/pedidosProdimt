@@ -14,6 +14,8 @@ I04 añade avisos persistentes y reconocimiento de cambios de demanda, configura
 
 ## Que es
 
+I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
+
 PRODIMT Pedidos es la aplicacion web mobile first para capturar pedidos de clientes de PRODIMT y reemplazar gradualmente el flujo manual basado en WhatsApp, llamadas, mensajes en grupo y captura en Excel.
 
 SQL Server sera la fuente oficial de verdad. El Excel actual es solo referencia inicial para entender clientes, productos, maquinas y operacion.

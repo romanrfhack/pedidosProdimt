@@ -49,4 +49,18 @@ public sealed class InMemoryAdminUserRepository(InMemoryDataStore dataStore) : I
     {
         return Task.CompletedTask;
     }
+
+    public Task<bool> TryChangePasswordAsync(Guid userId, string expectedHash, string newHash, AuditLog audit,
+        CancellationToken cancellationToken)
+    {
+        lock (dataStore.SyncRoot)
+        {
+            var user = dataStore.AdminUsers.SingleOrDefault(x => x.Id == userId);
+            if (user is null || !user.IsActive || !string.Equals(user.PasswordHash, expectedHash, StringComparison.Ordinal))
+                return Task.FromResult(false);
+            dataStore.AuditLogs.Add(audit);
+            user.PasswordHash = newHash;
+            return Task.FromResult(true);
+        }
+    }
 }
