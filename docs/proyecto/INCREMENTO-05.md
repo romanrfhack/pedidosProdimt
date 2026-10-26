@@ -9,4 +9,4 @@ Autorizado por el usuario después de recuperar acceso; el alta ejecutada confir
 - Pantalla `/admin/cambiar-contrasena` enlazada en navegación administrativa. Tras éxito borra campos/sesión y dirige al login con mensaje; solicitudes antiguas no cierran una sesión nueva.
 - Validar autorización, contraseña errónea, confirmación, auditoría, login antiguo/nuevo, sesiones anteriores, concurrencia y rollback real de SQL.
 
-El paquete nativo preservará configuración y esquema existentes. Instalar el código no cambia automáticamente contraseñas: el usuario ejecuta la operación desde su cuenta. No incluye recuperación pública, cambio de otros usuarios, MFA ni roles nuevos.
+El paquete nativo preparado preserva configuración y esquema existentes; CI final y hashes constan en `../validation/2026-10-26-password-change.md`. La instalación en el VPS sigue pendiente. Instalar el código no cambia automáticamente contraseñas: el usuario ejecuta la operación desde su cuenta. No incluye recuperación pública, cambio de otros usuarios, MFA ni roles nuevos.

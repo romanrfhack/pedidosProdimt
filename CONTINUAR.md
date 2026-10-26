@@ -11,10 +11,11 @@ Este archivo es el punto de entrada para retomar el proyecto en otro chat o equi
 3. `docs/proyecto/PLAN.md` (objetivo integral y etapas).
 4. `docs/proyecto/DECISIONES.md` (decisiones vigentes y pendientes).
 5. `docs/proyecto/BITACORA.md` (cambios y pruebas por sesión).
-6. `docs/proyecto/INCREMENTO-04.md` (avisos operativos y configuración por cliente).
-7. `docs/proyecto/INCREMENTO-03.md` (instalación y preparación del ensayo).
-8. `docs/proyecto/INCREMENTO-02.md` (captura diaria y correcciones).
-9. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
+6. `docs/proyecto/INCREMENTO-05.md` (cambio de contraseña propia y sesiones administrativas).
+7. `docs/proyecto/INCREMENTO-04.md` (avisos operativos y configuración por cliente).
+8. `docs/proyecto/INCREMENTO-03.md` (instalación y preparación del ensayo).
+9. `docs/proyecto/INCREMENTO-02.md` (captura diaria y correcciones).
+10. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
 
 La documentación de mayo de 2026 es antecedente. Cuando difiera, las decisiones de octubre en `docs/proyecto/` prevalecen. No confundir capacidad implementada, prueba técnica, dato validado y operación real.
 
@@ -36,9 +37,11 @@ El usuario devolvió la hoja I03 con 30 unidades y 36 posiciones completadas. La
 
 I04 quedó desplegado en el VPS el 25 de octubre: el usuario compartió `status: updated`, nueve migraciones, permisos DML y salud/proceso/frontend HTTPS verificados con `20261025-resume5`. Se conservan el respaldo previo y uno nuevo verificado; no repetir el actualizador ni el bootstrap. El siguiente paso es comprobar login/catálogos desde el navegador y preparar la vista previa de la carga privada contra los datos existentes. La instalación no importó la ruta del Excel ni completó el ensayo operativo. Ver `ESTADO.md` y la evidencia de reanudación para las rutas de releases/respaldo.
 
-La cuenta web `admin` existe/está activa. Su recuperación preparada pasó CI 40213743976; el intento del usuario se detuvo por confirmaciones distintas antes de escribir. Después mostró 404 de `/api/api/auth/admin/login`; se pausa el reset. La ruta pública correcta responde 401 con credenciales ficticias y el bundle publicado `main-ZDENE75O.js` tiene apiBaseUrl vacío. Apunta a frontend anterior en caché: recargar sin caché/incógnito, verificar un solo `/api` y probar contraseña anterior. Usar el reset sólo si la petición correcta rechaza sus credenciales. No confundir contraseña web con SQL ni repetir bootstrap.
+El 26 de octubre el usuario confirmó la ruta correcta del API y ejecutó el alta de `roman.prodimt`: cuenta/auditoría verificadas, login y consulta administrativa HTTPS 200. La contraseña no se copia a git ni a esta documentación. No repetir el alta: la referencia inicial deja de coincidir tras cambiar la contraseña.
 
-El 26 de octubre el usuario confirma ruta correcta y captura 401 con su contraseña. Autoriza una cuenta nueva y contraseña generada, pruebas y entrega del acceso. `create-native-admin.py` prepara `roman.prodimt` usando el módulo previo exacto, genera la contraseña en el VPS, conserva su referencia privada para reintentos y crea cuenta/auditoría atómicamente. Sólo muestra los datos al operador después de verificar login y lectura administrativa HTTPS. La conexión SSH directa sigue sin ruta; el usuario ejecuta desde WSL. Falta JSON remoto y confirmar acceso en navegador. El desarrollo de cambiar contraseña propia queda autorizado para después de esa confirmación; aún no está implementado.
+I05 está implementado, validado y empaquetado para el I04 nativo vigente. Código final `886bee7b2202b399ee063fe65d524b7f444e205c`; CI 40411669397 con cuatro jobs correctos (212 .NET, 24 SQL, 55 E2E, 135 Python y smoke Production). `PRODIMT_Cambio_Contrasena_I05.zip` contiene binarios y el instalador sin migraciones; hash y límites en `docs/validation/2026-10-26-password-change.md`. No está instalado todavía en el VPS. La conexión SSH directa sigue sin ruta: el usuario ejecuta los comandos desde WSL y comparte sólo el JSON de instalación, sin credenciales.
+
+Siguiente paso: instalar I05, confirmar `status: updated`/`health_verified: true`, recargar el navegador e iniciar sesión con su acceso actual. En «Cambiar contraseña» introduce actual, nueva y confirmación; el éxito invalida las sesiones anteriores y pide iniciar con la nueva. Después, retomar conciliación de catálogos y vista previa privada del Excel. No afirmar que la actualización o el cambio de contraseña ya ocurrieron sólo porque pasó CI.
 
 ## Al cerrar cada sesión
 
