@@ -37,14 +37,14 @@ def build(backend, frontend, destination, source):
         installer = installer.replace("EXPECTED_PACKAGE_SHA256 = 'REPLACE_PACKAGE_SHA256'", "EXPECTED_PACKAGE_SHA256 = '" + digest + "'")
         installer = installer.replace("EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'", "EXPECTED_SOURCE = '" + source + "'")
         readme = ('PRODIMT I05 - Cambiar contraseña\n\n'
-                  'Verifica SHA256SUMS.txt antes de copiar payload.zip e install.py al VPS.\n'
-                  'Ejecuta python3 /root/install.py --package /root/payload.zip --apply con SSH root.\n'
+                  'Verifica SHA256SUMS.txt antes de copiar los dos archivos PRODIMT al VPS.\n'
+                  'Ejecuta python3 /root/PRODIMT_Instalar_I05.py --package /root/prodimt-password-payload.zip --apply con SSH root.\n'
                   'El instalador comprueba servicio, base y permisos existentes y preserva configuración.\n'
                   'No ejecuta migraciones ni cambia contraseñas. Habrá un reinicio breve sólo de PRODIMT.\n'
                   'Después de status updated/health_verified, recarga con Ctrl+F5 e inicia sesión de nuevo.\n'
                   'Abre Cambiar contraseña: escribe contraseña actual, nueva y confirmación.\n'
                   'Tras guardar, vuelve a iniciar sesión con la nueva. No compartas contraseñas en el chat.\n')
-        bundle = {'payload.zip': payload.read_bytes(), 'install.py': installer.encode(), 'LEEME.txt': readme.encode()}
+        bundle = {'prodimt-password-payload.zip': payload.read_bytes(), 'PRODIMT_Instalar_I05.py': installer.encode(), 'LEEME.txt': readme.encode()}
         bundle['SHA256SUMS.txt'] = ''.join(hashlib.sha256(raw).hexdigest() + '  ' + name + '\n'
                                          for name, raw in sorted(bundle.items())).encode()
         destination.parent.mkdir(parents=True, exist_ok=True)

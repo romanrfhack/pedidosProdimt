@@ -38,7 +38,7 @@ class PasswordPackageTests(unittest.TestCase):
         result = builder.build(backend, frontend, bundle, SOURCE)
         with zipfile.ZipFile(bundle) as archive:
             payload = folder / 'payload.zip'
-            payload.write_bytes(archive.read('prodimt-password-update/payload.zip'))
+            payload.write_bytes(archive.read('prodimt-password-update/prodimt-password-payload.zip'))
         return result, payload
 
     def test_bundle_pins_installer_and_carries_exact_hashed_files(self):
@@ -46,7 +46,7 @@ class PasswordPackageTests(unittest.TestCase):
             root = Path(tmp)
             result, payload = self.fixture(root)
             with zipfile.ZipFile(root / 'bundle.zip') as archive:
-                script = archive.read('prodimt-password-update/install.py').decode()
+                script = archive.read('prodimt-password-update/PRODIMT_Instalar_I05.py').decode()
                 self.assertIn("EXPECTED_PACKAGE_SHA256 = '" + result['payload_sha256'] + "'", script)
                 self.assertIn("EXPECTED_SOURCE = '" + SOURCE + "'", script)
             original = installer.regular
