@@ -74,6 +74,8 @@ Actualizado: 26 de octubre de 2026.
 
 El usuario ejecutó el alta el 26 de octubre: `status: completed`, cuenta/auditoría verificadas y login/consulta administrativa HTTP 200. La contraseña se conserva privada; no se transcribe a git. I05 en implementación para cambiarla desde la aplicación y volver a iniciar sesión. La cuenta ya existe; no repetir el alta después de cambiar su contraseña.
 
+I05 funcional implementado en `304a0cda39bacefa72f41533e99cb7beb22af11f`, [CI 40409593142](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40409593142) con cuatro jobs correctos: 212 .NET, 24 SQL, 55 E2E y 129 Python/Production. Paquete/instalador nativo preparado sin DDL: verifica ZIP, servicio/configuración Production, historial nueve y permisos SELECT/UPDATE AdminUsers e INSERT AuditLogs con la cuenta cotidiana antes de escribir/detener. Preserva appsettings/env, verifica staging y activa/recupera releases bajo lock. 135 Python locales correctas; falta validar remotamente el empaquetado y entregar instalación. I05 aún no está instalado en el VPS.
+
 1. Ejecutar la creación de `roman.prodimt` desde WSL y revisar JSON de alta/login/consulta HTTPS. Guardar la contraseña que el programa muestra tras verificarla y confirmar acceso en navegador. Se usa SQL administrativo sólo mediante prompt oculto. No repetir actualización ni bootstrap.
 2. Una vez confirmado acceso, implementar cambio de contraseña propia desde la aplicación, según autorización nueva del usuario. No confundirlo con la herramienta local de alta ya preparada.
 3. Conciliar los catálogos existentes con la revisión privada I04 y preparar su vista previa antes de aplicar la carga. La actualización no cargó el Excel ni borró la base previa. No publicar ni sembrar clientes reales en CI.
