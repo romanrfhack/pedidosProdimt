@@ -245,3 +245,10 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 - Nueve migraciones existentes, I04 presente y permisos de lectura/actualización de AdminUsers e inserción de auditoría verificados. No ejecutó migraciones ni cambió contraseñas. Snapshot privado `/var/backups/prodimt-pedidos/password-update-20261026T231120Z-318fd2a6fc3f`.
 - Se indica recarga sin caché, login actual, «Cambiar contraseña» y nuevo login después de guardar; no solicitar ni registrar contraseñas. Ese flujo real sigue pendiente de confirmación del usuario. No repetir instaladores, bootstrap ni alta para probarlo.
 - Actualizados continuidad, estado, contrato I05 y evidencia, sin cambios de código ni nuevas pruebas. Registro basado en el JSON compartido, sin SSH directo desde este entorno. PR permanece en borrador y main sin fusión.
+
+## 2026-10-27 — Login humano confirmado y primera revisión funcional
+
+- El usuario confirma inicio de sesión y pregunta cuál incremento revisar primero. No se interpreta esa confirmación como cambio de contraseña ya ejecutado.
+- Consultados PR/rama actuales y contratos I01/I04, estado, rutas y plantilla Angular del catálogo. Se propone empezar con fundamentos I01 y configuración enfocada I04: Catálogos → Clientes → Configurar.
+- La revisión comprueba productos frecuentes, unidades de venta, cantidad sugerida, orden visual, posición en mensaje por cliente, máquinas, llave, entrega/cobro y aprobación. Guardar/recargar conserva el perfil; no crea pedidos ni suma cantidades sugeridas a demanda. No confundir posición en mensaje, orden visual y orden de visita; no asumir WhatsApp automático ni carga del Excel.
+- Se registra únicamente confirmación de acceso y guía de revisión. Faltan verificación del cliente real en pantalla y conciliación privada; no se modifica código ni VPS, ni se repiten suites por documentación. PR en borrador, sin fusión.

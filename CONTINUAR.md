@@ -1,6 +1,6 @@
 # Continuar PRODIMT
 
-Última sesión: 26 de octubre de 2026. Zona operativa: `America/Mexico_City`.
+Última sesión: 27 de octubre de 2026. Zona operativa: `America/Mexico_City`.
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
@@ -41,7 +41,7 @@ El 26 de octubre el usuario confirmó la ruta correcta del API y ejecutó el alt
 
 I05 está implementado, validado y empaquetado para el I04 nativo vigente. Código final `886bee7b2202b399ee063fe65d524b7f444e205c`; CI 40411669397 con cuatro jobs correctos (212 .NET, 24 SQL, 55 E2E, 135 Python y smoke Production). `PRODIMT_Cambio_Contrasena_I05.zip` contiene binarios y el instalador sin migraciones; hash y límites en `docs/validation/2026-10-26-password-change.md`. El usuario ejecutó el instalador el 26 de octubre y compartió `status: updated`, `phase: completed`, `health_verified: true`; ambos releases activos son `password-886bee7b2202`. Conserva nueve migraciones y no cambió la contraseña. La conexión SSH directa sigue sin ruta: el usuario ejecuta los comandos desde WSL y comparte sólo el JSON de instalación, sin credenciales.
 
-Siguiente paso: recargar el navegador con Ctrl+F5 e iniciar sesión con su acceso actual en I05 ya instalado. En «Cambiar contraseña» introduce actual, nueva y confirmación; el éxito invalida las sesiones anteriores y pide iniciar con la nueva. Después, retomar conciliación de catálogos y vista previa privada del Excel. La instalación está confirmada por el JSON del usuario; siguen pendientes el cambio de contraseña y el login posterior desde su navegador.
+El 27 de octubre el usuario confirmó login en navegador y solicitó la primera revisión funcional. Se comienza por I01: Catálogos → Clientes → Configurar, con la pantalla enfocada de I04. Comparar un cliente conocido con su información confirmada: productos, unidad de venta, orden visual, posiciones por cliente, máquina y datos internos de entrega/cobro. Guardar/recargar debe conservar la configuración; cantidad sugerida no es un pedido de hoy. La instalación no importó automáticamente el Excel: conciliar lo existente antes de preparar la vista previa privada. El cambio de contraseña no está confirmado por el simple hecho de haber podido iniciar sesión.
 
 ## Al cerrar cada sesión
 
