@@ -11,7 +11,7 @@ namespace Prodimt.Pedidos.SqlServer.Tests;
 public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
 {
     private const string OldMigration = "20260528131416_AddCatalogExternalCodesAndImportSupport";
-    private const string LatestMigration = "20261024202253_AddOrderChangeNotices";
+    private const string LatestMigration = "20261028142346_AddCustomerRestDays";
     private const string ExistingHash = "synthetic-existing-password-hash-must-not-be-replaced";
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
             foreach (var batch in Regex.Split(script, @"^[ \t]*GO[ \t]*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
                 if (!string.IsNullOrWhiteSpace(batch)) await ExecuteAsync(admin, batch);
             var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-            Assert.Equal(9, applied.Length);
+            Assert.Equal(10, applied.Length);
             Assert.Equal(LatestMigration, applied[^1]);
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
             await AssertPreservedDataAsync(db, customerId, adminId);
@@ -95,6 +95,7 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
     {
         var customer = Assert.Single(await db.Customers.AsNoTracking().ToArrayAsync());
         Assert.Equal(customerId, customer.Id);
+        Assert.Equal(0, customer.RestDaysMask);
         Assert.Equal("Synthetic existing customer", customer.Name);
         Assert.Equal("5550000000", customer.PhoneNumber);
         Assert.Equal("SYNTHETIC-OLD", customer.ExternalCode);

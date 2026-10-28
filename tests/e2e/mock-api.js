@@ -781,6 +781,16 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/customers/day-status') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: customerTodayBase.orderDate, customers: catalogCustomers.map(customer => {
+      const hasOrder = pendingOrders.some(order => order.customerId === customer.id && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(order.status));
+      return { customerId: customer.id, status: hasOrder ? 'HasOrder' : customer.isActive ? 'AwaitingOrder' : 'Inactive',
+        orderCount: hasOrder ? 1 : 0, requiresReview: hasOrder };
+    }) });
+    return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/customers') {
     if (!requireAdminAccess(request, response)) {
       return;
@@ -798,6 +808,7 @@ const server = http.createServer(async (request, response) => {
     const body = await readJson(request);
     const customer = {
       id: randomUUID(),
+      restDays: body.restDays ?? [],
       name: body.name,
       phoneNumber: body.phoneNumber ?? '',
       isActive: true,
@@ -829,6 +840,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'PUT') {
       const body = await readJson(request);
       Object.assign(customer, {
+        restDays: body.restDays ?? customer.restDays ?? [],
         name: body.name,
         phoneNumber: body.phoneNumber ?? '',
         preferredDeliveryTime: body.preferredDeliveryTime ?? null,

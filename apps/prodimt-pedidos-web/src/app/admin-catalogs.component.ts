@@ -1,10 +1,15 @@
+import { DOCUMENT } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
+import { CustomerEditorValue } from './customer-editor.model';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import {
   AdminCatalogApiService,
+  CustomerDayStatusResponse,
   AdminCustomerAccessTokenApiResponse,
   AdminCustomerCatalogApiResponse,
   AdminCustomerFrequentProductApiResponse,
@@ -12,24 +17,10 @@ import {
   AdminMachineCatalogApiResponse,
   AdminProductCatalogApiResponse
 } from './admin-catalog-api.service';
-import { PaymentTermCode, UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operational-labels';
+import { UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operational-labels';
 
 type CatalogTab = 'customers' | 'products' | 'machines';
 
-interface CustomerForm {
-  id: string | null;
-  name: string;
-  phoneNumber: string | null;
-  preferredDeliveryTime: string | null;
-  preferredDeliveryWindowStart: string | null;
-  preferredDeliveryWindowEnd: string | null;
-  deliveryNotes: string | null;
-  routeCode: string | null;
-  routeStopOrder: number | null;
-  hasStoreKey: boolean | null;
-  paymentTermCode: PaymentTermCode | null;
-  internalDeliveryInstructions: string | null;
-}
 
 interface ProductForm {
   id: string | null;
@@ -46,7 +37,8 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent],
+  styleUrl: './admin-customer-cards.css',
   styles: [`
     .profile-summary, .profile-product-heading { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
     .profile-product-card { border: 1px solid #d6e0e7; padding: 14px; border-radius: 12px; }
@@ -92,104 +84,52 @@ interface MachineForm {
       @if (!isLoading) {
         @if (activeTab === 'customers') {
           <section class="stack" data-testid="catalog-customers">
-            @if (!configurationOnly || editingCustomerDetails) {
-            <form class="detail-panel stack" (ngSubmit)="saveCustomer()">
-              <strong>{{ customerForm.id ? 'Editar cliente' : 'Nuevo cliente' }}</strong>
-              <label>
-                <span>Nombre</span>
-                <input name="customerName" [(ngModel)]="customerForm.name">
-              </label>
-              <label>
-                <span>Telefono</span>
-                <input name="customerPhone" [(ngModel)]="customerForm.phoneNumber">
-              </label>
-              <div class="catalog-grid">
-                <label>
-                  <span>Hora entrega</span>
-                  <input name="customerDeliveryTime" type="time" [(ngModel)]="customerForm.preferredDeliveryTime">
-                </label>
-                <label>
-                  <span>Ventana inicio</span>
-                  <input name="customerWindowStart" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowStart">
-                </label>
-                <label>
-                  <span>Ventana fin</span>
-                  <input name="customerWindowEnd" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowEnd">
-                </label>
-              </div>
-              <label>
-                <span>Notas entrega</span>
-                <input name="customerDeliveryNotes" [(ngModel)]="customerForm.deliveryNotes">
-              </label>
-              <div class="catalog-grid">
-                <label>
-                  <span>Código de ruta</span>
-                  <input name="customerRouteCode" maxlength="80" [(ngModel)]="customerForm.routeCode">
-                </label>
-                <label>
-                  <span>Orden de visita</span>
-                  <input name="customerRouteStop" type="number" min="1" step="1" [(ngModel)]="customerForm.routeStopOrder">
-                </label>
-                <label>
-                  <span>Llave del local</span>
-                  <select name="customerStoreKey" [(ngModel)]="customerForm.hasStoreKey">
-                    <option [ngValue]="null">Por confirmar</option>
-                    <option [ngValue]="true">Tenemos llave</option>
-                    <option [ngValue]="false">No tenemos llave</option>
-                  </select>
-                </label>
-              </div>
-              <label>
-                <span>Forma de cobro</span>
-                <select name="customerPaymentTerm" [(ngModel)]="customerForm.paymentTermCode">
-                  <option [ngValue]="null">Por confirmar</option>
-                  <option value="cash_on_delivery">Diario contraentrega · requiere ticket</option>
-                  <option value="credit">Crédito</option>
-                </select>
-              </label>
-              <label>
-                <span>Instrucciones internas de entrega</span>
-                <textarea name="customerInternalDeliveryInstructions" rows="3" maxlength="1000" [(ngModel)]="customerForm.internalDeliveryInstructions"></textarea>
-                <small>Indica dónde y cómo dejar el pedido. Visible solo para la operación interna.</small>
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ customerForm.id ? 'Guardar cliente' : 'Crear cliente' }}</button>
-                <button type="button" class="secondary compact" (click)="resetCustomerForm()">{{ configurationOnly ? 'Cerrar datos del cliente' : 'Limpiar' }}</button>
-              </div>
-            </form>
-            }
-
             @if (!configurationOnly) {
-              <label class="profile-search">
-                <span>Buscar cliente</span>
-                <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta">
-              </label>
-              <p class="profile-help">En Configurar puedes agregar productos, cambiar su orden y definir la máquina y la posición que corresponde a cada cantidad del cliente.</p>
+              <div class="customer-toolbar">
+                <label class="customer-search">
+                  <span>Buscar cliente</span>
+                  <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta" autocomplete="off">
+                </label>
+                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
+              </div>
+              <div class="customer-day-heading">
+                <span>{{ dailyDate ? (dayStatusError ? 'Última consulta · ' : 'Hoy · ') + dailyDate.split('-').reverse().join('/') : 'Estado de hoy' }} · {{ customers.length }} clientes</span>
+                <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">{{ isDayLoading ? 'Actualizando…' : 'Actualizar estados' }}</button>
+              </div>
+              <div class="customer-filters" aria-label="Estado de hoy">
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'all'" (click)="customerDayFilter = 'all'">Todos <strong>{{ customers.length }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'AwaitingOrder'" (click)="customerDayFilter = 'AwaitingOrder'">Por confirmar <strong>{{ countDayState('AwaitingOrder') }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'HasOrder'" (click)="customerDayFilter = 'HasOrder'">Con pedido <strong>{{ countDayState('HasOrder') }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'off'" (click)="customerDayFilter = 'off'">Sin pedido hoy <strong>{{ countDayState('NoOrderConfirmed') + countDayState('ScheduledRest') }}</strong></button>
+              </div>
             }
-
-            <div class="admin-list">
+            @if (dayStatusError) {
+              <div class="alert warning" role="status">{{ dayStatusError }} <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">Reintentar</button></div>
+            }
+            <div class="admin-list customer-list">
               @for (customer of visibleCustomers; track customer.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>{{ customer.name }}</strong>
-                    <small>Telefono: {{ customer.phoneNumber || 'Sin telefono' }}</small>
-                    <small>Entrega: {{ formatCustomerDelivery(customer) }}</small>
-                    <small>Ruta: {{ customer.routeCode || 'Por confirmar' }} · Visita: {{ customer.routeStopOrder ?? 'Por confirmar' }}</small>
-                    <small>{{ storeKeyLabel(customer.hasStoreKey) }} · {{ paymentTermLabel(customer.paymentTermCode) }}</small>
+                <article class="admin-row customer-card" data-testid="customer-card" [attr.data-customer-id]="customer.id" [attr.data-day-state]="dayState(customer)"
+                  [class.customer-awaiting]="dayState(customer) === 'AwaitingOrder'"
+                  [class.customer-ordered]="dayState(customer) === 'HasOrder'"
+                  [class.customer-off]="dayState(customer) === 'NoOrderConfirmed' || dayState(customer) === 'ScheduledRest'"
+                  [class.customer-inactive]="!customer.isActive">
+                  <div class="customer-card-top">
+                    <div class="customer-identity">
+                      <span class="customer-avatar" aria-hidden="true">{{ initials(customer.name) }}</span>
+                      <div><h3>{{ customer.name }}</h3><small class="customer-route">{{ customer.routeCode || 'Ruta por confirmar' }}@if (customer.routeStopOrder) { · Visita {{ customer.routeStopOrder }} }</small></div>
+                    </div>
+                    <span class="day-label">{{ dayLabel(customer) }}</span>
                   </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="customer.isActive" [class.danger]="!customer.isActive">
-                      {{ customer.isActive ? 'Activo' : 'Inactivo' }}
-                    </span>
+                  <div class="customer-meta"><span>{{ customer.phoneNumber || 'Sin teléfono' }}</span><span>Entrega: {{ formatCustomerDelivery(customer) }}</span></div>
+                  <div class="customer-tags">
+                    <span>{{ storeKeyLabel(customer.hasStoreKey) }}</span><span>{{ paymentTermLabel(customer.paymentTermCode) }}</span>
+                    @if (dayStatuses.get(customer.id)?.requiresReview) { <span class="needs-review">Pedido pendiente de revisión</span> }
+                    @if (!customer.isActive) { <span>Cliente inactivo</span> }
                   </div>
                   <div class="review-actions">
+                    @if (!configurationOnly) { <button type="button" class="primary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button> }
                     <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button>
-                    @if (!configurationOnly) {
-                      <button type="button" class="secondary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button>
-                    }
-                    <button type="button" class="secondary compact" (click)="toggleCustomer(customer)">
-                      {{ customer.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
+                    <button type="button" class="secondary compact quiet-action" (click)="toggleCustomer(customer)">{{ customer.isActive ? 'Desactivar' : 'Activar' }}</button>
                   </div>
 
                   @if (selectedCustomer?.id === customer.id) {
@@ -336,6 +276,8 @@ interface MachineForm {
                     </section>
                   }
                 </article>
+              } @empty {
+                <div class="empty-customers">{{ customers.length ? 'No hay clientes que coincidan con la búsqueda o el estado elegido.' : 'Agrega tu primer cliente para comenzar.' }}</div>
               }
             </div>
           </section>
@@ -438,6 +380,12 @@ interface MachineForm {
         }
       }
     </section>
+    @defer (when customerDialogOpen) {
+      @if (customerDialogOpen) {
+        <app-admin-customer-dialog [initialValue]="customerForm" [saving]="isCustomerSaving" [error]="customerDialogError"
+          (saved)="saveCustomer($event)" (dismissed)="resetCustomerForm()" />
+      }
+    } @loading { <p class="notice">Abriendo formulario…</p> }
   `
 })
 export class AdminCatalogsComponent {
@@ -447,7 +395,16 @@ export class AdminCatalogsComponent {
   private readonly router = inject(Router);
   private readonly focusedCustomerId = this.route.snapshot.paramMap.get('customerId');
   protected readonly configurationOnly = this.focusedCustomerId !== null;
-  protected editingCustomerDetails = false;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
+  protected customerDialogOpen = false;
+  protected isCustomerSaving = false;
+  protected customerDialogError: string | null = null;
+  protected customerDayFilter: 'all' | 'AwaitingOrder' | 'HasOrder' | 'off' = 'all';
+  protected dayStatuses = new Map<string, CustomerDayStatusResponse>();
+  protected dailyDate: string | null = null;
+  protected isDayLoading = false;
+  protected dayStatusError: string | null = null;
   protected customerSearch = '';
   protected isConfigLoading = false;
   protected isProfileSaving = false;
@@ -472,7 +429,7 @@ export class AdminCatalogsComponent {
   protected isLoading = true;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
-  protected customerForm: CustomerForm = this.emptyCustomerForm();
+  protected customerForm: CustomerEditorValue = this.emptyCustomerForm();
   protected productForm: ProductForm = this.emptyProductForm();
   protected machineForm: MachineForm = this.emptyMachineForm();
   protected readonly profileApproval = new FormControl(false, { nonNullable: true });
@@ -482,13 +439,85 @@ export class AdminCatalogsComponent {
 
   constructor() {
     this.loadCatalogs();
+    this.refreshDayStatus();
+    const refresh = () => {
+      if (this.document.visibilityState !== 'hidden' && this.activeTab === 'customers') this.refreshDayStatus();
+    };
+    const timer = setInterval(refresh, 30000);
+    this.document.addEventListener('visibilitychange', refresh);
+    this.destroyRef.onDestroy(() => {
+      clearInterval(timer);
+      this.document.removeEventListener('visibilitychange', refresh);
+    });
   }
 
   protected get visibleCustomers(): AdminCustomerCatalogApiResponse[] {
     if (this.focusedCustomerId) return this.customers.filter(customer => customer.id === this.focusedCustomerId);
-    const search = this.customerSearch.trim().toLocaleLowerCase('es-MX');
-    return search ? this.customers.filter(customer =>
-      [customer.name, customer.phoneNumber, customer.routeCode].some(value => value?.toLocaleLowerCase('es-MX').includes(search))) : this.customers;
+    const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-MX');
+    const search = normalize(this.customerSearch.trim());
+    return this.customers.filter(customer =>
+      (!search || [customer.name, customer.phoneNumber, customer.routeCode, customer.externalCode].some(value => value && normalize(value).includes(search))) &&
+      (this.customerDayFilter === 'all' || (this.customerDayFilter === 'off'
+        ? ['NoOrderConfirmed', 'ScheduledRest'].includes(this.dayState(customer)) : this.dayState(customer) === this.customerDayFilter)))
+      .slice().sort((a, b) => this.dayRank(a) - this.dayRank(b) || a.name.localeCompare(b.name, 'es-MX'));
+  }
+
+  protected dayState(customer: AdminCustomerCatalogApiResponse): string {
+    return this.dayStatuses.get(customer.id)?.status ?? 'Unavailable';
+  }
+
+  protected dayLabel(customer: AdminCustomerCatalogApiResponse): string {
+    const labels: Record<string, string> = {
+      AwaitingOrder: 'Por confirmar', HasOrder: 'Con pedido', NoOrderConfirmed: 'Hoy no pide',
+      ScheduledRest: 'Descanso programado', Inactive: 'Inactivo', Unavailable: 'Estado sin actualizar'
+    };
+    return labels[this.dayState(customer)] ?? labels['Unavailable'];
+  }
+
+  protected countDayState(state: string): number {
+    return this.customers.filter(customer => this.dayState(customer) === state).length;
+  }
+
+  protected initials(name: string): string {
+    return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase('es-MX');
+  }
+
+  private dayRank(customer: AdminCustomerCatalogApiResponse): number {
+    if (!customer.isActive) return 3;
+    return ({ AwaitingOrder: 0, HasOrder: 1, NoOrderConfirmed: 2, ScheduledRest: 2 } as Record<string, number>)[this.dayState(customer)] ?? 0;
+  }
+
+  protected refreshDayStatus(): void {
+    if (this.isDayLoading) return;
+    this.isDayLoading = true;
+    this.api.getCustomerDayStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: response => {
+        if (!response || !Array.isArray(response.customers) || !/^\d{4}-\d{2}-\d{2}$/.test(response.date)) {
+          this.finishDayStatusError();
+          return;
+        }
+        this.dayStatuses = new Map(response.customers.map(row => [row.customerId, row]));
+        this.dailyDate = response.date;
+        this.dayStatusError = null;
+        this.isDayLoading = false;
+        this.changeDetector.detectChanges();
+      },
+      error: () => this.finishDayStatusError()
+    });
+  }
+
+  private finishDayStatusError(): void {
+    this.isDayLoading = false;
+    this.dayStatusError = this.dailyDate
+      ? 'No pudimos actualizar el estado de hoy. Se conserva la última consulta del ' + this.dailyDate.split('-').reverse().join('/') + '.'
+      : 'No pudimos consultar los pedidos de hoy. Los estados se mostrarán cuando se recupere la conexión.';
+    this.changeDetector.detectChanges();
+  }
+
+  protected newCustomer(): void {
+    this.customerForm = this.emptyCustomerForm();
+    this.customerDialogError = null;
+    this.customerDialogOpen = true;
   }
 
   protected productFor(row: AdminCustomerFrequentProductApiResponse): AdminProductCatalogApiResponse | undefined {
@@ -546,7 +575,11 @@ export class AdminCatalogsComponent {
     void this.router.navigate(['/admin/catalogos'], { queryParams: { productId: row.productId } });
   }
 
-  protected saveCustomer(): void {
+  protected saveCustomer(value: CustomerEditorValue): void {
+    if (this.isCustomerSaving) return;
+    this.customerForm = { ...value, restDays: [...value.restDays] };
+    this.isCustomerSaving = true;
+    this.customerDialogError = null;
     const request = {
       name: this.customerForm.name,
       phoneNumber: this.emptyToNull(this.customerForm.phoneNumber),
@@ -558,24 +591,31 @@ export class AdminCatalogsComponent {
       routeStopOrder: this.customerForm.routeStopOrder,
       hasStoreKey: this.customerForm.hasStoreKey,
       paymentTermCode: this.customerForm.paymentTermCode,
-      internalDeliveryInstructions: this.emptyToNull(this.customerForm.internalDeliveryInstructions)
+      internalDeliveryInstructions: this.emptyToNull(this.customerForm.internalDeliveryInstructions),
+      restDays: [...this.customerForm.restDays]
     };
     const operation = this.customerForm.id
       ? this.api.updateCustomer(this.customerForm.id, request)
       : this.api.createCustomer(request);
 
-    operation.subscribe({
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.resultMessage = 'Cliente guardado.';
+        this.isCustomerSaving = false;
         this.resetCustomerForm();
         this.loadCatalogs(false);
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo guardar el cliente.')
+      error: (error: unknown) => {
+        this.isCustomerSaving = false;
+        this.customerDialogError = this.profileErrorText(error, 'No se pudo guardar el cliente.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
   protected editCustomer(customer: AdminCustomerCatalogApiResponse): void {
-    this.editingCustomerDetails = true;
+    this.customerDialogError = null;
+    this.customerDialogOpen = true;
     this.customerForm = {
       id: customer.id,
       name: customer.name,
@@ -588,7 +628,8 @@ export class AdminCatalogsComponent {
       routeStopOrder: customer.routeStopOrder ?? null,
       hasStoreKey: customer.hasStoreKey ?? null,
       paymentTermCode: customer.paymentTermCode ?? null,
-      internalDeliveryInstructions: customer.internalDeliveryInstructions ?? null
+      internalDeliveryInstructions: customer.internalDeliveryInstructions ?? null,
+      restDays: [...(customer.restDays ?? [])]
     };
   }
 
@@ -653,7 +694,8 @@ export class AdminCatalogsComponent {
 
   protected resetCustomerForm(): void {
     this.customerForm = this.emptyCustomerForm();
-    this.editingCustomerDetails = false;
+    this.customerDialogOpen = false;
+    this.customerDialogError = null;
   }
 
   protected addFrequentRow(): void {
@@ -982,6 +1024,7 @@ export class AdminCatalogsComponent {
         }
         this.products = products;
         this.machines = machines;
+        this.refreshDayStatus();
         this.isLoading = false;
         this.errorMessage = null;
         if (this.focusedCustomerId && !this.selectedCustomer) {
@@ -1017,7 +1060,7 @@ export class AdminCatalogsComponent {
     });
   }
 
-  private emptyCustomerForm(): CustomerForm {
+  private emptyCustomerForm(): CustomerEditorValue {
     return {
       id: null,
       name: '',
@@ -1030,7 +1073,8 @@ export class AdminCatalogsComponent {
       routeStopOrder: null,
       hasStoreKey: null,
       paymentTermCode: null,
-      internalDeliveryInstructions: null
+      internalDeliveryInstructions: null,
+      restDays: []
     };
   }
 

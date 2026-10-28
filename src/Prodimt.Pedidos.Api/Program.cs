@@ -32,6 +32,7 @@ builder.Services.AddScoped<AdminOperationsService>();
 builder.Services.AddScoped<OrderChangeNoticePublisher>();
 builder.Services.AddScoped<OrderChangeNoticeService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
+builder.Services.AddScoped<AdminCustomerDayService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
 builder.Services.AddScoped<AdminCustomerAccessTokenService>();
@@ -414,6 +415,11 @@ adminCustomers.MapGet("", async (
     return Results.Ok(await service.GetAllAsync(cancellationToken));
 })
 .WithName("GetAdminCustomers");
+
+adminCustomers.MapGet("/day-status", async (
+    AdminCustomerDayService service,
+    CancellationToken cancellationToken) => Results.Ok(await service.GetTodayAsync(cancellationToken)))
+    .WithName("GetAdminCustomerDayStatus");
 
 adminCustomers.MapGet("/{customerId:guid}", async (
     Guid customerId,

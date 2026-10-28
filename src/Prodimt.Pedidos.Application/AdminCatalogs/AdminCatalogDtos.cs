@@ -18,7 +18,8 @@ public sealed record AdminCustomerResponse(
     string? PaymentTermCode = null,
     string? InternalDeliveryInstructions = null,
     int OrderingProfileVersion = 0,
-    bool IsOrderProfileApproved = false);
+    bool IsOrderProfileApproved = false,
+    IReadOnlyList<int>? RestDays = null);
 
 public sealed record UpsertAdminCustomerRequest(
     string Name,
@@ -31,7 +32,8 @@ public sealed record UpsertAdminCustomerRequest(
     int? RouteStopOrder = null,
     bool? HasStoreKey = null,
     string? PaymentTermCode = null,
-    string? InternalDeliveryInstructions = null);
+    string? InternalDeliveryInstructions = null,
+    IReadOnlyList<int>? RestDays = null);
 
 public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null);
 

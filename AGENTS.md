@@ -12,6 +12,8 @@ I03-A prepara una instalación aislada Linux/WSL con Docker, API y frontend en u
 
 I04 añade avisos persistentes y reconocimiento de cambios de demanda, configuración enfocada por cliente y protección de edición concurrente del perfil. Reconocer un aviso no registra producción física. El usuario eligió el VPS y dominio del piloto; preparar instalación por etapas con inventario previo, sin sobrescribir otros proyectos. La captura desde WhatsApp se mantiene asistida por administración hasta implementar y validar su interpretación; un segundo mensaje no se suma automáticamente como otro pedido autorizado.
 
+I06, autorizado el 28 de octubre tras confirmar la carga de clientes, rediseña el catálogo con búsqueda principal, modal de alta/edición, tarjetas según el estado diario y descansos semanales configurables. Ver docs/proyecto/INCREMENTO-06.md. Descansar no desactiva al cliente ni crea NoOrder; los pedidos vigentes prevalecen y la lectura no modifica demanda. Preservar el CSV existente y preparar migración aditiva con respaldo para el despliegue nativo.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

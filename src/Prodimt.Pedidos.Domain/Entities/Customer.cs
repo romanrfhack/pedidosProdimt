@@ -31,6 +31,9 @@ public sealed class Customer
     // Internal access instructions must never be included in customer-facing DTOs.
     public string? InternalDeliveryInstructions { get; set; }
 
+    // ISO weekdays: Monday=1 through Sunday=7. Zero means no weekly rest is configured.
+    public int RestDaysMask { get; private set; }
+
     public int OrderingProfileVersion { get; set; }
 
     public bool IsOrderProfileApproved { get; set; }
@@ -129,6 +132,24 @@ public sealed class Customer
     {
         OrderingProfileVersion = checked(OrderingProfileVersion + 1);
         IsOrderProfileApproved = approved;
+        UpdatedAt = now;
+    }
+
+    public IReadOnlyList<int> GetRestDays() => Enumerable.Range(1, 7)
+        .Where(day => (RestDaysMask & (1 << (day - 1))) != 0).ToArray();
+
+    public bool IsScheduledRestOn(DateOnly date)
+    {
+        var day = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+        return (RestDaysMask & (1 << (day - 1))) != 0;
+    }
+
+    public void SetRestDays(IReadOnlyList<int> days, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(days);
+        if (days.Count > 7 || days.Any(day => day is < 1 or > 7) || days.Distinct().Count() != days.Count)
+            throw new ArgumentException("Selecciona días de descanso sin repetir, de lunes (1) a domingo (7).", nameof(days));
+        RestDaysMask = days.Aggregate(0, (mask, day) => mask | (1 << (day - 1)));
         UpdatedAt = now;
     }
 

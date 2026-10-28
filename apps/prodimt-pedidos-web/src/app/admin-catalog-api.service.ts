@@ -18,6 +18,8 @@ export interface AdminCustomerCatalogApiResponse {
   hasStoreKey: boolean | null;
   paymentTermCode: PaymentTermCode | null;
   internalDeliveryInstructions: string | null;
+  restDays?: number[];
+  externalCode?: string | null;
   orderingProfileVersion: number;
   isOrderProfileApproved: boolean;
   createdAt: string;
@@ -36,6 +38,7 @@ export interface UpsertAdminCustomerApiRequest {
   hasStoreKey: boolean | null;
   paymentTermCode: PaymentTermCode | null;
   internalDeliveryInstructions: string | null;
+  restDays?: number[] | null;
 }
 
 export interface AdminProductCatalogApiResponse {
@@ -143,6 +146,10 @@ export interface CreateCustomerAccessTokenApiRequest {
   expiresAt: string | null;
 }
 
+export type CustomerDayState = 'AwaitingOrder' | 'HasOrder' | 'NoOrderConfirmed' | 'ScheduledRest' | 'Inactive';
+export interface CustomerDayStatusResponse { customerId: string; status: CustomerDayState; orderCount: number; requiresReview: boolean; }
+export interface CustomerDayResponse { date: string; customers: CustomerDayStatusResponse[]; }
+
 @Injectable({ providedIn: 'root' })
 export class AdminCatalogApiService {
   private readonly http = inject(HttpClient);
@@ -150,6 +157,10 @@ export class AdminCatalogApiService {
 
   getCustomers(): Observable<AdminCustomerCatalogApiResponse[]> {
     return this.http.get<AdminCustomerCatalogApiResponse[]>(`${this.apiBaseUrl}/api/admin/customers`);
+  }
+
+  getCustomerDayStatus(): Observable<CustomerDayResponse> {
+    return this.http.get<CustomerDayResponse>(this.apiBaseUrl + '/api/admin/customers/day-status');
   }
 
   createCustomer(request: UpsertAdminCustomerApiRequest): Observable<AdminCustomerCatalogApiResponse> {

@@ -101,7 +101,7 @@ jobs:
           set -euo pipefail
           dotnet tool restore
           dotnet tool run dotnet-ef migrations script 0 20260528131416_AddCatalogExternalCodesAndImportSupport --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-baseline.sql"
-          dotnet tool run dotnet-ef migrations script --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-migrations.sql"
+          dotnet tool run dotnet-ef migrations script 0 20261024202253_AddOrderChangeNotices --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-migrations.sql"
           python3 tests/pilot/verify_native_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-baseline.sql" --script "$RUNNER_TEMP/native-cli-migrations.sql"
       - name: Remove disposable SQL Server
         if: always()

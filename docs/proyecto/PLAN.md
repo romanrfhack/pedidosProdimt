@@ -42,6 +42,8 @@ Avance de revisión I02: recibida hoja revisada del usuario, con identidad/ruta 
 | I03 | A: paquete de instalación y datos pendientes; B: instalación y carga revisada; C: ensayo de una semana y evaluación de diferencias. Listas/etiquetas y registro físico cuando se habiliten | Salida de etapa 1 e inicio de etapa 2 |
 | I04 | Avisos persistentes de cambios de demanda, reconocimiento por máquina y configuración enfocada/versionada del cliente | Refuerzo operativo para el ensayo; preparación de etapa 2 |
 
+I05 incorpora cambio de contraseña propia e invalidación de sesiones, ya instalado. I06, autorizado el 28 de octubre, mejora catálogo y captura de cliente con modal y estado diario/descanso semanal, como preparación del piloto de etapas 0 y 1.
+
 No asignar fechas de terminación sin confirmar disponibilidad operativa, despliegue y calidad de los datos. Cada incremento debe tener una aceptación técnica y una aceptación de negocio separadas.
 
 ## Principios permanentes

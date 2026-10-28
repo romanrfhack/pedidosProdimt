@@ -1,0 +1,53 @@
+<dialog #dialog aria-labelledby="customer-dialog-title" (cancel)="dismiss($event)" (click)="backdrop($event)">
+  <header class="dialog-heading">
+    <div>
+      <p class="eyebrow">Clientes</p>
+      <h2 id="customer-dialog-title">{{ customerForm.id ? 'Editar cliente' : 'Nuevo cliente' }}</h2>
+      <p>Datos de contacto, entrega y descansos habituales.</p>
+    </div>
+    <button type="button" class="close-button" aria-label="Cerrar" [disabled]="saving" (click)="dismiss()">×</button>
+  </header>
+  <form #editor="ngForm" (ngSubmit)="editor.valid && submit()">
+    <div class="dialog-body">
+      @if (error) { <div class="alert error" role="alert">{{ error }}</div> }
+      <fieldset class="dialog-fields" [disabled]="saving">
+        <label><span>Nombre</span><input name="customerName" [(ngModel)]="customerForm.name" required maxlength="200" placeholder="Nombre del cliente" autocomplete="organization" autofocus></label>
+        <label><span>Teléfono</span><input name="customerPhone" [(ngModel)]="customerForm.phoneNumber" maxlength="40" placeholder="Teléfono (opcional)" autocomplete="tel"></label>
+        <div class="catalog-grid full-width">
+          <label><span>Hora entrega</span><input name="customerDeliveryTime" type="time" [(ngModel)]="customerForm.preferredDeliveryTime"></label>
+          <label><span>Ventana inicio</span><input name="customerWindowStart" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowStart"></label>
+          <label><span>Ventana fin</span><input name="customerWindowEnd" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowEnd"></label>
+        </div>
+        <label class="full-width"><span>Notas entrega</span><input name="customerDeliveryNotes" maxlength="500" [(ngModel)]="customerForm.deliveryNotes" placeholder="Indicaciones generales de entrega"></label>
+        <label><span>Código de ruta</span><input name="customerRouteCode" maxlength="80" [(ngModel)]="customerForm.routeCode" placeholder="Ruta del cliente"></label>
+        <label><span>Orden de visita</span><input name="customerRouteStop" type="number" min="1" step="1" [(ngModel)]="customerForm.routeStopOrder" placeholder="Por confirmar"></label>
+        <label><span>Llave del local</span><select name="customerStoreKey" [(ngModel)]="customerForm.hasStoreKey">
+          <option [ngValue]="null">Por confirmar</option><option [ngValue]="true">Tenemos llave</option><option [ngValue]="false">No tenemos llave</option>
+        </select></label>
+        <label><span>Forma de cobro</span><select name="customerPaymentTerm" [(ngModel)]="customerForm.paymentTermCode">
+          <option [ngValue]="null">Por confirmar</option><option value="cash_on_delivery">Diario contraentrega · requiere ticket</option><option value="credit">Crédito</option>
+        </select></label>
+        <label class="full-width"><span>Instrucciones internas de entrega</span><textarea name="customerInternalDeliveryInstructions" rows="2" maxlength="1000" [(ngModel)]="customerForm.internalDeliveryInstructions" placeholder="Dónde y cómo dejar el pedido"></textarea>
+          <small>Visible solo para la operación interna.</small>
+        </label>
+        <section class="rest-days full-width" aria-labelledby="rest-days-heading">
+          <h3 id="rest-days-heading">Descanso semanal</h3>
+          <p>Selecciona los días que este cliente descansa habitualmente.</p>
+          <div class="weekdays">
+            @for (day of weekdays; track day.value) {
+              <label class="weekday" [class.selected]="customerForm.restDays.includes(day.value)">
+                <input type="checkbox" [name]="'restDay' + day.value" [checked]="customerForm.restDays.includes(day.value)" (change)="toggleRestDay(day.value)">
+                <span>{{ day.label }}</span>
+              </label>
+            }
+          </div>
+          <small>Sin días seleccionados, no hay descanso programado. Si registra un pedido en su día de descanso, aparecerá con pedido.</small>
+        </section>
+      </fieldset>
+    </div>
+    <footer class="dialog-actions">
+      <button type="button" class="secondary compact" [disabled]="saving" (click)="dismiss()">Cancelar</button>
+      <button type="submit" class="primary compact" [disabled]="saving || editor.invalid || !customerForm.name.trim()">{{ saving ? 'Guardando…' : customerForm.id ? 'Guardar cliente' : 'Crear cliente' }}</button>
+    </footer>
+  </form>
+</dialog>

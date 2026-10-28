@@ -364,7 +364,8 @@ async function mockOperationsPlan(page: Page) {
 test('catálogo conserva desconocido, llave y cobro como campos independientes', async ({ page }) => {
   await loginAdmin(page);
   await page.goto('/admin/catalogos');
-  const form = page.getByTestId('catalog-customers').locator('form');
+  await page.getByRole('button', { name: 'Nuevo cliente' }).click();
+  const form = page.getByRole('dialog');
   await expect(form.getByLabel('Llave del local')).toHaveValue('0: null');
   await expect(form.getByLabel('Forma de cobro')).toHaveValue('0: null');
   await form.getByLabel('Nombre', { exact: true }).fill('Cliente Piloto Prueba');
@@ -407,7 +408,8 @@ test('producto nuevo no presupone kilos y permite guardar docenas', async ({ pag
 test('perfil requiere aprobación explícita y separa posición de orden visual', async ({ page }) => {
   await loginAdmin(page);
   await page.goto('/admin/catalogos');
-  await page.getByRole('button', { name: 'Configurar' }).first().click();
+  await page.getByTestId('customer-card').filter({ has: page.getByRole('heading', { name: 'Gran Takito', exact: true }) })
+    .getByRole('button', { name: 'Configurar', exact: true }).click();
   const config = page.getByTestId('customer-config');
   const approval = config.getByLabel('He verificado los productos y sus posiciones; aprobar este perfil');
   await expect(approval).not.toBeChecked();

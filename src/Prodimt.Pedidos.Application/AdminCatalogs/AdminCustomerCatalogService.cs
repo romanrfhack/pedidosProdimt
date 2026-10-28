@@ -49,7 +49,8 @@ public sealed class AdminCustomerCatalogService(
             CatalogAuditEventTypes.CustomerCreated,
             now,
             actor,
-            $"Cliente creado: {customer.Name}."), cancellationToken);
+            $"Cliente creado: {customer.Name}.",
+            new { restDays = customer.GetRestDays() }), cancellationToken);
         await customers.SaveChangesAsync(cancellationToken);
 
         return MapCustomer(customer);
@@ -72,6 +73,7 @@ public sealed class AdminCustomerCatalogService(
         var now = dateTimeProvider.Now;
         // Validate before mutating a tracked entity (including the in-memory provider).
         ApplyPilotDelivery(new Customer(), request, now);
+        var previousRestDays = customer.GetRestDays();
         customer.Update(
             request.Name,
             request.PhoneNumber,
@@ -98,6 +100,8 @@ public sealed class AdminCustomerCatalogService(
                 customer.RouteStopOrder,
                 customer.HasStoreKey,
                 customer.PaymentTermCode,
+                previousRestDays,
+                restDays = customer.GetRestDays(),
                 hasInternalDeliveryInstructions = customer.InternalDeliveryInstructions is not null
             }), cancellationToken);
         await customers.SaveChangesAsync(cancellationToken);
@@ -405,6 +409,8 @@ public sealed class AdminCustomerCatalogService(
     {
         customer.SetPilotDelivery(request.RouteCode, request.RouteStopOrder, request.HasStoreKey,
             request.PaymentTermCode, request.InternalDeliveryInstructions, now);
+        // Older callers and existing CSV imports preserve the configured schedule.
+        if (request.RestDays is not null) customer.SetRestDays(request.RestDays, now);
     }
 
     private static AdminCustomerResponse MapCustomer(Customer customer)
@@ -427,6 +433,7 @@ public sealed class AdminCustomerCatalogService(
             customer.PaymentTermCode,
             customer.InternalDeliveryInstructions,
             customer.OrderingProfileVersion,
-            customer.IsOrderProfileApproved);
+            customer.IsOrderProfileApproved,
+            customer.GetRestDays());
     }
 }

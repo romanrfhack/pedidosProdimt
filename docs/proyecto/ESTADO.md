@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Actualizado: 27 de octubre de 2026.
+Actualizado: 28 de octubre de 2026.
 
 ## Ubicación y etapa
 
@@ -71,6 +71,8 @@ Actualizado: 27 de octubre de 2026.
 - El 26 de octubre el usuario confirma ruta correcta y aporta 401 con sus credenciales. Autoriza crear una cuenta nueva con contraseña generada y probarla. Preparado `create-native-admin.py`: cuenta `roman.prodimt`, contraseña aleatoria de 32 caracteres generada en el VPS, referencia privada root/600 para repetir sin rotación y transacción de alta/auditoría. Reutiliza el módulo de recuperación previo por SHA256; verifica login/consulta administrativa HTTPS antes de mostrar datos sólo en terminal. No modifica cuentas previas. [CI 40403547948](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40403547948): 129 Python, SQL y .NET/Production correctos, incluido contrato real de creación/reintento/rechazo/rollback. Navegador aún en ejecución al registrar; no cambió la aplicación. Entregable preparado; ejecución real y JSON pendientes. [Evidencia](../validation/2026-10-26-generated-admin.md).
 
 ## Siguiente paso
+
+El 28 de octubre el usuario confirma la carga inicial de clientes; sus capturas muestran el catálogo poblado. Autoriza I06: búsqueda principal, modal centrado bajo demanda y tarjetas por estado del día con descansos semanales. Implementación y verificación técnica en curso; aún no instalada. No solicitar de nuevo el alta inicial por el estado documental anterior.
 
 En la primera revisión funcional el usuario reporta que no hay clientes visibles y solicita el archivo para importar los ya definidos. Preparados de forma privada `PRODIMT_Clientes_Iniciales.xlsx` y `.csv`: 23 clientes/13 columnas, con códigos estables y campos confirmados de I04 conservados. El CSV coincide byte a byte con el `customers.csv` privado revisado; Excel/CSV contrastados celda por celda y sin fórmulas de pedidos. La base no se ha consultado ni modificado desde esta sesión; faltan vista previa y aplicación real por el usuario.
 

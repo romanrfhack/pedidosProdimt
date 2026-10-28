@@ -167,6 +167,11 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<TimeOnly?>("PreferredDeliveryWindowStart")
                         .HasColumnType("time");
 
+                    b.Property<int>("RestDaysMask")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("RouteCode")
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
@@ -185,7 +190,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RouteCode", "RouteStopOrder");
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", t =>
+                        {
+                            t.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
+                        });
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerAccessToken", b =>
