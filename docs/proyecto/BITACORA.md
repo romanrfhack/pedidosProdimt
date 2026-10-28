@@ -307,3 +307,8 @@ Código y herramientas `46fed604732eddca0c7ac199b58bb0b429545b89`: [CI 407652391
 Publicación linux-x64 framework-dependent con SourceRevisionId verificado y Angular Production 469.14 kB. Paquete PRODIMT_Captura_Rapida_I07.zip: 5,696,903 bytes, SHA256 131b0161735197c15a3c7b5fd715648ea2b9258deec066bae0af041cca89acae, 62 archivos comprobados, CRC/hashes/pines correctos y plan sin cambios. Entregado de forma privada; sin datos del Excel ni credenciales. Ver docs/validation/2026-10-28-quick-capture.md.
 
 I06 sigue siendo el último despliegue confirmado; no se ejecutó SSH, no se repitió carga de catálogos y no se modificaron main/Nginx/cuentas. Pendiente instalación del usuario, asociación explícita de HN cuando corresponda, confirmación de perfiles, pedido/fecha/unidades y corrección con aviso. Cierre documental posterior conserva código y binarios.
+
+## 2026-10-28 — Instalación I07 detenida antes de autenticación SQL
+
+
+El primer intento de instalación I07 reportado por el usuario el 28 de octubre se detuvo en sql-admin-authentication con sql_credentials_invalid. El preflight confirmó diez migraciones y todos los permisos DML previstos; changes_made, database_migrations_run y migrations_may_have_changed fueron false. La validación local de entrada ocurre antes de consultar SQL como administrador: exige usuario 1–128 caracteres, contraseña 1–512 y ausencia de NUL/CR/LF. El reporte no identifica cuál campo falló ni demuestra rechazo de autenticación por SQL Server. Reintentar el mismo instalador con el login SQL existente y su contraseña introducidos en los prompts ocultos; mantener I06 como último despliegue confirmado. No hubo cambios al código/paquete ni intento remoto desde esta sesión.
