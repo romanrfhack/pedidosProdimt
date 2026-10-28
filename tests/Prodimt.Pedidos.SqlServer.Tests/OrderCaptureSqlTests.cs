@@ -51,7 +51,8 @@ public sealed class OrderCaptureSqlTests(SqlServerFixture database)
         Assert.Equal(new TimeOnly(12,30),order.RequestedDeliveryTime);
         Assert.Equal(2,order.Lines.Count);
         var audit=await db.OrderAuditLogs.SingleAsync(x=>x.OrderId==orderId&&x.EventType==OrderAuditEventType.AdminOrderCaptureResolved);
-        Assert.Contains("13+2hn",audit.MetadataJson);
+        using var metadata=JsonDocument.Parse(audit.MetadataJson!);
+        Assert.Equal("13+2hn",metadata.RootElement.GetProperty("originalText").GetString());
         var key=$"CAPTURE:{catalog.CustomerId:N}:{request.OperationId:N}";
         Assert.Single(await db.OrderOperations.Where(x=>x.OperationKey==key).ToArrayAsync());
         Assert.Equal("HN",(await db.CustomerFrequentProducts.SingleAsync(x=>x.CustomerId==catalog.CustomerId&&x.ProductId==catalog.SecondProductId)).CaptureAlias);

@@ -23,6 +23,9 @@ test('captura rápida desglosa al perder foco, confirma perfil una vez y mantien
   await expect(page.locator('input[type=time]')).toHaveCount(0);
   await expect(page.getByText('13:30',{exact:true})).toBeVisible();
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
+  const capture=await page.getByTestId('order-capture').boundingBox();
+  const card=await page.getByTestId('order-capture').locator('xpath=ancestor::article').boundingBox();
+  expect(capture!.width/card!.width).toBeGreaterThan(.9);
   await enter(page,'16');
   await expect(page.getByTestId('capture-breakdown')).toContainText('16 kg');
   await expect(page.getByTestId('capture-breakdown')).toContainText('#11');
