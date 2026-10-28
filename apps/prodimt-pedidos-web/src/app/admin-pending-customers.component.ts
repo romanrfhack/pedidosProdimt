@@ -2,13 +2,14 @@ import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
+import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from './admin-catalog-api.service';
+import { AdminOrderCaptureComponent } from './admin-order-capture.component';
 import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './order-data.service';
 
 @Component({
   selector: 'app-admin-pending-customers',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, AdminOrderCaptureComponent],
   styles: [`
     fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
     .check-row { display: flex; align-items: flex-start; gap: .6rem; }
@@ -73,58 +74,12 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
                 </div>
 
                 @if (getTemplate(customer); as selectedTemplate) {
-                  <form class="detail-panel stack" (ngSubmit)="submitCapture()">
-                    <strong>Captura para {{ selectedTemplate.customerName }}</strong>
-                    <p class="notice">Fecha de servicio: {{ serviceDate }}. Si el cliente cambió los kilos, abre su pedido y corrige el total con una nota.</p>
-                    @if (captureError) { <p class="alert error" role="alert">{{ captureError }}</p> }
-                    @if (existingOrders.length) {
-                      <section class="alert warning stack" data-testid="capture-existing-orders">
-                        <strong>Este cliente ya tiene pedidos para esta fecha.</strong>
-                        <p>Verifica si el mensaje corresponde a uno de ellos antes de crear otro.</p>
-                        @for (order of existingOrders; track order.id) {
-                          <a routerLink="/admin/pedidos" [queryParams]="{ date: serviceDate, orderId: order.id }">Abrir pedido #{{ order.sequenceNumber }} y corregir</a>
-                        }
-                        <label class="check-row"><input type="checkbox" name="confirmSeparateDelivery" [(ngModel)]="confirmSeparateDelivery" [disabled]="!!submittingCustomerId"><span>Confirmo que es una entrega adicional independiente; crear otro pedido sujeto a revisión.</span></label>
-                      </section>
-                    }
-                    <fieldset class="stack" [disabled]="!!submittingCustomerId">
-                    <label>
-                      <span>Hora entrega</span>
-                      <input name="requestedDeliveryTime" type="time" [(ngModel)]="selectedTemplate.requestedDeliveryTime">
-                    </label>
-                    <label>
-                      <span>Notas de entrega</span>
-                      <input name="deliveryNotes" [(ngModel)]="selectedTemplate.deliveryNotes">
-                    </label>
-                    <label>
-                      <span>Notas internas</span>
-                      <input name="captureInternalNotes" [(ngModel)]="internalNotes">
-                    </label>
-                    <div class="line-list">
-                      @for (product of selectedTemplate.products; track product.id) {
-                        <label class="line-row">
-                          <span>
-                            <strong>{{ product.name }}</strong>
-                            <small>Sugerido: {{ product.suggestedQuantity }} {{ unitLabel(product.unitCode) }}</small>
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            inputmode="decimal"
-                            [name]="'captureQuantity' + product.id"
-                            [(ngModel)]="product.quantity">
-                        </label>
-                      }
-                    </div>
-                    <div class="review-actions">
-                      <button type="submit" class="primary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId">
-                        Guardar pedido
-                      </button>
-                      <button type="button" class="secondary compact" [disabled]="!!submittingCustomerId" (click)="cancelCapture()">Cancelar</button>
-                    </div>
-                    </fieldset>
-                  </form>
+                  @if (profile; as currentProfile) {
+                    <app-admin-order-capture [template]="selectedTemplate" [initialProfile]="currentProfile"
+                      [serviceDate]="serviceDate" [existingOrders]="existingOrders"
+                      (busy)="submittingCustomerId = $event ? customer.id : null"
+                      (saved)="captureSaved($event)" (dismissed)="cancelCapture()" />
+                  }
                 }
               </article>
             }
@@ -137,6 +92,7 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
 export class AdminPendingCustomersComponent {
   protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
+  private readonly catalog = inject(AdminCatalogApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
   private captureRequest: Subscription | null = null;
@@ -144,7 +100,7 @@ export class AdminPendingCustomersComponent {
 
   protected customers: PendingCustomerOrder[] = [];
   protected template: AdminOrderTemplate | null = null;
-  protected internalNotes: string | null = null;
+  protected profile: AdminCustomerOrderingProfileApiResponse | null = null;
   protected isLoading = true;
   protected loadingCustomerId: string | null = null;
   protected submittingCustomerId: string | null = null;
@@ -152,8 +108,6 @@ export class AdminPendingCustomersComponent {
   protected resultMessage: string | null = null;
   protected serviceDate = businessDateToday();
   protected existingOrders: AdminOrder[] = [];
-  protected confirmSeparateDelivery = false;
-  protected captureError: string | null = null;
 
   protected isToday(): boolean { return this.serviceDate === businessDateToday(); }
 
@@ -179,13 +133,14 @@ export class AdminPendingCustomersComponent {
     const date = this.serviceDate;
     this.captureRequest = forkJoin({
       template: this.data.loadAdminOrderTemplate(customer.id),
-      orders: this.data.loadTodayOrders(date)
+      orders: this.data.loadTodayOrders(date),
+      profile: this.catalog.getOrderingProfile(customer.id)
     }).subscribe({
-      next: ({ template, orders }) => {
+      next: ({ template, orders, profile }) => {
         if (generation !== this.captureGeneration || date !== this.serviceDate) return;
         this.template = template;
-        this.existingOrders = this.activeOrders(orders, customer.id);
-        this.internalNotes = 'Capturado por administracion.';
+        this.existingOrders = orders.filter(x => x.customerId === customer.id && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(x.status));
+        this.profile = profile;
         this.loadingCustomerId = null;
         this.changeDetector.detectChanges();
       },
@@ -198,93 +153,10 @@ export class AdminPendingCustomersComponent {
     });
   }
 
-  protected submitCapture(): void {
-    if (!this.template || this.submittingCustomerId || this.loadingCustomerId) {
-      return;
-    }
-
-    if (this.template.products.some((product) => Number(product.quantity) < 0)) {
-      this.captureError = 'No uses cantidades negativas.';
-      this.changeDetector.detectChanges();
-      return;
-    }
-
-    if (this.template.products.some((product) => Number(product.quantity) > 0 && !product.unitCode)) {
-      this.captureError = 'Confirma la unidad de los productos en Catálogos antes de capturar el pedido.';
-      return;
-    }
-
-    const lines = this.template.products
-      .filter((product) => Number(product.quantity) > 0)
-      .map((product) => ({
-        productId: product.id,
-        quantity: Number(product.quantity),
-        notes: this.emptyToNull(product.notes)
-      }));
-
-    if (lines.length === 0) {
-      this.captureError = 'Captura al menos una cantidad o usa No pedir hoy.';
-      this.changeDetector.detectChanges();
-      return;
-    }
-
-    this.captureError = null;
-    this.resultMessage = null;
-    this.submittingCustomerId = this.template.customerId;
-
-    const template = this.template;
-    const date = this.serviceDate;
-    const generation = this.captureGeneration;
-    const knownIds = new Set(this.existingOrders.map(order => order.id));
-    // Check again immediately before writing: another capture channel may have
-    // submitted while this form was open. The server remains the final guard.
-    this.captureRequest = this.data.loadTodayOrders(date).subscribe({
-      next: orders => {
-        if (generation !== this.captureGeneration) return;
-        const existing = this.activeOrders(orders, template.customerId);
-        const hasNewOrder = existing.some(order => !knownIds.has(order.id));
-        this.existingOrders = existing;
-        if (hasNewOrder) this.confirmSeparateDelivery = false;
-        if (existing.length && !this.confirmSeparateDelivery) {
-          this.captureError = 'Ya existe un pedido. Ábrelo para corregirlo o confirma que se trata de otra entrega independiente.';
-          this.submittingCustomerId = null;
-          this.changeDetector.detectChanges();
-          return;
-        }
-        this.captureRequest = this.data.submitAdminCustomerOrder(template.customerId, {
-          serviceDate: date,
-          lines,
-          requestedDeliveryTime: this.emptyToNull(template.requestedDeliveryTime),
-          requestedDeliveryWindowStart: this.emptyToNull(template.requestedDeliveryWindowStart),
-          requestedDeliveryWindowEnd: this.emptyToNull(template.requestedDeliveryWindowEnd),
-          deliveryNotes: this.emptyToNull(template.deliveryNotes),
-          internalNotes: this.emptyToNull(this.internalNotes)
-        }).subscribe({
-          next: () => {
-            if (generation !== this.captureGeneration) return;
-            this.resultMessage = existing.length ? 'Pedido independiente capturado; verifica su revisión antes de producir.' : 'Pedido capturado por administracion.';
-            this.cancelCapture();
-            this.load(false);
-          },
-          error: (error: unknown) => {
-            if (generation !== this.captureGeneration) return;
-            this.captureError = this.formatError(error, 'No se pudo capturar el pedido.');
-            this.submittingCustomerId = null;
-            this.changeDetector.detectChanges();
-          }
-        });
-      },
-      error: (error: unknown) => {
-        if (generation !== this.captureGeneration) return;
-        this.captureError = this.formatError(error, 'No se pudieron verificar los pedidos existentes. Vuelve a intentar antes de guardar.');
-        this.submittingCustomerId = null;
-        this.changeDetector.detectChanges();
-      }
-    });
-  }
-
-  private activeOrders(orders: AdminOrder[], customerId: string): AdminOrder[] {
-    return orders.filter(order => order.customerId === customerId && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(order.status));
+  protected captureSaved(independent: boolean): void {
+    this.resultMessage = independent ? 'Pedido independiente capturado; verifica su revisión antes de producir.' : 'Pedido capturado por administracion.';
+    this.cancelCapture();
+    this.load(false);
   }
 
   protected markNoOrder(customer: PendingCustomerOrder): void {
@@ -311,10 +183,9 @@ export class AdminPendingCustomersComponent {
     this.captureGeneration++;
     this.captureRequest?.unsubscribe();
     this.template = null;
-    this.internalNotes = null;
+    this.profile = null;
+    this.submittingCustomerId = null;
     this.existingOrders = [];
-    this.confirmSeparateDelivery = false;
-    this.captureError = null;
     this.loadingCustomerId = null;
   }
 
@@ -346,9 +217,7 @@ export class AdminPendingCustomersComponent {
     });
   }
 
-  private emptyToNull(value: string | null): string | null {
-    return value && value.trim() ? value : null;
-  }
+
 
   private formatError(error: unknown, fallback: string): string {
     if (error instanceof HttpErrorResponse && error.error?.error) {

@@ -1,6 +1,7 @@
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Application.AdminCatalogs;
 
@@ -166,7 +167,7 @@ public sealed class AdminCustomerCatalogService(
         return new(snapshot.CustomerId, snapshot.OrderingProfileVersion, snapshot.IsOrderProfileApproved,
             snapshot.Items.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId, item.ProductName,
                 item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
-                item.InterpretationPosition, item.UnitCode, item.ProductIsActive)).ToArray());
+                item.InterpretationPosition, item.UnitCode, item.ProductIsActive, item.CaptureAlias)).ToArray());
     }
 
     public Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsAsync(
@@ -191,6 +192,11 @@ public sealed class AdminCustomerCatalogService(
             throw new CatalogConflictException("El perfil cambio desde que lo abriste. Recarga la configuracion antes de guardar.");
         var items = request.Items ?? [];
         EnsureNoDuplicateIds(items.Select(x => x.ProductId), "No repitas productos frecuentes para el mismo cliente.");
+        var previous = (await customers.GetAllFrequentProductsAsync(customerId, cancellationToken)).ToDictionary(x => x.ProductId);
+        var aliases = items.ToDictionary(x => x.ProductId, x => x.CaptureAlias is null
+            ? previous.GetValueOrDefault(x.ProductId)?.CaptureAlias : OrderCaptureAlias.Normalize(x.CaptureAlias));
+        if (aliases.Values.Where(x => x is not null).GroupBy(x => x, StringComparer.OrdinalIgnoreCase).Any(x => x.Count() > 1))
+            throw new ArgumentException("No repitas abreviaturas para productos del mismo cliente.", nameof(request));
 
         if (items.Any(x => x.DefaultQuantity < 0))
             throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades default no pueden ser negativas.");
@@ -229,7 +235,8 @@ public sealed class AdminCustomerCatalogService(
             SortOrder = item.SortOrder > 0 ? item.SortOrder : index + 1,
             IsActive = item.IsActive,
             PreferredMachineId = item.PreferredMachineId,
-            InterpretationPosition = item.InterpretationPosition
+            InterpretationPosition = item.InterpretationPosition,
+            CaptureAlias = aliases[item.ProductId]
         }).OrderBy(x => x.SortOrder).ToArray();
 
         var now = dateTimeProvider.Now;
@@ -247,6 +254,7 @@ public sealed class AdminCustomerCatalogService(
                 count = replacement.Length,
                 activeCount = replacement.Count(x => x.IsActive),
                 productIds = replacement.Select(x => x.ProductId).ToArray(),
+                captureAliases = replacement.Select(x => new { x.ProductId, x.CaptureAlias }).ToArray(),
                 customer.OrderingProfileVersion,
                 customer.IsOrderProfileApproved
             }), cancellationToken);
@@ -255,7 +263,7 @@ public sealed class AdminCustomerCatalogService(
         return replacement.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId,
             productLookup[item.ProductId].Name, item.DefaultQuantity, item.SortOrder, item.IsActive,
             item.PreferredMachineId, item.InterpretationPosition, productLookup[item.ProductId].UnitCode,
-            productLookup[item.ProductId].IsActive)).ToArray();
+            productLookup[item.ProductId].IsActive, item.CaptureAlias)).ToArray();
     }
 
     public async Task<IReadOnlyList<AdminCustomerMachineAssignmentResponse>> GetMachineAssignmentsAsync(

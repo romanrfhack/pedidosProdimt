@@ -116,7 +116,7 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
                     products.GetValueOrDefault(item.ProductId)?.Name ?? "Producto no encontrado",
                     item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
                     item.InterpretationPosition, products.GetValueOrDefault(item.ProductId)?.UnitCode,
-                    products.GetValueOrDefault(item.ProductId)?.IsActive ?? false)).ToArray();
+                    products.GetValueOrDefault(item.ProductId)?.IsActive ?? false, item.CaptureAlias)).ToArray();
             return Task.FromResult<CustomerOrderingProfileSnapshot?>(new(customer.Id, customer.OrderingProfileVersion,
                 customer.IsOrderProfileApproved, items));
         }

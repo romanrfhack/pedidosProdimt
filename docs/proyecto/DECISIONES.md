@@ -41,6 +41,8 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 
 | OCT-034 | 2026-10-28 | Usuario confirma clientes cargados y autoriza búsqueda principal, alta bajo demanda en modal y tarjetas por estado diario. I06 usa ámbar para pendiente, verde con pedido y gris para NoOrder/descanso al final, con etiquetas. Descansos semanales explícitos por cliente; no inferirlos de ausencia de pedido, no crear NoOrder ni desactivar clientes. Un pedido vigente prevalece. |
 
+| OCT-035 | 2026-10-28 | Usuario autoriza un campo de captura por cliente: cantidades por posiciones explícitas y sufijos configurados. Desglose al salir del campo y guardado explícito; entrega habitual informativa. No inferir HN. Perfiles importados se confirman explícitamente antes de interpretación guardada. Mantener captura manual y controles de duplicados/corrección. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

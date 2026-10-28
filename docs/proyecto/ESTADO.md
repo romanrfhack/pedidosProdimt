@@ -98,3 +98,7 @@ Cuenta `roman.prodimt` creada por el usuario el 26 de octubre: `status: complete
 - El ticket es una condición operativa; no se generan tickets monetarios ni se marca pago al imprimir.
 - Los campos vacíos y las fechas arrastradas del Excel no se convierten en valores operativos por suposición.
 - Validación técnica, carga privada, despliegue y uso real son hitos distintos.
+
+## I07 en desarrollo — 28 de octubre
+
+Usuario solicita captura rápida con desglose al perder foco, entrega habitual informativa y alternativa manual. Parser por perfil/alias explícitos, aprobación, vista previa y guardado transaccional implementados; validación completa y paquete nativo pendientes. Último despliegue confirmado sigue siendo I06; no ejecutar bootstrap ni reimportar catálogos.

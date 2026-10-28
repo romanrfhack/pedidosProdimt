@@ -27,6 +27,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<AdminOrderCaptureService>();
 builder.Services.AddScoped<AdminDailyOrderService>();
 builder.Services.AddScoped<AdminOperationsService>();
 builder.Services.AddScoped<OrderChangeNoticePublisher>();
@@ -161,6 +162,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapAdminOperationsEndpoints();
 app.MapDailyOrderEndpoints();
+app.MapOrderCaptureEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");

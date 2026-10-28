@@ -11,7 +11,7 @@ namespace Prodimt.Pedidos.SqlServer.Tests;
 public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
 {
     private const string OldMigration = "20260528131416_AddCatalogExternalCodesAndImportSupport";
-    private const string LatestMigration = "20261028142346_AddCustomerRestDays";
+    private const string LatestMigration = "20261028202031_AddCustomerCaptureAliases";
     private const string ExistingHash = "synthetic-existing-password-hash-must-not-be-replaced";
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
             foreach (var batch in Regex.Split(script, @"^[ \t]*GO[ \t]*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
                 if (!string.IsNullOrWhiteSpace(batch)) await ExecuteAsync(admin, batch);
             var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-            Assert.Equal(10, applied.Length);
+            Assert.Equal(11, applied.Length);
             Assert.Equal(LatestMigration, applied[^1]);
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
             await AssertPreservedDataAsync(db, customerId, adminId);

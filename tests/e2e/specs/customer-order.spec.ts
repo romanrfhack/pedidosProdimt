@@ -224,6 +224,8 @@ test('admin puede abrir captura administrativa', async ({ page, request }) => {
 
   await page.getByRole('button', { name: 'Capturar pedido' }).first().click();
   await expect(page.getByText('Captura para Cliente Demo 2')).toBeVisible();
+  await page.getByRole('button', { name: 'Captura manual', exact: true }).click();
+  await page.getByRole('spinbutton').first().fill('8');
   await expect(page.getByText('#11')).toBeVisible();
   await page.getByRole('button', { name: 'Guardar pedido' }).click();
 

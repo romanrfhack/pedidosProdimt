@@ -245,6 +245,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CaptureAlias")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
                     b.Property<decimal?>("DefaultQuantity")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -266,6 +270,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("PreferredMachineId");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("CustomerId", "CaptureAlias")
+                        .IsUnique()
+                        .HasFilter("[CaptureAlias] IS NOT NULL");
 
                     b.HasIndex("CustomerId", "InterpretationPosition")
                         .IsUnique()

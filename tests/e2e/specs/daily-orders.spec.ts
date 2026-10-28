@@ -50,7 +50,9 @@ test('captura administrativa consulta y envía la fecha de servicio seleccionada
   await page.getByRole('button', { name: 'Consultar clientes' }).click();
   await pending;
   await page.getByRole('button', { name: 'Capturar pedido' }).first().click();
-  const submit = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/orders/submit'));
+  await page.getByRole('button', { name: 'Captura manual', exact: true }).click();
+  await page.getByRole('spinbutton').first().fill('8');
+  const submit = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/orders/capture'));
   await page.getByRole('button', { name: 'Guardar pedido' }).click();
   expect((await submit).postDataJSON().serviceDate).toBe('2026-10-25');
   await expect(page.getByText('Pedido capturado por administracion.')).toBeVisible();

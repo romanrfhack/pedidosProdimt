@@ -170,6 +170,7 @@ interface MachineForm {
                               <label><span>Cantidad sugerida</span><input type="number" min="0" step="0.01" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" (ngModelChange)="invalidateProfileApproval()"></label>
                               <label><span>Orden visual</span><input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
                               <label><span>Posición en mensaje</span><input type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
+                              <label><span>Abreviatura para captura</span><input type="text" aria-label="Abreviatura para captura" maxlength="16" [(ngModel)]="row.captureAlias" [name]="'frequentAlias' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Ej. HN"><small>Opcional. Letras únicas para este cliente, como 2HN.</small></label>
                               <label><span>Máquina para este producto</span><select [(ngModel)]="row.preferredMachineId" [name]="'frequentMachine' + i" (ngModelChange)="invalidateProfileApproval()">
                                 <option [ngValue]="null">Usar asignación del cliente</option>
                                 @for (machine of machines; track machine.id) {
@@ -205,7 +206,7 @@ interface MachineForm {
                           <input type="checkbox" name="approveProfile" [formControl]="profileApproval">
                           <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
                         </label>
-                        <small>Guardar sin esta confirmación deja el perfil pendiente de aprobación. Todavía no se interpretan mensajes automáticamente.</small>
+                        <small>Esta confirmación habilita la captura rápida según los productos, posiciones y abreviaturas de este cliente.</small>
                         <div class="review-actions">
                           <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
                           <button type="button" class="primary compact" [disabled]="profileValidationErrors.length > 0 || profileConflict" (click)="saveFrequentProducts()">{{ isProfileSaving ? 'Guardando...' : 'Guardar frecuentes' }}</button>
@@ -535,6 +536,9 @@ export class AdminCatalogsComponent {
     if (this.frequentRows.some(row => !this.productFor(row))) errors.push('Selecciona un producto existente en cada fila.');
     if (this.frequentRows.some(row => !Number.isInteger(row.sortOrder) || row.sortOrder < 1)) errors.push('El orden visual debe ser un número entero desde 1.');
     if (this.frequentRows.some(row => row.defaultQuantity !== null && (!Number.isFinite(row.defaultQuantity) || row.defaultQuantity < 0))) errors.push('La cantidad sugerida debe ser cero o positiva, o quedar vacía.');
+    const aliases = this.frequentRows.map(row => row.captureAlias?.trim().toUpperCase() || '').filter(Boolean);
+    if (aliases.some(value => !/^[A-Z]{1,16}$/.test(value))) errors.push('Las abreviaturas deben tener de 1 a 16 letras sin espacios ni números.');
+    if (new Set(aliases).size !== aliases.length) errors.push('No repitas abreviaturas dentro de este cliente.');
     const positions = this.frequentRows.filter(row => row.interpretationPosition !== null).map(row => row.interpretationPosition!);
     if (positions.some(position => !Number.isInteger(position) || position < 1)) errors.push('Las posiciones deben ser números enteros desde 1, o quedar vacías.');
     if (new Set(positions).size !== positions.length) errors.push('No repitas posiciones dentro de este cliente.');
@@ -717,7 +721,8 @@ export class AdminCatalogsComponent {
         sortOrder: this.frequentRows.length + 1,
         isActive: true,
         preferredMachineId: null,
-        interpretationPosition: null
+        interpretationPosition: null,
+        captureAlias: ''
       }
     ];
   }
@@ -775,7 +780,8 @@ export class AdminCatalogsComponent {
         sortOrder: Number(row.sortOrder) || 0,
         isActive: row.isActive,
         preferredMachineId: row.preferredMachineId ?? null,
-        interpretationPosition: row.interpretationPosition ?? null
+        interpretationPosition: row.interpretationPosition ?? null,
+        captureAlias: row.captureAlias?.trim().toUpperCase() ?? ''
       }))
     }).subscribe({
       next: () => {

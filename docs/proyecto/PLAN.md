@@ -63,3 +63,7 @@ Antes de asignar nuevo desarrollo, revisar la experiencia real del flujo. Una po
 - Llave, ubicación interior y máquina son información interna; no deben aparecer en la vista de cliente.
 - Imprimir un ticket no registra pago. Entregar usando llave tampoco registra cobro.
 - Una marca `X` en un renglón de producto no cancela otros productos del cliente.
+
+## I07 autorizado: captura rápida administrativa
+
+La propuesta anterior fue autorizada por el usuario: implementar y probar texto abreviado por posiciones del cliente, alias explícitos, desglose y captura manual; preparar actualización nativa I06→I07 con respaldo. Después del despliegue, ensayar 3–5 pedidos y una corrección 15→20 con aviso operativo.

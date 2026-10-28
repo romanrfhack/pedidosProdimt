@@ -12,5 +12,6 @@ public enum OrderAuditEventType
     AdminNoOrderMarked = 7,
     AdminOrderChanged = 8,
     DailyOrderImported = 9,
-    OrderCorrected = 10
+    OrderCorrected = 10,
+    AdminOrderCaptureResolved = 11
 }

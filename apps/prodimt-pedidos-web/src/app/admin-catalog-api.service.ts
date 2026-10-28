@@ -77,6 +77,7 @@ export interface AdminCustomerFrequentProductApiResponse {
   interpretationPosition: number | null;
   unitCode?: UnitCode | null;
   productIsActive?: boolean;
+  captureAlias?: string | null;
 }
 
 export interface AdminCustomerOrderingProfileApiResponse {
@@ -100,6 +101,7 @@ export interface UpdateCustomerFrequentProductItemApiRequest {
   isActive: boolean;
   preferredMachineId: string | null;
   interpretationPosition: number | null;
+  captureAlias?: string | null;
 }
 
 export interface AdminCustomerMachineAssignmentApiResponse {

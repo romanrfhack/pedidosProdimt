@@ -58,3 +58,5 @@ El usuario confirma que cargó los catálogos sin error y consulta el siguiente 
 - Registrar decisiones nuevas en `DECISIONES.md` y actualizar el plan si cambia el alcance.
 - Guardar código y documentación en un commit y comprobar su persistencia remota.
 - No afirmar que el piloto está operando si sólo se ejecutaron pruebas locales.
+
+I07 fue autorizado el 28 de octubre: leer `docs/proyecto/INCREMENTO-07.md`. Desarrollo de captura rápida por posiciones y alias explícitos en curso; preservar los catálogos ya importados. Entrega nativa y evidencia pendientes. El último estado remoto operativo confirmado sigue siendo I06.

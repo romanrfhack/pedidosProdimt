@@ -4,6 +4,7 @@ using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Application.AdminImports;
 
@@ -22,7 +23,7 @@ public sealed class AdminImportService(
     private static readonly IReadOnlySet<string> PilotOptionalHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         "routeCode", "routeStopOrder", "hasStoreKey", "paymentTermCode", "internalDeliveryInstructions",
-        "unitCode", "preferredMachineExternalCode", "preferredMachineNumber", "interpretationPosition"
+        "unitCode", "preferredMachineExternalCode", "preferredMachineNumber", "interpretationPosition", "captureAlias"
     };
 
     private static readonly IReadOnlyDictionary<string, TemplateDefinition> Templates =
@@ -75,7 +76,8 @@ public sealed class AdminImportService(
                     new("isActive", false, "true/false, 1/0 o si/no. Default true."),
                     new("preferredMachineExternalCode", false, "Codigo de maquina activa preferida para este producto."),
                     new("preferredMachineNumber", false, "Numero de maquina activa si no se proporciona codigo."),
-                    new("interpretationPosition", false, "Posicion explicita positiva y unica. No se infiere del orden visual.")
+                    new("interpretationPosition", false, "Posicion explicita positiva y unica. No se infiere del orden visual."),
+                    new("captureAlias", false, "Abreviatura de 1 a 16 letras, unica por cliente. Omitir conserva; vacio elimina.")
                 ]),
             [AdminImportTypes.Machines] = new(
                 AdminImportTypes.Machines,
@@ -608,6 +610,7 @@ public sealed class AdminImportService(
         var productByName = BuildLookup(allProducts, x => x.Name, NormalizeName);
         var seenPairs = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var seenPositions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var seenAliases = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var existingMachines = await machines.GetAllAsync(cancellationToken);
         var allMachines = existingMachines
             .Concat(allowReferenceContents ? GetReferencedMachines(request, existingMachines) : [])
@@ -737,6 +740,15 @@ public sealed class AdminImportService(
             }
 
             existingPreferences.TryGetValue((customer?.Id ?? Guid.Empty, product?.Id ?? Guid.Empty), out var previousPreference);
+            var captureAlias = previousPreference?.CaptureAlias;
+            if (row.Values.ContainsKey("captureAlias"))
+            {
+                try { captureAlias = OrderCaptureAlias.Normalize(row.Get("captureAlias")); }
+                catch (ArgumentException ex) { context.Errors.Add(new ImportIssueDto(row.RowNumber, "captureAlias", "InvalidCaptureAlias", ex.Message, row.Get("captureAlias"))); }
+            }
+            if (customer is not null && captureAlias is not null)
+                TrackDuplicate(seenAliases, $"{customer.Id:N}:{captureAlias}", row, "captureAlias", "DuplicateCaptureAlias",
+                    "La abreviatura no puede repetirse para el mismo cliente.", context);
             var preferredMachineId = row.Values.ContainsKey("preferredMachineExternalCode") || row.Values.ContainsKey("preferredMachineNumber")
                 ? preferredMachine?.Id : previousPreference?.PreferredMachineId;
             interpretationPosition = row.Values.ContainsKey("interpretationPosition")
@@ -768,7 +780,8 @@ public sealed class AdminImportService(
                 sortOrder,
                 isActive,
                 preferredMachineId,
-                interpretationPosition));
+                interpretationPosition,
+                captureAlias));
             proposedChanges.Add(new ImportProposedChangeDto(
                 row.RowNumber,
                 "Replace",
@@ -1226,7 +1239,8 @@ public sealed class AdminImportService(
                     SortOrder = item.SortOrder is > 0 ? item.SortOrder.Value : index + 1,
                     IsActive = item.IsActive,
                     PreferredMachineId = item.PreferredMachineId,
-                    InterpretationPosition = item.InterpretationPosition
+                    InterpretationPosition = item.InterpretationPosition,
+                    CaptureAlias = item.CaptureAlias
                 })
                 .OrderBy(x => x.SortOrder)
                 .ToArray();
@@ -2224,7 +2238,8 @@ public sealed class AdminImportService(
         int? SortOrder,
         bool IsActive,
         Guid? PreferredMachineId,
-        int? InterpretationPosition);
+        int? InterpretationPosition,
+        string? CaptureAlias);
 
     private sealed record MachineAssignmentImportItem(
         int RowNumber,

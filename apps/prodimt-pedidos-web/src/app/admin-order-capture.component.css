@@ -1,0 +1,37 @@
+:host { display:block; width:100%; min-width:0; }
+.capture-panel { padding:18px; margin-top:12px; border:1px solid #d8e3e8; border-radius:12px; background:#fff; gap:14px; }
+.capture-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.capture-heading h3 { font-size:1.05rem; margin:0; }
+.capture-heading>span,.delivery-info { font-size:.82rem; color:#526b77; }
+.delivery-info { display:flex; align-items:center; flex-wrap:wrap; gap:8px 18px; }
+.delivery-info a { color:#215e65; text-underline-offset:3px; }
+.capture-modes { display:flex; gap:5px; border-radius:9px; padding:4px; background:#eef3f5; align-self:flex-start; }
+.capture-modes button { border:0; border-radius:6px; background:transparent; color:#48626d; font-size:.87rem; padding:8px 13px; min-height:36px; }
+.capture-modes button.selected { background:#fff; box-shadow:0 1px 4px #20394620; color:#163e44; }
+.quick-input>span { font-weight:700; color:#183e44; }
+.quick-input input { font-size:1.35rem; letter-spacing:.03em; min-height:54px; padding:11px 14px; border:2px solid #6a969c; border-radius:9px; }
+.quick-input input:focus { outline:3px solid #d6e9eb; outline-offset:2px; }
+.capture-help { margin:-7px 0 0; font-size:.84rem; color:#607683; }
+.capture-sequence { display:flex; flex-wrap:wrap; gap:6px; }
+.capture-sequence>span { font-size:.8rem; color:#4c6571; background:#f0f5f6; border:1px solid #e0eaed; padding:5px 8px; border-radius:6px; overflow-wrap:anywhere; }
+.capture-sequence b { margin-right:4px; color:#1a464e; }
+.capture-sequence strong { margin-left:5px; color:#215e65; }
+.capture-breakdown { border-left:4px solid #3e9278; border-radius:7px; background:#f0f9f4; padding:12px 14px; }
+.capture-breakdown h4 { margin:0 0 7px; color:#356451; font-size:.8rem; font-weight:700; }
+.capture-breakdown p { margin:5px 0; color:#214b3c; overflow-wrap:anywhere; }
+.profile-confirmation { border:1px solid #e9d6a5; border-radius:8px; padding:12px; background:#fffbef; font-size:.88rem; }
+.profile-confirmation p { margin:0 0 9px; }
+.manual-products { display:grid; gap:8px; }
+.manual-product { display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:12px; padding:11px; border:1px solid #e0e8ed; border-radius:8px; }
+.manual-product>span { display:grid; gap:3px; min-width:0; overflow-wrap:anywhere; }
+.manual-product small { color:#697e89; }
+.manual-product input { width:100px; flex:none; text-align:right; }
+.capture-notes { border-top:1px solid #e3eaf0; padding-top:12px; font-size:.86rem; color:#506875; }
+.capture-notes summary { cursor:pointer; }
+.capture-notes>div { padding-top:12px; }
+.capture-actions { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+.refresh-config { margin-left:auto; padding:5px 0; min-height:34px; border:0; background:transparent; color:#416c76; font-size:.8rem; text-decoration:underline; }
+.check-row { display:flex; align-items:flex-start; gap:8px; }
+.check-row input { flex:none; width:auto; }
+button:disabled { cursor:default; opacity:.55; }
+@media(max-width:520px) { .capture-panel { padding:13px; } .capture-heading { flex-direction:column; gap:4px; } .capture-actions>.primary { flex:1; } .refresh-config { flex-basis:100%; margin:0; text-align:left; } }

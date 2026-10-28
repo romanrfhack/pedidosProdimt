@@ -181,6 +181,8 @@ test('captura detecta pedido llegado por otro canal durante edición y exige res
   await page.getByRole('button', { name: 'Consultar clientes' }).click();
   await page.getByRole('button', { name: 'Capturar pedido' }).first().click();
   await expect(page.getByText('Captura para Cliente Demo 2')).toBeVisible();
+  await page.getByRole('button', { name: 'Captura manual', exact: true }).click();
+  await page.getByRole('spinbutton').first().fill('8');
   await expect(page.getByTestId('capture-existing-orders')).toHaveCount(0);
   existing = true;
   await page.getByRole('button', { name: 'Guardar pedido' }).click();
@@ -202,6 +204,8 @@ test('captura muestra pedidos existentes al abrir y falla sin escribir si no pue
   await page.goto('/admin/clientes-pendientes');
   await page.getByRole('button', { name: 'Capturar pedido' }).first().click();
   await expect(page.getByTestId('capture-existing-orders')).toBeVisible();
+  await page.getByRole('button', { name: 'Captura manual', exact: true }).click();
+  await page.getByRole('spinbutton').first().fill('8');
   await page.getByLabel('Confirmo que es una entrega adicional independiente').check();
   failed = true;
   await page.getByRole('button', { name: 'Guardar pedido' }).click();

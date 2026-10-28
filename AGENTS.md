@@ -14,6 +14,8 @@ I04 añade avisos persistentes y reconocimiento de cambios de demanda, configura
 
 I06, autorizado el 28 de octubre tras confirmar la carga de clientes, rediseña el catálogo con búsqueda principal, modal de alta/edición, tarjetas según el estado diario y descansos semanales configurables. Ver docs/proyecto/INCREMENTO-06.md. Descansar no desactiva al cliente ni crea NoOrder; los pedidos vigentes prevalecen y la lectura no modifica demanda. Preservar el CSV existente y preparar migración aditiva con respaldo para el despliegue nativo.
 
+I07, autorizado el 28 de octubre, permite captura administrativa abreviada determinista según posiciones explícitas del perfil del cliente y abreviaturas configuradas por producto. Ver `docs/proyecto/INCREMENTO-07.md`. Mostrar desglose antes de guardar; aprobación explícita para interpretación, unidades confirmadas y alternativa manual. No inferir el significado de HN ni convertir mensajes completos de WhatsApp automáticamente. Guardado y reintento durables, control de perfil vigente y pedido existente.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
