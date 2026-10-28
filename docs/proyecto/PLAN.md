@@ -50,7 +50,7 @@ No asignar fechas de terminación sin confirmar disponibilidad operativa, despli
 
 El 28 de octubre el usuario confirma carga sin error. Se recomienda comenzar la etapa 1 con captura administrativa existente de 3–5 pedidos reales y comprobar cliente, producto, unidad, fecha de entrega, autorización y demanda. Conservar WhatsApp/llamada como recepción y registrar el contenido pertinente en notas internas. La ausencia de unidad bloquea esa línea; la asignación de máquina debe resolverse para atribuir su demanda. Completar los faltantes del paquete en paralelo sin convertirlos en supuestos.
 
-Antes de asignar nuevo desarrollo, revisar la experiencia real del flujo. Una posible I07 de captura rápida desde tarjetas, fecha visible y mensaje de referencia queda como propuesta, no iniciada. Reutilizar los controles de pedido existente/corrección y no interpretar automáticamente mensajes ambiguos. El criterio siguiente sigue siendo el ensayo del piloto y comparación de cantidades por fecha, no el alta de más funciones por sí misma.
+El usuario autorizó I07 de captura rápida determinista, ya implementada y validada. Instalar el paquete I06→I07 y revisar el desglose por posiciones/alias explícitos antes de guardar. Mantener controles de pedido existente/corrección y no interpretar automáticamente mensajes ambiguos. Después, el criterio siguiente es el ensayo del piloto y comparación de cantidades por fecha.
 
 ## Principios permanentes
 
@@ -66,4 +66,4 @@ Antes de asignar nuevo desarrollo, revisar la experiencia real del flujo. Una po
 
 ## I07 autorizado: captura rápida administrativa
 
-La propuesta anterior fue autorizada por el usuario: implementar y probar texto abreviado por posiciones del cliente, alias explícitos, desglose y captura manual; preparar actualización nativa I06→I07 con respaldo. Después del despliegue, ensayar 3–5 pedidos y una corrección 15→20 con aviso operativo.
+La propuesta anterior fue autorizada y completada técnicamente: texto abreviado por posiciones del cliente, alias explícitos, desglose y captura manual; actualización nativa I06→I07 con respaldo, probada y empaquetada. Pendiente ejecutar instalación con el usuario. Después del despliegue, ensayar 3–5 pedidos y una corrección 15→20 con aviso operativo.

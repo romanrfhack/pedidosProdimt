@@ -11,11 +11,13 @@ Este archivo es el punto de entrada para retomar el proyecto en otro chat o equi
 3. `docs/proyecto/PLAN.md` (objetivo integral y etapas).
 4. `docs/proyecto/DECISIONES.md` (decisiones vigentes y pendientes).
 5. `docs/proyecto/BITACORA.md` (cambios y pruebas por sesión).
-6. `docs/proyecto/INCREMENTO-05.md` (cambio de contraseña propia y sesiones administrativas).
-7. `docs/proyecto/INCREMENTO-04.md` (avisos operativos y configuración por cliente).
-8. `docs/proyecto/INCREMENTO-03.md` (instalación y preparación del ensayo).
-9. `docs/proyecto/INCREMENTO-02.md` (captura diaria y correcciones).
-10. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
+6. `docs/proyecto/INCREMENTO-07.md` (captura rápida y actualización nativa I06→I07).
+7. `docs/proyecto/INCREMENTO-06.md` (catálogo y descansos diarios).
+8. `docs/proyecto/INCREMENTO-05.md` (cambio de contraseña propia y sesiones administrativas).
+9. `docs/proyecto/INCREMENTO-04.md` (avisos operativos y configuración por cliente).
+10. `docs/proyecto/INCREMENTO-03.md` (instalación y preparación del ensayo).
+11. `docs/proyecto/INCREMENTO-02.md` (captura diaria y correcciones).
+12. `docs/proyecto/INCREMENTO-01.md` (fundamentos ya construidos).
 
 La documentación de mayo de 2026 es antecedente. Cuando difiera, las decisiones de octubre en `docs/proyecto/` prevalecen. No confundir capacidad implementada, prueba técnica, dato validado y operación real.
 
@@ -49,7 +51,7 @@ El 28 de octubre el usuario confirmó la carga de clientes y aportó capturas de
 
 El usuario solicita importar también los productos y su orden. Se recuperó la hoja privada I03 devuelta usada en I04: 36 relaciones de 23 clientes, 36 posiciones explícitas, 30 unidades kg, seis vacías, 19 máquinas positivas y 17 pendientes (16 vacías y un cero sin significado). Preparado PRODIMT_Configuracion_Productos_Clientes.zip con tres CSV y Excel de revisión, sin CSV de clientes: Productos (36 identidades provisionales separadas por relación), Máquinas (1, 2 y 3) y Productos frecuentes (36 filas/23 perfiles). El orden visual inicial sigue las posiciones que el usuario indicó, como dos campos independientes. No se fusionan variantes de clientes distintos ni se usan cantidades históricas. Se validó/aplicó localmente con los binarios I06 y almacenamiento temporal, comprobando los 23 perfiles completos y cero pedidos/aprobaciones automáticas. No se modificó VPS; el usuario debe Validar/Aplicar cada CSV en ese orden y revisar reemplazos. Detalle en docs/validation/2026-10-28-product-profiles-import.md.
 
-El usuario confirma que cargó los catálogos sin error y consulta el siguiente paso. La carga real queda confirmada por su reporte, sin conteos/JSON ni conciliación individual adjuntos. No repetir importaciones. Se recomienda iniciar captura administrativa asistida de 3–5 pedidos reales usando la funcionalidad existente: /admin/clientes-pendientes, fecha de servicio explícita, Capturar pedido, frecuentes/cantidades y notas internas; revisar /admin/pedidos, autorizar pendientes y consultar /admin/operacion. Distinguir entrega mañana de hoy: las tarjetas I06 siguen mostrando hoy. Las seis unidades y 17 asignaciones pendientes del paquete no se dan por resueltas por una importación exitosa. Empezar con líneas de unidad confirmada y máquina conocida para revisar demanda; mantener pendientes separados. Una futura mejora I07 de captura rápida desde tarjetas/mensaje como referencia es propuesta, no desarrollo autorizado ni iniciado.
+El usuario confirma que cargó los catálogos sin error y consulta el siguiente paso. La carga real queda confirmada por su reporte, sin conteos/JSON ni conciliación individual adjuntos. No repetir importaciones. Se recomienda iniciar captura administrativa asistida de 3–5 pedidos reales usando la funcionalidad existente: /admin/clientes-pendientes, fecha de servicio explícita, Capturar pedido, frecuentes/cantidades y notas internas; revisar /admin/pedidos, autorizar pendientes y consultar /admin/operacion. Distinguir entrega mañana de hoy: las tarjetas I06 siguen mostrando hoy. Las seis unidades y 17 asignaciones pendientes del paquete no se dan por resueltas por una importación exitosa. Empezar con líneas de unidad confirmada y máquina conocida para revisar demanda; mantener pendientes separados. Posteriormente el usuario autorizó I07 de captura rápida por posiciones explícitas y alias configurables; su implementación ya está verificada, ver el cierre siguiente.
 
 ## Al cerrar cada sesión
 
@@ -59,4 +61,4 @@ El usuario confirma que cargó los catálogos sin error y consulta el siguiente 
 - Guardar código y documentación en un commit y comprobar su persistencia remota.
 - No afirmar que el piloto está operando si sólo se ejecutaron pruebas locales.
 
-I07 fue autorizado el 28 de octubre: leer `docs/proyecto/INCREMENTO-07.md`. Desarrollo de captura rápida por posiciones y alias explícitos en curso; preservar los catálogos ya importados. Entrega nativa y evidencia pendientes. El último estado remoto operativo confirmado sigue siendo I06.
+I07 fue autorizado el 28 de octubre: leer `docs/proyecto/INCREMENTO-07.md`. Código `46fed604732eddca0c7ac199b58bb0b429545b89`, CI 40765239145: cuatro jobs correctos (267 .NET, 29 SQL, 68 E2E, 162 Python y Production). Captura por posiciones y alias explícitos, entrega informativa, revisión/guardado y manual listos. Paquete PRODIMT_Captura_Rapida_I07.zip íntegro y evidencia en docs/validation/2026-10-28-quick-capture.md. Preservar catálogos importados; instalación y aceptación pendientes. El último estado remoto operativo confirmado sigue siendo I06.

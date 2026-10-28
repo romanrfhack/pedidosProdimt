@@ -299,3 +299,11 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 Implementación de campo abreviado, desglose servidor al salir, entrega compacta y captura manual. Alias por cliente/producto, sin inferir HN, migración aditiva 10→11 y preservación de contratos CSV/PUT. Guardado con recibo durable, versión/huella de perfil y control de entrega independiente. Pruebas locales/SQL/instalador y paquete en preparación; VPS sin modificar.
 
 I07: 265 pruebas .NET locales iniciales correctas; 67/68 E2E iniciales y caso restante corregido/comprobado de forma dirigida. CI de checkpoint ejecutó smoke Production y backend correctamente; una prueba SQL requería deserializar enums como texto y se corrigió. Se agregan límites de notas acordes con columnas y prueba concurrente de dos capturas. Nuevas herramientas nativas y 14 pruebas específicas de paquete, 162 Python totales previstas; CLI ODBC 10→11 añadido a CI. `graphify update .` no disponible (127). Sin acceso/modificación al VPS.
+
+### Cierre I07 — paquete listo, VPS pendiente
+
+Código y herramientas `46fed604732eddca0c7ac199b58bb0b429545b89`: [CI 40765239145](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145) con cuatro jobs correctos. 267 .NET, 29 SQL Server reales, 68 E2E, 162 Python y smoke Production completo. La segunda corrección de prueba SQL decodifica JSON antes de comprobar el texto original (el serializador escapa +); la funcionalidad de guardado ya era correcta. Revisión visual corrigió ancho del formulario y strong inline; móvil 390 px sin desbordamiento.
+
+Publicación linux-x64 framework-dependent con SourceRevisionId verificado y Angular Production 469.14 kB. Paquete PRODIMT_Captura_Rapida_I07.zip: 5,696,903 bytes, SHA256 131b0161735197c15a3c7b5fd715648ea2b9258deec066bae0af041cca89acae, 62 archivos comprobados, CRC/hashes/pines correctos y plan sin cambios. Entregado de forma privada; sin datos del Excel ni credenciales. Ver docs/validation/2026-10-28-quick-capture.md.
+
+I06 sigue siendo el último despliegue confirmado; no se ejecutó SSH, no se repitió carga de catálogos y no se modificaron main/Nginx/cuentas. Pendiente instalación del usuario, asociación explícita de HN cuando corresponda, confirmación de perfiles, pedido/fecha/unidades y corrección con aviso. Cierre documental posterior conserva código y binarios.

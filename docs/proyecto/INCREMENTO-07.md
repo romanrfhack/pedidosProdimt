@@ -1,6 +1,6 @@
 # I07 — Captura rápida de pedidos
 
-Autorizado el 28 de octubre de 2026. Desarrollo y validación en curso; aún no instalado.
+Autorizado el 28 de octubre de 2026. Implementado, validado y empaquetado; aún no instalado en el VPS.
 
 ## Comportamiento
 
@@ -32,6 +32,6 @@ Referencia por intento, pedido, auditoría y recibo se guardan en una transacci�
 - Perfil y CSV frecuente añaden `captureAlias` opcional. PUT con null/ausente y CSV sin columna conservan el valor; cadena vacía/columna presente vacía lo elimina. Importar revoca aprobación como antes.
 - Migración `20261028202031_AddCustomerCaptureAliases`: columna nullable nvarchar(16) e índice único filtrado por cliente/abreviatura. Historial nativo I06 10 → I07 11. Sin modificación de pedidos históricos.
 
-## Entrega prevista
+## Entrega nativa
 
-Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Herramientas: `scripts/pilot/install-quick-capture-update.py` y `build-quick-capture-package.py`. El instalador comprueba I06 activo, historial/esquema 10 o 11 y permisos de la aplicación; un esquema parcial se rechaza antes de detenerla. La configuración y los datos se conservan. Evidencia de pruebas y paquete se agregan al cierre.
+Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Herramientas: `scripts/pilot/install-quick-capture-update.py` y `build-quick-capture-package.py`. El instalador comprueba I06 activo, historial/esquema 10 o 11 y permisos de la aplicación; un esquema parcial se rechaza antes de detenerla. La configuración y los datos se conservan. Código `46fed604732eddca0c7ac199b58bb0b429545b89`, [cuatro jobs CI correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145): 267 .NET, 29 SQL Server, 68 E2E y 162 Python/Production. Paquete PRODIMT_Captura_Rapida_I07.zip de 5.7 MB. Evidencia y hashes: [2026-10-28-quick-capture.md](../validation/2026-10-28-quick-capture.md). Instalación y aceptación del usuario pendientes.

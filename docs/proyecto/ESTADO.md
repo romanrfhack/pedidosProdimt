@@ -84,14 +84,14 @@ Cuenta `roman.prodimt` creada por el usuario el 26 de octubre: `status: complete
 
 1. I06 instalado por el usuario: conservar snapshot y respaldo verificados. No repetir el actualizador ni la importación de clientes. Revisar interfaz tras Ctrl+F5; configuración y contraseñas conservadas según el instalador. La aceptación de negocio sigue pendiente.
 2. Tras Ctrl+F5, revisar búsqueda principal, filtros, modal Nuevo cliente/Editar y tarjetas. Configurar únicamente descansos semanales conocidos por cliente. Un pedido vigente prevalece; NoOrder y descanso tienen etiquetas diferentes y quedan al final. No repetir el alta de clientes.
-3. El usuario confirma catálogos cargados sin error. No repetir cargas. Iniciar prueba operativa con 3–5 pedidos reales en /admin/clientes-pendientes: cliente, fecha de entrega y cantidades explícitas de productos con unidad confirmada. Revisar guardado por fecha, pendientes de autorización, tarjeta de hoy cuando aplique y demanda por máquina. Probar la corrección con motivo cuando un pedido real cambie y comprobar su aviso; NoOrder sólo ante confirmación expresa. El reporte de carga no confirma conciliación individual ni solución de los faltantes del paquete. Ver ../validation/2026-10-28-product-profiles-import.md.
+3. Instalar I07 con su paquete verificado antes de ensayar el nuevo flujo; el VPS sigue en I06. El usuario confirma catálogos cargados sin error. No repetir cargas. Iniciar prueba operativa con 3–5 pedidos reales en /admin/clientes-pendientes: cliente, fecha de entrega y cantidades explícitas de productos con unidad confirmada. Revisar guardado por fecha, pendientes de autorización, tarjeta de hoy cuando aplique y demanda por máquina. Probar la corrección con motivo cuando un pedido real cambie y comprobar su aviso; NoOrder sólo ante confirmación expresa. El reporte de carga no confirma conciliación individual ni solución de los faltantes del paquete. Ver ../validation/2026-10-28-product-profiles-import.md.
 4. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 5. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
 6. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
 
 ## Límites vigentes
 
-- No hay parser ni conexión real con WhatsApp, producción física, empaque/carga/entrega ni pagos.
+- I07 interpreta abreviaturas numéricas según perfil, con revisión administrativa. No hay conexión real con WhatsApp, interpretación libre de mensajes, producción física, empaque/carga/entrega ni pagos.
 - La importación diaria requiere CSV depurado con códigos y unidades explícitos; no interpreta `15 + 20` ni importa XLSM.
 - Los avisos I04 y el historial conservan evidencia; el reconocimiento no registra producción/entrega física, ni garantiza atención si nadie consulta el tablero. No hay push fuera del navegador.
 - La corrección conserva el estado del pedido. Un pendiente sigue excluido de demanda hasta su aceptación; un adicional sigue siendo otro pedido sujeto a revisión.
@@ -99,6 +99,6 @@ Cuenta `roman.prodimt` creada por el usuario el 26 de octubre: `status: complete
 - Los campos vacíos y las fechas arrastradas del Excel no se convierten en valores operativos por suposición.
 - Validación técnica, carga privada, despliegue y uso real son hitos distintos.
 
-## I07 en desarrollo — 28 de octubre
+## I07 listo para instalar — 28 de octubre
 
-Usuario solicita captura rápida con desglose al perder foco, entrega habitual informativa y alternativa manual. Parser por perfil/alias explícitos, aprobación, vista previa y guardado transaccional implementados; validación completa y paquete nativo pendientes. Último despliegue confirmado sigue siendo I06; no ejecutar bootstrap ni reimportar catálogos.
+Usuario solicita captura rápida con desglose al perder foco, entrega habitual informativa y alternativa manual. Implementado en `46fed604732eddca0c7ac199b58bb0b429545b89` con [cuatro jobs CI correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145): 267 .NET, 29 SQL Server, 68 E2E y 162 Python/Production. Parser por perfil/alias explícitos, aprobación, vista previa y guardado transaccional; entrega informativa y alternativa manual. PRODIMT_Captura_Rapida_I07.zip íntegro, plan sin cambios y binarios linux-x64 listos; ver ../validation/2026-10-28-quick-capture.md. Pendiente instalación por el usuario, Ctrl+F5 y aceptación operativa. Último despliegue confirmado sigue siendo I06; no ejecutar bootstrap ni reimportar catálogos.
