@@ -103,7 +103,8 @@ jobs:
           dotnet tool run dotnet-ef migrations script 0 20260528131416_AddCatalogExternalCodesAndImportSupport --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-baseline.sql"
           dotnet tool run dotnet-ef migrations script 0 20261024202253_AddOrderChangeNotices --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-migrations.sql"
           dotnet tool run dotnet-ef migrations script 20261024202253_AddOrderChangeNotices 20261028142346_AddCustomerRestDays --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-catalog.sql"
-          python3 tests/pilot/verify_native_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-baseline.sql" --script "$RUNNER_TEMP/native-cli-migrations.sql" --catalog-script "$RUNNER_TEMP/native-cli-catalog.sql"
+          dotnet tool run dotnet-ef migrations script 20261028142346_AddCustomerRestDays 20261028202031_AddCustomerCaptureAliases --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-capture.sql"
+          python3 tests/pilot/verify_native_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-baseline.sql" --script "$RUNNER_TEMP/native-cli-migrations.sql" --catalog-script "$RUNNER_TEMP/native-cli-catalog.sql" --capture-script "$RUNNER_TEMP/native-cli-capture.sql"
       - name: Remove disposable SQL Server
         if: always()
         run: docker rm --force prodimt-i02-sqlserver || true

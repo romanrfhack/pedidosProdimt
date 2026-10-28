@@ -52,6 +52,7 @@ def main():
     parser.add_argument('--baseline', type=Path, required=True)
     parser.add_argument('--script', type=Path, required=True)
     parser.add_argument('--catalog-script', type=Path)
+    parser.add_argument('--capture-script', type=Path)
     arguments = parser.parse_args()
     baseline = arguments.baseline.read_bytes()
     full_script = arguments.script.read_bytes()
@@ -379,6 +380,49 @@ def main():
             require(instance.verify_schema() == 10, 'catalog_constraint_revalidation_failed')
             print('I06 native CLI: additive 9-to-10 migration, idempotence, defaults, preserved data, '
                   'session options, transaction rollback and partial/untrusted schema guards passed.')
+        if arguments.capture_script:
+            require(arguments.catalog_script is not None, 'capture_requires_catalog_baseline')
+            capture = load_module('capture_cli_fixture', root / 'scripts/pilot/install-quick-capture-update.py')
+            capture.SERVER, capture.DATABASE = 'localhost', target
+            instance = capture.Installer('unused-synthetic-package.zip')
+            instance.inspector, instance.sql_tool = inventory, SQLCMD
+            instance.sql_login, instance.sql_password = credentials.login, credentials.password
+            capture.subprocess = types.SimpleNamespace(run=lambda args, *, input, capture_output, text, env, timeout, check:
+                reset_container_command(args, data=input, env=env, timeout=timeout), TimeoutExpired=subprocess.TimeoutExpired)
+            require(instance.verify_schema() == 10, 'capture_cli_baseline_invalid')
+            counts = instance.sql_json(capture.COUNTS_QUERY)
+            instance.sql_run('ALTER TABLE dbo.CustomerFrequentProducts ADD CaptureAlias nvarchar(16) NULL;')
+            try:
+                instance.verify_schema()
+            except capture.InstallError as error:
+                require(str(error) == 'capture_alias_schema_unexpected', 'capture_partial_schema_wrong_issue')
+            else:
+                raise FixtureFailure('capture_partial_schema_accepted')
+            instance.sql_run('ALTER TABLE dbo.CustomerFrequentProducts DROP COLUMN CaptureAlias;')
+            try:
+                instance.sql_run('BEGIN TRANSACTION;\nGO\nALTER TABLE dbo.CustomerFrequentProducts ADD CaptureAlias nvarchar(16) NULL;\n'
+                                 "THROW 51007,N'Fictional capture migration failure',1;\nGO\n")
+            except capture.InstallError:
+                require(51007 in instance.state.get('sql_error_numbers', []), 'capture_failure_diagnostic_missing')
+            else:
+                raise FixtureFailure('capture_failure_not_rejected')
+            require(instance.verify_schema() == 10, 'capture_failed_transaction_not_rolled_back')
+            sql = arguments.capture_script.read_text(encoding='utf-8-sig')
+            for _ in range(2):
+                instance.sql_run(sql + SESSION_GUARD)
+                require(instance.verify_schema() == 11, 'capture_eleventh_migration_failed')
+                require(instance.sql_json(capture.COUNTS_QUERY) == counts, 'capture_counts_not_preserved')
+            instance.sql_run('ALTER INDEX IX_CustomerFrequentProducts_CustomerId_CaptureAlias ON dbo.CustomerFrequentProducts DISABLE;')
+            try:
+                instance.verify_schema()
+            except capture.InstallError:
+                pass
+            else:
+                raise FixtureFailure('capture_disabled_index_accepted')
+            instance.sql_run('ALTER INDEX IX_CustomerFrequentProducts_CustomerId_CaptureAlias ON dbo.CustomerFrequentProducts REBUILD;')
+            require(instance.verify_schema() == 11, 'capture_index_revalidation_failed')
+            print('I07 native CLI: additive 10-to-11 migration, idempotence, preserved data, session options, '
+                  'transaction rollback and partial/disabled-index schema guards passed.')
     finally:
         if created:
             update.DATABASE = 'master'

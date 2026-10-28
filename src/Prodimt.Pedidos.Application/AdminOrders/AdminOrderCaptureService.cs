@@ -43,8 +43,8 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
         if (quick && (request.Lines is not null || request.Text!.Length > 240)
             || !quick && (request.Lines is null || request.Lines.Count is 0 or > 200))
             throw new ArgumentException("Elige captura rápida o cantidades manuales, sin mezclar ambas entradas.");
-        if (request.DeliveryNotes?.Length > 2000 || request.InternalNotes?.Length > 2000)
-            throw new ArgumentException("Las notas deben tener hasta 2000 caracteres.");
+        if (request.DeliveryNotes?.Length > 500 || request.InternalNotes?.Length > 1000)
+            throw new ArgumentException("Las notas de entrega admiten hasta 500 caracteres y las internas hasta 1000.");
         var date = request.ServiceDate ?? clock.Today;
         var payloadHash = Hash(new { customerId, date, request, actorId = actor?.ActorId });
         var receipt = await operations.ExecuteAsync($"CAPTURE:{customerId:N}:{request.OperationId:N}", payloadHash, clock.Now,

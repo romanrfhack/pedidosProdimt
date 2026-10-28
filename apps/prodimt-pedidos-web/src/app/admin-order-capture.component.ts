@@ -78,6 +78,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
   private stopPreview(): void { this.previewGeneration++; this.previewRequest?.unsubscribe(); this.preview = null; this.interpreting = false; }
   protected interpret(): void {
     if (this.mode !== 'quick' || this.locked) return;
+    if (this.preview?.text === this.text.trim()) return;
     this.stopPreview();
     if (!this.text.trim()) { this.error = null; return; }
     const generation = this.previewGeneration;
@@ -118,7 +119,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
         defaultQuantity: x.defaultQuantity, sortOrder: x.sortOrder, isActive: x.isActive,
         preferredMachineId: x.preferredMachineId, interpretationPosition: x.interpretationPosition, captureAlias: x.captureAlias ?? '' }))
     }).subscribe({
-      next: () => { this.confirming = false; this.busy.emit(false); this.interpret(); this.changeDetector.detectChanges(); },
+      next: () => { this.confirming = false; this.busy.emit(false); this.stopPreview(); this.interpret(); this.changeDetector.detectChanges(); },
       error: error => { this.confirming = false; this.busy.emit(false); this.error = this.message(error, 'No pudimos confirmar el perfil.'); this.stopPreview(); this.changeDetector.detectChanges(); }
     }));
   }

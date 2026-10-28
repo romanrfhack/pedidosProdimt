@@ -49,8 +49,8 @@
       <button type="button" class="primary" [disabled]="saving" (click)="retrySave()" data-testid="capture-retry">{{ saving ? 'Verificando…' : 'Reintentar guardado' }}</button></div>
   }
   <details class="capture-notes"><summary>Notas de entrega e internas</summary><div class="stack">
-    <label><span>Notas de entrega</span><input name="deliveryNotes" maxlength="2000" [(ngModel)]="deliveryNotes" [disabled]="locked"></label>
-    <label><span>Notas internas</span><input name="captureInternalNotes" maxlength="2000" [(ngModel)]="internalNotes" [disabled]="locked"></label>
+    <label><span>Notas de entrega</span><input name="deliveryNotes" maxlength="500" [(ngModel)]="deliveryNotes" [disabled]="locked"></label>
+    <label><span>Notas internas</span><input name="captureInternalNotes" maxlength="1000" [(ngModel)]="internalNotes" [disabled]="locked"></label>
   </div></details>
   <div class="capture-actions">
     @if (!uncertain) { <button type="submit" class="primary" [disabled]="!canSave">{{ saving ? 'Guardando…' : 'Guardar pedido' }}</button> }

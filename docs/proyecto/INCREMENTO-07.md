@@ -34,4 +34,4 @@ Referencia por intento, pedido, auditoría y recibo se guardan en una transacci�
 
 ## Entrega prevista
 
-Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Evidencia de pruebas y paquete se agregan al cierre.
+Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Herramientas: `scripts/pilot/install-quick-capture-update.py` y `build-quick-capture-package.py`. El instalador comprueba I06 activo, historial/esquema 10 o 11 y permisos de la aplicación; un esquema parcial se rechaza antes de detenerla. La configuración y los datos se conservan. Evidencia de pruebas y paquete se agregan al cierre.

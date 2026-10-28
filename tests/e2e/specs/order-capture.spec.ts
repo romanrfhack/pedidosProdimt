@@ -31,6 +31,7 @@ test('captura rápida desglosa al perder foco, confirma perfil una vez y mantien
   await page.screenshot({path:test.info().outputPath('quick-capture-desktop.png'),fullPage:true});
   await page.getByRole('button',{name:'Confirmar orden y productos',exact:true}).click();
   await expect(page.getByRole('button',{name:'Guardar pedido',exact:true})).toBeEnabled();
+  await page.getByLabel('Pedido del cliente',{exact:true}).focus();
   const saved=page.waitForRequest(r=>r.url().endsWith('/orders/capture')&&r.method()==='POST');
   await page.getByRole('button',{name:'Guardar pedido',exact:true}).click();
   expect((await saved).postDataJSON()).toMatchObject({text:'16',expectedProfileVersion:1});

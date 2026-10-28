@@ -164,6 +164,18 @@ public sealed class OrderCaptureTests
         Assert.Empty(await f.Db.Orders.ToArrayAsync()); Assert.Empty(await f.Db.OrderOperations.ToArrayAsync()); Assert.Empty(await f.Db.OrderAuditLogs.ToArrayAsync());
     }
 
+    [Theory]
+    [InlineData(501, 0)]
+    [InlineData(0, 1001)]
+    public async Task NotesBeyondPersistedLimits_FailBeforeCreatingAnything(int delivery, int internalLength)
+    {
+        await using var f=await Fixture.Create();
+        var request=new SubmitOrderCaptureRequest(Guid.NewGuid(),1,f.Day,Lines:[new(f.Products[0].Id,12,"kg")],
+            DeliveryNotes:new string('x',delivery),InternalNotes:new string('x',internalLength));
+        await Assert.ThrowsAsync<ArgumentException>(()=>f.Service.SubmitAsync(f.Customer.Id,request,Actor,Ct));
+        Assert.Empty(await f.Db.Orders.ToArrayAsync());Assert.Empty(await f.Db.OrderOperations.ToArrayAsync());
+    }
+
     [Fact]
     public async Task LegacyProfilePut_PreservesAlias_ExplicitEmptyClears_AndDuplicateAliasesFail()
     {

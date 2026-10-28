@@ -297,3 +297,5 @@ Implementación guardada en GitHub como `fde65007cb03614db0b1dcca11395a7451a374a
 ## 2026-10-28 — I07 captura rápida autorizada
 
 Implementación de campo abreviado, desglose servidor al salir, entrega compacta y captura manual. Alias por cliente/producto, sin inferir HN, migración aditiva 10→11 y preservación de contratos CSV/PUT. Guardado con recibo durable, versión/huella de perfil y control de entrega independiente. Pruebas locales/SQL/instalador y paquete en preparación; VPS sin modificar.
+
+I07: 265 pruebas .NET locales iniciales correctas; 67/68 E2E iniciales y caso restante corregido/comprobado de forma dirigida. CI de checkpoint ejecutó smoke Production y backend correctamente; una prueba SQL requería deserializar enums como texto y se corrigió. Se agregan límites de notas acordes con columnas y prueba concurrente de dos capturas. Nuevas herramientas nativas y 14 pruebas específicas de paquete, 162 Python totales previstas; CLI ODBC 10→11 añadido a CI. `graphify update .` no disponible (127). Sin acceso/modificación al VPS.

@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOrders;
@@ -11,6 +13,8 @@ namespace Prodimt.Pedidos.SqlServer.Tests;
 public sealed class OrderCaptureSqlTests(SqlServerFixture database)
 {
     private static readonly DateOnly Day = new(2026,10,25);
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+        { Converters = { new JsonStringEnumConverter() } };
     private static string Url(Guid customer) => $"/api/admin/customers/{customer}/orders";
 
     [Fact]
@@ -29,14 +33,14 @@ public sealed class OrderCaptureSqlTests(SqlServerFixture database)
             request=new(Guid.NewGuid(),preview.Profile.OrderingProfileVersion,Day,preview.Text,preview.Fingerprint);
             using var response=await client.PostAsJsonAsync(Url(catalog.CustomerId)+"/capture",request);
             response.EnsureSuccessStatusCode();
-            var saved=(await response.Content.ReadFromJsonAsync<SubmitOrderCaptureResponse>())!;
+            var saved=(await response.Content.ReadFromJsonAsync<SubmitOrderCaptureResponse>(JsonOptions))!;
             orderId=saved.Order.OrderId;Assert.False(saved.Replayed);
         }
         await using var next=database.CreateFactory();
         using var nextClient=await SqlServerFixture.CreateAdminClientAsync(next);
         using var replay=await nextClient.PostAsJsonAsync(Url(catalog.CustomerId)+"/capture",request);
         replay.EnsureSuccessStatusCode();
-        var repeated=(await replay.Content.ReadFromJsonAsync<SubmitOrderCaptureResponse>())!;
+        var repeated=(await replay.Content.ReadFromJsonAsync<SubmitOrderCaptureResponse>(JsonOptions))!;
         Assert.True(repeated.Replayed);Assert.Equal(orderId,repeated.Order.OrderId);
         using var changed=await nextClient.PostAsJsonAsync(Url(catalog.CustomerId)+"/capture",request with { Text="14+2HN" });
         Assert.Equal(HttpStatusCode.Conflict,changed.StatusCode);
@@ -71,6 +75,30 @@ public sealed class OrderCaptureSqlTests(SqlServerFixture database)
         Assert.False(await db.Orders.AnyAsync(x=>x.CustomerId==catalog.CustomerId));
         var key=$"CAPTURE:{catalog.CustomerId:N}:{request.OperationId:N}";
         Assert.False(await db.OrderOperations.AnyAsync(x=>x.OperationKey==key));
+    }
+
+    [Fact]
+    public async Task TwoConcurrentCaptures_DoNotCreateTwoDeliveriesWithoutExplicitConfirmation()
+    {
+        var catalog=await database.CreateCatalogAsync();
+        await using var factory=database.CreateFactory();
+        using var first=await SqlServerFixture.CreateAdminClientAsync(factory);
+        using var second=await SqlServerFixture.CreateAdminClientAsync(factory);
+        await Configure(first,catalog);
+        var preview=await Preview(first,catalog.CustomerId,"16");
+        SubmitOrderCaptureRequest Request()=>new(Guid.NewGuid(),preview.Profile.OrderingProfileVersion,Day,preview.Text,preview.Fingerprint);
+        var responses=await Task.WhenAll(first.PostAsJsonAsync(Url(catalog.CustomerId)+"/capture",Request()),
+            second.PostAsJsonAsync(Url(catalog.CustomerId)+"/capture",Request()));
+        try
+        {
+            Assert.Single(responses,x=>x.IsSuccessStatusCode);
+            Assert.Single(responses,x=>x.StatusCode==HttpStatusCode.Conflict);
+        }
+        finally { foreach(var response in responses)response.Dispose(); }
+        await using var db=database.CreateDbContext();
+        Assert.Single(await db.Orders.Where(x=>x.CustomerId==catalog.CustomerId).ToArrayAsync());
+        var prefix=$"CAPTURE:{catalog.CustomerId:N}:";
+        Assert.Single(await db.OrderOperations.Where(x=>x.OperationKey.StartsWith(prefix)).ToArrayAsync());
     }
 
     [Fact]
