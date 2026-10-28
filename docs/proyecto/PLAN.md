@@ -46,6 +46,12 @@ I05 incorpora cambio de contraseña propia e invalidación de sesiones, ya insta
 
 No asignar fechas de terminación sin confirmar disponibilidad operativa, despliegue y calidad de los datos. Cada incremento debe tener una aceptación técnica y una aceptación de negocio separadas.
 
+## Siguiente paso tras la carga de catálogos
+
+El 28 de octubre el usuario confirma carga sin error. Se recomienda comenzar la etapa 1 con captura administrativa existente de 3–5 pedidos reales y comprobar cliente, producto, unidad, fecha de entrega, autorización y demanda. Conservar WhatsApp/llamada como recepción y registrar el contenido pertinente en notas internas. La ausencia de unidad bloquea esa línea; la asignación de máquina debe resolverse para atribuir su demanda. Completar los faltantes del paquete en paralelo sin convertirlos en supuestos.
+
+Antes de asignar nuevo desarrollo, revisar la experiencia real del flujo. Una posible I07 de captura rápida desde tarjetas, fecha visible y mensaje de referencia queda como propuesta, no iniciada. Reutilizar los controles de pedido existente/corrección y no interpretar automáticamente mensajes ambiguos. El criterio siguiente sigue siendo el ensayo del piloto y comparación de cantidades por fecha, no el alta de más funciones por sí misma.
+
 ## Principios permanentes
 
 - SQL Server es la fuente de verdad operativa; Excel es entrada de transición y evidencia.
