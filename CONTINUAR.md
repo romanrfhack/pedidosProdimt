@@ -43,6 +43,8 @@ I05 está implementado, validado y empaquetado para el I04 nativo vigente. Códi
 
 El 27 de octubre el usuario confirmó login en navegador y solicitó la primera revisión funcional. Se comienza por I01: Catálogos → Clientes → Configurar, con la pantalla enfocada de I04. Comparar un cliente conocido con su información confirmada: productos, unidad de venta, orden visual, posiciones por cliente, máquina y datos internos de entrega/cobro. Guardar/recargar debe conservar la configuración; cantidad sugerida no es un pedido de hoy. La instalación no importó automáticamente el Excel: conciliar lo existente antes de preparar la vista previa privada. El cambio de contraseña no está confirmado por el simple hecho de haber podido iniciar sesión.
 
+Para comenzar esa revisión el usuario informa que no ve clientes. Se preparan los 23 clientes confirmados de I04 en `PRODIMT_Clientes_Iniciales.xlsx` y `.csv`, guardados de forma privada. Solo datos básicos: códigos, nombres, ruta, llave, cobro e instrucciones confirmadas; teléfonos, orden de visita y otros desconocidos siguen vacíos. Importar el CSV en `/admin/importacion`, Tipo Clientes, mediante Validar y después Aplicar. Con catálogo vacío se esperan 23 altas y 0 errores; los teléfonos vacíos generan advertencias. Si se edita el XLSX, exportar su hoja Clientes como CSV UTF-8. Faltan ejecución y resultado del usuario; no se afirma carga real por preparar archivos. Productos/perfiles y máquinas se prepararán por separado.
+
 ## Al cerrar cada sesión
 
 - Actualizar `ESTADO.md`: terminado, en curso, siguiente paso, bloqueos y rama/PR.
