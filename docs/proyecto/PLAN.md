@@ -6,7 +6,7 @@ Fecha de referencia: 24 de octubre de 2026.
 
 Trazar el trabajo desde la recepción del pedido hasta producción, preparación, reparto, cobro e inventario, con implantación gradual. El primer beneficio es que administración capture una vez y cada área consulte los productos y cantidades correctos.
 
-Se reutiliza `romanrfhack/pedidosProdimt` (.NET 10, Angular 21 y SQL Server). `romanrfhack/prodimt` queda como referencia de interfaz. El usuario confirmó que no existe una instalación o base de datos operativa que debamos conservar. Se conserva el historial de desarrollo, sin necesidad de crear un tercer repositorio.
+Se reutiliza `romanrfhack/pedidosProdimt` (.NET 10, Angular 21 y SQL Server). `romanrfhack/prodimt` queda como referencia de interfaz. Al comenzar se consideró una instalación nueva; el inventario posterior confirmó PRODIMT nativo en el VPS con SQL, releases y configuración existentes. Se conserva esa instalación y el historial de desarrollo, sin crear un tercer repositorio ni reemplazar los datos actuales.
 
 ## Etapas y criterios de salida
 
