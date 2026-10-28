@@ -72,7 +72,7 @@ Actualizado: 28 de octubre de 2026.
 
 ## Siguiente paso
 
-El 28 de octubre el usuario confirma la carga inicial de clientes; sus capturas muestran el catálogo poblado. Autoriza I06: búsqueda principal, modal centrado bajo demanda y tarjetas por estado del día con descansos semanales. Implementación y verificación técnica en curso; aún no instalada. No solicitar de nuevo el alta inicial por el estado documental anterior.
+El 28 de octubre el usuario confirma la carga inicial de clientes; sus capturas muestran el catálogo poblado. Autoriza I06: búsqueda principal, modal centrado bajo demanda y tarjetas por estado del día con descansos semanales. Interfaz y API implementadas; CI 40709421002 con cuatro jobs correctos, 225 .NET, 25 SQL, 60 E2E y smoke Production. Instalador nativo I06 y 148 pruebas Python preparados; falta cerrar su contrato CLI SQL antes de empaquetar y entregar. Aún no instalado I06. No solicitar de nuevo el alta inicial por el estado documental anterior.
 
 En la primera revisión funcional el usuario reporta que no hay clientes visibles y solicita el archivo para importar los ya definidos. Preparados de forma privada `PRODIMT_Clientes_Iniciales.xlsx` y `.csv`: 23 clientes/13 columnas, con códigos estables y campos confirmados de I04 conservados. El CSV coincide byte a byte con el `customers.csv` privado revisado; Excel/CSV contrastados celda por celda y sin fórmulas de pedidos. La base no se ha consultado ni modificado desde esta sesión; faltan vista previa y aplicación real por el usuario.
 

@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import types
 import uuid
 
 
@@ -50,6 +51,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', type=Path, required=True)
     parser.add_argument('--script', type=Path, required=True)
+    parser.add_argument('--catalog-script', type=Path)
     arguments = parser.parse_args()
     baseline = arguments.baseline.read_bytes()
     full_script = arguments.script.read_bytes()
@@ -332,6 +334,51 @@ def main():
           FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;""")
         require(scope == {'creations': 1, 'administrators': 3, 'preserved_original': 1,
                           'customers': 1, 'orders_count': 0}, 'generated_admin_scope_or_duplicate_audit_invalid')
+
+        if arguments.catalog_script:
+            catalog = load_module('catalog_cli_fixture', root / 'scripts/pilot/install-catalog-update.py')
+            catalog.SERVER, catalog.DATABASE = 'localhost', target
+            instance = catalog.Installer('unused-synthetic-package.zip')
+            instance.inspector, instance.sql_tool = inventory, SQLCMD
+            instance.sql_login, instance.sql_password = credentials.login, credentials.password
+            catalog.subprocess = types.SimpleNamespace(run=lambda args, *, input, capture_output, text, env, timeout, check:
+                reset_container_command(args, data=input, env=env, timeout=timeout), TimeoutExpired=subprocess.TimeoutExpired)
+            require(instance.verify_schema() == 9, 'catalog_cli_baseline_invalid')
+            counts = instance.sql_json(catalog.COUNTS_QUERY)
+            instance.sql_run('ALTER TABLE dbo.Customers ADD RestDaysMask int NULL;')
+            try:
+                instance.verify_schema()
+            except catalog.InstallError as error:
+                require(str(error) == 'rest_days_schema_unexpected', 'catalog_partial_schema_wrong_issue')
+            else:
+                raise FixtureFailure('catalog_partial_schema_accepted')
+            instance.sql_run('ALTER TABLE dbo.Customers DROP COLUMN RestDaysMask;')
+            try:
+                instance.sql_run('BEGIN TRANSACTION;\nGO\nALTER TABLE dbo.Customers ADD RestDaysMask int NULL;\n'
+                                 "THROW 51006,N'Fictional catalog migration failure',1;\nGO\n")
+            except catalog.InstallError:
+                require(51006 in instance.state.get('sql_error_numbers', []), 'catalog_failure_diagnostic_missing')
+            else:
+                raise FixtureFailure('catalog_failure_not_rejected')
+            require(instance.verify_schema() == 9, 'catalog_failed_transaction_not_rolled_back')
+            sql = arguments.catalog_script.read_text(encoding='utf-8-sig')
+            for _ in range(2):
+                instance.sql_run(sql + SESSION_GUARD)
+                require(instance.verify_schema() == 10, 'catalog_tenth_migration_failed')
+                require(instance.sql_json(catalog.COUNTS_QUERY) == counts, 'catalog_counts_not_preserved')
+            require(instance.sql_json('SELECT RestDaysMask AS mask FROM dbo.Customers '
+                                      'FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;') == {'mask': 0}, 'catalog_default_not_zero')
+            instance.sql_run('ALTER TABLE dbo.Customers NOCHECK CONSTRAINT CK_Customers_RestDaysMask;')
+            try:
+                instance.verify_schema()
+            except catalog.InstallError:
+                pass
+            else:
+                raise FixtureFailure('catalog_untrusted_constraint_accepted')
+            instance.sql_run('ALTER TABLE dbo.Customers WITH CHECK CHECK CONSTRAINT CK_Customers_RestDaysMask;')
+            require(instance.verify_schema() == 10, 'catalog_constraint_revalidation_failed')
+            print('I06 native CLI: additive 9-to-10 migration, idempotence, defaults, preserved data, '
+                  'session options, transaction rollback and partial/untrusted schema guards passed.')
     finally:
         if created:
             update.DATABASE = 'master'
