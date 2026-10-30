@@ -105,3 +105,10 @@ Usuario solicita captura rápida con desglose al perder foco, entrega habitual i
 
 
 El primer intento de instalación I07 reportado por el usuario el 28 de octubre se detuvo en sql-admin-authentication con sql_credentials_invalid. El preflight confirmó diez migraciones y todos los permisos DML previstos; changes_made, database_migrations_run y migrations_may_have_changed fueron false. La validación local de entrada ocurre antes de consultar SQL como administrador: exige usuario 1–128 caracteres, contraseña 1–512 y ausencia de NUL/CR/LF. El reporte no identifica cuál campo falló ni demuestra rechazo de autenticación por SQL Server. Reintentar el mismo instalador con el login SQL existente y su contraseña introducidos en los prompts ocultos; mantener I06 como último despliegue confirmado. No hubo cambios al código/paquete ni intento remoto desde esta sesión.
+
+
+## I07 — Diagnóstico SQL pendiente (30 de octubre)
+
+El usuario reintentó el instalador original. Pasó la validación local de entrada, pero terminó en sql-admin-authentication con sql_operation_failed y sql_error_numbers vacío. Diez migraciones y permisos DML de la aplicación verificados; changes_made, database_migrations_run y migrations_may_have_changed false. No se detuvo la API ni se migró. Un fallo de sqlcmd/ODBC puede no producir encabezados Msg; el reporte no determina aún contraseña, login, conexión o consulta fallida.
+
+Se prepara PRODIMT_Diagnostico_SQL_I07.py, que verifica el SHA exacto del instalador entregado y ejecuta sólo preflight y authenticate_admin de lectura. Bloquea comandos mutadores/SQL ajeno a una lista SELECT, clasifica mensajes ODBC sin revelarlos y muestra etapa/permisos booleanos. No reinicia servicios, migra, respalda ni restablece credenciales. 173 pruebas Python locales correctas, incluidas 11 del diagnóstico; prueba ODBC real añadida a CI. Pendiente ejecución del diagnóstico por el usuario; I06 sigue siendo el último despliegue confirmado. Paquete I07/código de aplicación intactos.

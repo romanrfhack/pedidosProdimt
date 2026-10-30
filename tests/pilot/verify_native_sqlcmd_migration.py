@@ -6,6 +6,7 @@ No production target, file, secret or data is used by this fixture.
 """
 import argparse
 import importlib.util
+import json
 import os
 from pathlib import Path
 import re
@@ -423,6 +424,22 @@ def main():
             require(instance.verify_schema() == 11, 'capture_index_revalidation_failed')
             print('I07 native CLI: additive 10-to-11 migration, idempotence, preserved data, session options, '
                   'transaction rollback and partial/disabled-index schema guards passed.')
+        diagnosis = load_module('capture_auth_diagnostic_fixture', root / 'scripts/pilot/diagnose-capture-auth.py')
+        # One deliberately nonexistent login in the disposable container. Never
+        # try a wrong password on an existing account or any operational server.
+        bad_login = 'synthetic_diagnostic_missing_login'
+        bad_password = 'Synthetic-diagnostic-nonexistent-account-2026!'
+        rejected = subprocess.run(['/usr/bin/docker', 'exec', '--interactive', '--env', 'SQLCMDUSER',
+            '--env', 'SQLCMDPASSWORD', CONTAINER, SQLCMD, '-C', '-I', '-S', 'localhost', '-d', 'master',
+            '-b', '-l', '5', '-t', '10', '-x'], input='SELECT 1;\n', capture_output=True, text=True,
+            check=False, timeout=25,
+            env=dict(update.CLEAN_ENV, SQLCMDUSER=bad_login, SQLCMDPASSWORD=bad_password))
+        classification = diagnosis.classify_error(rejected.stdout, rejected.stderr)
+        require(rejected.returncode != 0 and classification['category'] == 'sql_login_rejected',
+                'capture_auth_real_odbc_login_failure_not_classified')
+        require(bad_login not in json.dumps(classification) and bad_password not in json.dumps(classification),
+                'capture_auth_classification_disclosed_credentials')
+        print('I07 SQL auth diagnostic: real ODBC login failure classified; credentials and raw streams withheld.')
     finally:
         if created:
             update.DATABASE = 'master'
