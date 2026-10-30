@@ -15,7 +15,7 @@ El reporte del usuario muestra sql_operation_failed en sql-admin-authentication,
 
 ## Validación
 
-173 pruebas Python locales correctas: 162 previas y 11 del diagnóstico. Pruebas de secretos sintéticos en stdout/stderr, categorías ODBC sin Msg, pin antes de ejecutar, rechazo de DDL/backup/lectura no permitida, entorno privado, timeout, metadata permitida, limpieza y autenticación/verificación del esquema mediante el método original. Se añade a CI una comprobación de error de login con ODBC real y un usuario ficticio inexistente en la instancia desechable. CI pendiente en este corte.
+173 pruebas Python locales correctas: 162 previas y 11 del diagnóstico. Pruebas de secretos sintéticos en stdout/stderr, categorías ODBC sin Msg, pin antes de ejecutar, rechazo de DDL/backup/lectura no permitida, entorno privado, timeout, metadata permitida, limpieza y autenticación/verificación del esquema mediante el método original. Se añade a CI una comprobación de error de login con ODBC real y un usuario ficticio inexistente en la instancia desechable. [CI 41105959819](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41105959819) con cuatro jobs correctos para `cd3ba9a034a5331a1437b95118b22ced382d8ccd`: 267 .NET, 29 SQL Server, 68 E2E, 173 Python y smoke Production. ODBC real confirmó la clasificación de un login ficticio inexistente, sin exponer credenciales ni streams. El diagnóstico mantiene exactamente el mismo hash publicado.
 
 ## Ejecución
 
