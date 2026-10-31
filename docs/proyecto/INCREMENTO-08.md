@@ -1,6 +1,6 @@
 # I08 — Configuración del cliente y calendario semanal
 
-Autorizado el 31 de octubre de 2026. Implementado, validado en CI y empaquetado; despliegue pendiente. Código be3995fdce6948ff00f44edd6025a1da1899887c; [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production.
+Autorizado el 31 de octubre de 2026. Implementado, validado en CI y desplegado por el usuario; revisión funcional en navegador pendiente. Código be3995fdce6948ff00f44edd6025a1da1899887c; [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production.
 
 ## Experiencia
 
@@ -23,3 +23,9 @@ No modifica backend, migraciones, modelos o contratos de API. Paquete `PRODIMT_C
 El instalador usa sólo Python estándar/curl/systemctl de lectura, sin credenciales SQL o reinicio. Verifica proceso/backend, permisos de directorios, frontend previo y API; crea snapshot root-only, extrae archivos verificados, activa y comprueba index/JS/CSS por HTTPS. Una falla después de activar revierte el enlace; interrupciones de terminal también intentan restaurarlo. No restaura ni consulta SQL directamente. Repetir sobre el mismo frontend verifica sin nueva activación.
 
 Antes de recargar, resolver o guardar cualquier captura/borrador abierto; el guardado real de I07 continúa pendiente de confirmación del usuario. Instalación no equivale a aceptación del calendario en producción. Evidencia: [validación I08](../validation/2026-10-31-client-configuration.md).
+
+## Despliegue confirmado — 31 de octubre de 2026
+
+El usuario verificó SHA exterior e internos y ejecutó el instalador revisión 20261031-client-configuration-install1. JSON: updated/completed, changes_made=true, health_verified=true y frontend_verified=true. Fuente be3995fdce6948ff00f44edd6025a1da1899887c; frontend activo /var/www/prodimt-pedidos/frontend/releases/client-config-be3995fdce69. Backend, contraseñas y servicio sin cambios; no se ejecutaron migraciones. Snapshot privado: /var/backups/prodimt-pedidos/client-configuration-20261031T162118Z-cfccc3ef23b6.
+
+Evidencia reportada por el usuario; no se operó SSH desde este entorno. Falta revisar distribución responsive, persistencia de días reales de trabajo y efecto de descanso en Pendientes para la fecha seleccionada. No repetir la instalación para esa revisión ni confundir salud técnica con aceptación funcional o guardado real del pedido I07.

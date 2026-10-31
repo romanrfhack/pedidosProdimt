@@ -22,7 +22,7 @@ Código be3995fdce6948ff00f44edd6025a1da1899887c, [CI 41217210669](https://githu
 - PRODIMT_Configuracion_Cliente_I08.zip: 170004 bytes, SHA256 5d950c83bcb59ff8b14dda9fb556dfdfe3205b79bd6d9f27dc68e966da2702ab.
 - Payload SHA256: 3c35c329cf3434839336ffbb43ce2ee2e163cfc28b17d3e12792d4d4c4f328e3.
 - Diez archivos frontend, incluidos avisos de terceros generados por el mismo build; sin mapas de fuente ni dirección de API de desarrollo.
-- Se verificaron SHA256SUMS y se ejecutó load_payload del instalador incluido, comprobando contenido/manifiesto/pines, licencia y presencia del filtro de descansos. El ZIP definitivo se guardó; no se ejecutó apply sobre el VPS.
+- Se verificaron SHA256SUMS y se ejecutó load_payload del instalador incluido, comprobando contenido/manifiesto/pines, licencia y presencia del filtro de descansos. El ZIP definitivo se guardó; posteriormente el usuario ejecutó apply sobre el VPS, según el resultado que se registra abajo.
 - Para reproducir: checkout limpio de ese código, npm ci/build de producción, copiar dist/prodimt-pedidos-web/3rdpartylicenses.txt a su browser/ y ejecutar build-client-configuration-package.py con --frontend de browser, --source del código y --output absoluto. El ZIP generado incorpora ambos pines; el entregado queda sin cambios.
 - Estado esperado al aplicar: updated/completed, frontend_verified y health_verified true; nuevo frontend /var/www/prodimt-pedidos/frontend/releases/client-config-be3995fdce69. Backend continúa capture-46fed604732e. No necesita usuario SQL, compilación en VPS, migraciones o reinicio.
 
@@ -33,4 +33,15 @@ scp PRODIMT_Instalar_I08.py prodimt-client-configuration-payload.zip root@194.23
 ssh root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I08.py --package /root/prodimt-client-configuration-payload.zip --apply'
 ```
 
-Pendiente recibir JSON del VPS y confirmar configuración en navegador, persistencia del calendario y efecto de descanso en estado diario sin crear NoOrder. Antes de recargar, resolver cualquier captura incierta o borrador abierto. No se ha ejecutado SSH desde este entorno ni se declara I08 instalado. La incidencia del canal I07 fue reparada por el usuario, pero no existe aún confirmación de guardado del pedido real. `graphify update .` no disponible (127).
+## Despliegue confirmado por el usuario — 31 de octubre de 2026
+
+SHA256 exterior e internos correctos. Instalador 20261031-client-configuration-install1, modo apply:
+
+- status=updated, phase=completed, changes_made=true.
+- health_verified=true, frontend_verified=true.
+- database_migrations_run=false, backend_changed=false, service_restarted=false y password_changed=false.
+- source_commit=be3995fdce6948ff00f44edd6025a1da1899887c.
+- new_frontend=/var/www/prodimt-pedidos/frontend/releases/client-config-be3995fdce69.
+- private_snapshot=/var/backups/prodimt-pedidos/client-configuration-20261031T162118Z-cfccc3ef23b6.
+
+No se ha ejecutado SSH desde este entorno; el despliegue se confirma por la salida aportada. No se regeneró el paquete ni se repitieron suites por este cambio documental. Falta confirmar distribución en navegador, persistencia del calendario con días reales y efecto de descanso en Pendientes para la fecha elegida, sin crear NoOrder. Antes de recargar, resolver cualquier captura incierta o borrador abierto. La incidencia del canal I07 fue reparada, pero aún no existe confirmación de guardado del pedido real. graphify no disponible (127), sin cambios de código en este cierre.

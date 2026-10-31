@@ -4,13 +4,13 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I08: configuración amplia del cliente y calendario de trabajo
+## I08 desplegado: configuración amplia y calendario; revisión funcional pendiente
 
 El usuario autorizó el rediseño enfocado el 31 de octubre: usar ancho disponible con márgenes, vista habitual sin scroll de página en laptop, adaptación a tablet/teléfono y casillas de los siete días (marcada trabaja, sin marcar descansa). Implementado en frontend con los contratos existentes de I06/I07, sin cambios de API/esquema. Ver `docs/proyecto/INCREMENTO-08.md` y `docs/validation/2026-10-31-client-configuration.md`.
 
 El calendario también se aplica en Pendientes según la fecha de servicio elegida: oculta descansos por defecto y permite mostrarlos al final para una captura excepcional. El cruce usa restDays persistidos; no cambia el contrato de la API ni genera NoOrder. Conserva borradores/referencias de captura.
 
-Código be3995fdce6948ff00f44edd6025a1da1899887c, [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production. Build Angular, 79 E2E locales y 206 Python correctos. Paquete PRODIMT_Configuracion_Cliente_I08.zip verificado y guardado: 170004 bytes, SHA256 5d950c83bcb59ff8b14dda9fb556dfdfe3205b79bd6d9f27dc68e966da2702ab; payload SHA256 3c35c329cf3434839336ffbb43ce2ee2e163cfc28b17d3e12792d4d4c4f328e3. Diez archivos frontend, incluidos avisos de terceros. Conserva backend capture-46fed604732e y cambia sólo frontend a client-config-be3995fdce69. Sin SQL, credenciales adicionales o reinicio. I08 no aplicado aún en el VPS; guardado real del pedido I07 pendiente de confirmar. Conservar cualquier captura incierta antes de recargar.
+Código be3995fdce6948ff00f44edd6025a1da1899887c, [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production. Build Angular, 79 E2E locales y 206 Python correctos. Paquete PRODIMT_Configuracion_Cliente_I08.zip verificado y guardado: 170004 bytes, SHA256 5d950c83bcb59ff8b14dda9fb556dfdfe3205b79bd6d9f27dc68e966da2702ab; payload SHA256 3c35c329cf3434839336ffbb43ce2ee2e163cfc28b17d3e12792d4d4c4f328e3. Diez archivos frontend, incluidos avisos de terceros. Conserva backend capture-46fed604732e y cambia sólo frontend a client-config-be3995fdce69. Sin SQL, credenciales adicionales o reinicio. I08 instalado por el usuario el 31 de octubre: updated/completed, health_verified y frontend_verified true. Frontend activo client-config-be3995fdce69; backend sin cambio, sin migraciones, reinicio o cambio de contraseña. Snapshot privado /var/backups/prodimt-pedidos/client-configuration-20261031T162118Z-cfccc3ef23b6. La revisión de la pantalla/calendario y el guardado real del pedido I07 continúan pendientes. Conservar cualquier captura incierta antes de recargar.
 
 ## I07: canal reparado; guardado en navegador pendiente
 
