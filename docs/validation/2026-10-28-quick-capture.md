@@ -29,10 +29,21 @@ Fecha: 28 de octubre de 2026. Código y herramientas: `46fed604732eddca0c7ac199b
 
 ## Destino y límites
 
-Último despliegue confirmado: I06, ambos releases `catalog-965dc65d82d2`, diez migraciones. I07 está listo para instalación por el usuario; no se ejecutó SSH ni se modificó el VPS en esta sesión. No se reimportan catálogos.
+El paquete se preparó sobre I06, ambos releases `catalog-965dc65d82d2` y diez migraciones. El usuario confirmó después su instalación I07 el 30 de octubre: ambos releases `capture-46fed604732e`, once migraciones, salud/esquema y conteos verificados. No se reimportaron catálogos ni se ejecutó SSH desde este entorno.
 
 El instalador requiere I06 activo y configuración vigente; pide SQL administrador por TTY privado. Respalda con COPY_ONLY/CHECKSUM y VERIFYONLY antes de la migración aditiva `20261028202031_AddCustomerCaptureAliases`. Comprueba 11 migraciones, columna nullable, índice único filtrado, permisos DML, datos preservados, salud, autorización de endpoints y todos los JS/CSS. Destino nuevo: `capture-46fed604732e`. Conserva entorno/cuentas y no cambia Nginx. Ante fallo intenta reactivar I06 sin restaurar SQL automáticamente.
 
 HN queda sin asociación automática: se configura explícitamente por cliente y producto. Los perfiles importados se revisan/confirman una vez para captura rápida; una unidad/posición faltante se resuelve, no se infiere. Captura manual continúa disponible para productos confirmados. Ni la vista previa ni la aprobación crean pedidos.
 
 Tras instalación correcta: Ctrl+F5, revisar captura en `/admin/clientes-pendientes`, probar un pedido real, comprobar líneas/fecha/unidades, autorizaciones y demanda. Una corrección del total de 15 a 20 sigue el pedido existente con motivo y aviso; otra entrega requiere confirmación explícita. Validación técnica no equivale al ensayo de ruta ni al registro de producción física.
+
+## I07 desplegado — 30 de octubre de 2026
+
+Confirmado por salida del instalador ejecutado por el usuario: revision 20261028-capture-install1, status updated, phase completed, historial 10→11, migrated_schema_verified, existing_data_counts_preserved y health_verified true. Código 46fed604732eddca0c7ac199b58bb0b429545b89. Backend/frontend activos en capture-46fed604732e. Contraseñas sin cambio; no se restauró SQL automáticamente.
+
+- Snapshot privado: `/var/backups/prodimt-pedidos/quick-capture-update-20261031T024549Z-90dbaa60d04e`.
+- Respaldo SQL verificado: `/var/opt/mssql/backup/prodimt-i07-20261031T024549Z-90dbaa60d04e/ProdimtPedidos-copy-only.bak`.
+
+El instalador verificó esquema, permisos DML, proceso, /health/db, autorización de los endpoints y frontend/JS/CSS por HTTPS. Se trata de evidencia reportada por el usuario; no se accedió al VPS desde este entorno. El campo database_checks.migrations_count=10 pertenece al preflight; migrations_after=11 y migrated_schema_verified=true confirman el resultado final.
+
+Siguiente paso: Ctrl+F5 y revisar Pendientes → Capturar pedido. Comprobar fecha, entrega habitual informativa, texto abreviado/desglose por posiciones y alternativa manual. Perfiles importados aún requieren confirmación explícita para guardar captura rápida; HN debe asociarse al producto correcto por cliente. Revisar primero la vista previa sin crear pedidos ficticios. Instalación no equivale a aceptación de negocio ni al ensayo de ruta. Conservar catálogos y respaldos; no repetir instalador, bootstrap o importaciones.

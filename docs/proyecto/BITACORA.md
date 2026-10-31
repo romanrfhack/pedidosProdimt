@@ -344,3 +344,12 @@ Código `2ecd87f649bfd0ec9e68c246ce51418b422fae0c`, [CI 41160327219](https://git
 El usuario repara el archivo con verificación SHA v1/v2 y ejecuta revisión 2. Resultado de sólo lectura: inspected/completed, preflight y comprobaciones administrativas completas, cinco SELECT correctos, historial 10 y DML de aplicación correctos. Hash del instalador verificado, sqlcmd en /opt/mssql-tools/bin/sqlcmd. sysadmin/dbcreator/db_owner/backup/view_definition=1. verify_permission=null aceptado por la rama sysadmin; no requiere cambios de permisos. Sin cambios ni migración. La causa histórica de sql_operation_failed no queda demostrada; las credenciales actuales funcionaron en este corte.
 
 Se indica reintentar --apply en el instalador/payload originales ya copiados, con las mismas credenciales SQL. Base 10 validada, no hace falta resume ni descargar/compilar otra versión. Instalador y binarios intactos; no se ejecutó SSH desde este entorno. Pendiente resultado updated/completed, migraciones 11 y health_verified true antes de declarar desplegado I07 o pedir prueba funcional del rediseño. Sólo documentación: no repetir suites ni regenerar artefactos.
+
+## 2026-10-30 — I07 instalado por el usuario
+
+Instalador original 20261028-capture-install1 ejecutado en VPS: updated/completed, cambios y migración realizados. Historial 10→11; esquema migrado, conteos existentes y salud verificados. Código 46fed604732eddca0c7ac199b58bb0b429545b89, backend/frontend capture-46fed604732e. El campo database_checks conserva el preflight de diez migraciones; migrations_after 11 corresponde al esquema final. Sin cambio de contraseñas ni restauración automática de SQL.
+
+Snapshot privado: /var/backups/prodimt-pedidos/quick-capture-update-20261031T024549Z-90dbaa60d04e
+Respaldo SQL verificado: /var/opt/mssql/backup/prodimt-i07-20261031T024549Z-90dbaa60d04e/ProdimtPedidos-copy-only.bak
+
+Se actualizaron estado vigente, continuidad, I07, plan y evidencias. El diagnóstico de preinstalación I06 queda archivado; sus guardas no corresponden a los nuevos releases I07. No repetir instalación/importación/bootstrap. Pendiente Ctrl+F5 y revisión real del campo, hora informativa, desglose/manual, aprobación de perfiles y alias HN explícito, antes de guardar pedidos reales. No se declara realizado el ensayo de ruta, ni completados faltantes de unidades/máquinas. Sin cambios de código/artefactos ni SSH directo desde este entorno; no hace falta repetir suites por este registro documental.

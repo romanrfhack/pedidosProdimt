@@ -1,6 +1,6 @@
 # I07 — Captura rápida de pedidos
 
-Autorizado el 28 de octubre de 2026. Implementado, validado y empaquetado; aún no instalado en el VPS.
+Autorizado el 28 de octubre de 2026. Implementado, validado y desplegado por el usuario en el VPS el 30 de octubre de 2026. Aceptación en navegador pendiente.
 
 ## Comportamiento
 
@@ -34,4 +34,15 @@ Referencia por intento, pedido, auditoría y recibo se guardan en una transacci�
 
 ## Entrega nativa
 
-Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Herramientas: `scripts/pilot/install-quick-capture-update.py` y `build-quick-capture-package.py`. El instalador comprueba I06 activo, historial/esquema 10 o 11 y permisos de la aplicación; un esquema parcial se rechaza antes de detenerla. La configuración y los datos se conservan. Código `46fed604732eddca0c7ac199b58bb0b429545b89`, [cuatro jobs CI correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145): 267 .NET, 29 SQL Server, 68 E2E y 162 Python/Production. Paquete PRODIMT_Captura_Rapida_I07.zip de 5.7 MB. Evidencia y hashes: [2026-10-28-quick-capture.md](../validation/2026-10-28-quick-capture.md). Instalación y aceptación del usuario pendientes.
+Paquete nativo compilado fuera del VPS, instalador con respaldo COPY_ONLY/CHECKSUM verificado antes de DDL, preservación de configuración y cuentas, comprobación de frontend/API y reversión de aplicación ante fallo. No se restaura SQL automáticamente. No se reimportan catálogos. Herramientas: `scripts/pilot/install-quick-capture-update.py` y `build-quick-capture-package.py`. El instalador comprueba I06 activo, historial/esquema 10 o 11 y permisos de la aplicación; un esquema parcial se rechaza antes de detenerla. La configuración y los datos se conservan. Código `46fed604732eddca0c7ac199b58bb0b429545b89`, [cuatro jobs CI correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145): 267 .NET, 29 SQL Server, 68 E2E y 162 Python/Production. Paquete PRODIMT_Captura_Rapida_I07.zip de 5.7 MB. Evidencia y hashes: [2026-10-28-quick-capture.md](../validation/2026-10-28-quick-capture.md). Instalación confirmada el 30 de octubre; aceptación funcional en navegador pendiente.
+
+## I07 desplegado — 30 de octubre de 2026
+
+Confirmado por salida del instalador ejecutado por el usuario: revision 20261028-capture-install1, status updated, phase completed, historial 10→11, migrated_schema_verified, existing_data_counts_preserved y health_verified true. Código 46fed604732eddca0c7ac199b58bb0b429545b89. Backend/frontend activos en capture-46fed604732e. Contraseñas sin cambio; no se restauró SQL automáticamente.
+
+- Snapshot privado: `/var/backups/prodimt-pedidos/quick-capture-update-20261031T024549Z-90dbaa60d04e`.
+- Respaldo SQL verificado: `/var/opt/mssql/backup/prodimt-i07-20261031T024549Z-90dbaa60d04e/ProdimtPedidos-copy-only.bak`.
+
+El instalador verificó esquema, permisos DML, proceso, /health/db, autorización de los endpoints y frontend/JS/CSS por HTTPS. Se trata de evidencia reportada por el usuario; no se accedió al VPS desde este entorno. El campo database_checks.migrations_count=10 pertenece al preflight; migrations_after=11 y migrated_schema_verified=true confirman el resultado final.
+
+Siguiente paso: Ctrl+F5 y revisar Pendientes → Capturar pedido. Comprobar fecha, entrega habitual informativa, texto abreviado/desglose por posiciones y alternativa manual. Perfiles importados aún requieren confirmación explícita para guardar captura rápida; HN debe asociarse al producto correcto por cliente. Revisar primero la vista previa sin crear pedidos ficticios. Instalación no equivale a aceptación de negocio ni al ensayo de ruta. Conservar catálogos y respaldos; no repetir instalador, bootstrap o importaciones.

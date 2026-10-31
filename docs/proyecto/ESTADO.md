@@ -1,11 +1,22 @@
 # Estado del proyecto
 
-Actualizado: 28 de octubre de 2026.
+Actualizado: 30 de octubre de 2026.
+
+## I07 desplegado — 30 de octubre de 2026
+
+Confirmado por salida del instalador ejecutado por el usuario: revision 20261028-capture-install1, status updated, phase completed, historial 10→11, migrated_schema_verified, existing_data_counts_preserved y health_verified true. Código 46fed604732eddca0c7ac199b58bb0b429545b89. Backend/frontend activos en capture-46fed604732e. Contraseñas sin cambio; no se restauró SQL automáticamente.
+
+- Snapshot privado: `/var/backups/prodimt-pedidos/quick-capture-update-20261031T024549Z-90dbaa60d04e`.
+- Respaldo SQL verificado: `/var/opt/mssql/backup/prodimt-i07-20261031T024549Z-90dbaa60d04e/ProdimtPedidos-copy-only.bak`.
+
+El instalador verificó esquema, permisos DML, proceso, /health/db, autorización de los endpoints y frontend/JS/CSS por HTTPS. Se trata de evidencia reportada por el usuario; no se accedió al VPS desde este entorno. El campo database_checks.migrations_count=10 pertenece al preflight; migrations_after=11 y migrated_schema_verified=true confirman el resultado final.
+
+Siguiente paso: Ctrl+F5 y revisar Pendientes → Capturar pedido. Comprobar fecha, entrega habitual informativa, texto abreviado/desglose por posiciones y alternativa manual. Perfiles importados aún requieren confirmación explícita para guardar captura rápida; HN debe asociarse al producto correcto por cliente. Revisar primero la vista previa sin crear pedidos ficticios. Instalación no equivale a aceptación de negocio ni al ensayo de ruta. Conservar catálogos y respaldos; no repetir instalador, bootstrap o importaciones.
 
 ## Ubicación y etapa
 
 - Repositorio: `romanrfhack/pedidosProdimt`.
-- [PR #1](https://github.com/romanrfhack/pedidosProdimt/pull/1), rama `codex/pilot-foundation-2026-10-24`. Borrador, sin fusión; binarios funcionales I06 desplegados en el VPS el 28 de octubre.
+- [PR #1](https://github.com/romanrfhack/pedidosProdimt/pull/1), rama `codex/pilot-foundation-2026-10-24`. Borrador, sin fusión; I07 desplegado por el usuario el 30 de octubre, código 46fed604732eddca0c7ac199b58bb0b429545b89, once migraciones.
 - Base de I02: `a2eb7fb533982ba719ce74d0a73b4f631cd0d2f9` (I01 verificado).
 - Código I02 verificado: `192c8d7871e2b2021b4d485dd71b5ebd7abbda4d`; [CI](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40120275407). El commit documental posterior conserva el mismo código.
 - **I02 implementado y validado en CI, incluido SQL Server real**: captura/importación diaria y correcciones. Contratos en `INCREMENTO-02.md`.
@@ -84,7 +95,7 @@ Cuenta `roman.prodimt` creada por el usuario el 26 de octubre: `status: complete
 
 1. I06 instalado por el usuario: conservar snapshot y respaldo verificados. No repetir el actualizador ni la importación de clientes. Revisar interfaz tras Ctrl+F5; configuración y contraseñas conservadas según el instalador. La aceptación de negocio sigue pendiente.
 2. Tras Ctrl+F5, revisar búsqueda principal, filtros, modal Nuevo cliente/Editar y tarjetas. Configurar únicamente descansos semanales conocidos por cliente. Un pedido vigente prevalece; NoOrder y descanso tienen etiquetas diferentes y quedan al final. No repetir el alta de clientes.
-3. Instalar I07 con su paquete verificado antes de ensayar el nuevo flujo; el VPS sigue en I06. El usuario confirma catálogos cargados sin error. No repetir cargas. Iniciar prueba operativa con 3–5 pedidos reales en /admin/clientes-pendientes: cliente, fecha de entrega y cantidades explícitas de productos con unidad confirmada. Revisar guardado por fecha, pendientes de autorización, tarjeta de hoy cuando aplique y demanda por máquina. Probar la corrección con motivo cuando un pedido real cambie y comprobar su aviso; NoOrder sólo ante confirmación expresa. El reporte de carga no confirma conciliación individual ni solución de los faltantes del paquete. Ver ../validation/2026-10-28-product-profiles-import.md.
+3. I07 instalado y verificado por el usuario el 30 de octubre; revisar el nuevo flujo antes del ensayo operativo. El usuario confirma catálogos cargados sin error. No repetir cargas. Iniciar prueba operativa con 3–5 pedidos reales en /admin/clientes-pendientes: cliente, fecha de entrega y cantidades explícitas de productos con unidad confirmada. Revisar guardado por fecha, pendientes de autorización, tarjeta de hoy cuando aplique y demanda por máquina. Probar la corrección con motivo cuando un pedido real cambie y comprobar su aviso; NoOrder sólo ante confirmación expresa. El reporte de carga no confirma conciliación individual ni solución de los faltantes del paquete. Ver ../validation/2026-10-28-product-profiles-import.md.
 4. Completar las seis unidades, máquinas faltantes/cero y orden de visita. Las posiciones de interpretación ya fueron llenadas, pero la aprobación del perfil sigue siendo explícita; cobros y saldos se completan para su etapa.
 5. Ratificar corte de 10:00 a.m. y calendario del ensayo; conservar esa regla mientras no se cambie explícitamente.
 6. **I03:** ensayo de una semana por ruta, comparando captura→demanda→preparación y documentando diferencias; después avanzar a registro físico.
@@ -99,7 +110,7 @@ Cuenta `roman.prodimt` creada por el usuario el 26 de octubre: `status: complete
 - Los campos vacíos y las fechas arrastradas del Excel no se convierten en valores operativos por suposición.
 - Validación técnica, carga privada, despliegue y uso real son hitos distintos.
 
-## I07 listo para instalar — 28 de octubre
+## I07 — preparación del paquete el 28 de octubre (antecedente)
 
 Usuario solicita captura rápida con desglose al perder foco, entrega habitual informativa y alternativa manual. Implementado en `46fed604732eddca0c7ac199b58bb0b429545b89` con [cuatro jobs CI correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/40765239145): 267 .NET, 29 SQL Server, 68 E2E y 162 Python/Production. Parser por perfil/alias explícitos, aprobación, vista previa y guardado transaccional; entrega informativa y alternativa manual. PRODIMT_Captura_Rapida_I07.zip íntegro, plan sin cambios y binarios linux-x64 listos; ver ../validation/2026-10-28-quick-capture.md. Pendiente instalación por el usuario, Ctrl+F5 y aceptación operativa. Último despliegue confirmado sigue siendo I06; no ejecutar bootstrap ni reimportar catálogos.
 
