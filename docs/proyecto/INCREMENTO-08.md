@@ -1,6 +1,6 @@
 # I08 — Configuración del cliente y calendario semanal
 
-Autorizado el 31 de octubre de 2026. Implementado; cierre de validación y paquete en curso, despliegue pendiente. La base de configuración 42f6eb4c225a6781475893151a28d3e9b19fae2a tiene [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41214749798); el cierre añade su efecto en Pendientes para la fecha seleccionada.
+Autorizado el 31 de octubre de 2026. Implementado, validado en CI y empaquetado; despliegue pendiente. Código be3995fdce6948ff00f44edd6025a1da1899887c; [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production.
 
 ## Experiencia
 

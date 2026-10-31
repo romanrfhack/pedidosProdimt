@@ -10,7 +10,7 @@ El usuario autorizó el rediseño enfocado el 31 de octubre: usar ancho disponib
 
 El calendario también se aplica en Pendientes según la fecha de servicio elegida: oculta descansos por defecto y permite mostrarlos al final para una captura excepcional. El cruce usa restDays persistidos; no cambia el contrato de la API ni genera NoOrder. Conserva borradores/referencias de captura.
 
-Validación de la base: build Angular, 76 E2E y 206 Python; CI 41214749798 con cuatro jobs correctos. El cierre añade tres E2E por fecha y vuelve a validar la suite completa antes de fijar el paquete definitivo. Actualización sólo frontend sobre I07, sin SQL o reinicio. No se ha desplegado I08 en el VPS. La confirmación de guardado real de I07 sigue pendiente; conservar cualquier captura incierta antes de recargar.
+Código be3995fdce6948ff00f44edd6025a1da1899887c, [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production. Build Angular, 79 E2E locales y 206 Python correctos. Paquete PRODIMT_Configuracion_Cliente_I08.zip verificado y guardado: 170004 bytes, SHA256 5d950c83bcb59ff8b14dda9fb556dfdfe3205b79bd6d9f27dc68e966da2702ab; payload SHA256 3c35c329cf3434839336ffbb43ce2ee2e163cfc28b17d3e12792d4d4c4f328e3. Diez archivos frontend, incluidos avisos de terceros. Conserva backend capture-46fed604732e y cambia sólo frontend a client-config-be3995fdce69. Sin SQL, credenciales adicionales o reinicio. I08 no aplicado aún en el VPS; guardado real del pedido I07 pendiente de confirmar. Conservar cualquier captura incierta antes de recargar.
 
 ## I07: canal reparado; guardado en navegador pendiente
 
