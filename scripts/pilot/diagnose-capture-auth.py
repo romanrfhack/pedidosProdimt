@@ -18,7 +18,7 @@ import sys
 import types
 import unicodedata
 
-REVISION = '20261030-sql-auth-diagnosis1'
+REVISION = '20261030-sql-auth-diagnosis2'
 INSTALLER_SHA256 = '42b1e7d869a41d3d42851925585035089e5d58450993ebb16b89bb9d44c5fb1b'
 SQLSTATES = frozenset(('28000', '08001', '08004', '08S01', 'HYT00', 'HYT01', 'IM002', 'IM003'))
 
@@ -169,7 +169,7 @@ def diagnose(package, installer):
         report['installer_sha256_verified'] = True
         instance = module.Installer(package)
         process = ReadOnlyProcess(module, instance, report)
-        module.subprocess = types.SimpleNamespace(run=process.run, TimeoutExpired=subprocess.TimeoutExpired)
+        module.subprocess = types.SimpleNamespace(run=process.run, TimeoutExpired=subprocess.TimeoutExpired, DEVNULL=subprocess.DEVNULL)
         report['phase'] = 'application-read-only-preflight'
         instance.preflight()
         report['preflight_completed'] = True

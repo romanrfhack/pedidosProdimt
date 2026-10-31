@@ -1,5 +1,6 @@
 """I07 auth diagnosis: read-only boundary, exact pins and private failure output."""
 import importlib.util
+import io
 import json
 from pathlib import Path
 import stat
@@ -201,6 +202,92 @@ class CaptureAuthDiagnosisTests(unittest.TestCase):
                 self.assertFalse(report['database_migrations_run'])
                 self.assertEqual('inspected' if failure is None else 'failed', report['status'])
                 self.assertNotIn(SECRET, json.dumps(report))
+
+    def test_complete_original_preflight_and_authentication_keep_devnull_and_private_output(self):
+        # Run both original methods, including process(), command(), http() and
+        # the real inspector/configuration parser. Only host files/transport are
+        # fictional. Reverting DEVNULL on the adapter reproduces the user's
+        # AttributeError before the very first subprocess can run.
+        for reject_admin in (False, True):
+            with self.subTest(reject_admin=reject_admin), tempfile.TemporaryDirectory() as tmp:
+                native = module('native_full_preflight_fixture', 'install-quick-capture-update.py')
+                root = Path(tmp); app = root / 'app'; env_file = root / 'api.env'
+                old = {part: app / part / 'releases' / native.OLD_NAME for part in ('backend','frontend')}
+                for part, release in old.items():
+                    release.mkdir(parents=True); (app / part / 'current').symlink_to(release)
+                dll = old['backend'] / 'Prodimt.Pedidos.Api.dll'; dll.write_bytes(b'fictional')
+                native.ROOT, native.BACKUPS, native.ENV_FILE = app, root / 'backups', env_file
+                environment = {'ASPNETCORE_ENVIRONMENT':'Production', 'Persistence__Provider':'SqlServer',
+                    'ConnectionStrings__Pedidos':'Server=127.0.0.1,14330;Database=ProdimtPedidos;'
+                        'User Id=prodimt_pedidos_app;Password='+SECRET+';Encrypt=True;TrustServerCertificate=True',
+                    'Authentication__Jwt__SigningKey':'Fictional-JWT-key-012345678901234567890123456789',
+                    'Authentication__Jwt__AccessTokenMinutes':'120'}
+                proc_environment = ('\0'.join(k+'='+v for k,v in environment.items())+'\0').encode()
+                cmdline = ('dotnet\0'+str(dll)+'\0').encode()
+                properties = '\n'.join(['ActiveState=active','MainPID=424242','User=www-data','Group=',
+                    'WorkingDirectory='+str(app/'backend/current'),
+                    'EnvironmentFiles='+str(env_file)+' (ignore_errors=no)', 'Environment=',
+                    'FragmentPath=/synthetic/api.service','DropInPaths='])
+                permissions = dict(database_name=native.DATABASE,migrations_count=10,i04=1,read_admin=1,update_admin=1,
+                    read_customers=1,update_customers=1,write_audit=1,read_profiles=1,insert_profiles=1,update_profiles=1,
+                    delete_profiles=1,read_operations=1,write_operations=1,write_order_audit=1)
+                responses = dict(administrator_permissions=dict(database_name=native.DATABASE,sysadmin=1,dbcreator=0,
+                    db_owner=1,backup_permission=1,verify_permission=1,view_definition=1,files_mib=8),
+                    migration_history=[{'MigrationId': x} for x in native.MIGRATIONS[:10]],
+                    rest_days_schema=dict(columns_count=1,valid_column=1,checks_count=1,valid_check=1),
+                    capture_alias_schema=dict(columns_count=0,valid_column=0,indexes_count=0,valid_index=0),
+                    rest_days_data={'invalid':0})
+                payload = {'inspect-native.py':(ROOT/'scripts/pilot/inspect-native.py').read_bytes()}
+                backup = Mock(); backup.resolve.return_value = backup
+                backup.lstat.return_value = types.SimpleNamespace(st_mode=stat.S_IFDIR|0o750,st_uid=999,st_gid=988)
+                native.SQL_BACKUPS = backup
+                original_resolve, original_open, original_is_file = Path.resolve, Path.open, Path.is_file
+                seen = []
+                def resolve(path, *args, **kwargs):
+                    return old['backend'] if str(path)=='/proc/424242/cwd' else original_resolve(path,*args,**kwargs)
+                def opened(path, *args, **kwargs):
+                    return io.BytesIO(proc_environment) if str(path)=='/proc/424242/environ' else original_open(path,*args,**kwargs)
+                def regular(path, *args):
+                    if str(path)=='/proc/424242/cmdline':return cmdline
+                    if path==env_file:return b'fictional environment'
+                    return path.read_bytes()
+                def transport(args, **kwargs):
+                    seen.append(args)
+                    if args[0]=='systemctl':
+                        self.assertEqual(subprocess.DEVNULL,kwargs['stdin'])
+                        return subprocess.CompletedProcess(args,0,properties,'')
+                    if args[0]=='curl':
+                        self.assertEqual(subprocess.DEVNULL,kwargs['stdin'])
+                        return subprocess.CompletedProcess(args,0,'{"database":"reachable"}\n200','')
+                    self.assertEqual('/opt/mssql-tools/bin/sqlcmd',args[0])
+                    if '-Q' in args:return subprocess.CompletedProcess(args,0,json.dumps(permissions),'')
+                    source = kwargs['input']
+                    if reject_admin and 'IS_SRVROLEMEMBER' in source:
+                        return subprocess.CompletedProcess(args,1,'','Sqlcmd: Login failed for user '+LOGIN+' '+SECRET)
+                    if 'IS_SRVROLEMEMBER' in source:row=responses['administrator_permissions']
+                    elif '__EFMigrationsHistory' in source:row=responses['migration_history']
+                    elif 'AS invalid' in source:row=responses['rest_days_data']
+                    elif 'CaptureAlias' in source:row=responses['capture_alias_schema']
+                    else:row=responses['rest_days_schema']
+                    return subprocess.CompletedProcess(args,0,json.dumps(row),'')
+                with patch.object(diagnosis,'trusted_installer',return_value=native), \
+                        patch.object(native,'load_package',return_value=payload), \
+                        patch.object(native,'regular',side_effect=regular), patch.object(native,'directory_safe'), \
+                        patch.object(native,'prompt_secret',side_effect=[LOGIN,SECRET]), \
+                        patch.object(native.shutil,'disk_usage',return_value=types.SimpleNamespace(free=10**12)), \
+                        patch.object(Path,'resolve',new=resolve), patch.object(Path,'open',new=opened), \
+                        patch.object(Path,'is_file',new=lambda path: str(path)=='/opt/mssql-tools/bin/sqlcmd' or original_is_file(path)), \
+                        patch.object(diagnosis.subprocess,'run',side_effect=transport):
+                    report = diagnosis.diagnose(root/'payload.zip',root/'installer.py')
+                self.assertTrue(report.get('preflight_completed'),report)
+                self.assertEqual('failed' if reject_admin else 'inspected',report['status'])
+                if reject_admin:self.assertEqual('sql_login_rejected',report['sql_reads'][0]['category'])
+                else:self.assertEqual(10,report['migrations_before'])
+                self.assertEqual(['systemctl','/opt/mssql-tools/bin/sqlcmd','curl'],[a[0] for a in seen[:3]])
+                self.assertFalse(report['changes_made'])
+                self.assertFalse(report['database_migrations_run'])
+                self.assertNotIn(SECRET,json.dumps(report))
+                self.assertNotIn(LOGIN,json.dumps(report))
 
 
 if __name__ == '__main__':
