@@ -37,3 +37,13 @@ ssh root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I09.py --package /root/pr
 ```
 
 Resolver cualquier captura incierta antes de reiniciar. Tras éxito entrar en Configuración → Tokens de acceso, guardar teléfono y crear un enlace para probar el flujo con un pedido autorizado. No reinstalar I07/I08 ni repetir importaciones para aplicar I09.
+
+## Intento remoto y diagnóstico de preflight
+
+El usuario ejecutó el paquete original y reportó `failed/read-only-preflight`, issue `database_permissions_schema_or_channels_unexpected`; cambios de aplicación, escrituras/migraciones SQL, contraseñas y reinicio false. El guard rechazó los valores de una consulta interpretada, pero el instalador original no conservaba esas diferencias. No se ha demostrado si falta un permiso, canal o condición del historial; no conceder permisos ni ejecutar bootstrap por este reporte.
+
+Diagnóstico independiente de sólo lectura: `PRODIMT_Diagnostico_Acceso_I09.py`, revisión `20261031-customer-access-diagnosis1`, 9,528 bytes, SHA256 `0b1c9cf84cdf58dd36e34ac5650ec8a784eef2433e0097923a6387da3872fd0e`. Verifica instalador original SHA256 `d9623be63603d0448b532828f0c2063e0da703a27ea84d303f072507f1bc68c2`, payload original `90c0e6505212f5165df56107a70d19085bb920ebdbf63c9bfc083fb7e0723d5c` y código 6cfdc7f. Selecciona sólo preflight, allowlist exacta de procesos y SQL, conserva DEVNULL, no crea lock ni acepta apply. Captura metadata antes de la guarda: booleans, contadores y campos faltantes/inválidos/diferentes; sin nombres ajenos, credenciales ni streams crudos.
+
+225 pruebas Python correctas. Carga del instalador/payload originales y regresión completa de lectura verificadas; casos de éxito, canal ausente, permiso0 y NULL omitido. El template install2 añade reporte sanitizado previo al rechazo, sin relajar la igualdad original; no reemplaza el ZIP entregado ni se aplica al VPS. Código diagnóstico `64e3680874b1eff54a70b1253a6819fac72092cf`. La salida del VPS sigue pendiente para decidir la corrección mínima.
+
+La consulta original completa fue verificada con ODBC real en [CI 41220905526](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41220905526): identifica ambos canales ausentes, acepta esquema de once migraciones con canales válidos y distingue UPDATE denegado en Customers. Son pruebas de infraestructura efímera; no identifican por sí mismas la diferencia del VPS.
