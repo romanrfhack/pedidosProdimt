@@ -64,3 +64,7 @@ No se implementan envío masivo, programación global/por vendedor, tareas en se
 ## Entrega nativa
 
 Preparar actualización de backend/frontend para el I07 nativo y frontend I07/I08 compatibles, con integridad fijada, preflight, conservación de configuración/cuentas/catálogos y canal reparado, snapshot privado, verificación de salud y reversión de aplicación ante fallo. No ejecutar bootstrap, reimportación o restauración SQL automática. No se prevén cambios de esquema para este incremento; el constructor y el instalador deberán comprobar el historial vigente y rechazar un destino incompatible. Registrar sólo comprobaciones realmente ejecutadas; paquete y CI correctos no acreditan despliegue ni aceptación del cliente real.
+
+## Cierre técnico
+
+Implementado y validado en código `6cfdc7ff366a2caa7dac399b9842b3630a30328a`, [PR #2](https://github.com/romanrfhack/pedidosProdimt/pull/2). [CI 41218846462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41218846462) con cuatro trabajos correctos: 305 .NET, 94 E2E, 217 Python, 33 SQL Server y smoke Production. Instalador nativo y ZIP verificados; sin acceso al VPS ni envío real. Instalación y aceptación de negocio pendientes. [Evidencia y comandos](../validation/2026-10-31-customer-access.md).

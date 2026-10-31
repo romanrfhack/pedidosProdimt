@@ -4,6 +4,14 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I09: acceso por enlace y próximo pedido
+
+Implementado y validado, pendiente de instalar. Código `6cfdc7ff366a2caa7dac399b9842b3630a30328a`, rama `codex/i09-customer-order-links`, PR #2 en borrador contra la base del piloto. CI 41218846462: cuatro trabajos correctos (305 .NET, 94 E2E, 217 Python, 33 SQL y smoke Production). Ver `docs/proyecto/INCREMENTO-09.md` y `docs/validation/2026-10-31-customer-access.md`.
+
+Incluye guardar teléfono, descripción editable y enlace con fragmento, WhatsApp individual y captura cliente rápida/manual. Corte 18:00 CDMX asigna fecha de servicio con el instante de recepción; el corte de revisión de las 10:00 se conserva. No cambia importaciones, historia o fechas administrativas explícitas. Si cruza el corte frente a la fecha mostrada, conserva borrador y exige confirmar de nuevo. Token revocado/vencido bloquea la sesión abierta; clientes con sesión anterior deben volver a entrar con su token, que sigue vigente.
+
+Paquete PRODIMT_Acceso_Clientes_I09.zip compilado y verificado para backend I07 y frontend I07/I08 (42f6eb4 o be3995f), sin migraciones. Conserva configuración, cuentas y once migraciones; breve reinicio de PRODIMT al aplicar. No se operó el VPS ni se enviaron mensajes. Próximo paso: instalar según LEEME, comprobar JSON updated/completed y probar flujo con un pedido autorizado. Resolver cualquier guardado incierto antes de reiniciar. No reinstalar I07/I08 ni repetir importaciones.
+
 ## I08: configuración amplia del cliente y calendario de trabajo
 
 El usuario autorizó el rediseño enfocado el 31 de octubre: usar ancho disponible con márgenes, vista habitual sin scroll de página en laptop, adaptación a tablet/teléfono y casillas de los siete días (marcada trabaja, sin marcar descansa). Implementado en frontend con los contratos existentes de I06/I07, sin cambios de API/esquema. Ver `docs/proyecto/INCREMENTO-08.md` y `docs/validation/2026-10-31-client-configuration.md`.

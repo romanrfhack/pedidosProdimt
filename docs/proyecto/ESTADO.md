@@ -2,6 +2,14 @@
 
 Actualizado: 31 de octubre de 2026.
 
+## I09 implementado y validado; instalación pendiente
+
+Enlaces de acceso y recordatorios individuales desde Tokens de acceso, teléfono obligatorio guardado en el cliente y captura rápida/manual del próximo pedido. Fecha automática con corte a las 18:00 de Ciudad de México y nueva confirmación si difiere de la observada. Conserva fechas explícitas, importaciones, historial y reintentos I07. Expiración/revocación verificadas durante la sesión; sesiones cliente anteriores deben reautenticarse una vez.
+
+Código `6cfdc7ff366a2caa7dac399b9842b3630a30328a`, rama `codex/i09-customer-order-links`, [PR #2](https://github.com/romanrfhack/pedidosProdimt/pull/2), base I08 actualizada. [CI 41218846462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41218846462): cuatro trabajos correctos; 305 .NET, 94 E2E, 217 Python, 33 SQL Server y smoke Production. Revisión independiente y ZIP nativo verificado.
+
+Paquete `PRODIMT_Acceso_Clientes_I09.zip` preparado para I07 y ambas revisiones I08. Sin migraciones, cambios de contraseñas, carga de datos o envío automático. Reinicia sólo PRODIMT al aplicar y conserva/revierte enlaces de aplicación ante fallo. El VPS no se modificó desde esta sesión. Resolver capturas inciertas antes de instalar; después probar un cliente con teléfono y fecha de entrega visibles. Ver [contrato I09](INCREMENTO-09.md) y [evidencia, hashes y comandos](../validation/2026-10-31-customer-access.md).
+
 ## I08 validado en CI y empaquetado; despliegue pendiente
 
 Rediseño de configuración enfocado: ancho del viewport y márgenes, productos compactos, calendario semanal y máquinas en paneles, acceso por tokens desplegable. Las casillas marcadas son días de trabajo; se guardan los descansos mediante restDays de I06. El modal de alta/edición usa la misma convención. No se crean NoOrder ni se cancelan pedidos al marcar descansos.
