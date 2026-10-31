@@ -1,7 +1,10 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Prodimt.Pedidos.Api;
@@ -24,8 +27,19 @@ if (builder.Environment.IsProduction())
     PilotRuntimeConfiguration.ValidateProduction(builder.Configuration, jwtSettings);
 
 builder.Services.AddOpenApi();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    // The native deployment uses a local Nginx proxy; do not trust arbitrary forwarded IPs.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+    options.KnownProxies.Add(System.Net.IPAddress.Loopback);
+    options.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
+});
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
+builder.Services.AddScoped<CustomerOrderCaptureService>();
 builder.Services.AddScoped<AdminOrderService>();
 builder.Services.AddScoped<AdminOrderCaptureService>();
 builder.Services.AddScoped<AdminDailyOrderService>();
@@ -41,7 +55,21 @@ builder.Services.AddScoped<AdminUserCatalogService>();
 builder.Services.AddScoped<CsvImportParser>();
 builder.Services.AddScoped<AdminImportService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
+builder.Services.AddScoped<CustomerSessionValidator>();
 builder.Services.AddScoped<AdminPasswordService>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("customer-token-login", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 60,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        }));
+});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -60,6 +88,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnTokenValidated = async context =>
             {
+                if (context.Principal?.FindFirstValue(ProdimtAuthClaims.ActorType) == ProdimtActorTypes.Customer)
+                {
+                    var customerIdClaim = context.Principal.FindFirstValue(ProdimtAuthClaims.CustomerId);
+                    var tokenIdClaim = context.Principal.FindFirstValue(ProdimtAuthClaims.CustomerAccessTokenId);
+                    if (!Guid.TryParse(customerIdClaim, out var customerId) || !Guid.TryParse(tokenIdClaim, out var tokenId) ||
+                        !await context.HttpContext.RequestServices.GetRequiredService<CustomerSessionValidator>()
+                            .IsValidAsync(customerId, tokenId, context.HttpContext.RequestAborted))
+                        context.Fail("El enlace de acceso ya no está disponible. Solicita uno nuevo.");
+                    return;
+                }
                 if (context.Principal?.FindFirstValue(ProdimtAuthClaims.ActorType) != ProdimtActorTypes.Admin) return;
                 var identity = context.Principal.FindFirstValue(ProdimtAuthClaims.UserId);
                 var stamp = context.Principal.FindFirstValue(ProdimtAuthClaims.AdminSessionStamp);
@@ -106,6 +144,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 
 if (initializePilot)
 {
@@ -146,6 +185,15 @@ if (app.Environment.IsDevelopment())
 
 if (builder.Configuration.GetValue("Hosting:UseHttpsRedirection", true)) app.UseHttpsRedirection();
 if (app.Environment.IsDevelopment()) app.UseCors("ProdimtWeb");
+app.Use(async (HttpContext context, RequestDelegate next) =>
+{
+    if (context.Request.Path == "/cliente" || context.Request.Path.StartsWithSegments("/api/auth"))
+    {
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        context.Response.Headers.CacheControl = "no-store";
+    }
+    await next(context);
+});
 app.UsePilotStaticFiles();
 app.Use(async (HttpContext context, RequestDelegate next) =>
 {
@@ -160,9 +208,12 @@ app.Use(async (HttpContext context, RequestDelegate next) =>
 });
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapAdminOperationsEndpoints();
 app.MapDailyOrderEndpoints();
 app.MapOrderCaptureEndpoints();
+app.MapCustomerOrderCaptureEndpoints();
+app.MapCustomerReminderEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -221,6 +272,7 @@ auth.MapPost("/customer-token", async (
     }
 })
 .WithName("LoginCustomerWithToken")
+.RequireRateLimiting("customer-token-login")
 .AllowAnonymous();
 
 auth.MapPost("/admin/login", async (
@@ -736,9 +788,17 @@ adminCustomers.MapPost("/{customerId:guid}/orders/no-order", async (
     {
         return Results.Ok(await service.MarkNoOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
     }
+    catch (DeliveryDateChangedException ex)
+    {
+        return Results.Conflict(new { error = ex.Message, code = "DeliveryDateChanged", ex.DeliveryDate, ex.ServerNow });
+    }
     catch (CustomerOrderConflictException ex)
     {
         return Results.Conflict(new { error = ex.Message });
+    }
+    catch (ArgumentException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
     }
     catch (InvalidOperationException ex)
     {

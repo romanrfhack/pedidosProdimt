@@ -5,7 +5,7 @@ const demoCustomerToken = 'demo-customer-token';
 
 async function loginCustomer(page: Page) {
   await page.goto(`/cliente?token=${demoCustomerToken}`);
-  await expect(page.getByRole('heading', { name: 'Mi pedido de hoy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi próximo pedido' })).toBeVisible();
 }
 
 async function loginAdmin(page: Page) {
@@ -118,11 +118,11 @@ test.beforeEach(async ({ request }) => {
 test('Mi pedido de hoy muestra productos y acciones principales', async ({ page }) => {
   await loginCustomer(page);
 
-  await expect(page.getByRole('heading', { name: 'Mi pedido de hoy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi próximo pedido' })).toBeVisible();
   await expect(page.getByText('#9 1/2')).toBeVisible();
   await expect(page.getByText('#10 1/2')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Enviar pedido' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'No pedir hoy' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Confirmar pedido' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'No pedir para esta entrega' })).toBeVisible();
 });
 
 test('la vista del cliente no muestra informacion de maquina', async ({ page }) => {
@@ -135,11 +135,10 @@ test('la vista del cliente no muestra informacion de maquina', async ({ page }) 
 
 test('no permite enviar si todas las cantidades estan en cero', async ({ page, request }) => {
   await loginCustomer(page);
-  await page.getByLabel('Cantidad #9 1/2').fill('0');
-  await page.getByLabel('Cantidad #10 1/2').fill('0');
-  await page.getByRole('button', { name: 'Enviar pedido' }).click();
-
-  await expect(page.getByText('Captura al menos una cantidad o usa No pedir hoy.')).toBeVisible();
+  await page.getByRole('button', { name: 'Captura manual' }).click();
+  await page.getByLabel('Cantidad de #9 1/2').fill('0');
+  await page.getByLabel('Cantidad de #10 1/2').fill('0');
+  await expect(page.getByRole('button', { name: 'Confirmar pedido' })).toBeDisabled();
 
   const stateResponse = await request.get(`${mockApiBaseUrl}/__test/state`);
   const state = await stateResponse.json();
@@ -148,10 +147,10 @@ test('no permite enviar si todas las cantidades estan en cero', async ({ page, r
 
 test('No pedir hoy llama API y muestra confirmacion', async ({ page }) => {
   await loginCustomer(page);
-  await page.getByRole('button', { name: 'No pedir hoy' }).click();
-
-  await expect(page.getByText('No pedir hoy registrado.')).toBeVisible();
-  await expect(page.getByText('No pedir hoy registrado').first()).toBeVisible();
+  await page.getByRole('button', { name: 'No pedir para esta entrega' }).click();
+  await page.getByRole('button', { name: 'Confirmar que no pediré' }).click();
+  await expect(page.getByText('Se registró que no pedirás para esta entrega.')).toBeVisible();
+  await expect(page.getByText('Confirmaste que no pedirás para esta entrega')).toBeVisible();
 });
 
 test('admin muestra Pedidos de hoy desde API', async ({ page }) => {
@@ -305,10 +304,12 @@ test('admin abre configuracion de cliente y gestiona token', async ({ page }) =>
   await expect(page.getByText('Tokens de acceso')).toBeVisible();
   await page.locator('.config-access > summary').click();
 
-  await page.getByLabel('Descripcion').fill('Token e2e');
-  await page.getByRole('button', { name: 'Crear token' }).click();
-  await expect(page.getByText(/Token generado:/)).toBeVisible();
-  await expect(page.getByText('mock-generated-token')).toBeVisible();
+  await page.getByLabel('Descripción', { exact: true }).fill('Token e2e');
+  await page.getByLabel('Teléfono de WhatsApp').fill('5512345678');
+  await page.getByLabel('Disponible hasta').fill('2030-01-01T18:00');
+  await page.getByRole('button', { name: 'Crear enlace', exact: true }).click();
+  await expect(page.getByLabel('Enlace de acceso', { exact: true })).toHaveValue(/\/cliente#token=mock-generated-token$/);
+  await expect(page.getByRole('button', { name: 'Abrir WhatsApp' })).toBeVisible();
 });
 
 test('cliente no ve navegacion ni pantallas de catalogos', async ({ page }) => {
@@ -481,16 +482,17 @@ test('cambiar filtro retira el plan anterior y un error no permite imprimir dato
 });
 
 test('captura cliente bloquea producto con unidad desconocida sin inventar kilos', async ({ page, request }) => {
-  await page.route(/\/api\/customer-orders\/[^/]+\/today$/, async (route) => {
+  await page.route(/\/api\/customer-orders\/[^/]+\/next$/, async (route) => {
     const response = await route.fetch();
     const body = await response.json();
     body.products[0].unitCode = null;
     await route.fulfill({ response, json: body });
   });
   await loginCustomer(page);
+  await page.getByRole('button', { name: 'Captura manual' }).click();
   await expect(page.getByText(/unidad por confirmar/)).toBeVisible();
-  await page.getByRole('button', { name: 'Enviar pedido' }).click();
-  await expect(page.getByText(/La unidad de un producto está pendiente de confirmar/)).toBeVisible();
+  await expect(page.getByLabel('Cantidad de #9 1/2')).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Confirmar pedido' })).toBeDisabled();
   const state = await (await request.get(`${mockApiBaseUrl}/__test/state`)).json();
   expect(state.submitCalls).toBe(0);
 });

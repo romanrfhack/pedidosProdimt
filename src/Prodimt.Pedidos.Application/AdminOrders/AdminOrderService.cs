@@ -105,16 +105,18 @@ public sealed class AdminOrderService(
         Guid customerId,
         AdminSubmitCustomerOrderRequest request,
         AdminActorContext? actor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IDateTimeProvider? receivedClock = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var serviceDate = request.ServiceDate ?? dateTimeProvider.Today;
+        var submissionClock = receivedClock ?? dateTimeProvider;
+        var serviceDate = request.ServiceDate ?? submissionClock.Today;
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, serviceDate, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, serviceDate, cancellationToken);
-        var evaluation = ServiceDatePolicy.Evaluate(serviceDate, dateTimeProvider, hasExistingOrder);
+        var evaluation = ServiceDatePolicy.Evaluate(serviceDate, submissionClock, hasExistingOrder);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
             customers, products, machines, cancellationToken);
@@ -123,7 +125,7 @@ public sealed class AdminOrderService(
             customer.Id,
             channel.Id,
             serviceDate,
-            dateTimeProvider.Now,
+            submissionClock.Now,
             existingCount + 1,
             evaluation,
             lines,
@@ -154,7 +156,11 @@ public sealed class AdminOrderService(
         AdminActorContext? actor,
         CancellationToken cancellationToken)
     {
-        var serviceDate = request.ServiceDate ?? dateTimeProvider.Today;
+        ArgumentNullException.ThrowIfNull(request);
+        var received = request.AutoDeliveryDate ? DeliveryDatePolicy.Capture(dateTimeProvider) : dateTimeProvider;
+        var serviceDate = request.AutoDeliveryDate
+            ? DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received)
+            : request.ServiceDate ?? received.Today;
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
         var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, serviceDate, cancellationToken);
@@ -175,7 +181,7 @@ public sealed class AdminOrderService(
             customer.Id,
             channel.Id,
             serviceDate,
-            dateTimeProvider.Now,
+            received.Now,
             existingCount + 1,
             customer);
 

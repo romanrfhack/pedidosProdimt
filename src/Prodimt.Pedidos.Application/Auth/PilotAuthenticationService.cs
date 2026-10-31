@@ -17,7 +17,7 @@ public sealed class PilotAuthenticationService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.Token))
+        if (string.IsNullOrWhiteSpace(request.Token) || request.Token.Length > 512)
         {
             throw new AuthenticationFailedException("Token de cliente invalido.");
         }
@@ -42,14 +42,15 @@ public sealed class PilotAuthenticationService(
         accessToken.LastUsedAt = dateTimeProvider.Now;
         await customerAccessTokens.SaveChangesAsync(cancellationToken);
 
-        var jwt = jwtTokenService.CreateCustomerToken(customer);
+        var jwt = jwtTokenService.CreateCustomerToken(customer, accessToken);
 
         return new CustomerTokenLoginResponse(
             jwt.AccessToken,
             "Bearer",
             jwt.ExpiresAt,
             customer.Id,
-            customer.Name);
+            customer.Name,
+            accessToken.ExpiresAt);
     }
 
     public async Task<AdminLoginResponse> LoginAdminAsync(

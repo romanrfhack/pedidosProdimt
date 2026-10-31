@@ -553,3 +553,14 @@ button.compact {
   body:has(.config-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
   body:has(.config-page) nav a, body:has(.config-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }
+
+/* Customer access links */
+.config-access { border:1px solid #dce6eb; border-radius:12px; padding:12px; background:#fff; min-width:0; }
+.config-access summary { cursor:pointer; font-size:.86rem; font-weight:700; color:#365565; }
+.config-access summary span { float:right; color:#748792; font-weight:400; }
+.config-access .catalog-grid { grid-template-columns:minmax(0,1fr); }
+.config-access input, .config-access textarea { width:100%; min-width:0; box-sizing:border-box; }
+.config-access textarea { resize:vertical; font:inherit; }
+.config-access .access-help, .config-access small { margin:0; font-size:.78rem; line-height:1.45; overflow-wrap:anywhere; }
+.config-access .access-actions { gap:6px; flex-wrap:wrap; }
+.config-access .line-row { align-items:flex-start; }

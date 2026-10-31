@@ -16,10 +16,12 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
   @Input({ required: true }) template!: AdminOrderTemplate;
   @Input({ required: true }) initialProfile!: AdminCustomerOrderingProfileApiResponse;
   @Input({ required: true }) serviceDate!: string;
+  @Input() autoDeliveryDate = false;
   @Input() existingOrders: AdminOrder[] = [];
   @Output() saved = new EventEmitter<boolean>();
   @Output() dismissed = new EventEmitter<void>();
   @Output() busy = new EventEmitter<boolean>();
+  @Output() deliveryDateChanged = new EventEmitter<string>();
   private readonly api = inject(OrderCaptureApiService);
   private readonly catalog = inject(AdminCatalogApiService);
   private readonly data = inject(OrderDataService);
@@ -83,7 +85,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
     if (!this.text.trim()) { this.error = null; return; }
     const generation = this.previewGeneration;
     this.interpreting = true; this.error = null;
-    this.previewRequest = this.api.preview(this.config.customerId, this.text.trim(), this.serviceDate).subscribe({
+    this.previewRequest = this.api.preview(this.config.customerId, this.text.trim(), this.serviceDate, this.autoDeliveryDate).subscribe({
       next: result => {
         if (generation !== this.previewGeneration || this.mode !== 'quick') return;
         this.preview = result; this.profile = result.profile; this.interpreting = false;
@@ -97,6 +99,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
       },
       error: error => {
         if (generation !== this.previewGeneration) return;
+        this.updateDeliveryDate(error);
         this.error = this.message(error, 'No pudimos desglosar el pedido. Revisa la entrada o usa captura manual.');
         this.interpreting = false; this.changeDetector.detectChanges();
       }
@@ -156,6 +159,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
         }
         this.attempt = {
           operationId: crypto.randomUUID(), serviceDate: this.serviceDate,
+          ...(this.autoDeliveryDate ? { autoDeliveryDate: true, expectedDeliveryDate: this.serviceDate } : {}),
           expectedProfileVersion: this.mode === 'quick' ? this.preview!.profile.orderingProfileVersion : this.profile.orderingProfileVersion,
           ...(this.mode === 'quick' ? { text: this.text.trim(), previewFingerprint: this.preview!.fingerprint }
             : { lines: this.config.products.filter(x => Number(x.quantity) > 0).map(x => ({ productId: x.id,
@@ -176,6 +180,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
       next: () => { this.saving = false; this.uncertain = false; this.busy.emit(false); this.saved.emit(this.attempt!.confirmSeparateDelivery); },
       error: error => {
         this.saving = false;
+        this.updateDeliveryDate(error);
         const definite = error instanceof HttpErrorResponse && ([400,401,403,404,409].includes(error.status)
           || error.error?.code === 'PersistenceNotSupported');
         this.uncertain = !definite;
@@ -186,6 +191,15 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
     }));
   }
   protected cancel(): void { if (!this.locked) this.dismissed.emit(); }
+  private updateDeliveryDate(error: unknown): void {
+    if (error instanceof HttpErrorResponse && error.status === 409 && error.error?.code === 'DeliveryDateChanged'
+      && /^\d{4}-\d{2}-\d{2}$/.test(error.error?.deliveryDate)) {
+      this.serviceDate = error.error.deliveryDate;
+      this.deliveryDateChanged.emit(this.serviceDate);
+      this.separateDelivery = false;
+      this.notice = `Cambió la fecha de entrega a ${this.serviceDate}. Se conservaron las cantidades; revisa y confirma de nuevo.`;
+    }
+  }
   private message(error: unknown, fallback: string): string {
     return error instanceof HttpErrorResponse ? error.error?.error || error.error?.detail || error.error?.title || fallback : fallback;
   }

@@ -1,0 +1,23 @@
+.customer-order-page { max-width: 960px; margin-inline: auto; }
+.customer-order-page, .capture-form, .product-row, label { min-width: 0; }
+.customer-order-page p, .customer-order-page strong, .capture-sequence span { overflow-wrap: anywhere; }
+.delivery-date { border-left: 4px solid #173b3f; }
+.delivery-date > strong { color: #173b3f; font-size: 1.25rem; }
+.capture-modes { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 8px; background: #eef4f5; }
+.capture-modes button { flex: 1; background: transparent; color: #45545c; padding: 8px 12px; }
+.capture-modes button.selected { background: #ffffff; color: #173b3f; box-shadow: 0 1px 4px #173b3f20; }
+.quick-input input { min-height: 54px; font-size: 1.25rem; }
+.capture-help { margin: 0; color: #65737d; font-size: .9rem; }
+.capture-sequence { display: flex; flex-wrap: wrap; gap: 6px; }
+.capture-sequence span { padding: 5px 8px; border-radius: 6px; background: #eef4f5; color: #2c474d; font-size: .85rem; }
+.capture-breakdown { border-block: 1px solid #d5dee2; padding-block: 12px; }
+.capture-breakdown h3 { margin: 0 0 8px; font-size: 1rem; }
+.capture-breakdown p { margin: 6px 0; }
+.manual-products { display: grid; gap: 8px; }
+.capture-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.capture-form textarea { text-align: left; }
+@media (max-width: 480px) {
+  .capture-actions > button { flex: 1 1 100%; }
+  .capture-modes > button { padding-inline: 8px; }
+  .delivery-date > strong { font-size: 1.1rem; }
+}

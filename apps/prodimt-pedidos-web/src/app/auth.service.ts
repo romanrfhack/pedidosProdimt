@@ -9,6 +9,7 @@ export interface AuthSession {
   accessToken: string;
   tokenType: 'Bearer';
   expiresAt: string;
+  accessLinkExpiresAt?: string | null;
   actorType: AuthActorType;
   customerId: string | null;
   customerName: string | null;
@@ -19,6 +20,7 @@ interface CustomerTokenLoginApiResponse {
   accessToken: string;
   tokenType: 'Bearer';
   expiresAt: string;
+  accessLinkExpiresAt?: string | null;
   customerId: string;
   customerName: string;
 }
@@ -49,6 +51,7 @@ export class AuthService {
         accessToken: response.accessToken,
         tokenType: response.tokenType,
         expiresAt: response.expiresAt,
+        accessLinkExpiresAt: response.accessLinkExpiresAt ?? null,
         actorType: 'Customer' as const,
         customerId: response.customerId,
         customerName: response.customerName,

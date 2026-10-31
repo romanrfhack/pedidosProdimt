@@ -4,6 +4,7 @@ internal static class CatalogAuditEventTypes
 {
     public const string CustomerCreated = nameof(CustomerCreated);
     public const string CustomerUpdated = nameof(CustomerUpdated);
+    public const string CustomerPhoneUpdated = nameof(CustomerPhoneUpdated);
     public const string CustomerActivated = nameof(CustomerActivated);
     public const string CustomerDeactivated = nameof(CustomerDeactivated);
     public const string ProductCreated = nameof(ProductCreated);

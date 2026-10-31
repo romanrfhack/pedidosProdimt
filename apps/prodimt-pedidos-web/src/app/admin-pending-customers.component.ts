@@ -2,7 +2,7 @@ import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, Subscription } from 'rxjs';
+import { EMPTY, forkJoin, Subscription, of, switchMap } from 'rxjs';
 import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from './admin-catalog-api.service';
 import { AdminOrderCaptureComponent } from './admin-order-capture.component';
 import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './order-data.service';
@@ -25,6 +25,7 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
 
       <form class="operations-filters" (ngSubmit)="load()">
         <label><span>Fecha de servicio</span><input name="serviceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="changeDate()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"></label>
+        <label class="check-row"><input type="checkbox" name="automaticDeliveryDate" [(ngModel)]="automaticDeliveryDate" (ngModelChange)="changeDateMode()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"><span>Próxima entrega automática · corte 18:00, Ciudad de México</span></label>
         <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!submittingCustomerId || !!loadingCustomerId">Consultar clientes</button>
       </form>
 
@@ -84,6 +85,7 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
                   @if (profile; as currentProfile) {
                     <app-admin-order-capture [template]="selectedTemplate" [initialProfile]="currentProfile"
                       [serviceDate]="serviceDate" [existingOrders]="existingOrders"
+                      [autoDeliveryDate]="automaticDeliveryDate" (deliveryDateChanged)="serviceDate = $event"
                       (busy)="submittingCustomerId = $event ? customer.id : null"
                       (saved)="captureSaved($event)" (dismissed)="cancelCapture()" />
                   }
@@ -116,6 +118,7 @@ export class AdminPendingCustomersComponent {
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
   protected serviceDate = businessDateToday();
+  protected automaticDeliveryDate = true;
   protected existingOrders: AdminOrder[] = [];
 
   protected get scheduledRestCount(): number { return this.pendingCustomers.filter(customer=>customer.isScheduledRest).length; }
@@ -128,10 +131,16 @@ export class AdminPendingCustomersComponent {
 
   protected changeDate(): void {
     this.listGeneration++;
+    this.automaticDeliveryDate = false;
     this.cancelCapture();
     this.pendingCustomers = [];
     this.errorMessage = null;
     this.resultMessage = null;
+  }
+
+  protected changeDateMode(): void {
+    this.cancelCapture();
+    this.load();
   }
 
   constructor() {
@@ -181,7 +190,7 @@ export class AdminPendingCustomersComponent {
     this.resultMessage = null;
     this.submittingCustomerId = customer.id;
 
-    this.data.markAdminNoOrder(customer.id, 'Cliente confirmó que no pedirá en la fecha de servicio.', this.serviceDate).subscribe({
+    this.data.markAdminNoOrder(customer.id, 'Cliente confirmó que no pedirá en la fecha de servicio.', this.serviceDate, this.automaticDeliveryDate).subscribe({
       next: () => {
         this.resultMessage = this.isToday() ? 'No pedir hoy registrado por administracion.' : 'No pide en esta fecha registrado por administración.';
         this.cancelCapture();
@@ -189,6 +198,11 @@ export class AdminPendingCustomersComponent {
       },
       error: (error: unknown) => {
         this.errorMessage = this.formatError(error, 'No se pudo registrar No pedir hoy.');
+        if (error instanceof HttpErrorResponse && error.error?.code === 'DeliveryDateChanged'
+          && /^\d{4}-\d{2}-\d{2}$/.test(error.error?.deliveryDate)) {
+          this.serviceDate = error.error.deliveryDate;
+          this.load(false);
+        }
         this.submittingCustomerId = null;
         this.changeDetector.detectChanges();
       }
@@ -212,13 +226,20 @@ export class AdminPendingCustomersComponent {
   protected load(showLoading = true): void {
     if (!this.serviceDate) return;
     const generation=++this.listGeneration;
-    const date=this.serviceDate;
+    let date=this.serviceDate;
     this.errorMessage=null;
     if (showLoading) {
       this.isLoading = true;
     }
 
-    this.data.loadPendingCustomers(this.serviceDate).subscribe({
+    (this.automaticDeliveryDate ? this.catalog.getNextDeliveryDate() : of({ deliveryDate: this.serviceDate })).pipe(
+      switchMap(metadata => {
+        if (generation !== this.listGeneration) return EMPTY;
+        date = metadata.deliveryDate;
+        this.serviceDate = date;
+        return this.data.loadPendingCustomers(date);
+      })
+    ).subscribe({
       next: (customers) => {
         if (generation!==this.listGeneration || date!==this.serviceDate) return;
         this.pendingCustomers = customers;

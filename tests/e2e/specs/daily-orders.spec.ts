@@ -192,7 +192,7 @@ test('corrección con versión desactualizada exige recargar, sin sobrescribir',
 
 test('cliente no puede abrir importación diaria ni ver su navegación', async ({ page }) => {
   await page.goto('/cliente?token=demo-customer-token');
-  await expect(page.getByRole('heading', { name: 'Mi pedido de hoy' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mi próximo pedido' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Importar pedidos', exact: true })).toHaveCount(0);
   await page.goto('/admin/importar-pedidos');
   await expect(page.getByTestId('admin-login')).toBeVisible();

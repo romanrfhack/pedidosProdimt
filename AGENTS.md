@@ -2,7 +2,7 @@
 
 ## Alcance vigente desde 2026-10-24
 
-El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07,INCREMENTO-08,INCREMENTO-09}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
 
 I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
 
@@ -17,6 +17,8 @@ I06, autorizado el 28 de octubre tras confirmar la carga de clientes, rediseña 
 I07, autorizado el 28 de octubre, permite captura administrativa abreviada determinista según posiciones explícitas del perfil del cliente y abreviaturas configuradas por producto. Ver `docs/proyecto/INCREMENTO-07.md`. Mostrar desglose antes de guardar; aprobación explícita para interpretación, unidades confirmadas y alternativa manual. No inferir el significado de HN ni convertir mensajes completos de WhatsApp automáticamente. Guardado y reintento durables, control de perfil vigente y pedido existente.
 
 I08, autorizado el 31 de octubre, reorganiza la configuración enfocada del cliente para aprovechar el ancho de pantalla y muestra el calendario de trabajo con siete casillas: marcada = trabaja, sin marcar = descanso. Reutiliza restDays de I06 y los contratos actuales, sin migraciones o cambios de backend. Ver `docs/proyecto/INCREMENTO-08.md`. No confundir cantidades sugeridas con pedidos, conservar la concurrencia del perfil y entregar actualización nativa sólo del frontend.
+
+I09, autorizado el 31 de octubre, amplía los tokens existentes con enlaces para el próximo pedido, descripción editable y apertura individual de WhatsApp con mensaje preparado. Para crear un enlace de recordatorio se requiere guardar antes un teléfono válido y una expiración futura; los tokens históricos conservan su acceso. La fecha de entrega automática usa el servidor en Ciudad de México: antes de las 18:00 el mismo día; desde las 18:00 el siguiente. Se vuelve a validar al confirmar y un cruce del corte requiere revisar y confirmar de nuevo sin perder cantidades. El corte de asignación de fecha no sustituye la revisión tardía existente de las 10:00 ni modifica fechas administrativas explícitas, importaciones o pedidos históricos. El portal reutiliza captura rápida/manual I07 y sólo expone productos, cantidades y notas de entrega públicos. Tokens hasheados, sesiones ligadas a su token de origen, vigencia/revocación verificadas en servidor y guardado/reintento durables. Ver `docs/proyecto/INCREMENTO-09.md`. Abrir WhatsApp no envía ni acredita entrega del mensaje; no implementar todavía envío masivo, programación ni integración de mensajería.
 
 ## Que es
 
@@ -46,7 +48,7 @@ Incluye:
 
 No implementar todavia:
 
-- WhatsApp real, Twilio o Meta WhatsApp Business API.
+- WhatsApp real, Twilio o Meta WhatsApp Business API. La apertura individual con destinatario y mensaje preparados de I09 es la excepción autorizada; el envío lo confirma la persona operadora.
 - Autenticacion definitiva, roles completos, recuperacion de contrasena, 2FA o administracion avanzada de usuarios.
 - Produccion por maquina completa.
 - Embarques, repartidores, rutas avanzadas.

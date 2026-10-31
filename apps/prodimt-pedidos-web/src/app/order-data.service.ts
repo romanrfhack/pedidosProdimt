@@ -199,8 +199,9 @@ export class OrderDataService {
     );
   }
 
-  markAdminNoOrder(customerId: string, internalNotes: string | null, serviceDate?: string): Observable<AdminOrder> {
-    return this.customerOrdersApi.markAdminCustomerNoOrder(customerId, { internalNotes, serviceDate }).pipe(
+  markAdminNoOrder(customerId: string, internalNotes: string | null, serviceDate?: string, autoDeliveryDate = false): Observable<AdminOrder> {
+    return this.customerOrdersApi.markAdminCustomerNoOrder(customerId, { internalNotes, serviceDate,
+      ...(autoDeliveryDate ? { autoDeliveryDate: true, expectedDeliveryDate: serviceDate } : {}) }).pipe(
       map((order) => this.mapAdminOrder(order))
     );
   }
