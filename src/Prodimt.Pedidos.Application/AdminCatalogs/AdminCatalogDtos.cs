@@ -102,7 +102,9 @@ public sealed record AdminCustomerAccessTokenResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset? LastUsedAt);
 
-public sealed record CreateCustomerAccessTokenRequest(string? Description, DateTimeOffset? ExpiresAt);
+public sealed record CreateCustomerAccessTokenRequest(string? Description, DateTimeOffset? ExpiresAt, bool ReminderLink = false);
+
+public sealed record UpdateCustomerPhoneRequest(string PhoneNumber);
 
 public sealed record CreatedCustomerAccessTokenResponse(
     Guid TokenId,

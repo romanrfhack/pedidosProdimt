@@ -72,3 +72,9 @@ La propuesta anterior fue autorizada y completada técnicamente: texto abreviado
 ## Ajuste autorizado I08 — 31 de octubre de 2026
 
 Antes de ampliar operación, el usuario solicita vista amplia de configuración del cliente y días de trabajo visibles. Implementar con los endpoints/restDays existentes y entregar actualización nativa sólo del frontend. Validar calendario, conservación del perfil, medidas responsive e instalación/reversión; después confirmar aplicación del paquete y guardado semanal en VPS. No cerrar por ello la validación del guardado real de I07 ni el ensayo operativo de ruta. Contrato en INCREMENTO-08.md.
+
+## Ajuste autorizado I09 — 31 de octubre de 2026
+
+El usuario autoriza enlace para el próximo pedido mediante los tokens existentes, teléfono requerido al configurar el recordatorio, mensaje editable y apertura individual de WhatsApp. La fecha automática será hoy antes de las 18:00 y mañana desde las 18:00, según servidor en Ciudad de México; confirmar después del corte requiere revisar la nueva fecha sin perder la captura. Llevar la captura rápida/manual I07 al portal del cliente con aislamiento, productos/unidades confirmados, idempotencia y vigencia/revocación del acceso comprobadas en servidor. Mantener las reglas de revisión, fechas explícitas e historia existentes.
+
+Este paso refuerza captura de etapa 1 y permite probar el mensaje sin adelantar la integración oficial de etapa 5. No incluye envío masivo, horarios por vendedor, jobs ni comprobantes de envío. Una futura selección automática deberá consultar pedido/NoOrder/descanso para la fecha de entrega calculada, no sólo para la fecha calendario actual. La entrega nativa incluye backend/frontend y conserva configuración, cuentas, catálogos, canal reparado y esquema vigente. Contrato y criterios en `INCREMENTO-09.md`; despliegue y aceptación operativa siguen siendo hitos separados.

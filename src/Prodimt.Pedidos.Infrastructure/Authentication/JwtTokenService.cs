@@ -11,9 +11,11 @@ namespace Prodimt.Pedidos.Infrastructure.Authentication;
 
 public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvider dateTimeProvider) : IJwtTokenService
 {
-    public JwtTokenResult CreateCustomerToken(Customer customer)
+    public JwtTokenResult CreateCustomerToken(Customer customer, CustomerAccessToken? accessToken = null)
     {
-        var claims = new[]
+        if (accessToken is not null && accessToken.CustomerId != customer.Id)
+            throw new ArgumentException("El token no corresponde al cliente.", nameof(accessToken));
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, customer.Id.ToString()),
             new Claim(ProdimtAuthClaims.ActorType, ProdimtActorTypes.Customer),
@@ -23,7 +25,10 @@ public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvi
             new Claim(ClaimTypes.Name, customer.Name)
         };
 
-        return CreateToken(claims);
+        if (accessToken is not null)
+            claims.Add(new Claim(ProdimtAuthClaims.CustomerAccessTokenId, accessToken.Id.ToString()));
+
+        return CreateToken(claims, accessToken?.ExpiresAt);
     }
 
     public JwtTokenResult CreateAdminToken(AdminUser adminUser)
@@ -43,17 +48,22 @@ public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvi
         return CreateToken(claims);
     }
 
-    private JwtTokenResult CreateToken(IEnumerable<Claim> claims)
+    private JwtTokenResult CreateToken(IEnumerable<Claim> claims, DateTimeOffset? maximumExpiresAt = null)
     {
         var settings = JwtSettings.FromConfiguration(configuration);
-        var expiresAt = dateTimeProvider.Now.AddMinutes(settings.AccessTokenMinutes);
+        var now = dateTimeProvider.Now;
+        if (maximumExpiresAt is not null && maximumExpiresAt <= now)
+            throw new AuthenticationFailedException("Token de cliente invalido.");
+        var expiresAt = now.AddMinutes(settings.AccessTokenMinutes);
+        if (maximumExpiresAt is not null && maximumExpiresAt < expiresAt)
+            expiresAt = maximumExpiresAt.Value;
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.SigningKey));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
             issuer: settings.Issuer,
             audience: settings.Audience,
             claims: claims,
-            notBefore: dateTimeProvider.Now.UtcDateTime,
+            notBefore: now.UtcDateTime,
             expires: expiresAt.UtcDateTime,
             signingCredentials: credentials);
 

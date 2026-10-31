@@ -5,4 +5,5 @@ public sealed record CustomerTokenLoginResponse(
     string TokenType,
     DateTimeOffset ExpiresAt,
     Guid CustomerId,
-    string CustomerName);
+    string CustomerName,
+    DateTimeOffset? AccessLinkExpiresAt = null);

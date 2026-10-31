@@ -40,11 +40,19 @@ public sealed class AdminCustomerAccessTokenService(
             throw new ArgumentException("La expiracion del token debe ser futura.", nameof(request));
         }
 
+        if (request.ReminderLink)
+        {
+            if (request.ExpiresAt is null)
+                throw new ArgumentException("La vigencia es obligatoria para el enlace de recordatorio.", nameof(request));
+            CustomerPhoneNumber.Normalize(customer.PhoneNumber);
+        }
+
         var plainToken = GeneratePlainToken();
         var token = CustomerAccessToken.Create(
             customerId,
             tokenHasher.HashToken(plainToken),
-            request.Description,
+            request.ReminderLink && string.IsNullOrWhiteSpace(request.Description)
+                ? "Recuerda hacer tu próximo pedido" : request.Description,
             request.ExpiresAt,
             dateTimeProvider.Now);
 

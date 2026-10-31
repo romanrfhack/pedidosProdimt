@@ -10,9 +10,6 @@ fieldset { border:0; margin:0; padding:0; min-width:0; }
 .profile-guide { color:#536b77; font-size:.78rem; line-height:1.45; }
 .profile-guide summary { cursor:pointer; color:#24696c; }
 .profile-guide p { margin:8px 0; }
-.config-access { border:1px solid #dce6eb; border-radius:12px; padding:12px; background:#fff; min-width:0; }
-.config-access summary { cursor:pointer; font-size:.86rem; font-weight:700; color:#365565; }
-.config-access summary span { float:right; color:#748792; font-weight:400; }
 .access-body { margin-top:14px; }
 .week-actions { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .config-page { padding:18px; gap:14px; }

@@ -237,6 +237,31 @@ let accessTokensByCustomer = {};
 let submitCalls = 0;
 let adminSubmitCalls = 0;
 let captureReceipts = new Map();
+let customerCaptureLines = [];
+
+function adminDeliveryMetadata() {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+  return { deliveryDate: date, serverNow: `${date}T09:30:00-06:00` };
+}
+
+function customerNextOrder() {
+  const profile = captureProfile(customerTodayBase.customerId);
+  return {
+    customerId: customerTodayBase.customerId, customerName: customerTodayBase.customerName,
+    deliveryDate: customerTodayBase.orderDate, serverNow: '2026-05-27T09:30:00-06:00',
+    profileVersion: profile.orderingProfileVersion, isProfileApproved: profile.isOrderProfileApproved,
+    hasActiveOrder: !!currentOrder && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(currentOrder.status),
+    products: profile.items.filter(x => x.isActive && x.productIsActive).map(x => ({
+      productId: x.productId, productName: x.productName, unitCode: x.unitCode,
+      interpretationPosition: x.interpretationPosition, captureAlias: x.captureAlias, sortOrder: x.sortOrder
+    })),
+    currentOrder: currentOrder ? { ...currentOrder, deliveryDate: currentOrder.orderDate,
+      deliveryNotes: currentOrder.deliveryNotes ?? null, lines: customerCaptureLines } : null,
+    preferredDeliveryTime: customerTodayBase.preferredDeliveryTime,
+    preferredDeliveryWindowStart: customerTodayBase.preferredDeliveryWindowStart,
+    preferredDeliveryWindowEnd: customerTodayBase.preferredDeliveryWindowEnd
+  };
+}
 
 function captureProfile(customerId) {
   const customer = catalogCustomers.find(x => x.id === customerId);
@@ -292,6 +317,7 @@ function resetState() {
   submitCalls = 0;
   adminSubmitCalls = 0;
   captureReceipts = new Map();
+  customerCaptureLines = [];
 }
 
 function sendJson(response, statusCode, body) {
@@ -463,6 +489,58 @@ const server = http.createServer(async (request, response) => {
     resetState();
     sendJson(response, 200, { status: 'reset' });
     return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/orders/next-delivery-date') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, adminDeliveryMetadata()); return;
+  }
+
+  const phoneMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/phone$/);
+  if (request.method === 'PATCH' && phoneMatch) {
+    if (!requireAdminAccess(request, response)) return;
+    const customer = catalogCustomers.find(x => x.id === phoneMatch[1]);
+    if (!customer) { sendJson(response, 404, { error: 'Cliente no encontrado.' }); return; }
+    const body = await readJson(request);
+    customer.phoneNumber = body.phoneNumber;
+    sendJson(response, 204, {}); return;
+  }
+
+  const nextMatch = url.pathname.match(/^\/api\/customer-orders\/([^/]+)\/(next|preview|capture|next\/no-order)$/);
+  if (nextMatch) {
+    if (!requireCustomerAccess(request, response, nextMatch[1])) return;
+    if (request.method === 'GET' && nextMatch[2] === 'next') { sendJson(response, 200, customerNextOrder()); return; }
+    if (request.method === 'POST') {
+      const body = await readJson(request), state = customerNextOrder();
+      const key = `customer:${nextMatch[1]}:${body.operationId}`;
+      if (captureReceipts.has(key)) { sendJson(response, 200, { ...captureReceipts.get(key), replayed: true }); return; }
+      if (body.expectedDeliveryDate !== state.deliveryDate) {
+        sendJson(response, 409, { error: 'Cambió la fecha de entrega. Revisa y confirma de nuevo.', code: 'DeliveryDateChanged', deliveryDate: state.deliveryDate, serverNow: state.serverNow }); return;
+      }
+      try {
+        if (nextMatch[2] === 'preview') {
+          const preview = capturePreview(nextMatch[1], { ...body, serviceDate: state.deliveryDate });
+          sendJson(response, 200, { deliveryDate: state.deliveryDate, serverNow: state.serverNow,
+            text: preview.text, fingerprint: preview.fingerprint, profileVersion: preview.profile.orderingProfileVersion, lines: preview.lines }); return;
+        }
+        if (state.hasActiveOrder) { sendJson(response, 409, { error: 'Ya existe un pedido para esta entrega.' }); return; }
+        if (nextMatch[2] === 'next/no-order') {
+          currentOrder = { ...noOrder, orderDate: state.deliveryDate };
+          customerCaptureLines = [];
+        } else if (nextMatch[2] === 'capture') {
+          customerCaptureLines = body.text ? capturePreview(nextMatch[1], { ...body, serviceDate: state.deliveryDate }).lines
+            : (body.lines ?? []).map(line => ({ ...line, unitCode: line.expectedUnitCode,
+                productName: state.products.find(x => x.productId === line.productId)?.productName }));
+          if (!customerCaptureLines.length) throw new Error('Captura al menos una cantidad mayor que cero.');
+          currentOrder = { orderId: randomUUID(), customerId: nextMatch[1], orderDate: state.deliveryDate,
+            status: 'Submitted', sequenceNumber: 1, submittedAt: state.serverNow, isLate: false,
+            requiresAdminReview: false, adminReviewReason: null, deliveryNotes: body.deliveryNotes };
+          submitCalls++;
+        }
+        const receipt = { order: currentOrder, replayed: false };
+        captureReceipts.set(key, receipt); sendJson(response, 200, receipt); return;
+      } catch (error) { sendJson(response, 400, { error: error.message }); return; }
+    }
   }
 
   if (request.method === 'GET' && url.pathname === '/__test/state') {

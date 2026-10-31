@@ -16,12 +16,15 @@ export interface CaptureOrderRequest {
   text?: string; previewFingerprint?: string;
   lines?: Array<{ productId: string; quantity: number; expectedUnitCode: string | null; notes: string | null }>;
   confirmSeparateDelivery: boolean; deliveryNotes: string | null; internalNotes: string | null;
+  autoDeliveryDate?: boolean; expectedDeliveryDate?: string;
 }
 @Injectable({ providedIn: 'root' })
 export class OrderCaptureApiService {
   private readonly http = inject(HttpClient);
-  preview(customerId: string, text: string, serviceDate: string): Observable<CapturePreview> {
-    return this.http.post<CapturePreview>(`${environment.apiBaseUrl}/api/admin/customers/${customerId}/orders/preview`, { text, serviceDate });
+  preview(customerId: string, text: string, serviceDate: string, autoDeliveryDate = false): Observable<CapturePreview> {
+    return this.http.post<CapturePreview>(`${environment.apiBaseUrl}/api/admin/customers/${customerId}/orders/preview`, {
+      text, serviceDate, ...(autoDeliveryDate ? { autoDeliveryDate: true, expectedDeliveryDate: serviceDate } : {})
+    });
   }
   submit(customerId: string, request: CaptureOrderRequest): Observable<{ order: AdminOrderSummaryApiResponse; replayed: boolean }> {
     return this.http.post<{ order: AdminOrderSummaryApiResponse; replayed: boolean }>(`${environment.apiBaseUrl}/api/admin/customers/${customerId}/orders/capture`, request);

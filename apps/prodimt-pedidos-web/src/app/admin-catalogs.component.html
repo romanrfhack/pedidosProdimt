@@ -210,30 +210,48 @@
                       <details class="config-access">
                         <summary>Tokens de acceso <span>{{ accessTokens.length }}</span></summary>
                         <div class="stack access-body">
-                        @if (generatedPlainToken) {
-                          <div class="alert warning">
-                            Token generado: <code>{{ generatedPlainToken }}</code>
-                          </div>
-                        }
+                        <p class="access-help">Crea un enlace para el próximo pedido. El cliente entrará directamente a capturarlo.</p>
+                        @if (tokenError) { <div class="alert error" role="alert">{{ tokenError }}</div> }
+                        @if (tokenMessage) { <div class="alert success" role="status">{{ tokenMessage }}</div> }
                         <div class="catalog-grid">
                           <label>
-                            <span>Descripcion</span>
-                            <input name="newTokenDescription" [(ngModel)]="newTokenDescription">
+                            <span>Teléfono de WhatsApp</span>
+                            <input name="tokenPhone" type="tel" autocomplete="tel" placeholder="5512345678" [(ngModel)]="tokenPhone" [disabled]="isTokenSaving || isSharingToken">
+                            <small>México: 10 dígitos. Otro país: + y código de país. Se guarda en el cliente.</small>
                           </label>
                           <label>
-                            <span>Expira</span>
-                            <input name="newTokenExpiresAt" type="datetime-local" [(ngModel)]="newTokenExpiresAt">
+                            <span>Descripción</span>
+                            <textarea name="newTokenDescription" rows="2" maxlength="200" [(ngModel)]="newTokenDescription" [disabled]="isTokenSaving || isSharingToken"></textarea>
+                          </label>
+                          <label>
+                            <span>Disponible hasta · Ciudad de México</span>
+                            <input name="newTokenExpiresAt" type="datetime-local" required [(ngModel)]="newTokenExpiresAt" [disabled]="isTokenSaving || isSharingToken">
                           </label>
                         </div>
+                        @if (reminderDate) {
+                          <p class="access-help">Entrega prevista al confirmar ahora: <strong>{{ formatReminderDate(reminderDate) }}</strong>. Desde las 18:00, la entrega corresponde al día siguiente.</p>
+                        }
                         <div class="review-actions">
-                          <button type="button" class="primary compact" (click)="createAccessToken()">Crear token</button>
+                          <button type="button" class="primary compact" [disabled]="isTokenSaving || isSharingToken" (click)="createAccessToken()">{{ isTokenSaving ? 'Creando enlace…' : (selectedCustomer?.phoneNumber ? 'Crear enlace' : 'Guardar teléfono y crear enlace') }}</button>
                         </div>
+                        <label class="reminder-preview"><span>Vista previa del recordatorio</span><textarea readonly rows="8" [value]="reminderPreview"></textarea></label>
+                        @if (generatedLink) {
+                          <label><span>Enlace de acceso</span><input readonly [value]="generatedLink" aria-label="Enlace de acceso"></label>
+                          <div class="review-actions access-actions">
+                            <button type="button" class="secondary compact" (click)="copyAccessContent(false)">Copiar enlace</button>
+                            <button type="button" class="secondary compact" (click)="copyAccessContent(true)">Copiar mensaje</button>
+                            <button type="button" class="primary compact" [disabled]="isSharingToken" (click)="openWhatsApp()">{{ isSharingToken ? 'Preparando…' : 'Abrir WhatsApp' }}</button>
+                          </div>
+                          <small>Comparte este enlace al crearlo. Por seguridad, no se puede recuperar después de salir.</small>
+                          <small>Para cambiar teléfono, descripción o vencimiento, crea un nuevo enlace con los datos actualizados.</small>
+                        }
                         <div class="line-list">
                           @for (token of accessTokens; track token.tokenId) {
                             <div class="line-row">
                               <span>
                                 <strong>{{ token.description }}</strong>
                                 <small>{{ token.isActive ? 'Activo' : 'Revocado' }} · Creado {{ formatDate(token.createdAt) }}</small>
+                                @if (token.expiresAt) { <small>Vence {{ formatReminderExpiration(token.expiresAt) }} · Ciudad de México</small> }
                               </span>
                               <button type="button" class="secondary compact" [disabled]="!token.isActive" (click)="revokeAccessToken(token)">Revocar</button>
                             </div>

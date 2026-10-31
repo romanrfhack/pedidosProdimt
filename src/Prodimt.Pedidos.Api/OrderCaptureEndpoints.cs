@@ -21,6 +21,8 @@ public static class OrderCaptureEndpoints
     private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> action)
     {
         try { return await action(); }
+        catch (DeliveryDateChangedException ex) { return Results.Conflict(new { error = ex.Message,
+            code = "DeliveryDateChanged", ex.DeliveryDate, ex.ServerNow }); }
         catch (CatalogConflictException ex) { return Results.Conflict(new { error = ex.Message }); }
         catch (CustomerOrderConflictException ex) { return Results.Conflict(new { error = ex.Message }); }
         catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }

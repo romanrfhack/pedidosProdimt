@@ -165,6 +165,8 @@ export interface AdminSubmitCustomerOrderApiRequest {
 export interface AdminMarkNoOrderApiRequest {
   internalNotes: string | null;
   serviceDate?: string;
+  autoDeliveryDate?: boolean;
+  expectedDeliveryDate?: string;
 }
 
 @Injectable({ providedIn: 'root' })

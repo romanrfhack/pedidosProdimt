@@ -110,6 +110,26 @@ public sealed class AdminCustomerCatalogService(
         return MapCustomer(customer);
     }
 
+    public async Task UpdatePhoneNumberAsync(
+        Guid customerId,
+        UpdateCustomerPhoneRequest request,
+        AdminActorContext? actor,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var phoneNumber = CustomerPhoneNumber.Normalize(request.PhoneNumber);
+        var customer = await GetRequiredCustomerForUpdateAsync(customerId, cancellationToken);
+        if (customer.PhoneNumber == phoneNumber) return;
+        customer.PhoneNumber = phoneNumber;
+        customer.UpdatedAt = dateTimeProvider.Now;
+        await auditLogs.AddAsync(CatalogAudit.Create(
+            CatalogEntityTypes.Customer, customer.Id, CatalogAuditEventTypes.CustomerPhoneUpdated,
+            customer.UpdatedAt, actor, "Teléfono del cliente actualizado.",
+            new { phoneNumberChanged = true }), cancellationToken);
+        // Both repositories share the same scoped context; telephone and audit are one SaveChanges transaction.
+        await customers.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<AdminCustomerResponse> ActivateAsync(
         Guid customerId,
         AdminActorContext? actor,

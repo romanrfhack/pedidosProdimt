@@ -43,6 +43,10 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 
 | OCT-035 | 2026-10-28 | Usuario autoriza un campo de captura por cliente: cantidades por posiciones explícitas y sufijos configurados. Desglose al salir del campo y guardado explícito; entrega habitual informativa. No inferir HN. Perfiles importados se confirman explícitamente antes de interpretación guardada. Mantener captura manual y controles de duplicados/corrección. |
 
+| OCT-036 | 2026-10-31 | Usuario autoriza I09: reutilizar token para enlace del próximo pedido y abrir WhatsApp individual con teléfono y mensaje preparados. Descripción nueva precargada editable; teléfono válido guardado y expiración futura obligatorios para enlaces nuevos. El operador confirma el envío; abrir la conversación no acredita envío/entrega. Sin envío automático/masivo ni integración de mensajería en esta fase. |
+| OCT-037 | 2026-10-31 | La fecha de entrega del próximo pedido se calcula con hora del servidor en Ciudad de México: antes de las 18:00, fecha del mismo día; desde las 18:00 inclusive, fecha del día siguiente. Un sábado a la 01:00 corresponde al sábado. La fecha no se congela al generar el enlace y se revalida al confirmar; si cambió, se conserva el borrador y se exige nueva confirmación antes de guardar. Vigencia del token y fecha de entrega son datos distintos. |
+| OCT-038 | 2026-10-31 | I09 comparte parser/perfil y alternativa manual de I07 en el portal cliente; sólo datos públicos y sólo su cliente. No crea otro pedido ni sobrescribe uno vigente para la fecha calculada. Reintentos usan la misma referencia durable. El corte de las 18:00 asigna fecha de servicio y no reemplaza el corte de revisión tardía de las 10:00, las fechas administrativas explícitas, la importación o el histórico. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

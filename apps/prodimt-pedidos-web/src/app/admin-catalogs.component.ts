@@ -7,17 +7,19 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin, of, switchMap, throwError } from 'rxjs';
+import { firstValueFrom, forkJoin, of, switchMap, throwError } from 'rxjs';
 import {
   AdminCatalogApiService,
   CustomerDayStatusResponse,
   AdminCustomerAccessTokenApiResponse,
+  CreatedCustomerAccessTokenApiResponse,
   AdminCustomerCatalogApiResponse,
   AdminCustomerFrequentProductApiResponse,
   AdminCustomerMachineAssignmentApiResponse,
   AdminMachineCatalogApiResponse,
   AdminProductCatalogApiResponse
 } from './admin-catalog-api.service';
+import { formatReminderDate, formatReminderExpiration, mexicoDateTimeToIso, normalizeReminderPhone } from './customer-reminder';
 import { UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operational-labels';
 
 type CatalogTab = 'customers' | 'products' | 'machines';
@@ -83,8 +85,18 @@ export class AdminCatalogsComponent {
   protected accessTokens: AdminCustomerAccessTokenApiResponse[] = [];
   protected selectedCustomer: AdminCustomerCatalogApiResponse | null = null;
   protected generatedPlainToken: string | null = null;
-  protected newTokenDescription: string | null = null;
+  protected newTokenDescription: string | null = 'Recuerda hacer tu próximo pedido';
   protected newTokenExpiresAt: string | null = null;
+  protected tokenPhone = '';
+  protected isTokenSaving = false;
+  protected isSharingToken = false;
+  protected tokenError: string | null = null;
+  protected tokenMessage: string | null = null;
+  protected reminderDate: string | null = null;
+  protected generatedAccess: CreatedCustomerAccessTokenApiResponse | null = null;
+  private reminderServerNow: string | null = null;
+  protected readonly formatReminderDate = formatReminderDate;
+  protected readonly formatReminderExpiration = formatReminderExpiration;
   protected isLoading = true;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
@@ -319,6 +331,22 @@ export class AdminCatalogsComponent {
     this.setWorkingWeek(customer.restDays ?? []);
     this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
+    this.generatedAccess = null;
+    this.newTokenDescription = 'Recuerda hacer tu próximo pedido';
+    this.newTokenExpiresAt = null;
+    this.tokenPhone = customer.phoneNumber ?? '';
+    this.tokenError = null;
+    this.tokenMessage = null;
+    this.reminderDate = null;
+    this.api.getNextDeliveryDate().subscribe({
+      next: metadata => {
+        if (this.selectedCustomer?.id !== customer.id) return;
+        this.reminderDate = metadata.deliveryDate;
+        this.reminderServerNow = metadata.serverNow;
+        this.changeDetector.detectChanges();
+      },
+      error: () => { /* The create action requires a fresh, successful metadata read. */ }
+    });
     this.resultMessage = null;
     this.errorMessage = null;
     this.isConfigLoading = true;
@@ -617,22 +645,137 @@ export class AdminCatalogsComponent {
   }
 
   protected createAccessToken(): void {
-    if (!this.selectedCustomer) {
+    if (!this.selectedCustomer || this.isTokenSaving || this.isSharingToken) return;
+    this.tokenError = null;
+    this.tokenMessage = null;
+    const customer = this.selectedCustomer;
+    const phone = normalizeReminderPhone(this.tokenPhone);
+    const expiresAt = mexicoDateTimeToIso(this.newTokenExpiresAt);
+    if (!phone) {
+      this.tokenError = 'Captura un teléfono de México de 10 dígitos o un número internacional con + y código de país.';
       return;
     }
-
-    this.api.createAccessToken(this.selectedCustomer.id, {
-      description: this.emptyToNull(this.newTokenDescription),
-      expiresAt: this.toIsoDateTime(this.newTokenExpiresAt)
-    }).subscribe({
+    if (!expiresAt) {
+      this.tokenError = 'Selecciona una fecha y hora válidas de vencimiento, en horario de Ciudad de México.';
+      return;
+    }
+    const description = this.newTokenDescription?.trim() || 'Recuerda hacer tu próximo pedido';
+    this.isTokenSaving = true;
+    this.api.getNextDeliveryDate().pipe(
+      switchMap(metadata => {
+        this.reminderDate = metadata.deliveryDate;
+        this.reminderServerNow = metadata.serverNow;
+        if (Date.parse(expiresAt) <= Date.parse(metadata.serverNow))
+          return throwError(() => new Error('El vencimiento debe ser posterior a la hora actual de Ciudad de México.'));
+        return phone === customer.phoneNumber ? of(undefined) : this.api.updateCustomerPhone(customer.id, phone).pipe(
+          switchMap(() => {
+            customer.phoneNumber = phone;
+            if (this.selectedCustomer?.id === customer.id) this.tokenPhone = phone;
+            return of(undefined);
+          })
+        );
+      }),
+      switchMap(() => this.api.createAccessToken(customer.id, { description, expiresAt, reminderLink: true })),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
       next: (token) => {
+        this.isTokenSaving = false;
+        if (this.selectedCustomer?.id !== customer.id) return;
         this.generatedPlainToken = token.plainToken;
-        this.newTokenDescription = null;
-        this.newTokenExpiresAt = null;
-        this.resultMessage = 'Token creado.';
+        this.generatedAccess = token;
+        this.tokenMessage = 'Enlace creado. Cópialo o compártelo ahora; su valor sólo está disponible en esta pantalla.';
         this.reloadAccessTokens();
+        this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo crear el token.')
+      error: (error: unknown) => {
+        this.isTokenSaving = false;
+        this.tokenError = this.profileErrorText(error, error instanceof Error ? error.message : 'No se pudo crear el enlace. Si el teléfono se guardó, se conservará.');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  protected get generatedLink(): string | null {
+    return this.generatedAccess && this.generatedPlainToken
+      ? `${this.document.location.origin}/cliente#token=${encodeURIComponent(this.generatedPlainToken)}` : null;
+  }
+
+  protected get reminderPreview(): string {
+    if (!this.selectedCustomer) return '';
+    const description = this.generatedAccess?.description || this.newTokenDescription?.trim() || 'Recuerda hacer tu próximo pedido';
+    const expiresAt = this.generatedAccess?.expiresAt || mexicoDateTimeToIso(this.newTokenExpiresAt);
+    return `Hola, ${this.selectedCustomer.name}. ${description}\n\nEntrega prevista si lo confirmas ahora: ${this.reminderDate ? formatReminderDate(this.reminderDate) : 'se calculará al crear el enlace'}.\n\n${this.generatedLink || '{enlace de acceso}'}\n\nLos pedidos confirmados desde las 6:00 p. m. se entregan al día siguiente. Revisa la fecha antes de confirmar.\n\n${expiresAt ? `Enlace disponible hasta el ${formatReminderExpiration(expiresAt)}, hora de Ciudad de México.` : 'Configura la fecha y hora de vencimiento.'}`;
+  }
+
+  protected async copyAccessContent(message: boolean): Promise<void> {
+    const customerId = this.selectedCustomer?.id;
+    const tokenId = this.generatedAccess?.tokenId;
+    if (!customerId || !tokenId) return;
+    if (message) {
+      try {
+        const context = await firstValueFrom(forkJoin({ metadata: this.api.getNextDeliveryDate(), tokens: this.api.getAccessTokens(customerId) })
+          .pipe(takeUntilDestroyed(this.destroyRef)));
+        if (this.selectedCustomer?.id !== customerId || this.generatedAccess?.tokenId !== tokenId) return;
+        if (!context.tokens.some(token => token.tokenId === tokenId && token.isActive)
+          || !this.generatedAccess.expiresAt || Date.parse(this.generatedAccess.expiresAt) <= Date.parse(context.metadata.serverNow)) {
+          this.generatedAccess = null; this.generatedPlainToken = null;
+          this.tokenError = 'El enlace venció o fue revocado. Genera uno nuevo para compartirlo.';
+          this.changeDetector.detectChanges(); return;
+        }
+        this.reminderDate = context.metadata.deliveryDate;
+        this.reminderServerNow = context.metadata.serverNow;
+      } catch {
+        this.tokenError = 'No se pudo actualizar la fecha del mensaje. Vuelve a intentar.';
+        this.changeDetector.detectChanges(); return;
+      }
+    }
+    const value = message ? this.reminderPreview : this.generatedLink;
+    if (!value) return;
+    try {
+      await this.document.defaultView?.navigator.clipboard.writeText(value);
+      this.tokenMessage = message ? 'Mensaje copiado.' : 'Enlace copiado.';
+    } catch {
+      this.tokenError = 'No pudimos copiarlo automáticamente. Selecciona el texto y cópialo manualmente.';
+    }
+    this.changeDetector.detectChanges();
+  }
+
+  protected openWhatsApp(): void {
+    if (!this.generatedAccess || !this.selectedCustomer || this.isSharingToken) return;
+    const phone = normalizeReminderPhone(this.selectedCustomer.phoneNumber ?? '');
+    const customerId = this.selectedCustomer.id;
+    const tokenId = this.generatedAccess.tokenId;
+    if (!phone) { this.tokenError = 'Guarda un teléfono válido y genera un nuevo enlace.'; return; }
+    // Reserve the window in the user's click; network validation must not trigger a blocked popup.
+    const popup = this.document.defaultView?.open('about:blank', '_blank');
+    if (!popup) { this.tokenError = 'Permite abrir ventanas emergentes o copia el mensaje para compartirlo.'; return; }
+    popup.opener = null;
+    this.isSharingToken = true;
+    this.tokenError = null;
+    forkJoin({ metadata: this.api.getNextDeliveryDate(), tokens: this.api.getAccessTokens(customerId) })
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ metadata, tokens }) => {
+        if (this.selectedCustomer?.id !== customerId || this.generatedAccess?.tokenId !== tokenId) {
+          popup.close(); this.isSharingToken = false; this.changeDetector.detectChanges(); return;
+        }
+        this.reminderDate = metadata.deliveryDate;
+        this.reminderServerNow = metadata.serverNow;
+        this.isSharingToken = false;
+        if (!tokens.some(token => token.tokenId === tokenId && token.isActive)
+          || !this.generatedAccess?.expiresAt || Date.parse(this.generatedAccess.expiresAt) <= Date.parse(metadata.serverNow)) {
+          popup.close(); this.generatedAccess = null; this.generatedPlainToken = null;
+          this.tokenError = 'El enlace venció o fue revocado. Genera uno nuevo antes de compartirlo.';
+        } else {
+          popup.location.href = `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(this.reminderPreview)}`;
+          this.tokenMessage = 'WhatsApp abierto con el mensaje preparado. Confirma el envío desde WhatsApp.';
+        }
+        this.changeDetector.detectChanges();
+      },
+      error: () => {
+        popup.close(); this.isSharingToken = false;
+        this.tokenError = 'No se pudo verificar la fecha de entrega. Vuelve a intentar o copia el enlace.';
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
@@ -644,7 +787,10 @@ export class AdminCatalogsComponent {
     this.api.revokeAccessToken(this.selectedCustomer.id, token.tokenId).subscribe({
       next: () => {
         this.resultMessage = 'Token revocado.';
-        this.generatedPlainToken = null;
+        if (this.generatedAccess?.tokenId === token.tokenId) {
+          this.generatedPlainToken = null;
+          this.generatedAccess = null;
+        }
         this.reloadAccessTokens();
       },
       error: (error: unknown) => this.showError(error, 'No se pudo revocar el token.')
@@ -815,12 +961,21 @@ export class AdminCatalogsComponent {
       return;
     }
 
-    this.api.getAccessTokens(this.selectedCustomer.id).subscribe({
+    const customerId = this.selectedCustomer.id;
+    const sequence = this.profileReadSequence;
+    this.api.getAccessTokens(customerId).subscribe({
       next: (tokens) => {
+        if (this.selectedCustomer?.id !== customerId || this.profileReadSequence !== sequence) return;
         this.accessTokens = tokens;
+        if (this.generatedAccess && !tokens.some(token => token.tokenId === this.generatedAccess?.tokenId && token.isActive)) {
+          this.generatedAccess = null; this.generatedPlainToken = null;
+        }
         this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudieron cargar los tokens.')
+      error: (error: unknown) => {
+        if (this.selectedCustomer?.id === customerId && this.profileReadSequence === sequence)
+          this.showError(error, 'No se pudieron cargar los tokens.');
+      }
     });
   }
 

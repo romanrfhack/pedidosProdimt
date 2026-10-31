@@ -146,6 +146,7 @@ export interface CreatedCustomerAccessTokenApiResponse {
 export interface CreateCustomerAccessTokenApiRequest {
   description: string | null;
   expiresAt: string | null;
+  reminderLink?: boolean;
 }
 
 export type CustomerDayState = 'AwaitingOrder' | 'HasOrder' | 'NoOrderConfirmed' | 'ScheduledRest' | 'Inactive';
@@ -159,6 +160,14 @@ export class AdminCatalogApiService {
 
   getCustomers(): Observable<AdminCustomerCatalogApiResponse[]> {
     return this.http.get<AdminCustomerCatalogApiResponse[]>(`${this.apiBaseUrl}/api/admin/customers`);
+  }
+
+  updateCustomerPhone(customerId: string, phoneNumber: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiBaseUrl}/api/admin/customers/${customerId}/phone`, { phoneNumber });
+  }
+
+  getNextDeliveryDate(): Observable<{ deliveryDate: string; serverNow: string }> {
+    return this.http.get<{ deliveryDate: string; serverNow: string }>(`${this.apiBaseUrl}/api/admin/orders/next-delivery-date`);
   }
 
   getCustomerDayStatus(): Observable<CustomerDayResponse> {
