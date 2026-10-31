@@ -385,3 +385,16 @@ Se prepara reparación idempotente scripts/pilot/repair-native-admin-channel.py 
 El usuario verifica SHA 39147bfb8d029c5865c102fec05e6d4da837400be78abeec12d2afd816c3fa6e y ejecuta PRODIMT_Reparar_Canal_Admin_I07.py --apply por SSH/entrada estándar. JSON de revisión 20261030-admin-channel-repair1: repaired/completed, canal creado/verificado, auditoría insertada y conteos existentes conservados. Sin migraciones, reinicio, reproducción de pedidos ni impresión de secretos.
 
 Se actualizan continuidad, estado, I07 y evidencia. application_save_verified=false es esperado porque el programa no envía pedidos; channel_missing=true pertenece al preflight anterior a insertar. No repetir reparación. Falta Reintentar guardado en la misma pestaña/referencia y confirmar una sola entrega con sus cantidades. No se declara guardado real ni aceptación de negocio a partir de este JSON. Sólo documentación, sin repetir suites ni regenerar artefactos, y sin SSH directo desde este entorno.
+
+
+## 2026-10-31 — I08: configuración amplia y días de trabajo
+
+El usuario aporta imágenes privadas del espacio desperdiciado en configuración y pide usar ancho con márgenes, vista habitual de laptop sin scroll y adaptación a tablet/móvil. Solicita siete casillas con marcada=trabaja/sin marcar=descansa. Se conservan las imágenes/datos fuera del repositorio.
+
+Se extrae el HTML del componente de catálogos y reorganiza sólo la ruta enfocada: cabecera compacta, productos en filas, unidades/contexto, orden/posiciones/abreviaturas, aprobación explícita, calendario y máquinas laterales, tokens desplegables. Ancho y cabecera se amplían sólo mientras esta ruta está activa. En móvil se apilan controles con desplazamiento vertical; listas largas mantienen scroll propio. No se oculta información mediante overflow global.
+
+Nuevo componente semanal reutilizado también en el modal de cliente, con inversión de restDays I06. Guardar días consulta el cliente vigente para conservar entrega/contacto y detecta un calendario cambiado; no toca borrador ni versión leída del perfil. El contrato PUT heredado no recibe concurrencia atómica nueva. Descansar no crea demanda, NoOrder, cancelaciones o desactivaciones.
+
+Build Angular correcto con advertencia de estilo 7.83 kB, bajo límite 8 kB sin relajar presupuestos. 76 E2E locales correctos, ocho nuevos, incluyendo calendario/persistencia/conflicto y tres productos en 1366x768 sin scroll de página; revisados también 390/768/1920 px con datos ficticios. 206 Python correctos, nueve del nuevo paquete/instalador frontend. Browser local usa Chrome headless 148 mediante copia temporal; se corrigieron permisos de la copia en el runtime Node. graphify no disponible (127).
+
+Se prepara instalador nativo I08 sólo frontend, sin SQL/backend/migraciones/reinicio, con payload verificado por hash, verificación HTTPS de index/JS/CSS y autorización, snapshot privado y restauración del enlace ante fallo o interrupción. Pendiente validación remota, paquete final y aplicación por el usuario. No se operó SSH ni se confirmó el guardado de pedido real I07 en este entorno.

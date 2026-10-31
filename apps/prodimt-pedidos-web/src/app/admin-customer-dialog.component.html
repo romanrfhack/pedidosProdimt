@@ -31,17 +31,9 @@
           <small>Visible solo para la operación interna.</small>
         </label>
         <section class="rest-days full-width" aria-labelledby="rest-days-heading">
-          <h3 id="rest-days-heading">Descanso semanal</h3>
-          <p>Selecciona los días que este cliente descansa habitualmente.</p>
-          <div class="weekdays">
-            @for (day of weekdays; track day.value) {
-              <label class="weekday" [class.selected]="customerForm.restDays.includes(day.value)">
-                <input type="checkbox" [name]="'restDay' + day.value" [checked]="customerForm.restDays.includes(day.value)" (change)="toggleRestDay(day.value)">
-                <span>{{ day.label }}</span>
-              </label>
-            }
-          </div>
-          <small>Sin días seleccionados, no hay descanso programado. Si registra un pedido en su día de descanso, aparecerá con pedido.</small>
+          <h3 id="rest-days-heading">Días de trabajo</h3>
+          <app-customer-working-week [restDays]="customerForm.restDays" [disabled]="saving" (restDaysChange)="customerForm.restDays = $event" />
+          <small>En sus descansos no se espera pedido. Si ya tiene un pedido, se conserva.</small>
         </section>
       </fieldset>
     </div>

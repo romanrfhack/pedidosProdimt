@@ -1,0 +1,357 @@
+    <section class="page stack" [class.config-page]="configurationOnly" data-testid="admin-catalogs">
+      <div class="page-title configuration-title">
+        <div>
+        <p class="eyebrow">Admin</p>
+        <h2>{{ configurationOnly ? 'Configuración del cliente' : 'Catalogos' }}</h2>
+        </div>
+        @if (configurationOnly) { <a class="back-to-customers" routerLink="/admin/catalogos">← Volver a clientes y catálogos</a> }
+      </div>
+
+      @if (!configurationOnly) {
+      <div class="tab-bar" aria-label="Catalogos">
+        <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button>
+        <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button>
+        <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button>
+      </div>
+      }
+
+      @if (isLoading) {
+        <div class="notice">Cargando catalogos...</div>
+      }
+
+      @if (resultMessage) {
+        <div class="alert success">{{ resultMessage }}</div>
+      }
+
+      @if (errorMessage) {
+        <div class="alert error">{{ errorMessage }}</div>
+      }
+
+      @if (!isLoading) {
+        @if (activeTab === 'customers') {
+          <section class="stack" data-testid="catalog-customers">
+            @if (!configurationOnly) {
+              <div class="customer-toolbar">
+                <label class="customer-search">
+                  <span>Buscar cliente</span>
+                  <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta" autocomplete="off">
+                </label>
+                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
+              </div>
+              <div class="customer-day-heading">
+                <span>{{ dailyDate ? (dayStatusError ? 'Última consulta · ' : 'Hoy · ') + dailyDate.split('-').reverse().join('/') : 'Estado de hoy' }} · {{ customers.length }} clientes</span>
+                <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">{{ isDayLoading ? 'Actualizando…' : 'Actualizar estados' }}</button>
+              </div>
+              <div class="customer-filters" aria-label="Estado de hoy">
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'all'" (click)="customerDayFilter = 'all'">Todos <strong>{{ customers.length }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'AwaitingOrder'" (click)="customerDayFilter = 'AwaitingOrder'">Por confirmar <strong>{{ countDayState('AwaitingOrder') }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'HasOrder'" (click)="customerDayFilter = 'HasOrder'">Con pedido <strong>{{ countDayState('HasOrder') }}</strong></button>
+                <button type="button" [attr.aria-pressed]="customerDayFilter === 'off'" (click)="customerDayFilter = 'off'">Sin pedido hoy <strong>{{ countDayState('NoOrderConfirmed') + countDayState('ScheduledRest') }}</strong></button>
+              </div>
+            }
+            @if (dayStatusError) {
+              <div class="alert warning" role="status">{{ dayStatusError }} <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">Reintentar</button></div>
+            }
+            <div class="admin-list customer-list">
+              @for (customer of visibleCustomers; track customer.id) {
+                <article class="admin-row customer-card" data-testid="customer-card" [attr.data-customer-id]="customer.id" [attr.data-day-state]="dayState(customer)"
+                  [class.customer-awaiting]="dayState(customer) === 'AwaitingOrder'"
+                  [class.customer-ordered]="dayState(customer) === 'HasOrder'"
+                  [class.customer-off]="dayState(customer) === 'NoOrderConfirmed' || dayState(customer) === 'ScheduledRest'"
+                  [class.customer-inactive]="!customer.isActive">
+                  <div class="customer-card-top">
+                    <div class="customer-identity">
+                      <span class="customer-avatar" aria-hidden="true">{{ initials(customer.name) }}</span>
+                      <div><h3>{{ customer.name }}</h3><small class="customer-route">{{ customer.routeCode || 'Ruta por confirmar' }}@if (customer.routeStopOrder) { · Visita {{ customer.routeStopOrder }} }</small></div>
+                    </div>
+                    <span class="day-label">{{ dayLabel(customer) }}</span>
+                  </div>
+                  <div class="customer-meta"><span>{{ customer.phoneNumber || 'Sin teléfono' }}</span><span>Entrega: {{ formatCustomerDelivery(customer) }}</span></div>
+                  <div class="customer-tags">
+                    <span>{{ storeKeyLabel(customer.hasStoreKey) }}</span><span>{{ paymentTermLabel(customer.paymentTermCode) }}</span>
+                    @if (dayStatuses.get(customer.id)?.requiresReview) { <span class="needs-review">Pedido pendiente de revisión</span> }
+                    @if (!customer.isActive) { <span>Cliente inactivo</span> }
+                  </div>
+                  <div class="review-actions">
+                    @if (!configurationOnly) { <button type="button" class="primary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button> }
+                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button>
+                    <button type="button" class="secondary compact quiet-action" (click)="toggleCustomer(customer)">{{ customer.isActive ? 'Desactivar' : 'Activar' }}</button>
+                  </div>
+
+                  @if (selectedCustomer?.id === customer.id) {
+                    <section class="detail-panel stack" data-testid="customer-config">
+                      <div class="profile-summary">
+                        @if (!configurationOnly) { <strong>Configuración de {{ customer.name }}</strong> }
+                        @if (profileDirty) { <span class="badge warning">Cambios sin guardar</span> }
+                      </div>
+                      @if (isConfigLoading) { <div class="notice">Cargando configuración...</div> }
+                      @if (profileMessage) { <div class="alert success" role="status">{{ profileMessage }}</div> }
+                      @if (profileError) { <div class="alert error" role="alert">{{ profileError }}</div> }
+                      @if (profileConflict) {
+                        <button type="button" class="secondary compact" (click)="reloadProfile()">Recargar perfil y descartar mis cambios</button>
+                      }
+
+                      <fieldset class="config-layout" [disabled]="isConfigLoading || isProfileSaving || isWeekSaving">
+                      <section class="stack config-products" aria-label="Productos frecuentes">
+                        <div class="config-section-title"><strong>Productos frecuentes</strong><span>{{ frequentRows.length }} productos</span></div>
+                        <p class="notice profile-version">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}</p>
+                        <details class="profile-guide"><summary>Cómo configurar el pedido del cliente</summary><p>Una fila por producto. El orden visual organiza la pantalla; la posición indica a qué producto corresponde cada cantidad de “13 + 7”. Las posiciones comienzan en 1 para cada cliente. La abreviatura es opcional, por ejemplo HN.</p><p>Las cantidades sugeridas no crean ni cambian pedidos. La unidad pertenece al producto del catálogo. Su cambio aplica a futuras capturas; los pedidos existentes conservan su unidad registrada.</p></details>
+                        @if (frequentRows.length === 0) { <div class="notice">Este cliente aún no tiene productos configurados. Agrega los que suele pedir.</div> }
+                        <div class="line-list config-product-list">
+                          @for (row of frequentRows; track row; let i = $index) {
+                            <div class="line-row frequent-line profile-product-card" data-testid="profile-product">
+                              <div class="profile-product-heading">
+                                <strong>{{ i + 1 }}. {{ productFor(row)?.name || row.productName }}</strong>
+                                @if (!productFor(row)?.unitCode) { <span class="badge warning">Falta unidad</span> }
+                              </div>
+                              <div class="profile-product-select">
+                                <div class="product-label-heading">
+                                  <span>Producto</span>
+                                  <div class="profile-unit">
+                                    <span><span class="unit-prefix">Unidad de venta: </span><strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
+                                    <button type="button" class="secondary compact" aria-label="Ver producto y unidad en catálogo" title="Ver producto y unidad en catálogo" (click)="editProductUnit(row)">↗</button>
+                                  </div>
+                                </div>
+                                <select aria-label="Producto" [(ngModel)]="row.productId" [name]="'frequentProduct' + i" (ngModelChange)="invalidateProfileApproval()">
+                                @for (product of profileProducts; track product.id) {
+                                  <option [value]="product.id">{{ product.name }} · {{ unitLabel(product.unitCode) }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
+                                }
+                              </select>
+                              </div>
+                              <label class="profile-quantity"><span>Sugerido</span><input aria-label="Cantidad sugerida" type="number" min="0" step="0.01" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" (ngModelChange)="invalidateProfileApproval()"></label>
+                              <label class="profile-order"><span>Orden</span><input aria-label="Orden visual" type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
+                              <label class="profile-position"><span>Posición</span><input aria-label="Posición en mensaje" type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
+                              <label class="profile-alias"><span>Abreviatura</span><input type="text" aria-label="Abreviatura para captura" maxlength="16" [(ngModel)]="row.captureAlias" [name]="'frequentAlias' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Ej. HN"></label>
+                              <label class="profile-machine"><span>Máquina</span><select aria-label="Máquina para este producto" [(ngModel)]="row.preferredMachineId" [name]="'frequentMachine' + i" (ngModelChange)="invalidateProfileApproval()">
+                                <option [ngValue]="null">Usar asignación del cliente</option>
+                                @for (machine of machines; track machine.id) {
+                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
+                                }
+                              </select></label>
+                              <label class="inline-check">
+                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i" (ngModelChange)="invalidateProfileApproval()">
+                                <span>Activo</span>
+                              </label>
+                              <div class="profile-actions">
+                                <button type="button" class="secondary compact" [disabled]="i === 0" (click)="moveFrequentRow(i, -1)" aria-label="Subir" title="Subir"><span aria-hidden="true">↑</span></button>
+                                <button type="button" class="secondary compact" [disabled]="i === frequentRows.length - 1" (click)="moveFrequentRow(i, 1)" aria-label="Bajar" title="Bajar"><span aria-hidden="true">↓</span></button>
+                                <button type="button" class="secondary compact" (click)="removeFrequentRow(i)" aria-label="Quitar" title="Quitar producto"><span aria-hidden="true">×</span></button>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                        @if (profileValidationErrors.length > 0) {
+                          <div class="alert error" data-testid="profile-validation"><ul class="profile-errors">
+                            @for (message of profileValidationErrors; track message) { <li>{{ message }}</li> }
+                          </ul></div>
+                        }
+                        @if (profileWarnings.length > 0) {
+                          <div class="alert warning"><ul class="profile-errors">
+                            @for (message of profileWarnings; track message) { <li>{{ message }}</li> }
+                          </ul></div>
+                        }
+                        <div class="profile-sequence">
+                        <p class="profile-help" data-testid="position-preview">{{ interpretationPreview }}</p>
+                        <button type="button" class="secondary compact renumber-positions" aria-label="Usar orden visual como posiciones 1, 2, 3..." [disabled]="frequentRows.length === 0" (click)="useVisualOrderForPositions()">Asignar posiciones 1, 2, 3…</button>
+                        </div>
+                        <div class="profile-footer">
+                        <label class="inline-check">
+                          <input type="checkbox" name="approveProfile" [formControl]="profileApproval">
+                          <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
+                        </label>
+                        
+                        <div class="review-actions">
+                          <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
+                          <button type="button" class="primary compact" [disabled]="profileValidationErrors.length > 0 || profileConflict" (click)="saveFrequentProducts()">{{ isProfileSaving ? 'Guardando...' : 'Guardar frecuentes' }}</button>
+                        </div>
+                        </div>
+                      </section>
+                      <section class="stack config-week" aria-label="Calendario semanal" data-testid="customer-working-week">
+                        <div class="config-section-title"><strong>Calendario semanal</strong>@if (workingWeekDirty) { <span class="badge warning">Sin guardar</span> }</div>
+                        <app-customer-working-week [restDays]="workingRestDays" [disabled]="isWeekSaving || isCustomerSaving" (restDaysChange)="changeWorkingWeek($event)" />
+                        <small>En los días de descanso no se espera pedido. Un pedido ya registrado se conserva.</small>
+                        @if (weekError) { <div class="alert error" role="alert">{{ weekError }}</div> }
+                        @if (weekMessage) { <div class="alert success" role="status">{{ weekMessage }}</div> }
+                        <div class="week-actions">
+                          <button type="button" class="secondary compact" [disabled]="isWeekSaving" (click)="reloadWorkingWeek()">Recargar días</button>
+                          <button type="button" class="primary compact" [disabled]="!workingWeekDirty || isWeekSaving || isCustomerSaving" (click)="saveWorkingWeek()">{{ isWeekSaving ? 'Guardando…' : 'Guardar días' }}</button>
+                        </div>
+                      </section>
+                      <section class="stack config-machines" aria-label="Máquinas del cliente">
+                        <div class="config-section-title"><strong>Maquinas asignadas</strong><span>{{ machineAssignmentRows.length }}</span></div>
+                        @if (!machineAssignmentRows.length) { <small>Sin máquina predeterminada. Puedes asignar una por producto.</small> }
+                        <div class="line-list">
+                          @for (row of machineAssignmentRows; track row.machineId; let i = $index) {
+                            <div class="line-row catalog-line machine-assignment">
+                              <select aria-label="Máquina asignada" [(ngModel)]="row.machineId" [name]="'assignmentMachine' + i">
+                                @for (machine of machines; track machine.id) {
+                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
+                                }
+                              </select>
+                              <label class="inline-check">
+                                <input type="checkbox" [(ngModel)]="row.isDefault" [name]="'assignmentDefault' + i" (ngModelChange)="setDefaultAssignment(row)">
+                                <span>Default</span>
+                              </label>
+                              <label class="inline-check">
+                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'assignmentActive' + i">
+                                <span>Activa</span>
+                              </label>
+                              <input [(ngModel)]="row.notes" [name]="'assignmentNotes' + i" aria-label="Notas asignacion">
+                              <button type="button" class="secondary compact" (click)="removeMachineAssignmentRow(i)">Quitar</button>
+                            </div>
+                          }
+                        </div>
+                        <div class="review-actions">
+                          <button type="button" class="secondary compact" (click)="addMachineAssignmentRow()">Agregar maquina</button>
+                          <button type="button" class="primary compact" (click)="saveMachineAssignments()">Guardar maquinas</button>
+                        </div>
+                      </section>
+
+                      <details class="config-access">
+                        <summary>Tokens de acceso <span>{{ accessTokens.length }}</span></summary>
+                        <div class="stack access-body">
+                        @if (generatedPlainToken) {
+                          <div class="alert warning">
+                            Token generado: <code>{{ generatedPlainToken }}</code>
+                          </div>
+                        }
+                        <div class="catalog-grid">
+                          <label>
+                            <span>Descripcion</span>
+                            <input name="newTokenDescription" [(ngModel)]="newTokenDescription">
+                          </label>
+                          <label>
+                            <span>Expira</span>
+                            <input name="newTokenExpiresAt" type="datetime-local" [(ngModel)]="newTokenExpiresAt">
+                          </label>
+                        </div>
+                        <div class="review-actions">
+                          <button type="button" class="primary compact" (click)="createAccessToken()">Crear token</button>
+                        </div>
+                        <div class="line-list">
+                          @for (token of accessTokens; track token.tokenId) {
+                            <div class="line-row">
+                              <span>
+                                <strong>{{ token.description }}</strong>
+                                <small>{{ token.isActive ? 'Activo' : 'Revocado' }} · Creado {{ formatDate(token.createdAt) }}</small>
+                              </span>
+                              <button type="button" class="secondary compact" [disabled]="!token.isActive" (click)="revokeAccessToken(token)">Revocar</button>
+                            </div>
+                          }
+                        </div>
+                        </div>
+                      </details>
+                      </fieldset>
+                    </section>
+                  }
+                </article>
+              } @empty {
+                <div class="empty-customers">{{ customers.length ? 'No hay clientes que coincidan con la búsqueda o el estado elegido.' : 'Agrega tu primer cliente para comenzar.' }}</div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (activeTab === 'products') {
+          <section class="stack" data-testid="catalog-products">
+            <form class="detail-panel stack" (ngSubmit)="saveProduct()">
+              <strong>{{ productForm.id ? 'Editar producto' : 'Nuevo producto' }}</strong>
+              <label>
+                <span>Nombre</span>
+                <input name="productName" [(ngModel)]="productForm.name">
+              </label>
+              <label>
+                <span>Descripcion</span>
+                <input name="productDescription" [(ngModel)]="productForm.description">
+              </label>
+              <label>
+                <span>Unidad de venta</span>
+                <select name="productUnit" [(ngModel)]="productForm.unitCode">
+                  <option [ngValue]="null">Por confirmar</option>
+                  <option value="kg">Kilogramos</option>
+                  <option value="piece">Piezas</option>
+                  <option value="dozen">Docenas</option>
+                  <option value="package">Paquetes</option>
+                </select>
+                <small>Confirma la unidad antes de capturar pedidos. Un paquete no se convierte automáticamente a kilos.</small>
+              </label>
+              <div class="review-actions">
+                <button type="submit" class="primary compact">{{ productForm.id ? 'Guardar producto' : 'Crear producto' }}</button>
+                <button type="button" class="secondary compact" (click)="resetProductForm()">Limpiar</button>
+              </div>
+            </form>
+
+            <div class="admin-list">
+              @for (product of products; track product.id) {
+                <article class="admin-row">
+                  <div>
+                    <strong>{{ product.name }}</strong>
+                    <small>{{ product.description || 'Sin descripcion' }}</small>
+                    <small>Unidad: {{ unitLabel(product.unitCode) }}</small>
+                  </div>
+                  <div class="badges">
+                    <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
+                      {{ product.isActive ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </div>
+                  <div class="review-actions">
+                    <button type="button" class="secondary compact" (click)="editProduct(product)">Editar</button>
+                    <button type="button" class="secondary compact" (click)="toggleProduct(product)">
+                      {{ product.isActive ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
+
+        @if (activeTab === 'machines') {
+          <section class="stack" data-testid="catalog-machines">
+            <form class="detail-panel stack" (ngSubmit)="saveMachine()">
+              <strong>{{ machineForm.id ? 'Editar maquina' : 'Nueva maquina' }}</strong>
+              <label>
+                <span>Numero</span>
+                <input name="machineNumber" type="number" min="1" step="1" [(ngModel)]="machineForm.number">
+              </label>
+              <label>
+                <span>Nombre</span>
+                <input name="machineName" [(ngModel)]="machineForm.name">
+              </label>
+              <div class="review-actions">
+                <button type="submit" class="primary compact">{{ machineForm.id ? 'Guardar maquina' : 'Crear maquina' }}</button>
+                <button type="button" class="secondary compact" (click)="resetMachineForm()">Limpiar</button>
+              </div>
+            </form>
+
+            <div class="admin-list">
+              @for (machine of machines; track machine.id) {
+                <article class="admin-row">
+                  <div>
+                    <strong>#{{ machine.number }}</strong>
+                    <small>{{ machine.name || 'Sin nombre' }}</small>
+                  </div>
+                  <div class="badges">
+                    <span class="badge" [class.neutral]="machine.isActive" [class.danger]="!machine.isActive">
+                      {{ machine.isActive ? 'Activa' : 'Inactiva' }}
+                    </span>
+                  </div>
+                  <div class="review-actions">
+                    <button type="button" class="secondary compact" (click)="editMachine(machine)">Editar</button>
+                    <button type="button" class="secondary compact" (click)="toggleMachine(machine)">
+                      {{ machine.isActive ? 'Desactivar' : 'Activar' }}
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+        }
+      }
+    </section>
+    @defer (when customerDialogOpen) {
+      @if (customerDialogOpen) {
+        <app-admin-customer-dialog [initialValue]="customerForm" [saving]="isCustomerSaving" [error]="customerDialogError"
+          (saved)="saveCustomer($event)" (dismissed)="resetCustomerForm()" />
+      }
+    } @loading { <p class="notice">Abriendo formulario…</p> }

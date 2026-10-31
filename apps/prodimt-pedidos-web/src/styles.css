@@ -543,3 +543,13 @@ button.compact {
   .operations-table thead { display: table-header-group; }
   .operations-table tr { break-inside: avoid; }
 }
+
+
+/* Focused customer configuration uses the viewport; other screens keep their width. */
+.app-shell__main:has(.config-page) { width:100%; padding:12px clamp(12px,1.6vw,32px); }
+@media (min-width:1200px) {
+  body:has(.config-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.config-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.config-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+  body:has(.config-page) nav a, body:has(.config-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
+}

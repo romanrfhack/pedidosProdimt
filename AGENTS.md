@@ -16,6 +16,8 @@ I06, autorizado el 28 de octubre tras confirmar la carga de clientes, rediseña 
 
 I07, autorizado el 28 de octubre, permite captura administrativa abreviada determinista según posiciones explícitas del perfil del cliente y abreviaturas configuradas por producto. Ver `docs/proyecto/INCREMENTO-07.md`. Mostrar desglose antes de guardar; aprobación explícita para interpretación, unidades confirmadas y alternativa manual. No inferir el significado de HN ni convertir mensajes completos de WhatsApp automáticamente. Guardado y reintento durables, control de perfil vigente y pedido existente.
 
+I08, autorizado el 31 de octubre, reorganiza la configuración enfocada del cliente para aprovechar el ancho de pantalla y muestra el calendario de trabajo con siete casillas: marcada = trabaja, sin marcar = descanso. Reutiliza restDays de I06 y los contratos actuales, sin migraciones o cambios de backend. Ver `docs/proyecto/INCREMENTO-08.md`. No confundir cantidades sugeridas con pedidos, conservar la concurrencia del perfil y entregar actualización nativa sólo del frontend.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

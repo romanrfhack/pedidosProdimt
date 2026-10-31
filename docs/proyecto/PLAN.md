@@ -67,3 +67,8 @@ El usuario autorizó I07 de captura rápida determinista, ya implementada y vali
 ## I07 autorizado: captura rápida administrativa
 
 La propuesta anterior fue autorizada y completada técnicamente: texto abreviado por posiciones del cliente, alias explícitos, desglose y captura manual; actualización nativa I06→I07 con respaldo, probada y empaquetada. Instalación real confirmada por el usuario el 30 de octubre. Pendiente aceptación de captura rápida en navegador; después ensayar 3–5 pedidos y una corrección 15→20 con aviso operativo.
+
+
+## Ajuste autorizado I08 — 31 de octubre de 2026
+
+Antes de ampliar operación, el usuario solicita vista amplia de configuración del cliente y días de trabajo visibles. Implementar con los endpoints/restDays existentes y entregar actualización nativa sólo del frontend. Validar calendario, conservación del perfil, medidas responsive e instalación/reversión; después confirmar aplicación del paquete y guardado semanal en VPS. No cerrar por ello la validación del guardado real de I07 ni el ensayo operativo de ruta. Contrato en INCREMENTO-08.md.

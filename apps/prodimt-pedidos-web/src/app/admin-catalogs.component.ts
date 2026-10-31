@@ -2,11 +2,12 @@ import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
 import { CustomerEditorValue } from './customer-editor.model';
+import { CustomerWorkingWeekComponent } from './customer-working-week.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, switchMap, throwError } from 'rxjs';
 import {
   AdminCatalogApiService,
   CustomerDayStatusResponse,
@@ -37,357 +38,9 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent],
-  styleUrl: './admin-customer-cards.css',
-  styles: [`
-    .profile-summary, .profile-product-heading { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-    .profile-product-card { border: 1px solid #d6e0e7; padding: 14px; border-radius: 12px; }
-    .profile-product-heading { grid-column: 1 / -1; }
-    .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
-    .profile-errors { margin: 0; padding-left: 20px; }
-    .profile-help { margin: 0; color: #526478; }
-    .profile-unit { display: grid; gap: 6px; }
-    fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-    .profile-search { max-width: 540px; }
-    .profile-search input { width: 100%; }
-    .profile-status { margin: 0; }
-  `],
-  template: `
-    <section class="page stack" data-testid="admin-catalogs">
-      <div class="page-title">
-        <p class="eyebrow">Admin</p>
-        <h2>{{ configurationOnly ? 'Configuración del cliente' : 'Catalogos' }}</h2>
-      </div>
-
-      @if (configurationOnly) {
-        <a routerLink="/admin/catalogos">← Volver a clientes y catálogos</a>
-      } @else {
-      <div class="tab-bar" aria-label="Catalogos">
-        <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button>
-        <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button>
-        <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button>
-      </div>
-      }
-
-      @if (isLoading) {
-        <div class="notice">Cargando catalogos...</div>
-      }
-
-      @if (resultMessage) {
-        <div class="alert success">{{ resultMessage }}</div>
-      }
-
-      @if (errorMessage) {
-        <div class="alert error">{{ errorMessage }}</div>
-      }
-
-      @if (!isLoading) {
-        @if (activeTab === 'customers') {
-          <section class="stack" data-testid="catalog-customers">
-            @if (!configurationOnly) {
-              <div class="customer-toolbar">
-                <label class="customer-search">
-                  <span>Buscar cliente</span>
-                  <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta" autocomplete="off">
-                </label>
-                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
-              </div>
-              <div class="customer-day-heading">
-                <span>{{ dailyDate ? (dayStatusError ? 'Última consulta · ' : 'Hoy · ') + dailyDate.split('-').reverse().join('/') : 'Estado de hoy' }} · {{ customers.length }} clientes</span>
-                <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">{{ isDayLoading ? 'Actualizando…' : 'Actualizar estados' }}</button>
-              </div>
-              <div class="customer-filters" aria-label="Estado de hoy">
-                <button type="button" [attr.aria-pressed]="customerDayFilter === 'all'" (click)="customerDayFilter = 'all'">Todos <strong>{{ customers.length }}</strong></button>
-                <button type="button" [attr.aria-pressed]="customerDayFilter === 'AwaitingOrder'" (click)="customerDayFilter = 'AwaitingOrder'">Por confirmar <strong>{{ countDayState('AwaitingOrder') }}</strong></button>
-                <button type="button" [attr.aria-pressed]="customerDayFilter === 'HasOrder'" (click)="customerDayFilter = 'HasOrder'">Con pedido <strong>{{ countDayState('HasOrder') }}</strong></button>
-                <button type="button" [attr.aria-pressed]="customerDayFilter === 'off'" (click)="customerDayFilter = 'off'">Sin pedido hoy <strong>{{ countDayState('NoOrderConfirmed') + countDayState('ScheduledRest') }}</strong></button>
-              </div>
-            }
-            @if (dayStatusError) {
-              <div class="alert warning" role="status">{{ dayStatusError }} <button type="button" class="refresh-day" [disabled]="isDayLoading" (click)="refreshDayStatus()">Reintentar</button></div>
-            }
-            <div class="admin-list customer-list">
-              @for (customer of visibleCustomers; track customer.id) {
-                <article class="admin-row customer-card" data-testid="customer-card" [attr.data-customer-id]="customer.id" [attr.data-day-state]="dayState(customer)"
-                  [class.customer-awaiting]="dayState(customer) === 'AwaitingOrder'"
-                  [class.customer-ordered]="dayState(customer) === 'HasOrder'"
-                  [class.customer-off]="dayState(customer) === 'NoOrderConfirmed' || dayState(customer) === 'ScheduledRest'"
-                  [class.customer-inactive]="!customer.isActive">
-                  <div class="customer-card-top">
-                    <div class="customer-identity">
-                      <span class="customer-avatar" aria-hidden="true">{{ initials(customer.name) }}</span>
-                      <div><h3>{{ customer.name }}</h3><small class="customer-route">{{ customer.routeCode || 'Ruta por confirmar' }}@if (customer.routeStopOrder) { · Visita {{ customer.routeStopOrder }} }</small></div>
-                    </div>
-                    <span class="day-label">{{ dayLabel(customer) }}</span>
-                  </div>
-                  <div class="customer-meta"><span>{{ customer.phoneNumber || 'Sin teléfono' }}</span><span>Entrega: {{ formatCustomerDelivery(customer) }}</span></div>
-                  <div class="customer-tags">
-                    <span>{{ storeKeyLabel(customer.hasStoreKey) }}</span><span>{{ paymentTermLabel(customer.paymentTermCode) }}</span>
-                    @if (dayStatuses.get(customer.id)?.requiresReview) { <span class="needs-review">Pedido pendiente de revisión</span> }
-                    @if (!customer.isActive) { <span>Cliente inactivo</span> }
-                  </div>
-                  <div class="review-actions">
-                    @if (!configurationOnly) { <button type="button" class="primary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button> }
-                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button>
-                    <button type="button" class="secondary compact quiet-action" (click)="toggleCustomer(customer)">{{ customer.isActive ? 'Desactivar' : 'Activar' }}</button>
-                  </div>
-
-                  @if (selectedCustomer?.id === customer.id) {
-                    <section class="detail-panel stack" data-testid="customer-config">
-                      <div class="profile-summary">
-                        <strong>Configuración de {{ customer.name }}</strong>
-                        @if (profileDirty) { <span class="badge warning">Cambios sin guardar</span> }
-                      </div>
-                      @if (isConfigLoading) { <div class="notice">Cargando configuración...</div> }
-                      @if (profileMessage) { <div class="alert success" role="status">{{ profileMessage }}</div> }
-                      @if (profileError) { <div class="alert error" role="alert">{{ profileError }}</div> }
-                      @if (profileConflict) {
-                        <button type="button" class="secondary compact" (click)="reloadProfile()">Recargar perfil y descartar mis cambios</button>
-                      }
-
-                      <fieldset class="stack" [disabled]="isConfigLoading || isProfileSaving">
-                      <div class="stack">
-                        <strong>Productos frecuentes</strong>
-                        <p class="notice">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}. El orden visual y la posición en mensajes como “15 + 20” se configuran por separado.</p>
-                        <p class="profile-help">Cada fila es un producto de este cliente. Subir o bajar cambia el orden en pantalla; la posición del mensaje se mantiene hasta que la edites. Las posiciones de cada cliente comienzan en 1.</p>
-                        @if (frequentRows.length === 0) { <div class="notice">Este cliente aún no tiene productos configurados. Agrega los que suele pedir.</div> }
-                        <div class="line-list">
-                          @for (row of frequentRows; track row; let i = $index) {
-                            <div class="line-row frequent-line profile-product-card" data-testid="profile-product">
-                              <div class="profile-product-heading">
-                                <strong>{{ i + 1 }}. {{ productFor(row)?.name || row.productName }}</strong>
-                                @if (!productFor(row)?.unitCode) { <span class="badge warning">Falta unidad</span> }
-                              </div>
-                              <label><span>Producto</span><select [(ngModel)]="row.productId" [name]="'frequentProduct' + i" (ngModelChange)="invalidateProfileApproval()">
-                                @for (product of profileProducts; track product.id) {
-                                  <option [value]="product.id">{{ product.name }} · {{ unitLabel(product.unitCode) }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
-                                }
-                              </select></label>
-                              <div class="profile-unit">
-                                <span>Unidad de venta: <strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
-                                <button type="button" class="secondary compact" (click)="editProductUnit(row)">Ver producto y unidad en catálogo</button>
-                              </div>
-                              <label><span>Cantidad sugerida</span><input type="number" min="0" step="0.01" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" (ngModelChange)="invalidateProfileApproval()"></label>
-                              <label><span>Orden visual</span><input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
-                              <label><span>Posición en mensaje</span><input type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
-                              <label><span>Abreviatura para captura</span><input type="text" aria-label="Abreviatura para captura" maxlength="16" [(ngModel)]="row.captureAlias" [name]="'frequentAlias' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Ej. HN"><small>Opcional. Letras únicas para este cliente, como 2HN.</small></label>
-                              <label><span>Máquina para este producto</span><select [(ngModel)]="row.preferredMachineId" [name]="'frequentMachine' + i" (ngModelChange)="invalidateProfileApproval()">
-                                <option [ngValue]="null">Usar asignación del cliente</option>
-                                @for (machine of machines; track machine.id) {
-                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
-                                }
-                              </select></label>
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i" (ngModelChange)="invalidateProfileApproval()">
-                                <span>Activo</span>
-                              </label>
-                              <div class="profile-actions">
-                                <button type="button" class="secondary compact" [disabled]="i === 0" (click)="moveFrequentRow(i, -1)">Subir</button>
-                                <button type="button" class="secondary compact" [disabled]="i === frequentRows.length - 1" (click)="moveFrequentRow(i, 1)">Bajar</button>
-                                <button type="button" class="secondary compact" (click)="removeFrequentRow(i)">Quitar</button>
-                              </div>
-                            </div>
-                          }
-                        </div>
-                        <small>La unidad pertenece al producto del catálogo. Su cambio aplica a futuras capturas de los clientes que lo usan; los pedidos existentes conservan su unidad registrada.</small>
-                        @if (profileValidationErrors.length > 0) {
-                          <div class="alert error" data-testid="profile-validation"><ul class="profile-errors">
-                            @for (message of profileValidationErrors; track message) { <li>{{ message }}</li> }
-                          </ul></div>
-                        }
-                        @if (profileWarnings.length > 0) {
-                          <div class="alert warning"><ul class="profile-errors">
-                            @for (message of profileWarnings; track message) { <li>{{ message }}</li> }
-                          </ul></div>
-                        }
-                        <p class="profile-help" data-testid="position-preview">{{ interpretationPreview }}</p>
-                        <button type="button" class="secondary compact" [disabled]="frequentRows.length === 0" (click)="useVisualOrderForPositions()">Usar orden visual como posiciones 1, 2, 3...</button>
-                        <label class="inline-check">
-                          <input type="checkbox" name="approveProfile" [formControl]="profileApproval">
-                          <span>He verificado los productos y sus posiciones; aprobar este perfil</span>
-                        </label>
-                        <small>Esta confirmación habilita la captura rápida según los productos, posiciones y abreviaturas de este cliente.</small>
-                        <div class="review-actions">
-                          <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
-                          <button type="button" class="primary compact" [disabled]="profileValidationErrors.length > 0 || profileConflict" (click)="saveFrequentProducts()">{{ isProfileSaving ? 'Guardando...' : 'Guardar frecuentes' }}</button>
-                        </div>
-                      </div>
-                      <div class="stack">
-                        <strong>Maquinas asignadas</strong>
-                        <div class="line-list">
-                          @for (row of machineAssignmentRows; track row.machineId; let i = $index) {
-                            <div class="line-row catalog-line">
-                              <select [(ngModel)]="row.machineId" [name]="'assignmentMachine' + i">
-                                @for (machine of machines; track machine.id) {
-                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
-                                }
-                              </select>
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isDefault" [name]="'assignmentDefault' + i" (ngModelChange)="setDefaultAssignment(row)">
-                                <span>Default</span>
-                              </label>
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'assignmentActive' + i">
-                                <span>Activa</span>
-                              </label>
-                              <input [(ngModel)]="row.notes" [name]="'assignmentNotes' + i" aria-label="Notas asignacion">
-                              <button type="button" class="secondary compact" (click)="removeMachineAssignmentRow(i)">Quitar</button>
-                            </div>
-                          }
-                        </div>
-                        <div class="review-actions">
-                          <button type="button" class="secondary compact" (click)="addMachineAssignmentRow()">Agregar maquina</button>
-                          <button type="button" class="primary compact" (click)="saveMachineAssignments()">Guardar maquinas</button>
-                        </div>
-                      </div>
-
-                      <div class="stack">
-                        <strong>Tokens de acceso</strong>
-                        @if (generatedPlainToken) {
-                          <div class="alert warning">
-                            Token generado: <code>{{ generatedPlainToken }}</code>
-                          </div>
-                        }
-                        <div class="catalog-grid">
-                          <label>
-                            <span>Descripcion</span>
-                            <input name="newTokenDescription" [(ngModel)]="newTokenDescription">
-                          </label>
-                          <label>
-                            <span>Expira</span>
-                            <input name="newTokenExpiresAt" type="datetime-local" [(ngModel)]="newTokenExpiresAt">
-                          </label>
-                        </div>
-                        <div class="review-actions">
-                          <button type="button" class="primary compact" (click)="createAccessToken()">Crear token</button>
-                        </div>
-                        <div class="line-list">
-                          @for (token of accessTokens; track token.tokenId) {
-                            <div class="line-row">
-                              <span>
-                                <strong>{{ token.description }}</strong>
-                                <small>{{ token.isActive ? 'Activo' : 'Revocado' }} · Creado {{ formatDate(token.createdAt) }}</small>
-                              </span>
-                              <button type="button" class="secondary compact" [disabled]="!token.isActive" (click)="revokeAccessToken(token)">Revocar</button>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                      </fieldset>
-                    </section>
-                  }
-                </article>
-              } @empty {
-                <div class="empty-customers">{{ customers.length ? 'No hay clientes que coincidan con la búsqueda o el estado elegido.' : 'Agrega tu primer cliente para comenzar.' }}</div>
-              }
-            </div>
-          </section>
-        }
-
-        @if (activeTab === 'products') {
-          <section class="stack" data-testid="catalog-products">
-            <form class="detail-panel stack" (ngSubmit)="saveProduct()">
-              <strong>{{ productForm.id ? 'Editar producto' : 'Nuevo producto' }}</strong>
-              <label>
-                <span>Nombre</span>
-                <input name="productName" [(ngModel)]="productForm.name">
-              </label>
-              <label>
-                <span>Descripcion</span>
-                <input name="productDescription" [(ngModel)]="productForm.description">
-              </label>
-              <label>
-                <span>Unidad de venta</span>
-                <select name="productUnit" [(ngModel)]="productForm.unitCode">
-                  <option [ngValue]="null">Por confirmar</option>
-                  <option value="kg">Kilogramos</option>
-                  <option value="piece">Piezas</option>
-                  <option value="dozen">Docenas</option>
-                  <option value="package">Paquetes</option>
-                </select>
-                <small>Confirma la unidad antes de capturar pedidos. Un paquete no se convierte automáticamente a kilos.</small>
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ productForm.id ? 'Guardar producto' : 'Crear producto' }}</button>
-                <button type="button" class="secondary compact" (click)="resetProductForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <div class="admin-list">
-              @for (product of products; track product.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>{{ product.name }}</strong>
-                    <small>{{ product.description || 'Sin descripcion' }}</small>
-                    <small>Unidad: {{ unitLabel(product.unitCode) }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
-                      {{ product.isActive ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editProduct(product)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="toggleProduct(product)">
-                      {{ product.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          </section>
-        }
-
-        @if (activeTab === 'machines') {
-          <section class="stack" data-testid="catalog-machines">
-            <form class="detail-panel stack" (ngSubmit)="saveMachine()">
-              <strong>{{ machineForm.id ? 'Editar maquina' : 'Nueva maquina' }}</strong>
-              <label>
-                <span>Numero</span>
-                <input name="machineNumber" type="number" min="1" step="1" [(ngModel)]="machineForm.number">
-              </label>
-              <label>
-                <span>Nombre</span>
-                <input name="machineName" [(ngModel)]="machineForm.name">
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ machineForm.id ? 'Guardar maquina' : 'Crear maquina' }}</button>
-                <button type="button" class="secondary compact" (click)="resetMachineForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <div class="admin-list">
-              @for (machine of machines; track machine.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>#{{ machine.number }}</strong>
-                    <small>{{ machine.name || 'Sin nombre' }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="machine.isActive" [class.danger]="!machine.isActive">
-                      {{ machine.isActive ? 'Activa' : 'Inactiva' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editMachine(machine)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="toggleMachine(machine)">
-                      {{ machine.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          </section>
-        }
-      }
-    </section>
-    @defer (when customerDialogOpen) {
-      @if (customerDialogOpen) {
-        <app-admin-customer-dialog [initialValue]="customerForm" [saving]="isCustomerSaving" [error]="customerDialogError"
-          (saved)="saveCustomer($event)" (dismissed)="resetCustomerForm()" />
-      }
-    } @loading { <p class="notice">Abriendo formulario…</p> }
-  `
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, CustomerWorkingWeekComponent],
+  styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css'],
+  templateUrl: './admin-catalogs.component.html'
 })
 export class AdminCatalogsComponent {
   private readonly api = inject(AdminCatalogApiService);
@@ -407,6 +60,11 @@ export class AdminCatalogsComponent {
   protected isDayLoading = false;
   protected dayStatusError: string | null = null;
   protected customerSearch = '';
+  protected workingRestDays: number[] = [];
+  private loadedRestDays: number[] = [];
+  protected isWeekSaving = false;
+  protected weekError: string | null = null;
+  protected weekMessage: string | null = null;
   protected isConfigLoading = false;
   protected isProfileSaving = false;
   protected profileDirty = false;
@@ -618,6 +276,10 @@ export class AdminCatalogsComponent {
   }
 
   protected editCustomer(customer: AdminCustomerCatalogApiResponse): void {
+    if (this.configurationOnly && (this.isWeekSaving || this.workingWeekDirty)) {
+      this.weekError = 'Guarda o recarga los días de trabajo antes de editar los datos del cliente.';
+      return;
+    }
     this.customerDialogError = null;
     this.customerDialogOpen = true;
     this.customerForm = {
@@ -654,6 +316,7 @@ export class AdminCatalogsComponent {
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
     const sequence = ++this.profileReadSequence;
     this.selectedCustomer = customer;
+    this.setWorkingWeek(customer.restDays ?? []);
     this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
     this.resultMessage = null;
@@ -700,6 +363,98 @@ export class AdminCatalogsComponent {
     this.customerForm = this.emptyCustomerForm();
     this.customerDialogOpen = false;
     this.customerDialogError = null;
+  }
+
+  protected get workingWeekDirty(): boolean {
+    return !this.sameWeek(this.workingRestDays, this.loadedRestDays);
+  }
+
+  protected changeWorkingWeek(restDays: number[]): void {
+    if (this.isWeekSaving || this.isCustomerSaving) return;
+    this.workingRestDays = [...restDays];
+    this.weekError = null;
+    this.weekMessage = null;
+  }
+
+  protected reloadWorkingWeek(): void {
+    if (!this.selectedCustomer || this.isWeekSaving) return;
+    const id = this.selectedCustomer.id;
+    this.isWeekSaving = true;
+    this.weekError = null;
+    this.api.getCustomers().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: customers => {
+        const customer = customers.find(item => item.id === id);
+        if (customer) {
+          this.setWorkingWeek(customer.restDays ?? []);
+          this.weekMessage = 'Días de trabajo recargados.';
+        } else this.weekError = 'No se encontró el cliente.';
+        this.isWeekSaving = false;
+        this.changeDetector.detectChanges();
+      },
+      error: error => {
+        this.isWeekSaving = false;
+        this.weekError = this.profileErrorText(error, 'No se pudieron consultar los días de trabajo.');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  protected saveWorkingWeek(): void {
+    if (!this.selectedCustomer || !this.workingWeekDirty || this.isWeekSaving || this.isCustomerSaving) return;
+    const id = this.selectedCustomer.id;
+    const restDays = [...this.workingRestDays];
+    this.isWeekSaving = true;
+    this.weekError = null;
+    this.weekMessage = null;
+    // The existing PUT also edits delivery/contact fields. Read their latest
+    // values immediately before saving the calendar rather than sending the
+    // older screen snapshot. This does not change the API's concurrency contract.
+    this.api.getCustomers().pipe(
+      switchMap(customers => {
+        const latest = customers.find(item => item.id === id);
+        if (!latest) return throwError(() => new Error('No se encontró el cliente.'));
+        if (this.sameWeek(latest.restDays ?? [], restDays)) return of(latest);
+        if (!this.sameWeek(latest.restDays ?? [], this.loadedRestDays))
+          return throwError(() => new HttpErrorResponse({ status:409, error:{ error:'El calendario cambió en otra pantalla. Recarga los días antes de guardar; tu selección sigue visible.' } }));
+        return this.api.updateCustomer(id, {
+          name:latest.name, phoneNumber:latest.phoneNumber,
+          preferredDeliveryTime:latest.preferredDeliveryTime, preferredDeliveryWindowStart:latest.preferredDeliveryWindowStart,
+          preferredDeliveryWindowEnd:latest.preferredDeliveryWindowEnd, deliveryNotes:latest.deliveryNotes,
+          routeCode:latest.routeCode, routeStopOrder:latest.routeStopOrder, hasStoreKey:latest.hasStoreKey,
+          paymentTermCode:latest.paymentTermCode, internalDeliveryInstructions:latest.internalDeliveryInstructions,
+          restDays
+        });
+      }), takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: customer => {
+        this.customers = this.customers.map(item => item.id === id ? customer : item);
+        if (this.selectedCustomer?.id === id) this.selectedCustomer = {
+          ...customer, orderingProfileVersion:this.selectedCustomer.orderingProfileVersion,
+          isOrderProfileApproved:this.selectedCustomer.isOrderProfileApproved
+        };
+        this.setWorkingWeek(customer.restDays ?? restDays);
+        this.weekMessage = 'Días de trabajo guardados.';
+        this.isWeekSaving = false;
+        this.refreshDayStatus();
+        this.changeDetector.detectChanges();
+      },
+      error: error => {
+        this.isWeekSaving = false;
+        this.weekError = this.profileErrorText(error, 'No se pudieron guardar los días de trabajo.');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  private setWorkingWeek(restDays: number[]): void {
+    this.loadedRestDays = [...restDays];
+    this.workingRestDays = [...restDays];
+    this.weekError = null;
+    this.weekMessage = null;
+  }
+
+  private sameWeek(first: number[], second: number[]): boolean {
+    return JSON.stringify([...new Set(first)].sort()) === JSON.stringify([...new Set(second)].sort());
   }
 
   protected addFrequentRow(): void {
@@ -1026,7 +781,10 @@ export class AdminCatalogsComponent {
         // The profile version belongs to the loaded snapshot, never to a separate catalog refresh.
         if (this.selectedCustomer) {
           const details = customers.find(customer => customer.id === this.selectedCustomer?.id);
-          if (details) this.selectedCustomer = { ...details, orderingProfileVersion: this.selectedCustomer.orderingProfileVersion, isOrderProfileApproved: this.selectedCustomer.isOrderProfileApproved };
+          if (details) {
+            this.selectedCustomer = { ...details, orderingProfileVersion: this.selectedCustomer.orderingProfileVersion, isOrderProfileApproved: this.selectedCustomer.isOrderProfileApproved };
+            if (!this.workingWeekDirty && !this.isWeekSaving) this.setWorkingWeek(details.restDays ?? []);
+          }
         }
         this.products = products;
         this.machines = machines;

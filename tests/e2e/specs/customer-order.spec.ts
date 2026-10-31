@@ -303,6 +303,7 @@ test('admin abre configuracion de cliente y gestiona token', async ({ page }) =>
   await expect(page.getByText('Productos frecuentes')).toBeVisible();
   await expect(page.getByText('Maquinas asignadas')).toBeVisible();
   await expect(page.getByText('Tokens de acceso')).toBeVisible();
+  await page.locator('.config-access > summary').click();
 
   await page.getByLabel('Descripcion').fill('Token e2e');
   await page.getByRole('button', { name: 'Crear token' }).click();

@@ -42,14 +42,14 @@ test('el formulario se crea solo al abrir el modal y cancelar restaura foco sin 
   const box = (await dialog.boundingBox())!;
   expect(Math.abs(box.x + box.width / 2 - page.viewportSize()!.width / 2)).toBeLessThan(3);
   await dialog.getByLabel('Nombre', { exact: true }).fill('Borrador demo');
-  await dialog.getByLabel('Lunes', { exact: true }).check();
+  await dialog.getByLabel('Lunes', { exact: true }).uncheck();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(add).toBeFocused();
   expect(writes).toBe(0);
   await add.click();
   await expect(dialog.getByLabel('Nombre', { exact: true })).toHaveValue('');
-  await expect(dialog.getByLabel('Lunes', { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel('Lunes', { exact: true })).toBeChecked();
 });
 
 test('tarjetas muestran estado del servidor y ordenan descansos y no pedidos al final', async ({ page }) => {
@@ -98,14 +98,14 @@ test('editar descansos guarda los días y un refresco no pisa el formulario abie
   await openCatalog(page);
   await page.getByTestId('customer-card').getByRole('button', { name: 'Editar', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByLabel('Lunes', { exact: true })).toBeChecked();
-  await dialog.getByLabel('Miércoles', { exact: true }).check();
+  await expect(dialog.getByLabel('Lunes', { exact: true })).not.toBeChecked();
+  await dialog.getByLabel('Miércoles', { exact: true }).uncheck();
   await dialog.getByLabel('Nombre', { exact: true }).fill('Nombre editado demo');
   const before = dayReads;
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect.poll(() => dayReads).toBeGreaterThan(before);
   await expect(dialog.getByLabel('Nombre', { exact: true })).toHaveValue('Nombre editado demo');
-  await expect(dialog.getByLabel('Miércoles', { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel('Miércoles', { exact: true })).not.toBeChecked();
   await dialog.getByRole('button', { name: 'Guardar cliente' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId('customer-card')).toHaveAttribute('data-day-state', 'ScheduledRest');
@@ -113,8 +113,8 @@ test('editar descansos guarda los días y un refresco no pisa el formulario abie
   expect(writes[0]).toMatchObject({ restDays: [1, 3], name: 'Nombre editado demo' });
   await page.reload();
   await page.getByTestId('customer-card').getByRole('button', { name: 'Editar', exact: true }).click();
-  await expect(dialog.getByLabel('Lunes', { exact: true })).toBeChecked();
-  await expect(dialog.getByLabel('Miércoles', { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel('Lunes', { exact: true })).not.toBeChecked();
+  await expect(dialog.getByLabel('Miércoles', { exact: true })).not.toBeChecked();
 });
 
 test('un fallo de conexión no inventa pendientes o no pedidos y preserva el último estado al fallar un refresco', async ({ page }) => {

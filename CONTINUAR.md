@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I08: configuración amplia del cliente y calendario de trabajo
+
+El usuario autorizó el rediseño enfocado el 31 de octubre: usar ancho disponible con márgenes, vista habitual sin scroll de página en laptop, adaptación a tablet/teléfono y casillas de los siete días (marcada trabaja, sin marcar descansa). Implementado en frontend con los contratos existentes de I06/I07, sin cambios de API/esquema. Ver `docs/proyecto/INCREMENTO-08.md` y `docs/validation/2026-10-31-client-configuration.md`.
+
+Validación local: build Angular correcto, 76 E2E (ocho nuevos, incluye 1366x768 con tres productos) y 206 Python (nueve casos del paquete/instalador). Se prepara PRODIMT_Configuracion_Cliente_I08.zip con binarios frontend compilados e instalador nativo, conservando backend capture-46fed604732e. No se ha desplegado I08 en el VPS. La confirmación de guardado real de I07 sigue pendiente; conservar cualquier captura incierta antes de recargar.
+
 ## I07: canal reparado; guardado en navegador pendiente
 
 El diagnóstico ejecutado por el usuario confirma tres excepciones de captura `admin_sales_channel_missing`, sin códigos SQL ni denegación de permisos; servicio activo y ambos releases I07. `AdminManualCapture` faltaba en SalesChannels. La búsqueda falla antes de crear el pedido, dentro de la transacción del intento. La vista previa y aprobación del perfil ya funcionan. No reinstalar, importar otra vez ni ejecutar bootstrap.
@@ -30,7 +36,8 @@ Siguiente paso: Ctrl+F5 y revisar Pendientes → Capturar pedido. Comprobar fech
 3. `docs/proyecto/PLAN.md` (objetivo integral y etapas).
 4. `docs/proyecto/DECISIONES.md` (decisiones vigentes y pendientes).
 5. `docs/proyecto/BITACORA.md` (cambios y pruebas por sesión).
-6. `docs/proyecto/INCREMENTO-07.md` (captura rápida y actualización nativa I06→I07).
+6. `docs/proyecto/INCREMENTO-08.md` (vista amplia, calendario y actualización sólo frontend).
+7. `docs/proyecto/INCREMENTO-07.md` (captura rápida y actualización nativa I06→I07).
 7. `docs/proyecto/INCREMENTO-06.md` (catálogo y descansos diarios).
 8. `docs/proyecto/INCREMENTO-05.md` (cambio de contraseña propia y sesiones administrativas).
 9. `docs/proyecto/INCREMENTO-04.md` (avisos operativos y configuración por cliente).
