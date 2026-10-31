@@ -75,7 +75,7 @@ BEGIN TRY
    VALUES (@channel,N'Captura administrativa',N'AdminManualCapture',1);
   INSERT INTO dbo.AuditLogs (Id,EntityType,EntityId,EventType,OccurredAt,ActorType,ActorId,ActorDisplayName,Summary,MetadataJson)
    VALUES (@audit,N'SalesChannel',CONVERT(nvarchar(36),@channel),N'AdminSalesChannelRepaired',
-    SYSDATETIMEOFFSET(),N'System',N'native-maintenance',N'Mantenimiento PRODIMT',
+    SYSDATETIMEOFFSET(),2,N'native-maintenance',N'Mantenimiento PRODIMT',
     N'Canal de captura administrativa faltante agregado.',
     N'{"method":"native-admin-channel-repair","revision":"20261030-admin-channel-repair1"}');
   SET @created=1;
