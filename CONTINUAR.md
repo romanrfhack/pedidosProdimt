@@ -8,7 +8,9 @@ Este archivo es el punto de entrada para retomar el proyecto en otro chat o equi
 
 El usuario autorizó el rediseño enfocado el 31 de octubre: usar ancho disponible con márgenes, vista habitual sin scroll de página en laptop, adaptación a tablet/teléfono y casillas de los siete días (marcada trabaja, sin marcar descansa). Implementado en frontend con los contratos existentes de I06/I07, sin cambios de API/esquema. Ver `docs/proyecto/INCREMENTO-08.md` y `docs/validation/2026-10-31-client-configuration.md`.
 
-Validación local: build Angular correcto, 76 E2E (ocho nuevos, incluye 1366x768 con tres productos) y 206 Python (nueve casos del paquete/instalador). Se prepara PRODIMT_Configuracion_Cliente_I08.zip con binarios frontend compilados e instalador nativo, conservando backend capture-46fed604732e. No se ha desplegado I08 en el VPS. La confirmación de guardado real de I07 sigue pendiente; conservar cualquier captura incierta antes de recargar.
+El calendario también se aplica en Pendientes según la fecha de servicio elegida: oculta descansos por defecto y permite mostrarlos al final para una captura excepcional. El cruce usa restDays persistidos; no cambia el contrato de la API ni genera NoOrder. Conserva borradores/referencias de captura.
+
+Validación de la base: build Angular, 76 E2E y 206 Python; CI 41214749798 con cuatro jobs correctos. El cierre añade tres E2E por fecha y vuelve a validar la suite completa antes de fijar el paquete definitivo. Actualización sólo frontend sobre I07, sin SQL o reinicio. No se ha desplegado I08 en el VPS. La confirmación de guardado real de I07 sigue pendiente; conservar cualquier captura incierta antes de recargar.
 
 ## I07: canal reparado; guardado en navegador pendiente
 

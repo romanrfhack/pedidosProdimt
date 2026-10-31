@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 import { environment } from '../environments/environment';
-import { unitLabel } from './operational-labels';
+import { businessDateToday, unitLabel } from './operational-labels';
+import { AdminCatalogApiService } from './admin-catalog-api.service';
 import {
   AdminDecisionApiValue,
   AdminOrderDetailApiResponse,
@@ -84,6 +85,7 @@ export interface PendingCustomerOrder {
   requestedDelivery: string;
   deliveryNotes: string | null;
   frequentProductsCount: number;
+  isScheduledRest?: boolean;
 }
 
 export interface AdminOrderTemplateProduct {
@@ -108,7 +110,7 @@ export interface AdminOrderTemplate {
 
 @Injectable({ providedIn: 'root' })
 export class OrderDataService {
-  constructor(private readonly customerOrdersApi: CustomerOrdersApiService) {}
+  constructor(private readonly customerOrdersApi: CustomerOrdersApiService, private readonly catalog: AdminCatalogApiService) {}
 
   loadCustomerToday(customerId = environment.demoCustomerId): Observable<CustomerToday> {
     return this.customerOrdersApi.getToday(customerId).pipe(
@@ -172,8 +174,16 @@ export class OrderDataService {
   }
 
   loadPendingCustomers(date?: string): Observable<PendingCustomerOrder[]> {
-    return this.customerOrdersApi.getPendingCustomers(date).pipe(
-      map((customers) => customers.map((customer) => this.mapPendingCustomer(customer)))
+    const serviceDate=date ?? businessDateToday();
+    // Rest days are ISO weekdays from the server's customer configuration.
+    // UTC noon maps the explicit service date, independently of browser timezone.
+    const weekday=((new Date(serviceDate+'T12:00:00Z').getUTCDay()+6)%7)+1;
+    return forkJoin({pending:this.customerOrdersApi.getPendingCustomers(serviceDate), customers:this.catalog.getCustomers()}).pipe(
+      map(({pending,customers}) => {
+        const calendars=new Map(customers.map(customer=>[customer.id,customer.restDays??[]]));
+        return pending.map(customer=>({...this.mapPendingCustomer(customer),
+          isScheduledRest:calendars.get(customer.customerId)?.includes(weekday)??false}));
+      })
     );
   }
 

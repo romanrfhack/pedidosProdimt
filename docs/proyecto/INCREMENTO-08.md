@@ -1,6 +1,6 @@
 # I08 — Configuración del cliente y calendario semanal
 
-Autorizado el 31 de octubre de 2026. Implementación y comprobaciones locales completadas; despliegue pendiente.
+Autorizado el 31 de octubre de 2026. Implementado; cierre de validación y paquete en curso, despliegue pendiente. La base de configuración 42f6eb4c225a6781475893151a28d3e9b19fae2a tiene [cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41214749798); el cierre añade su efecto en Pendientes para la fecha seleccionada.
 
 ## Experiencia
 
@@ -13,6 +13,8 @@ La vista habitual con tres productos se verifica sin desplazamiento de página e
 Siete casillas, lunes a domingo. Marcada significa que trabaja/se espera pedido; sin marcar significa descanso. Se reutiliza `restDays` de I06 (lunes=1, domingo=7); días de trabajo son su complemento. `[]` conserva la expectativa diaria existente. No se infieren descansos de pedidos pasados ni del Excel.
 
 El mismo control se usa en el modal de cliente y en la configuración enfocada. Guardar días es independiente del guardado de productos/máquinas. Preserva el borrador y la versión del perfil. Consulta datos actuales antes de usar el PUT heredado y pide recargar si detecta otros descansos guardados; no añade concurrencia atómica a datos generales. Un pedido vigente prevalece sobre descanso, que no crea NoOrder ni cancela o desactiva al cliente.
+
+Pendientes combina la respuesta existente de clientes sin pedido con sus calendarios guardados. Respeta el día de semana de la fecha de servicio elegida, independientemente de la zona del navegador; no usa el estado de hoy para una fecha pasada o futura. Oculta descansos por defecto y permite mostrarlos al final para capturar una excepción, con etiqueta explícita. El filtro queda bloqueado mientras hay una captura abierta, para conservar su intento. Si falla la consulta del calendario se informa el error y se permite consultar otra vez. No se modifica el contrato del endpoint de pendientes ni se generan pedidos/NoOrder automáticamente.
 
 ## Entrega
 

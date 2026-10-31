@@ -2,15 +2,17 @@
 
 Actualizado: 31 de octubre de 2026.
 
-## I08 implementado; entrega y despliegue pendientes
+## I08 implementado; cierre técnico y despliegue pendientes
 
 Rediseño de configuración enfocado: ancho del viewport y márgenes, productos compactos, calendario semanal y máquinas en paneles, acceso por tokens desplegable. Las casillas marcadas son días de trabajo; se guardan los descansos mediante restDays de I06. El modal de alta/edición usa la misma convención. No se crean NoOrder ni se cancelan pedidos al marcar descansos.
 
 Contratos/backend/migraciones intactos. Calendario se guarda separado y preserva el borrador de productos. Se consultan datos actuales antes del PUT existente; un calendario cambiado detectado requiere recarga. No se añade una garantía de concurrencia atómica al PUT de datos generales existente.
 
-Build Angular correcto; 76 E2E locales y 206 Python. Validación visual y de ancho en 390, 768, 1366 y 1920 px, incluidos tres productos sin scroll de página en 1366x768. Listas extensas tienen desplazamiento propio; móvil/tablet puede desplazar verticalmente. El CSS nuevo genera advertencia por 4 kB, dentro del límite de error de 8 kB; no se ampliaron presupuestos.
+Pendientes cruza calendarios guardados con la fecha seleccionada y oculta descansos por defecto. Un filtro permite mostrarlos al final para capturar una excepción; no modifica el contrato de pendientes, no crea NoOrder ni toca demanda. No usa el estado de hoy para fechas pasadas/futuras. El filtro no puede ocultar una captura abierta.
 
-Se prepara paquete e instalador sólo del frontend para el I07 nativo activo; sin SQL, credenciales adicionales o reinicio, con snapshot privado, comprobación HTTPS de archivos y reversión del enlace ante fallo. Ver [contrato I08](INCREMENTO-08.md) y [evidencia](../validation/2026-10-31-client-configuration.md). I08 aún no aplicado en el VPS; I07 y su canal reparado permanecen vigentes.
+La base pasó build Angular, 76 E2E y 206 Python; CI 41214749798 con cuatro jobs correctos. El cierre añade tres casos de Pendientes (lunes/domingo en UTC+14, excepción sin escrituras, fallo/recuperación de calendario), y se valida antes de fijar el paquete final. Medidas 390/768/1366/1920 px, tres productos sin scroll de página en 1366x768; móvil/tablet puede desplazar verticalmente. Estilo 7.83 kB, advertencia por 4 kB dentro del límite de error 8 kB, sin ampliar presupuestos.
+
+El instalador actualiza sólo frontend del I07 nativo activo; sin SQL, credenciales adicionales o reinicio, con snapshot privado, comprobación HTTPS y reversión del enlace ante fallo. Ver [contrato I08](INCREMENTO-08.md) y [evidencia](../validation/2026-10-31-client-configuration.md). I08 no aplicado en el VPS; I07 y su canal reparado se conservan, guardado real aún pendiente de confirmar.
 
 ## I07: canal administrativo reparado; guardado pendiente
 

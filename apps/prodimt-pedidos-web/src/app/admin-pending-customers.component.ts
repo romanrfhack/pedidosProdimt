@@ -13,7 +13,7 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
   styles: [`
     fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
     .check-row { display: flex; align-items: flex-start; gap: .6rem; }
-    .check-row input { width: auto; flex: none; }
+    .check-row input { width: 18px; min-height: 20px; flex: none; }
     .check-row span, .alert a { overflow-wrap: anywhere; }
   `],
   template: `
@@ -41,6 +41,12 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
       }
 
       @if (!isLoading && !errorMessage) {
+        @if (scheduledRestCount > 0) {
+          <label class="check-row" data-testid="pending-rest-filter">
+            <input type="checkbox" name="includeRestCustomers" [(ngModel)]="includeRestCustomers" [disabled]="!!submittingCustomerId || !!loadingCustomerId || !!template">
+            <span>Mostrar también clientes en descanso ({{ scheduledRestCount }})<small>No se espera pedido de ellos en esta fecha. Puedes mostrarlos para capturar una excepción.</small></span>
+          </label>
+        }
         @if (customers.length === 0) {
           <div class="notice">No hay clientes pendientes por responder.</div>
         } @else {
@@ -49,6 +55,7 @@ import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder 
               <article class="admin-row">
                 <div>
                   <strong>{{ customer.name }}</strong>
+                  @if (customer.isScheduledRest) { <small class="badge">Descanso programado · no se espera pedido</small> }
                   <small>Telefono: {{ customer.phoneNumber }}</small>
                   <small>Entrega: {{ customer.requestedDelivery }}</small>
                   <small>Productos frecuentes: {{ customer.frequentProductsCount }}</small>
@@ -98,7 +105,9 @@ export class AdminPendingCustomersComponent {
   private captureRequest: Subscription | null = null;
   private captureGeneration = 0;
 
-  protected customers: PendingCustomerOrder[] = [];
+  private pendingCustomers: PendingCustomerOrder[] = [];
+  protected includeRestCustomers = false;
+  private listGeneration = 0;
   protected template: AdminOrderTemplate | null = null;
   protected profile: AdminCustomerOrderingProfileApiResponse | null = null;
   protected isLoading = true;
@@ -109,11 +118,18 @@ export class AdminPendingCustomersComponent {
   protected serviceDate = businessDateToday();
   protected existingOrders: AdminOrder[] = [];
 
+  protected get scheduledRestCount(): number { return this.pendingCustomers.filter(customer=>customer.isScheduledRest).length; }
+  protected get customers(): PendingCustomerOrder[] {
+    return this.pendingCustomers.filter(customer=>this.includeRestCustomers || !customer.isScheduledRest)
+      .slice().sort((a,b)=>Number(a.isScheduledRest)-Number(b.isScheduledRest) || a.name.localeCompare(b.name,'es-MX'));
+  }
+
   protected isToday(): boolean { return this.serviceDate === businessDateToday(); }
 
   protected changeDate(): void {
+    this.listGeneration++;
     this.cancelCapture();
-    this.customers = [];
+    this.pendingCustomers = [];
     this.errorMessage = null;
     this.resultMessage = null;
   }
@@ -195,19 +211,24 @@ export class AdminPendingCustomersComponent {
 
   protected load(showLoading = true): void {
     if (!this.serviceDate) return;
+    const generation=++this.listGeneration;
+    const date=this.serviceDate;
+    this.errorMessage=null;
     if (showLoading) {
       this.isLoading = true;
     }
 
     this.data.loadPendingCustomers(this.serviceDate).subscribe({
       next: (customers) => {
-        this.customers = customers;
+        if (generation!==this.listGeneration || date!==this.serviceDate) return;
+        this.pendingCustomers = customers;
         this.isLoading = false;
         this.loadingCustomerId = null;
         this.submittingCustomerId = null;
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
+        if (generation!==this.listGeneration || date!==this.serviceDate) return;
         this.errorMessage = this.formatError(error, 'No se pudieron cargar los clientes pendientes.');
         this.isLoading = false;
         this.loadingCustomerId = null;
