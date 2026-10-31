@@ -46,3 +46,8 @@ Confirmado por salida del instalador ejecutado por el usuario: revision 20261028
 El instalador verificó esquema, permisos DML, proceso, /health/db, autorización de los endpoints y frontend/JS/CSS por HTTPS. Se trata de evidencia reportada por el usuario; no se accedió al VPS desde este entorno. El campo database_checks.migrations_count=10 pertenece al preflight; migrations_after=11 y migrated_schema_verified=true confirman el resultado final.
 
 Siguiente paso: Ctrl+F5 y revisar Pendientes → Capturar pedido. Comprobar fecha, entrega habitual informativa, texto abreviado/desglose por posiciones y alternativa manual. Perfiles importados aún requieren confirmación explícita para guardar captura rápida; HN debe asociarse al producto correcto por cliente. Revisar primero la vista previa sin crear pedidos ficticios. Instalación no equivale a aceptación de negocio ni al ensayo de ruta. Conservar catálogos y respaldos; no repetir instalador, bootstrap o importaciones.
+
+
+## Incidencia de aceptación: canal administrativo ausente
+
+El diagnóstico de sólo lectura del VPS confirma que falta SalesChannels.AdminManualCapture. El esquema actualizado conserva datos y no siembra canales automáticamente; la vista previa no consulta este canal, pero el guardado lo requiere. Se prepara una reparación explícita de una fila más auditoría atómica, sin reinstalar o ejecutar bootstrap. Conserva los perfiles aprobados y la referencia de captura. Ver [evidencia y validación](../validation/2026-10-30-i07-capture-incident.md). Reparación y guardado real pendientes de confirmación del usuario.

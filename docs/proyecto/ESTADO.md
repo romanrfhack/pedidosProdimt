@@ -2,11 +2,13 @@
 
 Actualizado: 30 de octubre de 2026.
 
-## Incidencia vigente en la aceptación de I07
+## I07: canal administrativo faltante, reparación preparada
 
-Vista previa observada en navegador: interpretación correcta, perfil aprobado y unidades confirmadas. La nueva captura de Network confirma HTTP 500 en capture, con cuerpo coherente con la vista previa. La causa y la persistencia de ese intento siguen sin confirmar. [Evidencia y diagnóstico de registros](../validation/2026-10-30-i07-capture-incident.md).
+El JSON remoto del diagnóstico identifica `admin_sales_channel_missing` en tres fallos de capture, con servicio y releases I07 activos. La excepción ocurre al buscar el canal antes de crear el pedido. El 500 no procede de la interpretación, unidades o aprobación del perfil.
 
-Conservar la captura abierta y su referencia mientras se obtiene el JSON de `PRODIMT_Diagnostico_Captura_I07.py`, herramienta nueva de sólo lectura de systemctl/journalctl, sin SQL/API ni reproducción del pedido. Doce casos nuevos, 186 Python locales correctos. No recargar, abrir otra captura, reinstalar o reimportar para resolver esta incidencia. No se ha cambiado la aplicación ni operado el VPS desde este entorno. La instalación confirmada sigue siendo I07 con once migraciones; la aceptación funcional está pendiente.
+Reparación puntual preparada con la identidad SQL limitada de la aplicación: insertar AdminManualCapture e IsInternal=1 sólo si falta, junto con una auditoría en la misma transacción; no modifica registros existentes. Ver [evidencia, límites y entrega](../validation/2026-10-30-i07-capture-incident.md). No cambia aplicación, esquema, cuentas, perfiles ni servicios. Once migraciones conservadas; no se reenvía el pedido. Código 63b955ad333c1d4e3cc2f3f4eb73187a1629cef7, [CI con cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41167167347): 197 Python, 31 SQL Server (dos regresiones nuevas), 267 .NET, 68 E2E y smoke Production.
+
+Pendiente ejecución por el usuario y JSON de resultado. Mantener la pestaña/referencia y usar Reintentar guardado únicamente después de verificar el canal. Aceptación funcional de guardado todavía pendiente; no se declara reparación aplicada desde este entorno.
 
 ## I07 desplegado — 30 de octubre de 2026
 
