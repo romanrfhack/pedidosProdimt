@@ -55,3 +55,9 @@ print(\"Diagnostico revision 2 verificado\")" && python3 /root/PRODIMT_Diagnosti
 ```
 
 Este comando modifica exclusivamente el diagnóstico verificado y después lo ejecuta en modo lectura. No instala I07. El problema SQL original sigue pendiente de la salida del usuario.
+
+## Resultado real del usuario
+
+Revisión 2 ejecutada en VPS: status inspected, phase completed; preflight_completed y administrator_checks_completed true. Todas las lecturas administrativas (permisos, historial, esquema RestDays, esquema CaptureAlias, datos RestDays) succeeded con exit_code 0. Historial 10; pin del instalador verificado y DML de aplicación correcto. Sysadmin, dbcreator, db_owner, backup_permission y view_definition=1. verify_permission=null aceptado por sysadmin; no se infiere ausencia de capacidad ni se solicitan grants nuevos.
+
+No hubo cambios ni migración. Credenciales actuales probadas, fallo SQL anterior no reproducido; no se atribuye causa histórica sin evidencia. Aplicar I07 con el instalador/payload originales y mismas credenciales. No requiere --resume-from. Confirmar status updated, historial 11, conteos preservados y salud antes de cerrar despliegue.

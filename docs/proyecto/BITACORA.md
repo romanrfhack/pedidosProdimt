@@ -338,3 +338,9 @@ Exportación misma identidad de PRODIMT_Diagnostico_SQL_I07.py: 11,005 bytes, SH
 ### Cierre de revisión 2 del diagnóstico
 
 Código `2ecd87f649bfd0ec9e68c246ce51418b422fae0c`, [CI 41160327219](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41160327219): cuatro jobs correctos; 174 Python, 267 .NET, 29 SQL Server, 68 E2E y smoke Production. Prueba de login rechazado ODBC real correcta. Versión 2 de la herramienta guardada sobre su misma identidad privada; sin cambios de aplicación, instalador o payload. Comando de reparación que sólo acepta hashes v1/v2 validado y documentado. Sigue pendiente ejecutar con el usuario y obtener información del error SQL original; no se accedió ni modificó el VPS desde este entorno. Cierre documental conserva los mismos bytes de diagnóstico.
+
+## 2026-10-30 — Diagnóstico I07 correcto en VPS
+
+El usuario repara el archivo con verificación SHA v1/v2 y ejecuta revisión 2. Resultado de sólo lectura: inspected/completed, preflight y comprobaciones administrativas completas, cinco SELECT correctos, historial 10 y DML de aplicación correctos. Hash del instalador verificado, sqlcmd en /opt/mssql-tools/bin/sqlcmd. sysadmin/dbcreator/db_owner/backup/view_definition=1. verify_permission=null aceptado por la rama sysadmin; no requiere cambios de permisos. Sin cambios ni migración. La causa histórica de sql_operation_failed no queda demostrada; las credenciales actuales funcionaron en este corte.
+
+Se indica reintentar --apply en el instalador/payload originales ya copiados, con las mismas credenciales SQL. Base 10 validada, no hace falta resume ni descargar/compilar otra versión. Instalador y binarios intactos; no se ejecutó SSH desde este entorno. Pendiente resultado updated/completed, migraciones 11 y health_verified true antes de declarar desplegado I07 o pedir prueba funcional del rediseño. Sólo documentación: no repetir suites ni regenerar artefactos.
