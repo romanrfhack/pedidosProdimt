@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## Incidencia vigente: guardado I07 sin confirmar
+
+La primera revisión en navegador muestra un desglose correcto y perfil aprobado, pero el guardado queda incierto. La respuesta compartida pertenece a `/orders/preview`; aún falta el estado HTTP y la respuesta de `/orders/capture`. No atribuir el problema a contraseña, unidad, aprobación o SQL sin esa evidencia. Ver `docs/validation/2026-10-30-i07-capture-incident.md`.
+
+Mientras haya una captura incierta, conservar la pestaña y su referencia: no aplicar el Ctrl+F5 recomendado abajo para la revisión inicial, cancelar ni abrir otro intento. El botón Reintentar guardado conserva el mismo contenido y operación. Pedir únicamente estado HTTP y Response de capture, sin cURL, Authorization, cookies o datos de clientes. No reinstalar ni usar el diagnóstico de autenticación previo: sus guardas corresponden a I06.
+
 ## I07 desplegado — 30 de octubre de 2026
 
 Confirmado por salida del instalador ejecutado por el usuario: revision 20261028-capture-install1, status updated, phase completed, historial 10→11, migrated_schema_verified, existing_data_counts_preserved y health_verified true. Código 46fed604732eddca0c7ac199b58bb0b429545b89. Backend/frontend activos en capture-46fed604732e. Contraseñas sin cambio; no se restauró SQL automáticamente.

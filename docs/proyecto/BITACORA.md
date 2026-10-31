@@ -353,3 +353,10 @@ Snapshot privado: /var/backups/prodimt-pedidos/quick-capture-update-20261031T024
 Respaldo SQL verificado: /var/opt/mssql/backup/prodimt-i07-20261031T024549Z-90dbaa60d04e/ProdimtPedidos-copy-only.bak
 
 Se actualizaron estado vigente, continuidad, I07, plan y evidencias. El diagnóstico de preinstalación I06 queda archivado; sus guardas no corresponden a los nuevos releases I07. No repetir instalación/importación/bootstrap. Pendiente Ctrl+F5 y revisión real del campo, hora informativa, desglose/manual, aprobación de perfiles y alias HN explícito, antes de guardar pedidos reales. No se declara realizado el ensayo de ruta, ni completados faltantes de unidades/máquinas. Sin cambios de código/artefactos ni SSH directo desde este entorno; no hace falta repetir suites por este registro documental.
+
+
+## 2026-10-30 — I07: interpretación correcta, guardado sin confirmar
+
+El usuario reporta fallo al guardar desde Pendientes y aporta captura, petición y respuesta de preview. El desglose, perfil aprobado y unidades confirmadas se observan correctos. No se ha aportado el estado HTTP ni la respuesta de capture; la causa y el resultado persistido del intento no están demostrados. Se revisa el flujo de transacción/recibo, auditoría y manejo Angular de respuestas inciertas sin hallar una causa verificable con esta evidencia. No se altera código ni se accede al VPS.
+
+Se registra la incidencia en docs/validation/2026-10-30-i07-capture-incident.md, ESTADO y CONTINUAR. Se prioriza conservar pestaña/referencia e inspeccionar únicamente Status Code y Response de capture, sin compartir autenticación. No recargar, crear otro intento ni reinstalar. Los datos reales y credenciales compartidos no se copian al repositorio. Sin cambios funcionales ni repetición de suites. I07 instalado conserva once migraciones y aceptación pendiente.

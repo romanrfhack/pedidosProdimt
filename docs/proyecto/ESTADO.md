@@ -2,6 +2,12 @@
 
 Actualizado: 30 de octubre de 2026.
 
+## Incidencia vigente en la aceptación de I07
+
+Vista previa observada en navegador: interpretación correcta, perfil aprobado y unidades confirmadas. La pantalla muestra guardado incierto; la respuesta aportada es de preview, sin estado HTTP ni respuesta de capture. La causa y la persistencia de ese intento siguen sin confirmar. [Evidencia y siguiente comprobación](../validation/2026-10-30-i07-capture-incident.md).
+
+Conservar la captura abierta y su referencia mientras se obtiene estado HTTP y Response de `/orders/capture`, sin cabeceras de autenticación. No recargar, abrir otra captura, reinstalar o reimportar para resolver esta incidencia. No se ha cambiado código ni operado el VPS desde este entorno. La instalación confirmada sigue siendo I07 con once migraciones; la aceptación funcional está pendiente.
+
 ## I07 desplegado — 30 de octubre de 2026
 
 Confirmado por salida del instalador ejecutado por el usuario: revision 20261028-capture-install1, status updated, phase completed, historial 10→11, migrated_schema_verified, existing_data_counts_preserved y health_verified true. Código 46fed604732eddca0c7ac199b58bb0b429545b89. Backend/frontend activos en capture-46fed604732e. Contraseñas sin cambio; no se restauró SQL automáticamente.
