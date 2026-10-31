@@ -410,3 +410,9 @@ Implementado en código 6cfdc7ff366a2caa7dac399b9842b3630a30328a y PR #2 en borr
 Verificación local: dotnet test (300 Application + 5 Domain), npm run build, Playwright (94), unittest discover tests/pilot (217), publish linux-x64. CI 41218846462 con cuatro trabajos correctos, incluidos 33 SQL Server reales y smoke Production. Dos casos SQL nuevos comprueban reintento entre hosts y concurrencia. graphify update . no disponible (127), sin grafo previo en esta copia.
 
 Paquete PRODIMT_Acceso_Clientes_I09.zip de 5,860,114 bytes, SHA256 a6c4bd85be72f5a904064e200e60feb6e177ff6947b7f1a9ef4405026136ba25; SHA256SUMS y load_payload verificados. Instalador preserva configuración y permite I07/I08 conocidos, sin SQL DDL, con rollback de aplicación. No se desplegó, importó, registró pedido real o envió WhatsApp. Evidencia detallada en docs/validation/2026-10-31-customer-access.md.
+
+## 2026-10-31 — I09: bloqueo de comprobación previa
+
+Usuario ejecuta ZIP original a6c4bd85... y reporta failed/read-only-preflight/database_permissions_schema_or_channels_unexpected. Cambios de aplicación, migraciones/escrituras SQL y restart false. No se presume instalado I09 ni se envía otro intento apply. Revisión independiente confirma aliases/esquema/JSON coherentes, sin causa concreta demostrada. La comparación ocurre antes de registrar metadata, por lo que el reporte no distingue permisos/canales/historial.
+
+Se prepara diagnóstico independiente con pines del instalador/payload original y allowlist de comandos/SQL de lectura; sólo ejecuta preflight y muestra diferencias sanitizadas. Template install2 registra esas diferencias sin cambiar guarda. Regresión ODBC prueba SELECT exacto con canales ausentes/presentes y DENY UPDATE sobre Customers en SQL efímero. Sin acceso al VPS ni cambios remotos. Pendiente salida del diagnóstico para decidir corrección mínima.

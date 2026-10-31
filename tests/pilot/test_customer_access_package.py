@@ -27,6 +27,26 @@ SOURCE = 'a' * 40
 
 
 class CustomerAccessPackageTests(unittest.TestCase):
+    def test_database_report_identifies_only_failed_allowlisted_checks_without_raw_values(self):
+        checks = {**I.EXPECTED_DATABASE, 'database_name': 'never-print-this-name',
+                  'update_customers': 0, 'read_tokens': None, 'unknown-secret': 'never-print-this-secret'}
+        report = I.database_check_report(checks)
+        self.assertEqual(['database_name', 'update_customers', 'read_tokens'], report['mismatched_fields'])
+        self.assertEqual(0, report['checks']['update_customers']['observed'])
+        self.assertIsNone(report['checks']['read_tokens']['observed'])
+        self.assertEqual(1, report['unexpected_field_count'])
+        encoded = json.dumps(report)
+        for private in ('never-print-this-name', 'never-print-this-secret', 'unknown-secret'):
+            self.assertNotIn(private, encoded)
+
+    def test_database_report_handles_missing_and_invalid_values_without_weakening_equality(self):
+        for value in (None, [], 'never-print-this-secret'):
+            report = I.database_check_report(value)
+            self.assertFalse(report['result_is_object'])
+            self.assertEqual(list(I.EXPECTED_DATABASE), report['mismatched_fields'])
+            self.assertNotIn('never-print-this-secret', json.dumps(report))
+        self.assertEqual([], I.database_check_report(I.EXPECTED_DATABASE)['mismatched_fields'])
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

@@ -20,7 +20,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261031-customer-access-install1'
+REVISION = '20261031-customer-access-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -62,6 +62,24 @@ class InstallError(Exception):
 def require(condition, issue):
     if not condition:
         raise InstallError(issue)
+
+
+def database_check_report(observed):
+    """Keep a finite, non-secret explanation before rejecting preflight."""
+    values = observed if isinstance(observed, dict) else {}
+    checks = {}
+    for name, expected in EXPECTED_DATABASE.items():
+        actual = values.get(name)
+        check = {'matches_expected': name in values and actual == expected,
+                 'present': name in values}
+        if name != 'database_name':
+            check.update(expected=expected,
+                         observed=actual if type(actual) is int and 0 <= actual <= 2147483647 else None)
+        checks[name] = check
+    return {'checks': checks,
+            'mismatched_fields': [name for name, result in checks.items() if not result['matches_expected']],
+            'unexpected_field_count': len(set(values) - set(EXPECTED_DATABASE)),
+            'result_is_object': isinstance(observed, dict)}
 
 
 def sha(raw):
@@ -172,6 +190,7 @@ def make_installer(package):
             inspector.QUERIES = (PERMISSION_QUERY,)
             tool = next((item for item in inspector.SQL_TOOLS if Path(item).is_file()), None)
             permissions = inspector.query_sql(tool, fields, PERMISSION_QUERY)
+            self.state['database_check_report'] = database_check_report(permissions)
             require(permissions == EXPECTED_DATABASE, 'database_permissions_schema_or_channels_unexpected')
             self.state['database_checks'] = permissions
             self.overrides = {}

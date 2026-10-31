@@ -424,6 +424,39 @@ def main():
             require(instance.verify_schema() == 11, 'capture_index_revalidation_failed')
             print('I07 native CLI: additive 10-to-11 migration, idempotence, preserved data, session options, '
                   'transaction rollback and partial/disabled-index schema guards passed.')
+            # Exercise the exact I09 SELECT and ODBC parser. Package unit fixtures
+            # must not substitute a successful database preflight for this check.
+            access = load_module('customer_access_cli_fixture', root / 'scripts/pilot/install-customer-access-update.py')
+            probe = load_module('customer_access_inventory_fixture', root / 'scripts/pilot/inspect-native.py')
+            probe.SERVER, probe.DATABASE, probe.LOGIN = 'localhost', target, 'sa'
+            probe.SQL_TOOLS, probe.QUERIES = (SQLCMD,), (access.PERMISSION_QUERY,)
+            probe.command = container_command
+            fields = {'server': 'localhost', 'database': target, 'user id': 'sa', 'password': password}
+            access.EXPECTED_DATABASE = {**access.EXPECTED_DATABASE, 'database_name': target}
+            observed = probe.query_sql(SQLCMD, fields, access.PERMISSION_QUERY)
+            require(observed['migrations_count'] == 11 and observed['i07'] == 1,
+                    'i09_preflight_migration_metadata_invalid')
+            require(observed['customer_channel'] == 0 and observed['admin_channel'] == 0,
+                    'i09_empty_channel_fixture_unexpected')
+            require(access.database_check_report(observed)['mismatched_fields'] == ['customer_channel', 'admin_channel'],
+                    'i09_missing_channels_not_identified')
+            updater.sql_run(credentials, query="""INSERT INTO dbo.SalesChannels(Id,Name,Type,IsInternal)
+              VALUES(NEWID(),N'Synthetic CLI customer',N'Customer',0),
+                    (NEWID(),N'Synthetic CLI administration',N'AdminManualCapture',1);""")
+            require(probe.query_sql(SQLCMD, fields, access.PERMISSION_QUERY) == access.EXPECTED_DATABASE,
+                    'i09_valid_native_preflight_rejected')
+            updater.sql_run(credentials, query="""GRANT INSERT,UPDATE ON SCHEMA::dbo TO [native_resume_reader];
+              DENY UPDATE ON OBJECT::dbo.Customers TO [native_resume_reader];""")
+            restricted_metadata = True
+            try:
+                observed = probe.query_sql(SQLCMD, fields, access.PERMISSION_QUERY)
+                require(observed['update_customers'] == 0
+                        and access.database_check_report(observed)['mismatched_fields'] == ['update_customers'],
+                        'i09_denied_customer_permission_not_identified')
+            finally:
+                restricted_metadata = False
+            print('I09 preflight: exact SELECT over real ODBC identifies missing channels and denied UPDATE; '
+                  'valid eleven-migration database passes without changing production requirements.')
         diagnosis = load_module('capture_auth_diagnostic_fixture', root / 'scripts/pilot/diagnose-capture-auth.py')
         # One deliberately nonexistent login in the disposable container. Never
         # try a wrong password on an existing account or any operational server.

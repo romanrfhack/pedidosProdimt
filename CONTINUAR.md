@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I09 — Preflight remoto detenido; diagnóstico pendiente
+
+El usuario verificó el ZIP original y ejecutó el instalador el 31 de octubre. Reportó `failed`, fase `read-only-preflight`, issue `database_permissions_schema_or_channels_unexpected`; sin cambios de aplicación, escrituras/migraciones SQL, contraseñas o reinicio. I09 no quedó instalado. La consulta SQL respondió y se interpretó, pero al menos un valor difiere de la guarda; la salida original omite cuál. No atribuirlo a permisos ni canales hasta leer las diferencias.
+
+Se prepara `PRODIMT_Diagnostico_Acceso_I09.py`, de sólo lectura, que verifica los hashes exactos del instalador/payload ya copiados y ejecuta exclusivamente el preflight existente, capturando campos permitidos antes de la guarda. No imprime credenciales, nombre real de otra base ni salidas crudas; muestra flags/contadores y campos que difieren. No recibe SQL admin ni admite apply. El template del instalador agrega reporte sanitizado previo al rechazo sin relajar requisitos. ZIP original/binaries siguen intactos; no reinstalar ni otorgar permisos a ciegas. Próximo paso: ejecutar diagnóstico y corregir sólo la condición observada.
+
 ## I09: acceso por enlace y próximo pedido
 
 Implementado y validado, pendiente de instalar. Código `6cfdc7ff366a2caa7dac399b9842b3630a30328a`, rama `codex/i09-customer-order-links`, PR #2 en borrador contra la base del piloto. CI 41218846462: cuatro trabajos correctos (305 .NET, 94 E2E, 217 Python, 33 SQL y smoke Production). Ver `docs/proyecto/INCREMENTO-09.md` y `docs/validation/2026-10-31-customer-access.md`.
