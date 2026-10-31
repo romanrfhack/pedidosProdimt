@@ -1,1 +1,1 @@
-customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive
+customerExternalCode,customerName,productExternalCode,productName,defaultQuantity,sortOrder,isActive,preferredMachineExternalCode,preferredMachineNumber,interpretationPosition,captureAlias

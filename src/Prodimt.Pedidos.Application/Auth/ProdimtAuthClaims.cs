@@ -8,4 +8,5 @@ public static class ProdimtAuthClaims
     public const string UserId = "prodimt_user_id";
     public const string UserName = "prodimt_user_name";
     public const string DisplayName = "prodimt_display_name";
+    public const string AdminSessionStamp = "prodimt_admin_session_stamp";
 }

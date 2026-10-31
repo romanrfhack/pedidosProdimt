@@ -21,7 +21,10 @@ public sealed record AdminOrderDetailResponse(
     string? InternalNotes,
     string? SalesChannelName,
     SalesChannelType? SalesChannelType,
-    IReadOnlyList<AdminOrderLineResponse> Lines);
+    IReadOnlyList<AdminOrderLineResponse> Lines,
+    int Version = 1,
+    string? Source = null,
+    string? ExternalOrderKey = null);
 
 public sealed record AdminOrderLineResponse(
     Guid OrderLineId,
@@ -31,4 +34,5 @@ public sealed record AdminOrderLineResponse(
     string? Notes,
     Guid? AssignedMachineId,
     string? AssignedMachineName,
-    int? AssignedMachineNumber);
+    int? AssignedMachineNumber,
+    string? UnitCode = null);

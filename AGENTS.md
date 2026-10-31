@@ -1,6 +1,26 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## Alcance vigente desde 2026-10-24
+
+El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+
+I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
+
+I02 permite fecha de servicio administrativa, CSV de pedidos diarios con vista previa, claves persistentes para reintentos y correcciones explícitas auditadas. Un pedido adicional y una corrección son acciones diferentes. No interpretar automáticamente mensajes de WhatsApp ni inferir pedidos de cantidades históricas. Validación técnica en SQL Server con datos ficticios no equivale a despliegue o carga de la ruta real.
+
+I03-A prepara una instalación aislada Linux/WSL con Docker, API y frontend en un mismo origen, SQL Server Express y administrador propio. No ejecuta automáticamente cambios en el VPS ni completa la semana de ensayo. Nunca empaquetar secretos locales ni datos reales dentro de la imagen Docker o el repositorio; la hoja privada de pendientes conserva los valores confirmados sin inventar unidades.
+
+I04 añade avisos persistentes y reconocimiento de cambios de demanda, configuración enfocada por cliente y protección de edición concurrente del perfil. Reconocer un aviso no registra producción física. El usuario eligió el VPS y dominio del piloto; preparar instalación por etapas con inventario previo, sin sobrescribir otros proyectos. La captura desde WhatsApp se mantiene asistida por administración hasta implementar y validar su interpretación; un segundo mensaje no se suma automáticamente como otro pedido autorizado.
+
+I06, autorizado el 28 de octubre tras confirmar la carga de clientes, rediseña el catálogo con búsqueda principal, modal de alta/edición, tarjetas según el estado diario y descansos semanales configurables. Ver docs/proyecto/INCREMENTO-06.md. Descansar no desactiva al cliente ni crea NoOrder; los pedidos vigentes prevalecen y la lectura no modifica demanda. Preservar el CSV existente y preparar migración aditiva con respaldo para el despliegue nativo.
+
+I07, autorizado el 28 de octubre, permite captura administrativa abreviada determinista según posiciones explícitas del perfil del cliente y abreviaturas configuradas por producto. Ver `docs/proyecto/INCREMENTO-07.md`. Mostrar desglose antes de guardar; aprobación explícita para interpretación, unidades confirmadas y alternativa manual. No inferir el significado de HN ni convertir mensajes completos de WhatsApp automáticamente. Guardado y reintento durables, control de perfil vigente y pedido existente.
+
+I08, autorizado el 31 de octubre, reorganiza la configuración enfocada del cliente para aprovechar el ancho de pantalla y muestra el calendario de trabajo con siete casillas: marcada = trabaja, sin marcar = descanso. Reutiliza restDays de I06 y los contratos actuales, sin migraciones o cambios de backend. Ver `docs/proyecto/INCREMENTO-08.md`. No confundir cantidades sugeridas con pedidos, conservar la concurrencia del perfil y entregar actualización nativa sólo del frontend.
+
 ## Que es
+
+I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
 
 PRODIMT Pedidos es la aplicacion web mobile first para capturar pedidos de clientes de PRODIMT y reemplazar gradualmente el flujo manual basado en WhatsApp, llamadas, mensajes en grupo y captura en Excel.
 

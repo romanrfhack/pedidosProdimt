@@ -1,0 +1,61 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${PRODIMT_SQL_SA_PASSWORD:?Run scripts/pilot/initialize.sh first}
+    volumes:
+      - sql-data:/var/opt/mssql
+    restart: unless-stopped
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  app:
+    image: ${PRODIMT_APP_IMAGE:-prodimt-pilot-app:current}
+    build:
+      context: ../..
+      dockerfile: Dockerfile.pilot
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Hosting__UseHttpsRedirection: "false"
+      Persistence__Provider: SqlServer
+      DevelopmentSeed__Enabled: "false"
+      DevelopmentSeed__ApplyMigrations: "false"
+      Authentication__Jwt__SigningKey: ${PRODIMT_JWT_KEY:?Missing JWT key}
+      ConnectionStrings__Pedidos: Server=sqlserver;Database=ProdimtPilot;User Id=prodimt_app;Password=${PRODIMT_APP_SQL_PASSWORD:?Missing app SQL password};Encrypt=True;TrustServerCertificate=True
+    ports:
+      - "127.0.0.1:${PRODIMT_HTTP_PORT:-5098}:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 1g
+
+  bootstrap:
+    image: ${PRODIMT_APP_IMAGE:-prodimt-pilot-app:current}
+    profiles: [tools]
+    command: ["--initialize-pilot"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Persistence__Provider: SqlServer
+      DevelopmentSeed__Enabled: "false"
+      DevelopmentSeed__ApplyMigrations: "false"
+      Authentication__Jwt__SigningKey: ${PRODIMT_JWT_KEY:?Missing JWT key}
+      ConnectionStrings__Pedidos: Server=sqlserver;Database=ProdimtPilot;User Id=sa;Password=${PRODIMT_SQL_SA_PASSWORD:?Missing SQL admin password};Encrypt=True;TrustServerCertificate=True
+      PilotBootstrap__AdminUserName: ${PRODIMT_ADMIN_USER:?Missing administrator}
+      PilotBootstrap__AdminDisplayName: Administrador del piloto
+      PilotBootstrap__AdminPassword: ${PRODIMT_ADMIN_PASSWORD:?Missing administrator password}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  sql-data:

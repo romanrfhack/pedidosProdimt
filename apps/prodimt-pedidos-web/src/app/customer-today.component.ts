@@ -1,3 +1,4 @@
+import { unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -66,13 +67,13 @@ import { CustomerCurrentOrderSummaryApiResponse } from './customer-orders-api.se
               <label class="product-row">
                 <span>
                   <strong>{{ product.name }}</strong>
-                  <small>Cantidad sugerida: {{ product.suggestedQuantity }}</small>
+                  <small>Cantidad sugerida: {{ product.suggestedQuantity }} {{ unitLabel(product.unitCode) }}</small>
                 </span>
                 <input
                   type="number"
                   min="0"
-                  step="1"
-                  inputmode="numeric"
+                  step="0.01"
+                  inputmode="decimal"
                   [ngModel]="product.quantity"
                   (ngModelChange)="product.quantity = normalizeQuantity($event)"
                   [attr.aria-label]="'Cantidad ' + product.name">
@@ -102,6 +103,7 @@ import { CustomerCurrentOrderSummaryApiResponse } from './customer-orders-api.se
   `
 })
 export class CustomerTodayComponent {
+  protected readonly unitLabel = unitLabel;
   private readonly auth = inject(AuthService);
   private readonly data = inject(OrderDataService);
   private readonly route = inject(ActivatedRoute);
@@ -169,6 +171,11 @@ export class CustomerTodayComponent {
     if (this.frequentProducts.some((product) => product.quantity < 0)) {
       this.validationMessage = 'No uses cantidades negativas.';
       this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (this.frequentProducts.some((product) => product.quantity > 0 && !product.unitCode)) {
+      this.validationMessage = 'La unidad de un producto está pendiente de confirmar. Contacta a administración antes de enviar.';
       return;
     }
 
@@ -256,7 +263,8 @@ export class CustomerTodayComponent {
   protected formatSubmittedAt(value: string): string {
     return new Intl.DateTimeFormat('es-MX', {
       dateStyle: 'short',
-      timeStyle: 'short'
+      timeStyle: 'short',
+      timeZone: 'America/Mexico_City'
     }).format(new Date(value));
   }
 

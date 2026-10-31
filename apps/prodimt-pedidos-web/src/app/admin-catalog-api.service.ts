@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../environments/environment';
+import { PaymentTermCode, UnitCode } from './operational-labels';
 
 export interface AdminCustomerCatalogApiResponse {
   id: string;
@@ -12,6 +13,15 @@ export interface AdminCustomerCatalogApiResponse {
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;
   deliveryNotes: string | null;
+  routeCode: string | null;
+  routeStopOrder: number | null;
+  hasStoreKey: boolean | null;
+  paymentTermCode: PaymentTermCode | null;
+  internalDeliveryInstructions: string | null;
+  restDays?: number[];
+  externalCode?: string | null;
+  orderingProfileVersion: number;
+  isOrderProfileApproved: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +33,12 @@ export interface UpsertAdminCustomerApiRequest {
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;
   deliveryNotes: string | null;
+  routeCode: string | null;
+  routeStopOrder: number | null;
+  hasStoreKey: boolean | null;
+  paymentTermCode: PaymentTermCode | null;
+  internalDeliveryInstructions: string | null;
+  restDays?: number[] | null;
 }
 
 export interface AdminProductCatalogApiResponse {
@@ -30,11 +46,13 @@ export interface AdminProductCatalogApiResponse {
   name: string;
   description: string | null;
   isActive: boolean;
+  unitCode: UnitCode | null;
 }
 
 export interface UpsertAdminProductApiRequest {
   name: string;
   description: string | null;
+  unitCode: UnitCode | null;
 }
 
 export interface AdminMachineCatalogApiResponse {
@@ -55,17 +73,35 @@ export interface AdminCustomerFrequentProductApiResponse {
   defaultQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
+  preferredMachineId: string | null;
+  interpretationPosition: number | null;
+  unitCode?: UnitCode | null;
+  productIsActive?: boolean;
+  captureAlias?: string | null;
+}
+
+export interface AdminCustomerOrderingProfileApiResponse {
+  customerId: string;
+  orderingProfileVersion: number;
+  isOrderProfileApproved: boolean;
+  items: AdminCustomerFrequentProductApiResponse[];
 }
 
 export interface UpdateCustomerFrequentProductsApiRequest {
   items: UpdateCustomerFrequentProductItemApiRequest[];
+  approveForInterpretation: boolean;
+  expectedProfileVersion?: number;
 }
 
 export interface UpdateCustomerFrequentProductItemApiRequest {
   productId: string;
+  expectedUnitCode?: UnitCode | null;
   defaultQuantity: number | null;
   sortOrder: number;
   isActive: boolean;
+  preferredMachineId: string | null;
+  interpretationPosition: number | null;
+  captureAlias?: string | null;
 }
 
 export interface AdminCustomerMachineAssignmentApiResponse {
@@ -112,6 +148,10 @@ export interface CreateCustomerAccessTokenApiRequest {
   expiresAt: string | null;
 }
 
+export type CustomerDayState = 'AwaitingOrder' | 'HasOrder' | 'NoOrderConfirmed' | 'ScheduledRest' | 'Inactive';
+export interface CustomerDayStatusResponse { customerId: string; status: CustomerDayState; orderCount: number; requiresReview: boolean; }
+export interface CustomerDayResponse { date: string; customers: CustomerDayStatusResponse[]; }
+
 @Injectable({ providedIn: 'root' })
 export class AdminCatalogApiService {
   private readonly http = inject(HttpClient);
@@ -119,6 +159,10 @@ export class AdminCatalogApiService {
 
   getCustomers(): Observable<AdminCustomerCatalogApiResponse[]> {
     return this.http.get<AdminCustomerCatalogApiResponse[]>(`${this.apiBaseUrl}/api/admin/customers`);
+  }
+
+  getCustomerDayStatus(): Observable<CustomerDayResponse> {
+    return this.http.get<CustomerDayResponse>(this.apiBaseUrl + '/api/admin/customers/day-status');
   }
 
   createCustomer(request: UpsertAdminCustomerApiRequest): Observable<AdminCustomerCatalogApiResponse> {
@@ -180,6 +224,12 @@ export class AdminCatalogApiService {
   getFrequentProducts(customerId: string): Observable<AdminCustomerFrequentProductApiResponse[]> {
     return this.http.get<AdminCustomerFrequentProductApiResponse[]>(
       `${this.apiBaseUrl}/api/admin/customers/${customerId}/frequent-products`
+    );
+  }
+
+  getOrderingProfile(customerId: string): Observable<AdminCustomerOrderingProfileApiResponse> {
+    return this.http.get<AdminCustomerOrderingProfileApiResponse>(
+      `${this.apiBaseUrl}/api/admin/customers/${customerId}/ordering-profile`
     );
   }
 

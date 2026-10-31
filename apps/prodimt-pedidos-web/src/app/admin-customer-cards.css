@@ -1,0 +1,43 @@
+.customer-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; }
+.customer-search { display: grid; gap: 7px; }
+.customer-search > span { color: #253f50; font-weight: 700; }
+.customer-search input { width: 100%; padding: 13px 15px; border-radius: 12px; background: #f9fbfc; }
+.new-customer { min-height: 46px; border-radius: 11px; white-space: nowrap; }
+.new-customer span { font-size: 1.25rem; margin-right: 5px; }
+.customer-day-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: #526778; font-size: .88rem; }
+.refresh-day { border: 0; background: transparent; color: #186865; padding: 6px 0; font-weight: 600; cursor: pointer; }
+.customer-filters { display: flex; flex-wrap: wrap; gap: 7px; }
+.customer-filters button { display: flex; align-items: center; gap: 8px; border: 1px solid #d8e3e9; background: white; color: #445d6d; border-radius: 999px; padding: 8px 12px; font-size: .82rem; }
+.customer-filters button[aria-pressed="true"] { border-color: #194c50; background: #eaf4f3; color: #143f43; }
+.customer-filters strong { font-size: .78rem; background: #edf2f6; padding: 2px 6px; border-radius: 8px; }
+.customer-list { display: grid; gap: 13px; }
+.customer-card { --day-color: #8295a5; --day-bg: #ffffff; --day-label: #e9eff3; display: block; padding: 18px; background: var(--day-bg); border: 1px solid #dde6eb; border-inline-start: 5px solid var(--day-color); border-radius: 15px; box-shadow: 0 2px 7px #1c334705; }
+.customer-card.customer-awaiting { --day-color: #c68a17; --day-bg: #fffcf4; --day-label: #fff0c6; }
+.customer-card.customer-ordered { --day-color: #208861; --day-bg: #f2fbf6; --day-label: #d8f1e2; }
+.customer-card.customer-off { --day-color: #8796a5; --day-bg: #f2f5f8; --day-label: #e2e9ef; }
+.customer-card.customer-inactive { --day-bg: #f6f7f9; }
+.customer-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.customer-identity { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.customer-avatar { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; background: var(--day-label); color: #294656; font-size: .87rem; font-weight: 700; }
+.customer-card h3 { margin: 0; color: #183747; font-size: 1.06rem; overflow-wrap: anywhere; }
+.customer-card .customer-route { display: block; margin-top: 4px; color: #63798a; font-size: .8rem; }
+.day-label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; background: var(--day-label); font-size: .74rem; font-weight: 700; color: #314c5d; white-space: nowrap; }
+.day-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--day-color); }
+.customer-meta { display: flex; gap: 8px 15px; flex-wrap: wrap; margin: 13px 0 0 52px; color: #5c7282; font-size: .8rem; }
+.customer-tags { display: flex; gap: 7px; flex-wrap: wrap; margin: 11px 0 0 52px; }
+.customer-tags span { border-radius: 6px; background: #ffffffa6; border: 1px solid #dce6e9; color: #4b6675; padding: 4px 7px; font-size: .72rem; }
+.customer-tags span.needs-review { color: #865a12; background: #fff0ce; border-color: #ecd39a; }
+.customer-card .review-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0 0 52px; }
+.customer-card .review-actions button { border-radius: 8px; padding: 8px 13px; font-size: .8rem; }
+.customer-card .quiet-action { margin-left: auto; background: transparent; color: #6a7c88; border-color: transparent; }
+.empty-customers { text-align: center; padding: 28px 16px; color: #5b7181; border: 1px dashed #cbd9e1; border-radius: 14px; }
+@media (max-width: 560px) {
+  .customer-toolbar { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .new-customer { justify-self: start; min-height: 42px; }
+  .customer-card { padding: 14px; }
+  .customer-card-top { flex-wrap: wrap; gap: 10px; }
+  .customer-identity { flex: 1 1 160px; }
+  .customer-meta, .customer-tags, .customer-card .review-actions { margin-left: 0; }
+  .customer-card .quiet-action { margin-left: 0; }
+  .customer-filters button { padding: 7px 9px; font-size: .76rem; gap: 5px; }
+}

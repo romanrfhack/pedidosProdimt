@@ -17,6 +17,10 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<SalesChannel> SalesChannels => Set<SalesChannel>();
 
+    public DbSet<OrderOperation> OrderOperations => Set<OrderOperation>();
+
+    public DbSet<OrderChangeNotice> OrderChangeNotices => Set<OrderChangeNotice>();
+
     public DbSet<Order> Orders => Set<Order>();
 
     public DbSet<OrderLine> OrderLines => Set<OrderLine>();

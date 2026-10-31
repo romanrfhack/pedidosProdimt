@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 
@@ -7,6 +8,9 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class EfProductRepository(PedidosDbContext dbContext) : IProductRepository
 {
+    public Task<T> ExecuteCatalogUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+        => CatalogTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+
     public async Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
     {
         return await dbContext.Products
@@ -64,8 +68,15 @@ public sealed class EfProductRepository(PedidosDbContext dbContext) : IProductRe
         await dbContext.Products.AddAsync(product, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (CatalogPersistenceConflicts.IsConcurrentChange(ex))
+        {
+            throw new CatalogConflictException("Un perfil relacionado cambio al guardar el producto. Recarga el catalogo antes de reintentar.");
+        }
     }
 }

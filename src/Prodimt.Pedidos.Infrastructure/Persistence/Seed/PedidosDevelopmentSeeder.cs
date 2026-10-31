@@ -98,10 +98,10 @@ public static class PedidosDevelopmentSeeder
     {
         var products = new[]
         {
-            new Product { Id = DevelopmentSeedIds.ProductNineAndHalfId, Name = "#9 1/2", Description = "Producto demo", IsActive = true },
-            new Product { Id = DevelopmentSeedIds.ProductTenAndHalfId, Name = "#10 1/2", Description = "Producto demo", IsActive = true },
-            new Product { Id = DevelopmentSeedIds.ProductElevenId, Name = "#11", Description = "Producto demo", IsActive = true },
-            new Product { Id = DevelopmentSeedIds.ProductFifteenId, Name = "#15", Description = "Producto demo", IsActive = true }
+            new Product { Id = DevelopmentSeedIds.ProductNineAndHalfId, Name = "#9 1/2", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+            new Product { Id = DevelopmentSeedIds.ProductTenAndHalfId, Name = "#10 1/2", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+            new Product { Id = DevelopmentSeedIds.ProductElevenId, Name = "#11", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true },
+            new Product { Id = DevelopmentSeedIds.ProductFifteenId, Name = "#15", Description = "Producto demo", UnitCode = ProductUnitCodes.Kilogram, IsActive = true }
         };
 
         foreach (var product in products)

@@ -1,5 +1,5 @@
 const http = require('node:http');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 
 const port = 5088;
 const demoCustomerToken = 'demo-customer-token';
@@ -22,12 +22,14 @@ const customerTodayBase = {
       productId: '22222222-2222-2222-2222-222222222201',
       name: '#9 1/2',
       description: 'Producto demo',
+      unitCode: 'kg',
       suggestedQuantity: 20
     },
     {
       productId: '22222222-2222-2222-2222-222222222202',
       name: '#10 1/2',
       description: 'Producto demo',
+      unitCode: 'kg',
       suggestedQuantity: 10
     }
   ]
@@ -65,6 +67,7 @@ const pendingOrderBase = {
 
 const pendingOrderDetail = {
   ...pendingOrderBase,
+  version: 1,
   internalNotes: 'Pedido demo pendiente.',
   salesChannelName: 'Cliente',
   salesChannelType: 'Customer',
@@ -73,6 +76,7 @@ const pendingOrderDetail = {
       orderLineId: '77777777-7777-7777-7777-777777777701',
       productId: '22222222-2222-2222-2222-222222222201',
       productName: '#9 1/2',
+      unitCode: 'kg',
       quantity: 20,
       notes: 'Linea demo',
       assignedMachineId: '44444444-4444-4444-4444-444444444401',
@@ -115,6 +119,7 @@ const catalogCustomersBase = [
     preferredDeliveryWindowStart: '12:00:00',
     preferredDeliveryWindowEnd: '14:00:00',
     deliveryNotes: 'Cliente demo.',
+    routeCode: null, routeStopOrder: null, hasStoreKey: null, paymentTermCode: null, internalDeliveryInstructions: null, orderingProfileVersion: 0, isOrderProfileApproved: false,
     createdAt: '2026-05-27T00:00:00Z',
     updatedAt: '2026-05-27T00:00:00Z'
   },
@@ -127,6 +132,7 @@ const catalogCustomersBase = [
     preferredDeliveryWindowStart: null,
     preferredDeliveryWindowEnd: null,
     deliveryNotes: 'Llamar antes de enviar.',
+    routeCode: null, routeStopOrder: null, hasStoreKey: null, paymentTermCode: null, internalDeliveryInstructions: null, orderingProfileVersion: 0, isOrderProfileApproved: false,
     createdAt: '2026-05-27T00:00:00Z',
     updatedAt: '2026-05-27T00:00:00Z'
   }
@@ -137,18 +143,21 @@ const catalogProductsBase = [
     id: '22222222-2222-2222-2222-222222222201',
     name: '#9 1/2',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   },
   {
     id: '22222222-2222-2222-2222-222222222202',
     name: '#10 1/2',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   },
   {
     id: '22222222-2222-2222-2222-222222222203',
     name: '#11',
     description: 'Producto demo',
+      unitCode: 'kg',
     isActive: true
   }
 ];
@@ -169,6 +178,8 @@ const catalogMachinesBase = [
 ];
 
 const frequentProductsBase = {
+  [pendingCustomerBase[0].customerId]: [{ productId: '22222222-2222-2222-2222-222222222203', productName: '#11', defaultQuantity: 8, sortOrder: 1, interpretationPosition: 1, isActive: true }],
+  [pendingCustomerBase[1].customerId]: [{ productId: '22222222-2222-2222-2222-222222222201', productName: '#9 1/2', defaultQuantity: null, sortOrder: 1, interpretationPosition: 1, isActive: true }],
   [customerTodayBase.customerId]: [
     {
       productId: '22222222-2222-2222-2222-222222222201',
@@ -225,6 +236,43 @@ let machineAssignmentsByCustomer = {};
 let accessTokensByCustomer = {};
 let submitCalls = 0;
 let adminSubmitCalls = 0;
+let captureReceipts = new Map();
+
+function captureProfile(customerId) {
+  const customer = catalogCustomers.find(x => x.id === customerId);
+  if (!customer) throw new Error('El cliente no existe.');
+  return { customerId, orderingProfileVersion: customer.orderingProfileVersion ?? 0,
+    isOrderProfileApproved: customer.isOrderProfileApproved ?? false,
+    items: (frequentProductsByCustomer[customerId] ?? []).map(item => {
+      const product = catalogProducts.find(x => x.id === item.productId);
+      return { ...item, productName: product?.name ?? item.productName, unitCode: product?.unitCode ?? null,
+        productIsActive: product?.isActive ?? false, captureAlias: item.captureAlias ?? null };
+    }) };
+}
+function capturePreview(customerId, body) {
+  const customer = catalogCustomers.find(x => x.id === customerId);
+  const profile = captureProfile(customerId), items = profile.items.filter(x => x.isActive);
+  let position = 0;
+  const seen = new Set();
+  const lines = String(body.text).trim().split('+').map(raw => {
+    const match = /^(\d+(?:[.,]\d{1,2})?)\s*([a-z]+)?$/i.exec(raw.trim());
+    if (!match) throw new Error('Usa cantidades separadas por +.');
+    const alias = match[2]?.toUpperCase();
+    if (!alias) position++;
+    const item = alias ? items.find(x => x.captureAlias === alias) : items.find(x => x.interpretationPosition === position);
+    if (!item) throw new Error(alias ? `La abreviatura ${alias} no está configurada para este cliente.` : 'Falta confirmar la posición del producto.');
+    if (!item.unitCode) throw new Error('Confirma la unidad del producto.');
+    if (seen.has(item.productId)) throw new Error('El mismo producto aparece más de una vez.');
+    seen.add(item.productId);
+    return { productId: item.productId, productName: item.productName, quantity: Number(match[1].replace(',', '.')),
+      unitCode: item.unitCode, interpretationPosition: item.interpretationPosition, captureAlias: item.captureAlias };
+  }).filter(x => x.quantity > 0).sort((a,b) => a.interpretationPosition-b.interpretationPosition);
+  if (!lines.length) throw new Error('Captura al menos una cantidad mayor que cero.');
+  const text = body.text.trim(), serviceDate = body.serviceDate ?? customerTodayBase.orderDate;
+  const fingerprint = createHash('sha256').update(JSON.stringify({text, serviceDate, profile})).digest('hex');
+  return { customerId, serviceDate, text, fingerprint, profile, lines, preferredDeliveryTime: customer.preferredDeliveryTime,
+    preferredDeliveryWindowStart: customer.preferredDeliveryWindowStart, preferredDeliveryWindowEnd: customer.preferredDeliveryWindowEnd };
+}
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -235,6 +283,7 @@ function resetState() {
   pendingOrders = [pendingOrderBase];
   pendingCustomers = [...pendingCustomerBase];
   catalogCustomers = clone(catalogCustomersBase);
+  catalogCustomers.push({ ...clone(catalogCustomersBase[1]), id: pendingCustomerBase[1].customerId, name: pendingCustomerBase[1].customerName });
   catalogProducts = clone(catalogProductsBase);
   catalogMachines = clone(catalogMachinesBase);
   frequentProductsByCustomer = clone(frequentProductsBase);
@@ -242,6 +291,7 @@ function resetState() {
   accessTokensByCustomer = clone(accessTokensBase);
   submitCalls = 0;
   adminSubmitCalls = 0;
+  captureReceipts = new Map();
 }
 
 function sendJson(response, statusCode, body) {
@@ -590,6 +640,12 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/operations/changes') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: url.searchParams.get('date'), pendingCount: 0, changes: [] });
+    return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/orders/today') {
     if (!requireAdminAccess(request, response)) {
       return;
@@ -673,6 +729,40 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const captureMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/orders\/(preview|capture)$/);
+  if (captureMatch && request.method === 'POST') {
+    if (!requireAdminAccess(request, response)) return;
+    const customerId = captureMatch[1], body = await readJson(request);
+    try {
+      if (captureMatch[2] === 'preview') { sendJson(response,200,capturePreview(customerId,body)); return; }
+      const receiptKey = customerId + ':' + body.operationId, serialized = JSON.stringify(body);
+      if (captureReceipts.has(receiptKey)) {
+        const receipt = captureReceipts.get(receiptKey);
+        sendJson(response,receipt.serialized === serialized ? 200 : 409, receipt.serialized === serialized ? { ...receipt.result, replayed:true } : { error:'La referencia ya se usó con otro contenido.' }); return;
+      }
+      const profile = captureProfile(customerId);
+      if (body.expectedProfileVersion !== profile.orderingProfileVersion) { sendJson(response,409,{error:'El perfil cambió.'});return; }
+      let lines = body.lines;
+      if (body.text) {
+        const preview = capturePreview(customerId,body);
+        if (!profile.isOrderProfileApproved || body.previewFingerprint !== preview.fingerprint) { sendJson(response,409,{error:'Revisa el desglose y confirma el perfil.'});return; }
+        lines = preview.lines;
+      }
+      if (!lines?.length) { sendJson(response,400,{error:'Captura al menos una cantidad.'});return; }
+      adminSubmitCalls++;
+      const customer = catalogCustomers.find(x => x.id === customerId);
+      const order = { ...pendingOrderBase, orderId:randomUUID(), customerId, customerName:customer.name,
+        orderDate:body.serviceDate, status:body.confirmSeparateDelivery ? 'PendingAdminReview' : 'Submitted',
+        requestedDeliveryTime:customer.preferredDeliveryTime, requestedDeliveryWindowStart:customer.preferredDeliveryWindowStart,
+        requestedDeliveryWindowEnd:customer.preferredDeliveryWindowEnd, requiresAdminReview:!!body.confirmSeparateDelivery, isLate:false };
+      const result = { order,replayed:false };
+      captureReceipts.set(receiptKey,{serialized,result});
+      pendingCustomers = pendingCustomers.filter(x => x.customerId !== customerId);
+      sendJson(response,200,result);
+    } catch(error) { sendJson(response,400,{error:error.message}); }
+    return;
+  }
+
   const adminTemplateMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/order-template$/);
   if (request.method === 'GET' && adminTemplateMatch) {
     if (!requireAdminAccess(request, response)) {
@@ -687,14 +777,10 @@ const server = http.createServer(async (request, response) => {
       preferredDeliveryWindowStart: null,
       preferredDeliveryWindowEnd: null,
       deliveryNotes: customer?.deliveryNotes ?? null,
-      products: [
-        {
-          productId: '22222222-2222-2222-2222-222222222203',
-          name: '#11',
-          description: 'Producto demo',
-          suggestedQuantity: 8
-        }
-      ]
+      products: (frequentProductsByCustomer[adminTemplateMatch[1]] ?? []).filter(x => x.isActive).map(x => {
+        const product = catalogProducts.find(p => p.id === x.productId);
+        return { productId: x.productId, name: product.name, description: product.description, unitCode: product.unitCode, suggestedQuantity: x.defaultQuantity ?? 0 };
+      })
     });
     return;
   }
@@ -759,8 +845,19 @@ const server = http.createServer(async (request, response) => {
       requestedDeliveryWindowStart: null,
       requestedDeliveryWindowEnd: null,
       deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
       adminDecision: null
     });
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/customers/day-status') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: customerTodayBase.orderDate, customers: catalogCustomers.map(customer => {
+      const hasOrder = pendingOrders.some(order => order.customerId === customer.id && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(order.status));
+      return { customerId: customer.id, status: hasOrder ? 'HasOrder' : customer.isActive ? 'AwaitingOrder' : 'Inactive',
+        orderCount: hasOrder ? 1 : 0, requiresReview: hasOrder };
+    }) });
     return;
   }
 
@@ -781,6 +878,7 @@ const server = http.createServer(async (request, response) => {
     const body = await readJson(request);
     const customer = {
       id: randomUUID(),
+      restDays: body.restDays ?? [],
       name: body.name,
       phoneNumber: body.phoneNumber ?? '',
       isActive: true,
@@ -788,6 +886,7 @@ const server = http.createServer(async (request, response) => {
       preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
       preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
       deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -811,12 +910,14 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'PUT') {
       const body = await readJson(request);
       Object.assign(customer, {
+        restDays: body.restDays ?? customer.restDays ?? [],
         name: body.name,
         phoneNumber: body.phoneNumber ?? '',
         preferredDeliveryTime: body.preferredDeliveryTime ?? null,
         preferredDeliveryWindowStart: body.preferredDeliveryWindowStart ?? null,
         preferredDeliveryWindowEnd: body.preferredDeliveryWindowEnd ?? null,
         deliveryNotes: body.deliveryNotes ?? null,
+      routeCode: body.routeCode ?? null, routeStopOrder: body.routeStopOrder ?? null, hasStoreKey: body.hasStoreKey ?? null, paymentTermCode: body.paymentTermCode ?? null, internalDeliveryInstructions: body.internalDeliveryInstructions ?? null,
         updatedAt: new Date().toISOString()
       });
     }
@@ -843,6 +944,26 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const orderingProfileMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/ordering-profile$/);
+  if (orderingProfileMatch && request.method === 'GET') {
+    if (!requireAdminAccess(request, response)) return;
+    const customer = catalogCustomers.find((item) => item.id === orderingProfileMatch[1]);
+    if (!customer) {
+      sendJson(response, 404, { error: 'Customer was not found.' });
+      return;
+    }
+    sendJson(response, 200, {
+      customerId: customer.id,
+      orderingProfileVersion: customer.orderingProfileVersion ?? 0,
+      isOrderProfileApproved: customer.isOrderProfileApproved ?? false,
+      items: (frequentProductsByCustomer[customer.id] ?? []).map(item => {
+        const product = catalogProducts.find(product => product.id === item.productId);
+        return { ...item, productName: product?.name ?? item.productName, unitCode: product?.unitCode ?? null, productIsActive: product?.isActive ?? false };
+      })
+    });
+    return;
+  }
+
   const frequentMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/frequent-products$/);
   if (frequentMatch && (request.method === 'GET' || request.method === 'PUT')) {
     if (!requireAdminAccess(request, response)) {
@@ -851,6 +972,12 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === 'PUT') {
       const body = await readJson(request);
+      const customer = catalogCustomers.find((item) => item.id === frequentMatch[1]);
+      if (customer && body.expectedProfileVersion !== undefined && body.expectedProfileVersion !== (customer.orderingProfileVersion ?? 0)) {
+        sendJson(response, 409, { error: 'El perfil fue modificado por otro usuario.' });
+        return;
+      }
+      if (customer) { customer.orderingProfileVersion = (customer.orderingProfileVersion ?? 0) + 1; customer.isOrderProfileApproved = body.approveForInterpretation === true; }
       frequentProductsByCustomer[frequentMatch[1]] = (body.items ?? []).map((item) => {
         const product = catalogProducts.find((candidate) => candidate.id === item.productId);
         return {
@@ -858,7 +985,8 @@ const server = http.createServer(async (request, response) => {
           productName: product?.name ?? 'Producto',
           defaultQuantity: item.defaultQuantity ?? null,
           sortOrder: item.sortOrder,
-          isActive: item.isActive
+          isActive: item.isActive,
+          preferredMachineId: item.preferredMachineId ?? null, interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null, captureAlias: item.captureAlias?.trim().toUpperCase() || null
         };
       });
     }
@@ -958,6 +1086,7 @@ const server = http.createServer(async (request, response) => {
       id: randomUUID(),
       name: body.name,
       description: body.description ?? null,
+      unitCode: body.unitCode ?? null,
       isActive: true
     };
     catalogProducts.push(product);
@@ -981,6 +1110,7 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request);
       product.name = body.name;
       product.description = body.description ?? null;
+      product.unitCode = body.unitCode ?? null;
     }
 
     sendJson(response, 200, product);

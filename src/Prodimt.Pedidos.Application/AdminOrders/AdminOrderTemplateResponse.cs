@@ -13,4 +13,5 @@ public sealed record AdminOrderTemplateProductResponse(
     Guid ProductId,
     string Name,
     string? Description,
-    decimal SuggestedQuantity);
+    decimal SuggestedQuantity,
+    string? UnitCode = null);

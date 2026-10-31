@@ -27,6 +27,8 @@ public static class DependencyInjection
             services.AddSingleton<IMachineRepository, InMemoryMachineRepository>();
             services.AddSingleton<ISalesChannelRepository, InMemorySalesChannelRepository>();
             services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+            services.AddSingleton<IOrderOperationStore, InMemoryOrderOperationStore>();
+            services.AddSingleton<IOrderChangeNoticeRepository, InMemoryOrderChangeNoticeRepository>();
             services.AddSingleton<IOrderAuditLogRepository, InMemoryOrderAuditLogRepository>();
             services.AddSingleton<IAuditLogRepository, InMemoryAuditLogRepository>();
             services.AddSingleton<IAdminUserRepository, InMemoryAdminUserRepository>();
@@ -45,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<IMachineRepository, EfMachineRepository>();
         services.AddScoped<ISalesChannelRepository, EfSalesChannelRepository>();
         services.AddScoped<IOrderRepository, EfOrderRepository>();
+        services.AddScoped<IOrderOperationStore, EfOrderOperationStore>();
+        services.AddScoped<IOrderChangeNoticeRepository, EfOrderChangeNoticeRepository>();
         services.AddScoped<IOrderAuditLogRepository, EfOrderAuditLogRepository>();
         services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
         services.AddScoped<IAdminUserRepository, EfAdminUserRepository>();

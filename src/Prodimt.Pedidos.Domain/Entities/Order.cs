@@ -39,6 +39,33 @@ public sealed class Order
 
     public string? InternalNotes { get; set; }
 
+    // Snapshots preserve the operational context as it existed at capture time.
+    public string? CustomerNameSnapshot { get; set; }
+    public int? OrderingProfileVersion { get; set; }
+    public string? RouteCode { get; set; }
+    public int? RouteStopOrder { get; set; }
+    public bool? HasStoreKey { get; set; }
+    public string? PaymentTermCode { get; set; }
+    public string? InternalDeliveryInstructions { get; set; }
+    public int Version { get; set; } = 1;
+    public string? Source { get; set; }
+    public string? ExternalOrderKey { get; set; }
+    public string? SourcePayloadHash { get; set; }
+
+    public void ReplaceLines(IEnumerable<OrderLine> lines)
+    {
+        var replacements = lines.ToArray();
+        if (replacements.Length == 0 || replacements.Any(x => x.Quantity <= 0))
+            throw new ArgumentException("La correccion requiere partidas con cantidad positiva.");
+        _lines.Clear();
+        foreach (var line in replacements)
+        {
+            line.OrderId = Id;
+            _lines.Add(line);
+        }
+        Version++;
+    }
+
     public IReadOnlyCollection<OrderLine> Lines => _lines;
 
     public static Order CreateSubmitted(
@@ -67,7 +94,14 @@ public sealed class Order
             RequestedDeliveryTime = customer?.PreferredDeliveryTime,
             RequestedDeliveryWindowStart = customer?.PreferredDeliveryWindowStart,
             RequestedDeliveryWindowEnd = customer?.PreferredDeliveryWindowEnd,
-            DeliveryNotes = customer?.DeliveryNotes
+            DeliveryNotes = customer?.DeliveryNotes,
+            CustomerNameSnapshot = customer?.Name,
+            OrderingProfileVersion = customer?.OrderingProfileVersion,
+            RouteCode = customer?.RouteCode,
+            RouteStopOrder = customer?.RouteStopOrder,
+            HasStoreKey = customer?.HasStoreKey,
+            PaymentTermCode = customer?.PaymentTermCode,
+            InternalDeliveryInstructions = customer?.InternalDeliveryInstructions
         };
 
         foreach (var line in lines)
@@ -101,13 +135,31 @@ public sealed class Order
             RequestedDeliveryTime = customer?.PreferredDeliveryTime,
             RequestedDeliveryWindowStart = customer?.PreferredDeliveryWindowStart,
             RequestedDeliveryWindowEnd = customer?.PreferredDeliveryWindowEnd,
-            DeliveryNotes = customer?.DeliveryNotes
+            DeliveryNotes = customer?.DeliveryNotes,
+            CustomerNameSnapshot = customer?.Name,
+            OrderingProfileVersion = customer?.OrderingProfileVersion,
+            RouteCode = customer?.RouteCode,
+            RouteStopOrder = customer?.RouteStopOrder,
+            HasStoreKey = customer?.HasStoreKey,
+            PaymentTermCode = customer?.PaymentTermCode,
+            InternalDeliveryInstructions = customer?.InternalDeliveryInstructions
         };
     }
 
     public void ApplyAdminDecision(AdminDecision decision)
     {
+        if (Status != OrderStatus.PendingAdminReview || !RequiresAdminReview)
+        {
+            throw new InvalidOperationException("Solo puede revisarse un pedido pendiente de revision.");
+        }
+
+        if (decision is not (Enums.AdminDecision.Accepted or Enums.AdminDecision.AcceptedWithChanges or Enums.AdminDecision.Rejected))
+        {
+            throw new ArgumentException("La decision administrativa no es valida.", nameof(decision));
+        }
+
         AdminDecision = decision;
+        Version++;
 
         Status = decision switch
         {

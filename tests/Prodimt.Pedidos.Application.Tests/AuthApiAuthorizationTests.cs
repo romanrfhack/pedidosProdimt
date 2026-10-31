@@ -51,6 +51,9 @@ public sealed class AuthApiAuthorizationTests
         Assert.DoesNotContain("machine", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("maquina", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("audit", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("hasStoreKey", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("internalDeliveryInstructions", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("paymentTermCode", body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -141,6 +144,9 @@ public sealed class AuthApiAuthorizationTests
     [InlineData("GET", "/api/admin/customers/11111111-1111-1111-1111-111111111111/order-template")]
     [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/submit")]
     [InlineData("POST", "/api/admin/customers/11111111-1111-1111-1111-111111111111/orders/no-order")]
+    [InlineData("POST", "/api/admin/daily-orders/validate")]
+    [InlineData("POST", "/api/admin/daily-orders/apply")]
+    [InlineData("POST", "/api/admin/orders/11111111-1111-1111-1111-111111111111/corrections")]
     public async Task AdminCustomerEndpoints_RejectCustomerJwt(string method, string path)
     {
         await using var factory = new AuthApiFactory();
@@ -160,10 +166,51 @@ public sealed class AuthApiAuthorizationTests
     }
 
     [Theory]
+    [InlineData("/api/admin/daily-orders/validate")]
+    [InlineData("/api/admin/daily-orders/apply")]
+    [InlineData("/api/admin/orders/11111111-1111-1111-1111-111111111111/corrections")]
+    public async Task DailyOrderEndpoints_RejectAnonymousCaller(string path)
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(path, new { });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DailyOrderWrites_InMemory_ReturnExplicitUnavailableInsteadOfPretendingPersistence()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetAdminBearerAsync(client);
+
+        var import = await client.PostAsJsonAsync("/api/admin/daily-orders/apply", new
+        {
+            source = "DEMO", batchKey = "BATCH-DEMO", fileName = "demo.csv",
+            content = "externalOrderKey,serviceDate,customerExternalCode,action,productExternalCode,quantity,unitCode,notes\nDEMO-1,2026-10-25,C-DEMO,order,P-DEMO,5,kg,"
+        });
+        var correction = await client.PostAsJsonAsync($"/api/admin/orders/{Guid.NewGuid()}/corrections", new
+        {
+            operationKey = "CORRECTION-DEMO", expectedVersion = 1, reason = "Corrección de prueba",
+            lines = new[] { new { productId = Guid.NewGuid(), quantity = 5m, notes = (string?)null } }
+        });
+
+        foreach (var response in new[] { import, correction })
+        {
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("PersistenceNotSupported", body, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
     [InlineData("/api/admin/customers")]
     [InlineData("/api/admin/products")]
     [InlineData("/api/admin/machines")]
     [InlineData("/api/admin/users")]
+    [InlineData("/api/admin/operations/plan?date=2026-10-24")]
     public async Task AdminCatalogEndpoints_RequireAdminAccess(string path)
     {
         await using var factory = new AuthApiFactory();
@@ -213,6 +260,27 @@ public sealed class AuthApiAuthorizationTests
         Assert.Equal(HttpStatusCode.OK, adminValidate.StatusCode);
     }
 
+
+    [Fact]
+    public async Task AdminReview_StaleVersionAndRepeatedDecisionReturnConflict()
+    {
+        await using var factory = new AuthApiFactory();
+        using var client = factory.CreateClient();
+        await SetCustomerBearerAsync(client);
+        var request = new SubmitCustomerOrderRequest(
+            [new SubmitCustomerOrderLineRequest(DevelopmentSeedIds.ProductNineAndHalfId, 1, null)]);
+        (await client.PostAsJsonAsync($"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit", request)).EnsureSuccessStatusCode();
+        var additional = await client.PostAsJsonAsync($"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit", request);
+        var orderId = await ReadOrderIdAsync(additional);
+        await SetAdminBearerAsync(client);
+        var stale = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Accepted", expectedVersion = 99 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        var accepted = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Accepted", expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        var repeated = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Rejected", expectedVersion = 1 });
+        Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode);
+    }
+
     private static async Task SetCustomerBearerAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
@@ -244,7 +312,7 @@ public sealed class AuthApiAuthorizationTests
         return Guid.Parse(document.RootElement.GetProperty("orderId").GetString()!);
     }
 
-    private sealed class AuthApiFactory : WebApplicationFactory<Program>
+    internal sealed class AuthApiFactory : WebApplicationFactory<Program>
     {
         public AuthApiFactory()
         {

@@ -1,9 +1,16 @@
+import { DOCUMENT } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
+import { CustomerEditorValue } from './customer-editor.model';
+import { CustomerWorkingWeekComponent } from './customer-working-week.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin, of, switchMap, throwError } from 'rxjs';
 import {
   AdminCatalogApiService,
+  CustomerDayStatusResponse,
   AdminCustomerAccessTokenApiResponse,
   AdminCustomerCatalogApiResponse,
   AdminCustomerFrequentProductApiResponse,
@@ -11,23 +18,16 @@ import {
   AdminMachineCatalogApiResponse,
   AdminProductCatalogApiResponse
 } from './admin-catalog-api.service';
+import { UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operational-labels';
 
 type CatalogTab = 'customers' | 'products' | 'machines';
 
-interface CustomerForm {
-  id: string | null;
-  name: string;
-  phoneNumber: string | null;
-  preferredDeliveryTime: string | null;
-  preferredDeliveryWindowStart: string | null;
-  preferredDeliveryWindowEnd: string | null;
-  deliveryNotes: string | null;
-}
 
 interface ProductForm {
   id: string | null;
   name: string;
   description: string | null;
+  unitCode: UnitCode | null;
 }
 
 interface MachineForm {
@@ -38,285 +38,47 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule],
-  template: `
-    <section class="page stack" data-testid="admin-catalogs">
-      <div class="page-title">
-        <p class="eyebrow">Admin</p>
-        <h2>Catalogos</h2>
-      </div>
-
-      <div class="tab-bar" aria-label="Catalogos">
-        <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button>
-        <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button>
-        <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button>
-      </div>
-
-      @if (isLoading) {
-        <div class="notice">Cargando catalogos...</div>
-      }
-
-      @if (resultMessage) {
-        <div class="alert success">{{ resultMessage }}</div>
-      }
-
-      @if (errorMessage) {
-        <div class="alert error">{{ errorMessage }}</div>
-      }
-
-      @if (!isLoading) {
-        @if (activeTab === 'customers') {
-          <section class="stack" data-testid="catalog-customers">
-            <form class="detail-panel stack" (ngSubmit)="saveCustomer()">
-              <strong>{{ customerForm.id ? 'Editar cliente' : 'Nuevo cliente' }}</strong>
-              <label>
-                <span>Nombre</span>
-                <input name="customerName" [(ngModel)]="customerForm.name">
-              </label>
-              <label>
-                <span>Telefono</span>
-                <input name="customerPhone" [(ngModel)]="customerForm.phoneNumber">
-              </label>
-              <div class="catalog-grid">
-                <label>
-                  <span>Hora entrega</span>
-                  <input name="customerDeliveryTime" type="time" [(ngModel)]="customerForm.preferredDeliveryTime">
-                </label>
-                <label>
-                  <span>Ventana inicio</span>
-                  <input name="customerWindowStart" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowStart">
-                </label>
-                <label>
-                  <span>Ventana fin</span>
-                  <input name="customerWindowEnd" type="time" [(ngModel)]="customerForm.preferredDeliveryWindowEnd">
-                </label>
-              </div>
-              <label>
-                <span>Notas entrega</span>
-                <input name="customerDeliveryNotes" [(ngModel)]="customerForm.deliveryNotes">
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ customerForm.id ? 'Guardar cliente' : 'Crear cliente' }}</button>
-                <button type="button" class="secondary compact" (click)="resetCustomerForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <div class="admin-list">
-              @for (customer of customers; track customer.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>{{ customer.name }}</strong>
-                    <small>Telefono: {{ customer.phoneNumber || 'Sin telefono' }}</small>
-                    <small>Entrega: {{ formatCustomerDelivery(customer) }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="customer.isActive" [class.danger]="!customer.isActive">
-                      {{ customer.isActive ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="openCustomerConfig(customer)">Configurar</button>
-                    <button type="button" class="secondary compact" (click)="toggleCustomer(customer)">
-                      {{ customer.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-
-                  @if (selectedCustomer?.id === customer.id) {
-                    <section class="detail-panel stack" data-testid="customer-config">
-                      <strong>Configuracion de {{ customer.name }}</strong>
-
-                      <div class="stack">
-                        <strong>Productos frecuentes</strong>
-                        <div class="line-list">
-                          @for (row of frequentRows; track row.productId; let i = $index) {
-                            <div class="line-row catalog-line">
-                              <select [(ngModel)]="row.productId" [name]="'frequentProduct' + i">
-                                @for (product of products; track product.id) {
-                                  <option [value]="product.id">{{ product.name }}{{ product.isActive ? '' : ' (inactivo)' }}</option>
-                                }
-                              </select>
-                              <input type="number" min="0" step="1" [(ngModel)]="row.defaultQuantity" [name]="'frequentQuantity' + i" aria-label="Cantidad default">
-                              <input type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" aria-label="Orden">
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'frequentActive' + i">
-                                <span>Activo</span>
-                              </label>
-                              <button type="button" class="secondary compact" (click)="removeFrequentRow(i)">Quitar</button>
-                            </div>
-                          }
-                        </div>
-                        <div class="review-actions">
-                          <button type="button" class="secondary compact" (click)="addFrequentRow()">Agregar producto</button>
-                          <button type="button" class="primary compact" (click)="saveFrequentProducts()">Guardar frecuentes</button>
-                        </div>
-                      </div>
-
-                      <div class="stack">
-                        <strong>Maquinas asignadas</strong>
-                        <div class="line-list">
-                          @for (row of machineAssignmentRows; track row.machineId; let i = $index) {
-                            <div class="line-row catalog-line">
-                              <select [(ngModel)]="row.machineId" [name]="'assignmentMachine' + i">
-                                @for (machine of machines; track machine.id) {
-                                  <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
-                                }
-                              </select>
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isDefault" [name]="'assignmentDefault' + i" (ngModelChange)="setDefaultAssignment(row)">
-                                <span>Default</span>
-                              </label>
-                              <label class="inline-check">
-                                <input type="checkbox" [(ngModel)]="row.isActive" [name]="'assignmentActive' + i">
-                                <span>Activa</span>
-                              </label>
-                              <input [(ngModel)]="row.notes" [name]="'assignmentNotes' + i" aria-label="Notas asignacion">
-                              <button type="button" class="secondary compact" (click)="removeMachineAssignmentRow(i)">Quitar</button>
-                            </div>
-                          }
-                        </div>
-                        <div class="review-actions">
-                          <button type="button" class="secondary compact" (click)="addMachineAssignmentRow()">Agregar maquina</button>
-                          <button type="button" class="primary compact" (click)="saveMachineAssignments()">Guardar maquinas</button>
-                        </div>
-                      </div>
-
-                      <div class="stack">
-                        <strong>Tokens de acceso</strong>
-                        @if (generatedPlainToken) {
-                          <div class="alert warning">
-                            Token generado: <code>{{ generatedPlainToken }}</code>
-                          </div>
-                        }
-                        <div class="catalog-grid">
-                          <label>
-                            <span>Descripcion</span>
-                            <input name="newTokenDescription" [(ngModel)]="newTokenDescription">
-                          </label>
-                          <label>
-                            <span>Expira</span>
-                            <input name="newTokenExpiresAt" type="datetime-local" [(ngModel)]="newTokenExpiresAt">
-                          </label>
-                        </div>
-                        <div class="review-actions">
-                          <button type="button" class="primary compact" (click)="createAccessToken()">Crear token</button>
-                        </div>
-                        <div class="line-list">
-                          @for (token of accessTokens; track token.tokenId) {
-                            <div class="line-row">
-                              <span>
-                                <strong>{{ token.description }}</strong>
-                                <small>{{ token.isActive ? 'Activo' : 'Revocado' }} · Creado {{ formatDate(token.createdAt) }}</small>
-                              </span>
-                              <button type="button" class="secondary compact" [disabled]="!token.isActive" (click)="revokeAccessToken(token)">Revocar</button>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                    </section>
-                  }
-                </article>
-              }
-            </div>
-          </section>
-        }
-
-        @if (activeTab === 'products') {
-          <section class="stack" data-testid="catalog-products">
-            <form class="detail-panel stack" (ngSubmit)="saveProduct()">
-              <strong>{{ productForm.id ? 'Editar producto' : 'Nuevo producto' }}</strong>
-              <label>
-                <span>Nombre</span>
-                <input name="productName" [(ngModel)]="productForm.name">
-              </label>
-              <label>
-                <span>Descripcion</span>
-                <input name="productDescription" [(ngModel)]="productForm.description">
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ productForm.id ? 'Guardar producto' : 'Crear producto' }}</button>
-                <button type="button" class="secondary compact" (click)="resetProductForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <div class="admin-list">
-              @for (product of products; track product.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>{{ product.name }}</strong>
-                    <small>{{ product.description || 'Sin descripcion' }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
-                      {{ product.isActive ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editProduct(product)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="toggleProduct(product)">
-                      {{ product.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          </section>
-        }
-
-        @if (activeTab === 'machines') {
-          <section class="stack" data-testid="catalog-machines">
-            <form class="detail-panel stack" (ngSubmit)="saveMachine()">
-              <strong>{{ machineForm.id ? 'Editar maquina' : 'Nueva maquina' }}</strong>
-              <label>
-                <span>Numero</span>
-                <input name="machineNumber" type="number" min="1" step="1" [(ngModel)]="machineForm.number">
-              </label>
-              <label>
-                <span>Nombre</span>
-                <input name="machineName" [(ngModel)]="machineForm.name">
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ machineForm.id ? 'Guardar maquina' : 'Crear maquina' }}</button>
-                <button type="button" class="secondary compact" (click)="resetMachineForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <div class="admin-list">
-              @for (machine of machines; track machine.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>#{{ machine.number }}</strong>
-                    <small>{{ machine.name || 'Sin nombre' }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="machine.isActive" [class.danger]="!machine.isActive">
-                      {{ machine.isActive ? 'Activa' : 'Inactiva' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    <button type="button" class="secondary compact" (click)="editMachine(machine)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="toggleMachine(machine)">
-                      {{ machine.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          </section>
-        }
-      }
-    </section>
-  `
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, CustomerWorkingWeekComponent],
+  styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css'],
+  templateUrl: './admin-catalogs.component.html'
 })
 export class AdminCatalogsComponent {
   private readonly api = inject(AdminCatalogApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly focusedCustomerId = this.route.snapshot.paramMap.get('customerId');
+  protected readonly configurationOnly = this.focusedCustomerId !== null;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
+  protected customerDialogOpen = false;
+  protected isCustomerSaving = false;
+  protected customerDialogError: string | null = null;
+  protected customerDayFilter: 'all' | 'AwaitingOrder' | 'HasOrder' | 'off' = 'all';
+  protected dayStatuses = new Map<string, CustomerDayStatusResponse>();
+  protected dailyDate: string | null = null;
+  protected isDayLoading = false;
+  protected dayStatusError: string | null = null;
+  protected customerSearch = '';
+  protected workingRestDays: number[] = [];
+  private loadedRestDays: number[] = [];
+  protected isWeekSaving = false;
+  protected weekError: string | null = null;
+  protected weekMessage: string | null = null;
+  protected isConfigLoading = false;
+  protected isProfileSaving = false;
+  protected profileDirty = false;
+  protected profileConflict = false;
+  protected profileError: string | null = null;
+  protected profileMessage: string | null = null;
+  private profileReadSequence = 0;
 
   protected activeTab: CatalogTab = 'customers';
   protected customers: AdminCustomerCatalogApiResponse[] = [];
   protected products: AdminProductCatalogApiResponse[] = [];
   protected machines: AdminMachineCatalogApiResponse[] = [];
   protected frequentRows: AdminCustomerFrequentProductApiResponse[] = [];
+  private profileProductSnapshot = new Map<string, AdminProductCatalogApiResponse>();
   protected machineAssignmentRows: AdminCustomerMachineAssignmentApiResponse[] = [];
   protected accessTokens: AdminCustomerAccessTokenApiResponse[] = [];
   protected selectedCustomer: AdminCustomerCatalogApiResponse | null = null;
@@ -326,38 +88,200 @@ export class AdminCatalogsComponent {
   protected isLoading = true;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
-  protected customerForm: CustomerForm = this.emptyCustomerForm();
+  protected customerForm: CustomerEditorValue = this.emptyCustomerForm();
   protected productForm: ProductForm = this.emptyProductForm();
   protected machineForm: MachineForm = this.emptyMachineForm();
+  protected readonly profileApproval = new FormControl(false, { nonNullable: true });
+  protected readonly unitLabel = unitLabel;
+  protected readonly storeKeyLabel = storeKeyLabel;
+  protected readonly paymentTermLabel = paymentTermLabel;
 
   constructor() {
     this.loadCatalogs();
+    this.refreshDayStatus();
+    const refresh = () => {
+      if (this.document.visibilityState !== 'hidden' && this.activeTab === 'customers') this.refreshDayStatus();
+    };
+    const timer = setInterval(refresh, 30000);
+    this.document.addEventListener('visibilitychange', refresh);
+    this.destroyRef.onDestroy(() => {
+      clearInterval(timer);
+      this.document.removeEventListener('visibilitychange', refresh);
+    });
   }
 
-  protected saveCustomer(): void {
+  protected get visibleCustomers(): AdminCustomerCatalogApiResponse[] {
+    if (this.focusedCustomerId) return this.customers.filter(customer => customer.id === this.focusedCustomerId);
+    const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-MX');
+    const search = normalize(this.customerSearch.trim());
+    return this.customers.filter(customer =>
+      (!search || [customer.name, customer.phoneNumber, customer.routeCode, customer.externalCode].some(value => value && normalize(value).includes(search))) &&
+      (this.customerDayFilter === 'all' || (this.customerDayFilter === 'off'
+        ? ['NoOrderConfirmed', 'ScheduledRest'].includes(this.dayState(customer)) : this.dayState(customer) === this.customerDayFilter)))
+      .slice().sort((a, b) => this.dayRank(a) - this.dayRank(b) || a.name.localeCompare(b.name, 'es-MX'));
+  }
+
+  protected dayState(customer: AdminCustomerCatalogApiResponse): string {
+    return this.dayStatuses.get(customer.id)?.status ?? 'Unavailable';
+  }
+
+  protected dayLabel(customer: AdminCustomerCatalogApiResponse): string {
+    const labels: Record<string, string> = {
+      AwaitingOrder: 'Por confirmar', HasOrder: 'Con pedido', NoOrderConfirmed: 'Hoy no pide',
+      ScheduledRest: 'Descanso programado', Inactive: 'Inactivo', Unavailable: 'Estado sin actualizar'
+    };
+    return labels[this.dayState(customer)] ?? labels['Unavailable'];
+  }
+
+  protected countDayState(state: string): number {
+    return this.customers.filter(customer => this.dayState(customer) === state).length;
+  }
+
+  protected initials(name: string): string {
+    return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toLocaleUpperCase('es-MX');
+  }
+
+  private dayRank(customer: AdminCustomerCatalogApiResponse): number {
+    if (!customer.isActive) return 3;
+    return ({ AwaitingOrder: 0, HasOrder: 1, NoOrderConfirmed: 2, ScheduledRest: 2 } as Record<string, number>)[this.dayState(customer)] ?? 0;
+  }
+
+  protected refreshDayStatus(): void {
+    if (this.isDayLoading) return;
+    this.isDayLoading = true;
+    this.api.getCustomerDayStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: response => {
+        if (!response || !Array.isArray(response.customers) || !/^\d{4}-\d{2}-\d{2}$/.test(response.date)) {
+          this.finishDayStatusError();
+          return;
+        }
+        this.dayStatuses = new Map(response.customers.map(row => [row.customerId, row]));
+        this.dailyDate = response.date;
+        this.dayStatusError = null;
+        this.isDayLoading = false;
+        this.changeDetector.detectChanges();
+      },
+      error: () => this.finishDayStatusError()
+    });
+  }
+
+  private finishDayStatusError(): void {
+    this.isDayLoading = false;
+    this.dayStatusError = this.dailyDate
+      ? 'No pudimos actualizar el estado de hoy. Se conserva la última consulta del ' + this.dailyDate.split('-').reverse().join('/') + '.'
+      : 'No pudimos consultar los pedidos de hoy. Los estados se mostrarán cuando se recupere la conexión.';
+    this.changeDetector.detectChanges();
+  }
+
+  protected newCustomer(): void {
+    this.customerForm = this.emptyCustomerForm();
+    this.customerDialogError = null;
+    this.customerDialogOpen = true;
+  }
+
+  protected productFor(row: AdminCustomerFrequentProductApiResponse): AdminProductCatalogApiResponse | undefined {
+    return this.profileProductSnapshot.get(row.productId) ?? this.products.find(product => product.id === row.productId);
+  }
+
+  protected get profileProducts(): AdminProductCatalogApiResponse[] {
+    return this.products.map(product => this.profileProductSnapshot.get(product.id) ?? product);
+  }
+
+  protected get profileValidationErrors(): string[] {
+    const errors: string[] = [];
+    const ids = this.frequentRows.map(row => row.productId);
+    if (new Set(ids).size !== ids.length) errors.push('Cada producto debe aparecer una sola vez para este cliente.');
+    if (this.frequentRows.some(row => !this.productFor(row))) errors.push('Selecciona un producto existente en cada fila.');
+    if (this.frequentRows.some(row => !Number.isInteger(row.sortOrder) || row.sortOrder < 1)) errors.push('El orden visual debe ser un número entero desde 1.');
+    if (this.frequentRows.some(row => row.defaultQuantity !== null && (!Number.isFinite(row.defaultQuantity) || row.defaultQuantity < 0))) errors.push('La cantidad sugerida debe ser cero o positiva, o quedar vacía.');
+    const aliases = this.frequentRows.map(row => row.captureAlias?.trim().toUpperCase() || '').filter(Boolean);
+    if (aliases.some(value => !/^[A-Z]{1,16}$/.test(value))) errors.push('Las abreviaturas deben tener de 1 a 16 letras sin espacios ni números.');
+    if (new Set(aliases).size !== aliases.length) errors.push('No repitas abreviaturas dentro de este cliente.');
+    const positions = this.frequentRows.filter(row => row.interpretationPosition !== null).map(row => row.interpretationPosition!);
+    if (positions.some(position => !Number.isInteger(position) || position < 1)) errors.push('Las posiciones deben ser números enteros desde 1, o quedar vacías.');
+    if (new Set(positions).size !== positions.length) errors.push('No repitas posiciones dentro de este cliente.');
+    if (this.frequentRows.some(row => row.preferredMachineId && !this.machines.some(machine => machine.id === row.preferredMachineId && machine.isActive))) errors.push('Selecciona una máquina activa o usa la asignación del cliente.');
+    if (this.profileApproval.value) {
+      const active = this.frequentRows.filter(row => row.isActive);
+      if (active.length === 0 || active.some(row => !this.productFor(row)?.isActive || !this.productFor(row)?.unitCode)) errors.push('Para aprobar, todos los productos activos deben tener unidad confirmada y estar activos en el catálogo.');
+      const activePositions = active.map(row => row.interpretationPosition).sort((a, b) => (a ?? 0) - (b ?? 0));
+      if (activePositions.some((position, index) => position !== index + 1)) errors.push('Para aprobar, asigna posiciones consecutivas 1, 2, 3… a todos los productos activos.');
+    }
+    return errors;
+  }
+
+  protected get profileWarnings(): string[] {
+    const warnings: string[] = [];
+    if (this.frequentRows.some(row => row.isActive && !this.productFor(row)?.unitCode)) warnings.push('Hay productos sin unidad. Puedes guardar el borrador, pero no capturar cantidades de esos productos ni aprobar el perfil.');
+    if (this.frequentRows.some(row => row.isActive && row.interpretationPosition === null)) warnings.push('Hay posiciones sin confirmar. No son necesarias para capturar pedidos indicando producto y cantidad.');
+    if (this.frequentRows.some(row => row.isActive && !row.preferredMachineId) && !this.machineAssignmentRows.some(row => row.isActive && row.isDefault)) warnings.push('Hay productos sin máquina propia y no existe una máquina predeterminada del cliente. Su demanda quedará sin asignar.');
+    return warnings;
+  }
+
+  protected get interpretationPreview(): string {
+    const ordered = this.frequentRows.filter(row => row.isActive && row.interpretationPosition !== null)
+      .slice().sort((a, b) => a.interpretationPosition! - b.interpretationPosition!);
+    if (!ordered.length) return 'Secuencia del cliente: aún no hay posiciones confirmadas.';
+    return 'Secuencia del cliente: ' + ordered.map(row => `${row.interpretationPosition} = ${this.productFor(row)?.name ?? row.productName}`).join(' · ');
+  }
+
+  protected navigateToCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
+    void this.router.navigate(['/admin/clientes', customer.id, 'configuracion']);
+  }
+
+  protected editProductUnit(row: AdminCustomerFrequentProductApiResponse): void {
+    if (this.profileDirty) {
+      this.profileError = 'Guarda primero los cambios del perfil antes de abrir el producto en el catálogo.';
+      return;
+    }
+    void this.router.navigate(['/admin/catalogos'], { queryParams: { productId: row.productId } });
+  }
+
+  protected saveCustomer(value: CustomerEditorValue): void {
+    if (this.isCustomerSaving) return;
+    this.customerForm = { ...value, restDays: [...value.restDays] };
+    this.isCustomerSaving = true;
+    this.customerDialogError = null;
     const request = {
       name: this.customerForm.name,
       phoneNumber: this.emptyToNull(this.customerForm.phoneNumber),
       preferredDeliveryTime: this.emptyToNull(this.customerForm.preferredDeliveryTime),
       preferredDeliveryWindowStart: this.emptyToNull(this.customerForm.preferredDeliveryWindowStart),
       preferredDeliveryWindowEnd: this.emptyToNull(this.customerForm.preferredDeliveryWindowEnd),
-      deliveryNotes: this.emptyToNull(this.customerForm.deliveryNotes)
+      deliveryNotes: this.emptyToNull(this.customerForm.deliveryNotes),
+      routeCode: this.emptyToNull(this.customerForm.routeCode),
+      routeStopOrder: this.customerForm.routeStopOrder,
+      hasStoreKey: this.customerForm.hasStoreKey,
+      paymentTermCode: this.customerForm.paymentTermCode,
+      internalDeliveryInstructions: this.emptyToNull(this.customerForm.internalDeliveryInstructions),
+      restDays: [...this.customerForm.restDays]
     };
     const operation = this.customerForm.id
       ? this.api.updateCustomer(this.customerForm.id, request)
       : this.api.createCustomer(request);
 
-    operation.subscribe({
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.resultMessage = 'Cliente guardado.';
+        this.isCustomerSaving = false;
         this.resetCustomerForm();
         this.loadCatalogs(false);
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo guardar el cliente.')
+      error: (error: unknown) => {
+        this.isCustomerSaving = false;
+        this.customerDialogError = this.profileErrorText(error, 'No se pudo guardar el cliente.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
   protected editCustomer(customer: AdminCustomerCatalogApiResponse): void {
+    if (this.configurationOnly && (this.isWeekSaving || this.workingWeekDirty)) {
+      this.weekError = 'Guarda o recarga los días de trabajo antes de editar los datos del cliente.';
+      return;
+    }
+    this.customerDialogError = null;
+    this.customerDialogOpen = true;
     this.customerForm = {
       id: customer.id,
       name: customer.name,
@@ -365,7 +289,13 @@ export class AdminCatalogsComponent {
       preferredDeliveryTime: this.toTimeInput(customer.preferredDeliveryTime),
       preferredDeliveryWindowStart: this.toTimeInput(customer.preferredDeliveryWindowStart),
       preferredDeliveryWindowEnd: this.toTimeInput(customer.preferredDeliveryWindowEnd),
-      deliveryNotes: customer.deliveryNotes
+      deliveryNotes: customer.deliveryNotes,
+      routeCode: customer.routeCode ?? null,
+      routeStopOrder: customer.routeStopOrder ?? null,
+      hasStoreKey: customer.hasStoreKey ?? null,
+      paymentTermCode: customer.paymentTermCode ?? null,
+      internalDeliveryInstructions: customer.internalDeliveryInstructions ?? null,
+      restDays: [...(customer.restDays ?? [])]
     };
   }
 
@@ -384,31 +314,151 @@ export class AdminCatalogsComponent {
   }
 
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
+    const sequence = ++this.profileReadSequence;
     this.selectedCustomer = customer;
+    this.setWorkingWeek(customer.restDays ?? []);
+    this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
     this.resultMessage = null;
     this.errorMessage = null;
+    this.isConfigLoading = true;
+    this.frequentRows = [];
+    this.profileProductSnapshot.clear();
+    this.machineAssignmentRows = [];
+    this.accessTokens = [];
+    this.profileDirty = false;
+    this.profileConflict = false;
+    this.profileError = null;
 
     forkJoin({
-      frequentProducts: this.api.getFrequentProducts(customer.id),
+      profile: this.api.getOrderingProfile(customer.id),
       assignments: this.api.getMachineAssignments(customer.id),
       tokens: this.api.getAccessTokens(customer.id)
     }).subscribe({
-      next: ({ frequentProducts, assignments, tokens }) => {
-        this.frequentRows = frequentProducts;
+      next: ({ profile, assignments, tokens }) => {
+        if (sequence !== this.profileReadSequence || this.selectedCustomer?.id !== customer.id) return;
+        this.selectedCustomer.orderingProfileVersion = profile.orderingProfileVersion;
+        this.selectedCustomer.isOrderProfileApproved = profile.isOrderProfileApproved;
+        this.profileProductSnapshot = new Map(profile.items.map(item => [item.productId, {
+          id: item.productId, name: item.productName, description: null,
+          unitCode: item.unitCode ?? null, isActive: item.productIsActive ?? false
+        }]));
+        this.frequentRows = profile.items.slice().sort((a, b) => a.sortOrder - b.sortOrder);
         this.machineAssignmentRows = assignments;
         this.accessTokens = tokens;
+        this.isConfigLoading = false;
         this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo cargar la configuracion del cliente.')
+      error: (error: unknown) => {
+        if (sequence !== this.profileReadSequence) return;
+        this.isConfigLoading = false;
+        this.profileConflict = true;
+        this.profileError = this.profileErrorText(error, 'No se pudo cargar la configuración. Recarga antes de guardar.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
   protected resetCustomerForm(): void {
     this.customerForm = this.emptyCustomerForm();
+    this.customerDialogOpen = false;
+    this.customerDialogError = null;
+  }
+
+  protected get workingWeekDirty(): boolean {
+    return !this.sameWeek(this.workingRestDays, this.loadedRestDays);
+  }
+
+  protected changeWorkingWeek(restDays: number[]): void {
+    if (this.isWeekSaving || this.isCustomerSaving) return;
+    this.workingRestDays = [...restDays];
+    this.weekError = null;
+    this.weekMessage = null;
+  }
+
+  protected reloadWorkingWeek(): void {
+    if (!this.selectedCustomer || this.isWeekSaving) return;
+    const id = this.selectedCustomer.id;
+    this.isWeekSaving = true;
+    this.weekError = null;
+    this.api.getCustomers().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: customers => {
+        const customer = customers.find(item => item.id === id);
+        if (customer) {
+          this.setWorkingWeek(customer.restDays ?? []);
+          this.weekMessage = 'Días de trabajo recargados.';
+        } else this.weekError = 'No se encontró el cliente.';
+        this.isWeekSaving = false;
+        this.changeDetector.detectChanges();
+      },
+      error: error => {
+        this.isWeekSaving = false;
+        this.weekError = this.profileErrorText(error, 'No se pudieron consultar los días de trabajo.');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  protected saveWorkingWeek(): void {
+    if (!this.selectedCustomer || !this.workingWeekDirty || this.isWeekSaving || this.isCustomerSaving) return;
+    const id = this.selectedCustomer.id;
+    const restDays = [...this.workingRestDays];
+    this.isWeekSaving = true;
+    this.weekError = null;
+    this.weekMessage = null;
+    // The existing PUT also edits delivery/contact fields. Read their latest
+    // values immediately before saving the calendar rather than sending the
+    // older screen snapshot. This does not change the API's concurrency contract.
+    this.api.getCustomers().pipe(
+      switchMap(customers => {
+        const latest = customers.find(item => item.id === id);
+        if (!latest) return throwError(() => new Error('No se encontró el cliente.'));
+        if (this.sameWeek(latest.restDays ?? [], restDays)) return of(latest);
+        if (!this.sameWeek(latest.restDays ?? [], this.loadedRestDays))
+          return throwError(() => new HttpErrorResponse({ status:409, error:{ error:'El calendario cambió en otra pantalla. Recarga los días antes de guardar; tu selección sigue visible.' } }));
+        return this.api.updateCustomer(id, {
+          name:latest.name, phoneNumber:latest.phoneNumber,
+          preferredDeliveryTime:latest.preferredDeliveryTime, preferredDeliveryWindowStart:latest.preferredDeliveryWindowStart,
+          preferredDeliveryWindowEnd:latest.preferredDeliveryWindowEnd, deliveryNotes:latest.deliveryNotes,
+          routeCode:latest.routeCode, routeStopOrder:latest.routeStopOrder, hasStoreKey:latest.hasStoreKey,
+          paymentTermCode:latest.paymentTermCode, internalDeliveryInstructions:latest.internalDeliveryInstructions,
+          restDays
+        });
+      }), takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: customer => {
+        this.customers = this.customers.map(item => item.id === id ? customer : item);
+        if (this.selectedCustomer?.id === id) this.selectedCustomer = {
+          ...customer, orderingProfileVersion:this.selectedCustomer.orderingProfileVersion,
+          isOrderProfileApproved:this.selectedCustomer.isOrderProfileApproved
+        };
+        this.setWorkingWeek(customer.restDays ?? restDays);
+        this.weekMessage = 'Días de trabajo guardados.';
+        this.isWeekSaving = false;
+        this.refreshDayStatus();
+        this.changeDetector.detectChanges();
+      },
+      error: error => {
+        this.isWeekSaving = false;
+        this.weekError = this.profileErrorText(error, 'No se pudieron guardar los días de trabajo.');
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  private setWorkingWeek(restDays: number[]): void {
+    this.loadedRestDays = [...restDays];
+    this.workingRestDays = [...restDays];
+    this.weekError = null;
+    this.weekMessage = null;
+  }
+
+  private sameWeek(first: number[], second: number[]): boolean {
+    return JSON.stringify([...new Set(first)].sort()) === JSON.stringify([...new Set(second)].sort());
   }
 
   protected addFrequentRow(): void {
+    this.invalidateProfileApproval();
     const used = new Set(this.frequentRows.map((row) => row.productId));
     const product = this.products.find((item) => item.isActive && !used.has(item.id));
 
@@ -422,36 +472,88 @@ export class AdminCatalogsComponent {
       {
         productId: product.id,
         productName: product.name,
-        defaultQuantity: 0,
+        defaultQuantity: null,
         sortOrder: this.frequentRows.length + 1,
-        isActive: true
+        isActive: true,
+        preferredMachineId: null,
+        interpretationPosition: null,
+        captureAlias: ''
       }
     ];
   }
 
   protected removeFrequentRow(index: number): void {
+    this.invalidateProfileApproval();
     this.frequentRows = this.frequentRows.filter((_, currentIndex) => currentIndex !== index);
+    this.frequentRows.forEach((row, currentIndex) => row.sortOrder = currentIndex + 1);
+  }
+
+  protected moveFrequentRow(index: number, direction: -1 | 1): void {
+    const destination = index + direction;
+    if (destination < 0 || destination >= this.frequentRows.length) return;
+    this.invalidateProfileApproval();
+    const reordered = this.frequentRows.slice();
+    [reordered[index], reordered[destination]] = [reordered[destination], reordered[index]];
+    reordered.forEach((row, currentIndex) => row.sortOrder = currentIndex + 1);
+    this.frequentRows = reordered;
+  }
+
+  protected useVisualOrderForPositions(): void {
+    this.invalidateProfileApproval();
+    let position = 0;
+    this.frequentRows.slice().sort((a, b) => a.sortOrder - b.sortOrder).forEach(row => {
+      row.interpretationPosition = row.isActive ? ++position : null;
+    });
+  }
+
+  protected reloadProfile(): void {
+    if (this.selectedCustomer) this.openCustomerConfig(this.selectedCustomer);
+  }
+
+  protected invalidateProfileApproval(): void {
+    this.profileApproval.setValue(false);
+    this.profileDirty = true;
+    this.profileMessage = null;
+    this.profileError = null;
   }
 
   protected saveFrequentProducts(): void {
-    if (!this.selectedCustomer) {
+    if (!this.selectedCustomer || this.isConfigLoading || this.isProfileSaving || this.profileConflict || this.profileValidationErrors.length > 0) {
       return;
     }
-
-    this.api.updateFrequentProducts(this.selectedCustomer.id, {
+    const customerId = this.selectedCustomer.id;
+    this.isProfileSaving = true;
+    this.profileError = null;
+    this.profileMessage = null;
+    this.api.updateFrequentProducts(customerId, {
+      approveForInterpretation: this.profileApproval.value,
+      expectedProfileVersion: this.selectedCustomer.orderingProfileVersion,
       items: this.frequentRows.map((row) => ({
         productId: row.productId,
+        expectedUnitCode: this.productFor(row)?.unitCode ?? null,
         defaultQuantity: row.defaultQuantity === null ? null : Number(row.defaultQuantity),
         sortOrder: Number(row.sortOrder) || 0,
-        isActive: row.isActive
+        isActive: row.isActive,
+        preferredMachineId: row.preferredMachineId ?? null,
+        interpretationPosition: row.interpretationPosition ?? null,
+        captureAlias: row.captureAlias?.trim().toUpperCase() ?? ''
       }))
     }).subscribe({
-      next: (rows) => {
-        this.frequentRows = rows;
-        this.resultMessage = 'Productos frecuentes guardados.';
+      next: () => {
+        this.isProfileSaving = false;
+        this.profileApproval.setValue(false);
+        this.profileMessage = 'Productos frecuentes guardados.';
+        this.reloadProfile();
         this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudieron guardar los productos frecuentes.')
+      error: (error: unknown) => {
+        this.isProfileSaving = false;
+        this.profileConflict = error instanceof HttpErrorResponse && error.status === 409;
+        this.profileError = this.profileConflict
+          ? 'Otro usuario cambió este perfil. Tus cambios siguen en pantalla; recarga la versión vigente antes de volver a editar.'
+          : this.profileErrorText(error, 'No se pudieron guardar los productos frecuentes.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
@@ -552,7 +654,8 @@ export class AdminCatalogsComponent {
   protected saveProduct(): void {
     const request = {
       name: this.productForm.name,
-      description: this.emptyToNull(this.productForm.description)
+      description: this.emptyToNull(this.productForm.description),
+      unitCode: this.productForm.unitCode
     };
     const operation = this.productForm.id
       ? this.api.updateProduct(this.productForm.id, request)
@@ -572,7 +675,8 @@ export class AdminCatalogsComponent {
     this.productForm = {
       id: product.id,
       name: product.name,
-      description: product.description
+      description: product.description,
+      unitCode: product.unitCode ?? null
     };
   }
 
@@ -674,10 +778,29 @@ export class AdminCatalogsComponent {
     }).subscribe({
       next: ({ customers, products, machines }) => {
         this.customers = customers;
+        // The profile version belongs to the loaded snapshot, never to a separate catalog refresh.
+        if (this.selectedCustomer) {
+          const details = customers.find(customer => customer.id === this.selectedCustomer?.id);
+          if (details) {
+            this.selectedCustomer = { ...details, orderingProfileVersion: this.selectedCustomer.orderingProfileVersion, isOrderProfileApproved: this.selectedCustomer.isOrderProfileApproved };
+            if (!this.workingWeekDirty && !this.isWeekSaving) this.setWorkingWeek(details.restDays ?? []);
+          }
+        }
         this.products = products;
         this.machines = machines;
+        this.refreshDayStatus();
         this.isLoading = false;
         this.errorMessage = null;
+        if (this.focusedCustomerId && !this.selectedCustomer) {
+          const focused = customers.find(customer => customer.id === this.focusedCustomerId);
+          if (focused) this.openCustomerConfig(focused);
+          else this.errorMessage = 'No se encontró el cliente solicitado.';
+        }
+        const productId = this.route.snapshot.queryParamMap.get('productId');
+        if (productId && !this.configurationOnly && showLoading) {
+          const product = products.find(item => item.id === productId);
+          if (product) { this.activeTab = 'products'; this.editProduct(product); }
+        }
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
@@ -701,7 +824,7 @@ export class AdminCatalogsComponent {
     });
   }
 
-  private emptyCustomerForm(): CustomerForm {
+  private emptyCustomerForm(): CustomerEditorValue {
     return {
       id: null,
       name: '',
@@ -709,7 +832,13 @@ export class AdminCatalogsComponent {
       preferredDeliveryTime: null,
       preferredDeliveryWindowStart: null,
       preferredDeliveryWindowEnd: null,
-      deliveryNotes: null
+      deliveryNotes: null,
+      routeCode: null,
+      routeStopOrder: null,
+      hasStoreKey: null,
+      paymentTermCode: null,
+      internalDeliveryInstructions: null,
+      restDays: []
     };
   }
 
@@ -717,7 +846,8 @@ export class AdminCatalogsComponent {
     return {
       id: null,
       name: '',
-      description: null
+      description: null,
+      unitCode: null
     };
   }
 
@@ -749,5 +879,9 @@ export class AdminCatalogsComponent {
     }
 
     this.changeDetector.detectChanges();
+  }
+
+  private profileErrorText(error: unknown, fallback: string): string {
+    return error instanceof HttpErrorResponse && typeof error.error?.error === 'string' ? error.error.error : fallback;
   }
 }

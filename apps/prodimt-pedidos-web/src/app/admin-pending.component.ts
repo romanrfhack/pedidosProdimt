@@ -1,3 +1,4 @@
+import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +8,7 @@ import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } 
 interface ChangeLineForm {
   orderLineId: string;
   productName: string;
+  unitCode: string | null;
   quantity: number;
   notes: string | null;
 }
@@ -20,6 +22,11 @@ interface ChangeLineForm {
         <p class="eyebrow">Admin</p>
         <h2>Pendientes de revision</h2>
       </div>
+
+      <form class="operations-filters" (ngSubmit)="load()">
+        <label><span>Fecha de servicio</span><input name="reviewServiceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="changeDate()" [disabled]="isLoading || !!reviewingOrderId || !!loadingChangesOrderId || !!loadingAuditOrderId"></label>
+        <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!reviewingOrderId || !!loadingChangesOrderId">Consultar pendientes</button>
+      </form>
 
       @if (isLoading) {
         <div class="notice">Cargando pendientes...</div>
@@ -42,7 +49,7 @@ interface ChangeLineForm {
               <article class="admin-row">
                 <div>
                   <strong>{{ order.customerName }}</strong>
-                  <small>{{ order.status }} · Pedido #{{ order.sequenceNumber }}</small>
+                  <small>{{ order.status }} · Servicio {{ order.orderDate }} · Pedido #{{ order.sequenceNumber }}</small>
                   <small>Razon: {{ order.reviewReason ?? 'Revision manual' }}</small>
                   @if (order.isLate) {
                     <small>Pedido tardio</small>
@@ -99,13 +106,13 @@ interface ChangeLineForm {
                         <label class="line-row">
                           <span>
                             <strong>{{ line.productName }}</strong>
-                            <small>Cantidad actualizable</small>
+                            <small>Cantidad actualizable · {{ unitLabel(line.unitCode) }}</small>
                           </span>
                           <input
                             type="number"
-                            min="1"
-                            step="1"
-                            inputmode="numeric"
+                            min="0.01"
+                            step="0.01"
+                            inputmode="decimal"
                             [name]="'lineQuantity' + line.orderLineId"
                             [(ngModel)]="line.quantity">
                         </label>
@@ -130,6 +137,10 @@ interface ChangeLineForm {
                           <strong>{{ event.eventType }}</strong>
                           <small>{{ event.occurredAt }} · {{ event.actorType }}</small>
                           <small>{{ event.summary }}</small>
+                          @if (event.correction; as correction) {
+                            <p><b>Motivo:</b> {{ correction.reason }}</p>
+                            @for (change of correction.changes; track $index) { <div><strong>{{ change.productName }}</strong><small>Antes: {{ change.before }} → Después: {{ change.after }}</small></div> }
+                          }
                         </div>
                       }
                     }
@@ -144,6 +155,7 @@ interface ChangeLineForm {
   `
 })
 export class AdminPendingComponent {
+  protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -161,9 +173,19 @@ export class AdminPendingComponent {
   protected selectedAuditOrderId: string | null = null;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
+  protected serviceDate = businessDateToday();
 
   constructor() {
     this.load();
+  }
+
+  protected changeDate(): void {
+    this.orders = [];
+    this.auditEvents = [];
+    this.selectedAuditOrderId = null;
+    this.errorMessage = null;
+    this.resultMessage = null;
+    this.cancelChanges();
   }
 
   protected review(order: AdminOrder, decision: AdminDecisionApiValue): void {
@@ -197,6 +219,7 @@ export class AdminPendingComponent {
         this.changeLines = detail.lines.map((line) => ({
           orderLineId: line.id,
           productName: line.productName,
+          unitCode: line.unitCode,
           quantity: line.quantity,
           notes: line.notes
         }));
@@ -227,6 +250,7 @@ export class AdminPendingComponent {
 
     this.data.reviewOrderWithRequest(order.id, {
       decision: 'AcceptedWithChanges',
+      expectedVersion: this.changeDetail?.version ?? null,
       internalNotes: this.emptyToNull(this.internalNotes),
       requestedDeliveryTime: this.emptyToNull(this.requestedDeliveryTime),
       requestedDeliveryWindowStart: null,
@@ -278,12 +302,14 @@ export class AdminPendingComponent {
     });
   }
 
-  private load(showLoading = true): void {
+  protected load(showLoading = true): void {
+    if (!this.serviceDate) return;
+    this.errorMessage = null;
     if (showLoading) {
       this.isLoading = true;
     }
 
-    this.data.loadPendingReviewOrders().subscribe({
+    this.data.loadPendingReviewOrders(this.serviceDate).subscribe({
       next: (orders) => {
         this.orders = orders;
         this.auditEvents = [];

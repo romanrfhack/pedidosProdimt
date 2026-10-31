@@ -4,4 +4,5 @@ public sealed record ProductSuggestionDto(
     Guid ProductId,
     string Name,
     string? Description,
-    decimal SuggestedQuantity);
+    decimal SuggestedQuantity,
+    string? UnitCode = null);

@@ -20,6 +20,10 @@ public interface ICustomerRepository
 
     Task<IReadOnlyList<CustomerFrequentProduct>> GetAllFrequentProductsAsync(Guid customerId, CancellationToken cancellationToken);
 
+    Task<CustomerOrderingProfileSnapshot?> GetOrderingProfileSnapshotAsync(Guid customerId, CancellationToken cancellationToken);
+
+    Task<T> ExecuteOrderingProfileUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task ReplaceFrequentProductsAsync(
         Guid customerId,
         IReadOnlyList<CustomerFrequentProduct> frequentProducts,
@@ -33,6 +37,8 @@ public interface ICustomerRepository
         Guid customerId,
         IReadOnlyList<CustomerMachineAssignment> assignments,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Customer>> GetCustomersReferencingProductForUpdateAsync(Guid productId, CancellationToken cancellationToken);
 
     Task AddAsync(Customer customer, CancellationToken cancellationToken);
 

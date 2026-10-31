@@ -12,5 +12,17 @@ public sealed class CustomerFrequentProductConfiguration : IEntityTypeConfigurat
 
         builder.Property(x => x.DefaultQuantity)
             .HasPrecision(18, 2);
+
+        builder.Property(x => x.CaptureAlias).HasMaxLength(16);
+        builder.HasIndex(x => new { x.CustomerId, x.CaptureAlias })
+            .IsUnique().HasFilter("[CaptureAlias] IS NOT NULL");
+
+        builder.HasOne<Machine>().WithMany()
+            .HasForeignKey(x => x.PreferredMachineId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => new { x.CustomerId, x.InterpretationPosition })
+            .IsUnique()
+            .HasFilter("[InterpretationPosition] IS NOT NULL");
     }
 }

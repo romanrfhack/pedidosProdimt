@@ -7,7 +7,8 @@ namespace Prodimt.Pedidos.Application.AdminCatalogs;
 public sealed class AdminProductCatalogService(
     IProductRepository products,
     IAuditLogRepository auditLogs,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    ICustomerRepository customers)
 {
     public async Task<IReadOnlyList<AdminProductResponse>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -30,6 +31,7 @@ public sealed class AdminProductCatalogService(
         await EnsureNoActiveNameDuplicateAsync(request.Name, excludingProductId: null, cancellationToken);
 
         var product = Product.Create(request.Name, request.Description);
+        product.SetUnitCode(request.UnitCode);
 
         await products.AddAsync(product, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
@@ -44,7 +46,11 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> UpdateAsync(
+    public Task<AdminProductResponse> UpdateAsync(Guid productId, UpsertAdminProductRequest request,
+        AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => UpdateCoreAsync(productId, request, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> UpdateCoreAsync(
         Guid productId,
         UpsertAdminProductRequest request,
         AdminActorContext? actor,
@@ -58,7 +64,13 @@ public sealed class AdminProductCatalogService(
             await EnsureNoActiveNameDuplicateAsync(request.Name, product.Id, cancellationToken);
         }
 
+        var previousName = product.Name;
+        var previousUnit = product.UnitCode;
+        product.SetUnitCode(request.UnitCode);
         product.Update(request.Name, request.Description);
+        if (previousName != product.Name || previousUnit != product.UnitCode)
+            await OrderingProfileInvalidation.InvalidateForProductAsync(product.Id, customers, auditLogs,
+                dateTimeProvider.Now, actor, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Product,
             product.Id,
@@ -71,7 +83,10 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> ActivateAsync(
+    public Task<AdminProductResponse> ActivateAsync(Guid productId, AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => ActivateCoreAsync(productId, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> ActivateCoreAsync(
         Guid productId,
         AdminActorContext? actor,
         CancellationToken cancellationToken)
@@ -79,7 +94,11 @@ public sealed class AdminProductCatalogService(
         var product = await GetRequiredProductForUpdateAsync(productId, cancellationToken);
         await EnsureNoActiveNameDuplicateAsync(product.Name, product.Id, cancellationToken);
 
+        var wasActive = product.IsActive;
         product.Activate();
+        if (!wasActive)
+            await OrderingProfileInvalidation.InvalidateForProductAsync(product.Id, customers, auditLogs,
+                dateTimeProvider.Now, actor, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Product,
             product.Id,
@@ -92,13 +111,20 @@ public sealed class AdminProductCatalogService(
         return MapProduct(product);
     }
 
-    public async Task<AdminProductResponse> DeactivateAsync(
+    public Task<AdminProductResponse> DeactivateAsync(Guid productId, AdminActorContext? actor, CancellationToken cancellationToken)
+        => products.ExecuteCatalogUpdateAsync(token => DeactivateCoreAsync(productId, actor, token), cancellationToken);
+
+    private async Task<AdminProductResponse> DeactivateCoreAsync(
         Guid productId,
         AdminActorContext? actor,
         CancellationToken cancellationToken)
     {
         var product = await GetRequiredProductForUpdateAsync(productId, cancellationToken);
+        var wasActive = product.IsActive;
         product.Deactivate();
+        if (wasActive)
+            await OrderingProfileInvalidation.InvalidateForProductAsync(product.Id, customers, auditLogs,
+                dateTimeProvider.Now, actor, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Product,
             product.Id,
@@ -155,6 +181,6 @@ public sealed class AdminProductCatalogService(
 
     private static AdminProductResponse MapProduct(Product product)
     {
-        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive);
+        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive, product.UnitCode);
     }
 }

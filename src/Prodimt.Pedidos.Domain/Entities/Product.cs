@@ -10,6 +10,8 @@ public sealed class Product
 
     public string? Description { get; set; }
 
+    public string? UnitCode { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public static Product Create(string name, string? description)
@@ -37,6 +39,17 @@ public sealed class Product
 
         Name = name.Trim();
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+    }
+
+    public void SetUnitCode(string? unitCode)
+    {
+        var normalized = string.IsNullOrWhiteSpace(unitCode) ? null : unitCode.Trim().ToLowerInvariant();
+        if (normalized is not null && !ProductUnitCodes.IsSupported(normalized))
+        {
+            throw new ArgumentException("Unidad invalida. Usa kg, piece, dozen o package.", nameof(unitCode));
+        }
+
+        UnitCode = normalized;
     }
 
     public void Activate()

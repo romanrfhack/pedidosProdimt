@@ -1,4 +1,6 @@
-# PRODIMT Pedidos — Base documental inicial
+# PRODIMT — Pedidos y operación
+
+> **Continuidad actual (octubre de 2026):** empezar en [CONTINUAR.md](CONTINUAR.md), consultar [estado](docs/proyecto/ESTADO.md), [plan integral](docs/proyecto/PLAN.md) y [decisiones](docs/proyecto/DECISIONES.md). El contenido de mayo que sigue es antecedente y no describe por sí solo el alcance vigente.
 
 Fecha: 2026-05-27  
 Versión documental: 0.2

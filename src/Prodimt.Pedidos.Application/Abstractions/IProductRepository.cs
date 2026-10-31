@@ -4,6 +4,8 @@ namespace Prodimt.Pedidos.Application.Abstractions;
 
 public interface IProductRepository
 {
+    Task<T> ExecuteCatalogUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken);
 
     Task<Product?> GetByIdAsync(Guid productId, CancellationToken cancellationToken);

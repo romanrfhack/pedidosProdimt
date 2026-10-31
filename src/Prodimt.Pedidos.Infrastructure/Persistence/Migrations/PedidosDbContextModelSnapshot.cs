@@ -127,13 +127,31 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<bool?>("HasStoreKey")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InternalDeliveryInstructions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOrderProfileApproved")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("OrderingProfileVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -149,6 +167,18 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<TimeOnly?>("PreferredDeliveryWindowStart")
                         .HasColumnType("time");
 
+                    b.Property<int>("RestDaysMask")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("RouteStopOrder")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -158,7 +188,12 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[ExternalCode] IS NOT NULL");
 
-                    b.ToTable("Customers");
+                    b.HasIndex("RouteCode", "RouteStopOrder");
+
+                    b.ToTable("Customers", t =>
+                        {
+                            t.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
+                        });
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerAccessToken", b =>
@@ -210,19 +245,39 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CaptureAlias")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
                     b.Property<decimal?>("DefaultQuantity")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int?>("InterpretationPosition")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<Guid?>("PreferredMachineId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
                     b.HasKey("CustomerId", "ProductId");
 
+                    b.HasIndex("PreferredMachineId");
+
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("CustomerId", "CaptureAlias")
+                        .IsUnique()
+                        .HasFilter("[CaptureAlias] IS NOT NULL");
+
+                    b.HasIndex("CustomerId", "InterpretationPosition")
+                        .IsUnique()
+                        .HasFilter("[InterpretationPosition] IS NOT NULL");
 
                     b.ToTable("CustomerFrequentProducts");
                 });
@@ -301,9 +356,24 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CustomerNameSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("DeliveryNotes")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ExternalOrderKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool?>("HasStoreKey")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InternalDeliveryInstructions")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("InternalNotes")
                         .HasMaxLength(1000)
@@ -314,6 +384,13 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("OrderDate")
                         .HasColumnType("date");
+
+                    b.Property<int?>("OrderingProfileVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<TimeOnly?>("RequestedDeliveryTime")
                         .HasColumnType("time");
@@ -327,11 +404,26 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<bool>("RequiresAdminReview")
                         .HasColumnType("bit");
 
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("RouteStopOrder")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("SalesChannelId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("SequenceNumber")
                         .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("SourcePayloadHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -341,11 +433,23 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("SubmittedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("SalesChannelId");
 
-                    b.HasIndex("CustomerId", "OrderDate", "SequenceNumber");
+                    b.HasIndex("Source", "ExternalOrderKey")
+                        .IsUnique()
+                        .HasFilter("[Source] IS NOT NULL AND [ExternalOrderKey] IS NOT NULL");
+
+                    b.HasIndex("CustomerId", "OrderDate", "SequenceNumber")
+                        .IsUnique()
+                        .HasFilter("[CustomerId] IS NOT NULL");
 
                     b.ToTable("Orders");
                 });
@@ -389,8 +493,7 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(80)");
 
                     b.Property<string>("MetadataJson")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("datetimeoffset");
@@ -414,6 +517,93 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("OrderAuditLogs");
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.OrderChangeNotice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcknowledgedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("AcknowledgedById")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActorDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("MachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("MachineName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("MachineNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("OrderVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateOnly>("ServiceDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId", "OrderVersion", "MachineId")
+                        .IsUnique();
+
+                    b.HasIndex("ServiceDate", "MachineId", "AcknowledgedAt");
+
+                    b.ToTable("OrderChangeNotices", (string)null);
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.OrderLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -433,9 +623,17 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ProductNameSnapshot")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnitCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.HasKey("Id");
 
@@ -446,6 +644,29 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderLines");
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.OrderOperation", b =>
+                {
+                    b.Property<string>("OperationKey")
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("OperationKey");
+
+                    b.ToTable("OrderOperations");
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Product", b =>
@@ -469,6 +690,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("UnitCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.HasKey("Id");
 
@@ -523,6 +748,11 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("PreferredMachineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -565,6 +795,15 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.OrderChangeNotice", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

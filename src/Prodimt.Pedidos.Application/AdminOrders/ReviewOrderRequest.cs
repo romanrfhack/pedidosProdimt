@@ -9,6 +9,7 @@ public sealed record ReviewOrderRequest(
     TimeOnly? RequestedDeliveryWindowStart = null,
     TimeOnly? RequestedDeliveryWindowEnd = null,
     string? DeliveryNotes = null,
-    IReadOnlyList<ReviewOrderLineAdjustmentRequest>? LineAdjustments = null);
+    IReadOnlyList<ReviewOrderLineAdjustmentRequest>? LineAdjustments = null,
+    int? ExpectedVersion = null);
 
 public sealed record ReviewOrderLineAdjustmentRequest(Guid OrderLineId, decimal Quantity, string? Notes);

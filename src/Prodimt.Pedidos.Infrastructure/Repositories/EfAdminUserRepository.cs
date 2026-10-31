@@ -37,4 +37,19 @@ public sealed class EfAdminUserRepository(PedidosDbContext dbContext) : IAdminUs
     {
         return dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> TryChangePasswordAsync(Guid userId, string expectedHash, string newHash, AuditLog audit,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var collation = dbContext.Database.IsSqlServer() ? "Latin1_General_100_BIN2" : "BINARY";
+        var changed = await dbContext.AdminUsers.Where(x => x.Id == userId && x.IsActive
+            && EF.Functions.Collate(x.PasswordHash, collation) == expectedHash)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.PasswordHash, newHash), cancellationToken);
+        if (changed != 1) return false;
+        await dbContext.AuditLogs.AddAsync(audit, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
 }

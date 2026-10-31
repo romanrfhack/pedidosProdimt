@@ -1,0 +1,60 @@
+<form class="capture-panel stack" (ngSubmit)="save()" data-testid="order-capture">
+  <div class="capture-heading"><h3>Captura para {{ config.customerName }}</h3><span>{{ serviceDate.split('-').reverse().join('/') }}</span></div>
+  <div class="delivery-info"><span>Entrega habitual: <strong>{{ deliveryLabel }}</strong></span>
+    <a [routerLink]="['/admin/clientes', config.customerId, 'configuracion']" target="_blank" rel="noopener">Configurar cliente</a></div>
+  <div class="capture-modes" role="group" aria-label="Modo de captura">
+    <button type="button" [class.selected]="mode === 'quick'" [attr.aria-pressed]="mode === 'quick'" [disabled]="locked" (click)="changeMode('quick')">Captura rápida</button>
+    <button type="button" [class.selected]="mode === 'manual'" [attr.aria-pressed]="mode === 'manual'" [disabled]="locked" (click)="changeMode('manual')">Captura manual</button>
+  </div>
+  @if (existingOrders.length) {
+    <section class="alert warning stack" data-testid="capture-existing-orders"><strong>Este cliente ya tiene pedidos para esta fecha.</strong>
+      <p>Abre el pedido para corregir los kilos de la misma entrega.</p>
+      @for (order of existingOrders; track order.id) { <a routerLink="/admin/pedidos" [queryParams]="{ date: serviceDate, orderId: order.id }">Abrir pedido #{{ order.sequenceNumber }} y corregir</a> }
+      <label class="check-row"><input type="checkbox" name="confirmSeparateDelivery" [(ngModel)]="separateDelivery" [disabled]="locked"><span>Confirmo que es una entrega adicional independiente; crear otro pedido sujeto a revisión.</span></label>
+    </section>
+  }
+  @if (mode === 'quick') {
+    <label class="quick-input"><span>Pedido del cliente</span>
+      <input name="quickOrderText" type="text" maxlength="240" autocomplete="off" spellcheck="false" [(ngModel)]="text"
+        (ngModelChange)="textChanged()" (blur)="interpret()" (keydown.enter)="$event.preventDefault(); interpret()"
+        [disabled]="locked" placeholder="Ej. 16 o 13+7" aria-describedby="capture-help">
+    </label>
+    <p id="capture-help" class="capture-help">Escribe las cantidades como las pide el cliente. Al salir del campo verás el desglose.</p>
+    <div class="capture-sequence" aria-label="Orden y abreviaturas del cliente">
+      @for (item of sequence; track item.productId) { <span><b>{{ item.interpretationPosition ?? '?' }}</b> {{ item.productName }} @if (item.captureAlias) { <strong>{{ item.captureAlias }}</strong> }</span> }
+    </div>
+    @if (interpreting) { <p role="status" class="notice">Interpretando pedido…</p> }
+    @if (preview; as result) {
+      <section class="capture-breakdown" data-testid="capture-breakdown" aria-live="polite"><h4>Se registrará</h4>
+        @for (line of result.lines; track line.productId) { <p><strong>{{ line.quantity }} {{ unitLabel(line.unitCode) }}</strong> de {{ line.productName }}</p> }
+      </section>
+      @if (!result.profile.isOrderProfileApproved) {
+        <section class="profile-confirmation"><p>Verifica los productos y su orden habitual. Esta confirmación se guarda para las próximas capturas del cliente.</p>
+          <button type="button" class="secondary" [disabled]="locked" (click)="confirmProfile()">{{ confirming ? 'Confirmando…' : 'Confirmar orden y productos' }}</button>
+        </section>
+      }
+    }
+  } @else {
+    <div class="manual-products">@for (product of config.products; track product.id) {
+      <label class="manual-product"><span><strong>{{ product.name }}</strong><small>{{ product.unitCode ? unitLabel(product.unitCode) : 'Confirma la unidad en Configurar cliente' }}</small></span>
+        <input type="number" min="0" max="9999999999999999" step="0.01" inputmode="decimal" [name]="'captureQuantity' + product.id"
+          [(ngModel)]="product.quantity" [disabled]="locked || !product.unitCode" [attr.aria-label]="'Cantidad de ' + product.name">
+      </label>
+    }</div>
+  }
+  @if (notice) { <p class="notice" role="status">{{ notice }}</p> }
+  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
+  @if (uncertain) {
+    <div class="alert warning"><p>El resultado del guardado aún no está confirmado. Reintenta para recuperar el mismo pedido con la misma referencia.</p>
+      <button type="button" class="primary" [disabled]="saving" (click)="retrySave()" data-testid="capture-retry">{{ saving ? 'Verificando…' : 'Reintentar guardado' }}</button></div>
+  }
+  <details class="capture-notes"><summary>Notas de entrega e internas</summary><div class="stack">
+    <label><span>Notas de entrega</span><input name="deliveryNotes" maxlength="500" [(ngModel)]="deliveryNotes" [disabled]="locked"></label>
+    <label><span>Notas internas</span><input name="captureInternalNotes" maxlength="1000" [(ngModel)]="internalNotes" [disabled]="locked"></label>
+  </div></details>
+  <div class="capture-actions">
+    @if (!uncertain) { <button type="submit" class="primary" [disabled]="!canSave">{{ saving ? 'Guardando…' : 'Guardar pedido' }}</button> }
+    <button type="button" class="secondary" [disabled]="locked" (click)="cancel()">Cancelar</button>
+    <button type="button" class="refresh-config" [disabled]="locked" (click)="refreshConfiguration()">Actualizar configuración</button>
+  </div>
+</form>

@@ -5,6 +5,13 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class InMemoryProductRepository(InMemoryDataStore store) : IProductRepository
 {
+    public async Task<T> ExecuteCatalogUpdateAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    {
+        await store.CatalogGate.WaitAsync(cancellationToken);
+        try { return await action(cancellationToken); }
+        finally { store.CatalogGate.Release(); }
+    }
+
     public Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<Product> products = store.Products

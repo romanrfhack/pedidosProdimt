@@ -51,7 +51,7 @@ label span {
 
 nav {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 6px;
 }
 
@@ -393,4 +393,163 @@ button.compact {
   .catalog-line {
     grid-template-columns: minmax(140px, 1fr) 90px 80px auto auto;
   }
+}
+
+.frequent-line {
+  grid-template-columns: 1fr;
+  align-items: end;
+}
+
+.frequent-line label,
+.operations-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.operations-filters {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+}
+
+.operations-heading,
+.section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.operations-plan h3,
+.operations-plan h4,
+.operations-plan p {
+  margin: 0;
+}
+
+.operations-plan .page-title p:last-child {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.operations-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .95rem;
+}
+
+.operations-table th,
+.operations-table td {
+  border-bottom: 1px solid #dfe5e8;
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.operations-table th {
+  background: #eef4f5;
+}
+
+.operations-table .quantity-cell {
+  text-align: right;
+  font-weight: 700;
+}
+
+.preparation-card {
+  padding: 16px;
+  border: 1px solid #c8d8dd;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  break-inside: avoid;
+}
+
+.preparation-card h4 {
+  font-size: 1.15rem;
+}
+
+.delivery-details {
+  display: grid;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.delivery-instructions {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.preparation-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.preparation-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #dfe5e8;
+}
+
+.line-quantity {
+  font-weight: 800;
+  text-align: right;
+}
+
+.order-reference {
+  font-size: .7rem;
+  overflow-wrap: anywhere;
+}
+
+.pending-plan {
+  border-top: 2px solid #ead47c;
+  padding-top: 16px;
+}
+
+.print-footer {
+  font-size: .8rem;
+  color: #45545c;
+}
+
+@media (min-width: 700px) {
+  .operations-filters {
+    grid-template-columns: 1fr 1fr auto;
+  }
+  .frequent-line {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .frequent-line label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media print {
+  @page { margin: 12mm; }
+  html { background: #fff; }
+  body { background: #fff; font-size: 10pt; }
+  .app-shell__header,
+  .no-print { display: none !important; }
+  .app-shell__main { width: 100%; padding: 0; }
+  .page { border: 0; padding: 0; }
+  .notice, .badge, .alert { background: #fff; color: #000; border: 1px solid #999; }
+  .preparation-card { border-color: #888; }
+  .table-scroll { overflow: visible; }
+  .operations-table thead { display: table-header-group; }
+  .operations-table tr { break-inside: avoid; }
+}
+
+
+/* Focused customer configuration uses the viewport; other screens keep their width. */
+.app-shell__main:has(.config-page) { width:100%; padding:12px clamp(12px,1.6vw,32px); }
+@media (min-width:1200px) {
+  body:has(.config-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.config-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.config-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+  body:has(.config-page) nav a, body:has(.config-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }

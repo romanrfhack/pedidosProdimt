@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
+using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
@@ -65,6 +67,7 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
     {
         var orders = await dbContext.Orders
             .AsNoTracking()
+            .Include(x => x.Lines)
             .Where(x => x.OrderDate == orderDate)
             .ToArrayAsync(cancellationToken);
 
@@ -92,8 +95,31 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
             .SingleOrDefaultAsync(x => x.Id == orderId, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public Task<Order?> GetBySourceAsync(string source, string externalOrderKey, CancellationToken cancellationToken)
+        => dbContext.Orders.AsNoTracking().Include(x => x.Lines)
+            .SingleOrDefaultAsync(x => x.Source == source && x.ExternalOrderKey == externalOrderKey, cancellationToken);
+
+    public Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        dbContext.OrderLines.RemoveRange(order.Lines);
+        order.ReplaceLines(lines);
+        dbContext.OrderLines.AddRange(lines);
+        return Task.CompletedTask;
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (CatalogPersistenceConflicts.IsConcurrentChange(ex))
+        {
+            throw new CustomerOrderConflictException("El pedido cambio durante la operacion. Recarga el detalle.");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            throw new CustomerOrderConflictException("Se registro otro pedido al mismo tiempo. Recarga antes de volver a intentar.");
+        }
     }
 }

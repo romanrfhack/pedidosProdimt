@@ -4,24 +4,36 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Prodimt.Pedidos.Api;
 using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminImports;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
 using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 
-var builder = WebApplication.CreateBuilder(args);
+var initializePilot = args.Contains("--initialize-pilot", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(x => x != "--initialize-pilot").ToArray());
 var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
+if (builder.Environment.IsProduction())
+    PilotRuntimeConfiguration.ValidateProduction(builder.Configuration, jwtSettings);
 
 builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<AdminOrderService>();
+builder.Services.AddScoped<AdminOrderCaptureService>();
+builder.Services.AddScoped<AdminDailyOrderService>();
+builder.Services.AddScoped<AdminOperationsService>();
+builder.Services.AddScoped<OrderChangeNoticePublisher>();
+builder.Services.AddScoped<OrderChangeNoticeService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
+builder.Services.AddScoped<AdminCustomerDayService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
 builder.Services.AddScoped<AdminCustomerAccessTokenService>();
@@ -29,6 +41,7 @@ builder.Services.AddScoped<AdminUserCatalogService>();
 builder.Services.AddScoped<CsvImportParser>();
 builder.Services.AddScoped<AdminImportService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
+builder.Services.AddScoped<AdminPasswordService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -42,6 +55,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                if (context.Principal?.FindFirstValue(ProdimtAuthClaims.ActorType) != ProdimtActorTypes.Admin) return;
+                var identity = context.Principal.FindFirstValue(ProdimtAuthClaims.UserId);
+                var stamp = context.Principal.FindFirstValue(ProdimtAuthClaims.AdminSessionStamp);
+                if (!Guid.TryParse(identity, out var userId) || stamp is null)
+                {
+                    context.Fail("La sesión administrativa debe renovarse.");
+                    return;
+                }
+                var provider = context.HttpContext.RequestServices;
+                var user = await provider.GetRequiredService<IAdminUserRepository>()
+                    .GetByIdAsync(userId, context.HttpContext.RequestAborted);
+                if (user is null || !user.IsActive || !AdminSessionStamp.Matches(
+                    provider.GetRequiredService<IConfiguration>(), user.PasswordHash, stamp))
+                    context.Fail("La sesión administrativa debe renovarse.");
+            }
         };
     });
 builder.Services.AddAuthorization(options =>
@@ -74,6 +107,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var app = builder.Build();
 
+if (initializePilot)
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetService<PedidosDbContext>()
+            ?? throw new InvalidOperationException("La inicializacion requiere SQL Server.");
+        var result = await PilotBootstrapper.InitializeAsync(db,
+            scope.ServiceProvider.GetRequiredService<Prodimt.Pedidos.Application.Abstractions.IPasswordHashService>(),
+            PilotBootstrapOptions.FromConfiguration(builder.Configuration));
+        app.Logger.LogInformation("Pilot initialization completed. Administrator created: {Created}; channels created: {Channels}.",
+            result.AdministratorCreated, result.ChannelsCreated);
+    }
+    catch (Exception ex)
+    {
+        // Configuration and SQL exceptions can contain connection details. Keep command output generic.
+        app.Logger.LogError("Pilot initialization failed ({FailureType}). Verify isolated SQL configuration and bootstrap settings.", ex.GetType().Name);
+        Environment.ExitCode = 1;
+    }
+    await app.DisposeAsync();
+    return;
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -88,10 +144,25 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-app.UseHttpsRedirection();
-app.UseCors("ProdimtWeb");
+if (builder.Configuration.GetValue("Hosting:UseHttpsRedirection", true)) app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment()) app.UseCors("ProdimtWeb");
+app.UsePilotStaticFiles();
+app.Use(async (HttpContext context, RequestDelegate next) =>
+{
+    try
+    {
+        await next(context);
+    }
+    catch (CatalogConflictException ex) when (!context.Response.HasStarted)
+    {
+        await Results.Conflict(new { error = ex.Message }).ExecuteAsync(context);
+    }
+});
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapAdminOperationsEndpoints();
+app.MapDailyOrderEndpoints();
+app.MapOrderCaptureEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -213,6 +284,10 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
     {
         return Results.Ok(await service.SubmitAsync(customerId, request, cancellationToken));
     }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
     catch (ArgumentException ex)
     {
         return Results.BadRequest(new { error = ex.Message });
@@ -256,18 +331,20 @@ var adminOrders = app.MapGroup("/api/admin/orders")
     .RequireAuthorization("AdminAccess");
 
 adminOrders.MapGet("/today", async (
+    DateOnly? date,
     AdminOrderService service,
     CancellationToken cancellationToken) =>
 {
-    return Results.Ok(await service.GetTodayAsync(cancellationToken));
+    return Results.Ok(await service.GetTodayAsync(cancellationToken, date));
 })
 .WithName("GetAdminOrdersToday");
 
 adminOrders.MapGet("/pending-review", async (
+    DateOnly? date,
     AdminOrderService service,
     CancellationToken cancellationToken) =>
 {
-    return Results.Ok(await service.GetPendingReviewAsync(cancellationToken));
+    return Results.Ok(await service.GetPendingReviewAsync(cancellationToken, date));
 })
 .WithName("GetAdminOrdersPendingReview");
 
@@ -314,6 +391,10 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     {
         return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, GetAdminActor(user)));
     }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
     catch (ArgumentException ex)
     {
         return Results.BadRequest(new { error = ex.Message });
@@ -336,6 +417,11 @@ adminCustomers.MapGet("", async (
     return Results.Ok(await service.GetAllAsync(cancellationToken));
 })
 .WithName("GetAdminCustomers");
+
+adminCustomers.MapGet("/day-status", async (
+    AdminCustomerDayService service,
+    CancellationToken cancellationToken) => Results.Ok(await service.GetTodayAsync(cancellationToken)))
+    .WithName("GetAdminCustomerDayStatus");
 
 adminCustomers.MapGet("/{customerId:guid}", async (
     Guid customerId,
@@ -472,6 +558,26 @@ adminCustomers.MapGet("/{customerId:guid}/frequent-products", async (
 })
 .WithName("GetAdminCustomerFrequentProducts");
 
+adminCustomers.MapGet("/{customerId:guid}/ordering-profile", async (
+    Guid customerId,
+    AdminCustomerCatalogService service,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return Results.Ok(await service.GetOrderingProfileAsync(customerId, cancellationToken));
+    }
+    catch (CatalogConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("GetAdminCustomerOrderingProfile");
+
 adminCustomers.MapPut("/{customerId:guid}/frequent-products", async (
     Guid customerId,
     UpdateCustomerFrequentProductsRequest request,
@@ -482,6 +588,10 @@ adminCustomers.MapPut("/{customerId:guid}/frequent-products", async (
     try
     {
         return Results.Ok(await service.ReplaceFrequentProductsAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CatalogConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (ArgumentException ex)
     {
@@ -599,6 +709,10 @@ adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
     try
     {
         return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CustomerOrderConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message });
     }
     catch (ArgumentException ex)
     {
@@ -893,6 +1007,20 @@ var adminUsers = app.MapGroup("/api/admin/users")
     .WithTags("Admin users")
     .RequireAuthorization("AdminAccess");
 
+app.MapPost("/api/admin/account/change-password", async (ChangeAdminPasswordRequest request, ClaimsPrincipal principal,
+    AdminPasswordService service, CancellationToken cancellationToken) =>
+{
+    if (!Guid.TryParse(principal.FindFirstValue(ProdimtAuthClaims.UserId), out var userId))
+        return Results.Unauthorized();
+    try
+    {
+        await service.ChangeAsync(userId, request, cancellationToken);
+        return Results.NoContent();
+    }
+    catch (AuthenticationFailedException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+}).RequireAuthorization("AdminAccess").WithName("ChangeOwnAdminPassword");
+
 adminUsers.MapGet("", async (
     AdminUserCatalogService service,
     CancellationToken cancellationToken) =>
@@ -953,6 +1081,7 @@ adminUsers.MapPatch("/{userId:guid}/deactivate", async (
 })
 .WithName("DeactivateAdminUser");
 
+app.MapPilotWeb();
 app.Run();
 
 static IResult? ValidateCustomerAccess(ClaimsPrincipal user, Guid customerId)

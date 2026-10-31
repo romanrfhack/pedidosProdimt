@@ -13,4 +13,7 @@ public interface IAdminUserRepository
     Task AddAsync(AdminUser adminUser, CancellationToken cancellationToken);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    Task<bool> TryChangePasswordAsync(Guid userId, string expectedHash, string newHash, AuditLog audit,
+        CancellationToken cancellationToken);
 }

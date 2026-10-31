@@ -21,7 +21,12 @@ const forbiddenCustomerTokens = [
   'machineid',
   'assignedmachineid',
   'assignedmachine',
-  'maquina'
+  'maquina',
+  'hasstorekey',
+  'internaldeliveryinstructions',
+  'paymenttermcode',
+  'routecode',
+  'routestoporder'
 ];
 
 function assert(condition, message) {
@@ -208,6 +213,39 @@ async function main() {
     assert(Array.isArray(importedCustomerToday.products) && importedCustomerToday.products.length > 0, 'Imported customer has no frequent products.');
     assertCustomerPayloadDoesNotExposeInternalData(importedCustomerToday);
     console.log('OK imported customer sees frequent products without machine data');
+
+    assert(importedCustomerToday.products.every((product) => ['kg', 'piece', 'dozen', 'package'].includes(product.unitCode)),
+      'Imported frequent product is missing an explicit unit.');
+    assert(importedCustomerToday.products.some((product) => product.unitCode === 'kg') &&
+      importedCustomerToday.products.some((product) => product.unitCode === 'dozen'), 'Demo import must exercise kg and dozen separately.');
+    const submitted = await requestJson(`/api/customer-orders/${importedCustomer.id}/submit`, {
+      method: 'POST', headers: importedCustomerHeaders,
+      body: JSON.stringify({ lines: importedCustomerToday.products.map((product) => ({ productId: product.productId, quantity: 2, notes: null })) })
+    });
+    assertCustomerPayloadDoesNotExposeInternalData(submitted);
+    const detail = await requestJson(`/api/admin/orders/${submitted.orderId}`, { headers: adminHeaders });
+    for (const product of importedCustomerToday.products) {
+      assert(detail.lines.some((line) => line.productId === product.productId && line.unitCode === product.unitCode),
+        'Imported order did not persist the explicit unit snapshot.');
+    }
+    if (submitted.requiresAdminReview) {
+      await requestJson(`/api/admin/orders/${submitted.orderId}/review`, {
+        method: 'POST', headers: adminHeaders,
+        body: JSON.stringify({ decision: 'Accepted', expectedVersion: detail.version })
+      });
+    }
+    const deniedPlan = await fetchJson('/api/admin/operations/plan', { headers: importedCustomerHeaders });
+    assert(deniedPlan.status === 403, 'Imported customer must not access the operations plan.');
+    const plan = await requestJson('/api/admin/operations/plan', { headers: adminHeaders });
+    const plannedOrder = plan.orders.find((order) => order.orderId === submitted.orderId);
+    assert(plannedOrder?.lines.length === importedCustomerToday.products.length, 'Imported order is absent from preparation plan.');
+    assert(plannedOrder.lines.every((line) => line.quantity === 2), 'Preparation plan changed imported order quantities.');
+    for (const product of importedCustomerToday.products) {
+      assert(plan.machineDemand.some((item) => item.productId === product.productId && item.unitCode === product.unitCode && item.quantity >= 2),
+        'Demand summary lost the product unit or mixed quantities.');
+    }
+    console.log('OK imported kg/dozen products submit, preserve units and appear separately in protected demand plan');
+
   } finally {
     await rm(sampleFolder, { recursive: true, force: true });
   }

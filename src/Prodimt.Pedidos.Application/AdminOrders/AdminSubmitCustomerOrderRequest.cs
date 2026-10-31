@@ -6,6 +6,7 @@ public sealed record AdminSubmitCustomerOrderRequest(
     TimeOnly? RequestedDeliveryWindowStart,
     TimeOnly? RequestedDeliveryWindowEnd,
     string? DeliveryNotes,
-    string? InternalNotes);
+    string? InternalNotes,
+    DateOnly? ServiceDate = null);
 
 public sealed record AdminSubmitCustomerOrderLineRequest(Guid ProductId, decimal Quantity, string? Notes);
