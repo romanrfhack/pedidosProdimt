@@ -4,9 +4,9 @@ Actualizado: 30 de octubre de 2026.
 
 ## Incidencia vigente en la aceptación de I07
 
-Vista previa observada en navegador: interpretación correcta, perfil aprobado y unidades confirmadas. La pantalla muestra guardado incierto; la respuesta aportada es de preview, sin estado HTTP ni respuesta de capture. La causa y la persistencia de ese intento siguen sin confirmar. [Evidencia y siguiente comprobación](../validation/2026-10-30-i07-capture-incident.md).
+Vista previa observada en navegador: interpretación correcta, perfil aprobado y unidades confirmadas. La nueva captura de Network confirma HTTP 500 en capture, con cuerpo coherente con la vista previa. La causa y la persistencia de ese intento siguen sin confirmar. [Evidencia y diagnóstico de registros](../validation/2026-10-30-i07-capture-incident.md).
 
-Conservar la captura abierta y su referencia mientras se obtiene estado HTTP y Response de `/orders/capture`, sin cabeceras de autenticación. No recargar, abrir otra captura, reinstalar o reimportar para resolver esta incidencia. No se ha cambiado código ni operado el VPS desde este entorno. La instalación confirmada sigue siendo I07 con once migraciones; la aceptación funcional está pendiente.
+Conservar la captura abierta y su referencia mientras se obtiene el JSON de `PRODIMT_Diagnostico_Captura_I07.py`, herramienta nueva de sólo lectura de systemctl/journalctl, sin SQL/API ni reproducción del pedido. Doce casos nuevos, 186 Python locales correctos. No recargar, abrir otra captura, reinstalar o reimportar para resolver esta incidencia. No se ha cambiado la aplicación ni operado el VPS desde este entorno. La instalación confirmada sigue siendo I07 con once migraciones; la aceptación funcional está pendiente.
 
 ## I07 desplegado — 30 de octubre de 2026
 

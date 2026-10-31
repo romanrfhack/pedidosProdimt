@@ -360,3 +360,12 @@ Se actualizaron estado vigente, continuidad, I07, plan y evidencias. El diagnós
 El usuario reporta fallo al guardar desde Pendientes y aporta captura, petición y respuesta de preview. El desglose, perfil aprobado y unidades confirmadas se observan correctos. No se ha aportado el estado HTTP ni la respuesta de capture; la causa y el resultado persistido del intento no están demostrados. Se revisa el flujo de transacción/recibo, auditoría y manejo Angular de respuestas inciertas sin hallar una causa verificable con esta evidencia. No se altera código ni se accede al VPS.
 
 Se registra la incidencia en docs/validation/2026-10-30-i07-capture-incident.md, ESTADO y CONTINUAR. Se prioriza conservar pestaña/referencia e inspeccionar únicamente Status Code y Response de capture, sin compartir autenticación. No recargar, crear otro intento ni reinstalar. Los datos reales y credenciales compartidos no se copian al repositorio. Sin cambios funcionales ni repetición de suites. I07 instalado conserva once migraciones y aceptación pendiente.
+
+
+## 2026-10-30 — I07: HTTP 500 confirmado y diagnóstico de guardado
+
+La imagen nueva de Network confirma capture 500 con preview/perfil/plantilla/consulta 200. El cuerpo aportado conserva fecha, versión y huella de preview. No se usan ni guardan las credenciales compartidas; tampoco se copia información real al repositorio. La causa y la confirmación de la transacción siguen pendientes.
+
+Se prepara scripts/pilot/diagnose-capture-save.py y su entrega PRODIMT_Diagnostico_Captura_I07.py, revisión 20261030-capture-save-diagnosis1, SHA e0f83643a4f2a8beff76f85009fbe57fa83dfcfcda4e145f1871fd2b3a2de0d0. Lee sólo ActiveState y journal del servicio; agrupa mensajes/stack antes de emitir metadatos permitidos, sin texto libre. No SQL/config, API, credenciales adicionales, reproducción ni mutaciones. Distingue fallos ajenos; no diagnostica ausencia de canal administrativo sin evidencia. Conserva intento/pestaña existentes y no reusa el diagnóstico SQL previo de I06.
+
+Doce pruebas nuevas y 186 Python locales correctas; CLI real local sin systemd devuelve read_command_failed sin divulgar streams. Sin cambios de aplicación, migraciones, cuentas o datos operativos. graphify update . no disponible (127). Se actualizan continuidad, estado y evidencia. Pendiente JSON remoto para identificar la excepción antes de una corrección; no se opera SSH desde este entorno.
