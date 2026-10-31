@@ -44,7 +44,15 @@ ssh root@194.238.26.70 'python3 - --apply' \
 
 El usuario sólo autentica SSH; no hace falta copiar otro instalador ni introducir un usuario SQL administrativo. Se espera status repaired o already_configured, phase completed, channel_verified=true, existing_data_counts_preserved=true y application_save_verified=false.
 
-La herramienta no envía pedidos de prueba. Después del JSON correcto, usar Reintentar guardado en la captura que permanece abierta. Conservar pestaña, contenido y operación, sin refrescar o crear otra entrega independiente. Confirmar pedido visible una sola vez y cantidades correctas. Si el resultado no es correcto, revisar el JSON antes de repetir acciones. Reparación aplicada y guardado de negocio aún no confirmados por el usuario.
+La herramienta no envía pedidos de prueba. Después del JSON correcto, usar Reintentar guardado en la captura que permanece abierta. Conservar pestaña, contenido y operación, sin refrescar o crear otra entrega independiente. Confirmar pedido visible una sola vez y cantidades correctas. Si el resultado no es correcto, revisar el JSON antes de repetir acciones. La reparación aplicada ya está confirmada por el usuario; el guardado de negocio sigue pendiente.
+
+## Reparación aplicada — 31 de octubre de 2026
+
+El usuario verifica el SHA del archivo entregado y ejecuta por SSH/entrada estándar con --apply. Su JSON confirma revisión 20261030-admin-channel-repair1, repaired/completed, changes_made=true, channel_created=true, channel_verified=true, audit_inserted=true y existing_data_counts_preserved=true. No hubo migraciones, reinicio ni reproducción del pedido, y no se imprimieron secretos.
+
+channel_missing=true refleja el preflight previo a la inserción. application_save_verified=false refleja que la herramienta no envía una captura; no es fallo de la reparación. changes_may_have_occurred=true es coherente con la inserción confirmada, sin evidencia de rollback. No es necesario repetir la herramienta.
+
+Siguiente paso: Reintentar guardado en la pestaña existente con la misma operación/contenido; comprobar una sola entrega y las cantidades previstas. No declarar aceptado el guardado a partir de la reparación del canal. Sin acceso directo al VPS desde este entorno; evidencia proporcionada por el usuario. Sólo actualización documental, sin repetir suites ni cambiar artefactos.
 
 ## Diagnóstico previo archivado
 

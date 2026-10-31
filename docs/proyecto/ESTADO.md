@@ -1,14 +1,14 @@
 # Estado del proyecto
 
-Actualizado: 30 de octubre de 2026.
+Actualizado: 31 de octubre de 2026.
 
-## I07: canal administrativo faltante, reparación preparada
+## I07: canal administrativo reparado; guardado pendiente
 
 El JSON remoto del diagnóstico identifica `admin_sales_channel_missing` en tres fallos de capture, con servicio y releases I07 activos. La excepción ocurre al buscar el canal antes de crear el pedido. El 500 no procede de la interpretación, unidades o aprobación del perfil.
 
-Reparación puntual preparada con la identidad SQL limitada de la aplicación: insertar AdminManualCapture e IsInternal=1 sólo si falta, junto con una auditoría en la misma transacción; no modifica registros existentes. Ver [evidencia, límites y entrega](../validation/2026-10-30-i07-capture-incident.md). No cambia aplicación, esquema, cuentas, perfiles ni servicios. Once migraciones conservadas; no se reenvía el pedido. Código 63b955ad333c1d4e3cc2f3f4eb73187a1629cef7, [CI con cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41167167347): 197 Python, 31 SQL Server (dos regresiones nuevas), 267 .NET, 68 E2E y smoke Production.
+Reparación puntual aplicada por el usuario con la identidad SQL limitada de la aplicación: insertar AdminManualCapture e IsInternal=1 sólo si falta, junto con una auditoría en la misma transacción; no modifica registros existentes. Ver [evidencia, límites y entrega](../validation/2026-10-30-i07-capture-incident.md). No cambia aplicación, esquema, cuentas, perfiles ni servicios. Once migraciones conservadas; no se reenvía el pedido. Código 63b955ad333c1d4e3cc2f3f4eb73187a1629cef7, [CI con cuatro jobs correctos](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41167167347): 197 Python, 31 SQL Server (dos regresiones nuevas), 267 .NET, 68 E2E y smoke Production.
 
-Pendiente ejecución por el usuario y JSON de resultado. Mantener la pestaña/referencia y usar Reintentar guardado únicamente después de verificar el canal. Aceptación funcional de guardado todavía pendiente; no se declara reparación aplicada desde este entorno.
+JSON del usuario confirma repaired/completed, canal creado/verificado, auditoría insertada y conteos existentes conservados. No se ejecutaron migraciones, reinicio ni reproducción de pedidos. application_save_verified=false es esperado: aún falta usar Reintentar guardado en la misma pestaña y confirmar un solo pedido con las cantidades correctas. No repetir reparación o iniciar otra captura mientras siga incierto el intento. Evidencia reportada por el usuario, sin acceso SSH desde este entorno; aceptación de guardado pendiente.
 
 ## I07 desplegado — 30 de octubre de 2026
 

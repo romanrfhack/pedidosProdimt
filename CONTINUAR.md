@@ -1,16 +1,16 @@
 # Continuar PRODIMT
 
-Última sesión: 30 de octubre de 2026. Zona operativa: `America/Mexico_City`.
+Última sesión: 31 de octubre de 2026. Zona operativa: `America/Mexico_City`.
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I07: causa identificada, reparación del canal pendiente
+## I07: canal reparado; guardado en navegador pendiente
 
-El diagnóstico ejecutado por el usuario confirma tres excepciones de captura `admin_sales_channel_missing`, sin códigos SQL ni denegación de permisos; servicio activo y ambos releases I07. `AdminManualCapture` falta en SalesChannels. La búsqueda falla antes de crear el pedido, dentro de la transacción del intento. La vista previa y aprobación del perfil ya funcionan. No reinstalar, importar otra vez ni ejecutar bootstrap.
+El diagnóstico ejecutado por el usuario confirma tres excepciones de captura `admin_sales_channel_missing`, sin códigos SQL ni denegación de permisos; servicio activo y ambos releases I07. `AdminManualCapture` faltaba en SalesChannels. La búsqueda falla antes de crear el pedido, dentro de la transacción del intento. La vista previa y aprobación del perfil ya funcionan. No reinstalar, importar otra vez ni ejecutar bootstrap.
 
-Se prepara `PRODIMT_Reparar_Canal_Admin_I07.py`, fuente `scripts/pilot/repair-native-admin-channel.py`. Agrega únicamente ese canal interno si está ausente, con auditoría atómica; conserva registros existentes. Usa la conexión de aplicación del proceso I07 y el inspector del payload original, verificado por SHA. No pide administrador SQL, migra, cambia credenciales, reinicia ni reenvía pedidos. SHA/validaciones en `docs/validation/2026-10-30-i07-capture-incident.md`.
+El usuario aplicó `PRODIMT_Reparar_Canal_Admin_I07.py`, fuente `scripts/pilot/repair-native-admin-channel.py`. Agrega únicamente ese canal interno si está ausente, con auditoría atómica; conserva registros existentes. Usa la conexión de aplicación del proceso I07 y el inspector del payload original, verificado por SHA. No pide administrador SQL, migra, cambia credenciales, reinicia ni reenvía pedidos. SHA/validaciones en `docs/validation/2026-10-30-i07-capture-incident.md`.
 
-Pendiente ejecutar la reparación con --apply y revisar `status: repaired` (o `already_configured`) y `channel_verified: true`. Después usar Reintentar guardado en la misma pestaña y con la misma referencia; no aplicar Ctrl+F5 mientras siga incierto el intento. La reparación no confirma que se haya guardado un pedido. No se ha operado el VPS desde este entorno.
+Aplicación confirmada por JSON del usuario: status repaired, phase completed, channel_created/channel_verified/audit_inserted/existing_data_counts_preserved true. Sin migraciones, reinicio o reproducción del pedido. application_save_verified false es esperado: la herramienta no envía pedidos. Próximo paso: Reintentar guardado en la misma pestaña con la misma referencia y confirmar una sola entrega con las cantidades correctas. No aplicar Ctrl+F5 mientras siga incierto el intento ni repetir la reparación. No se ha operado el VPS desde este entorno.
 
 ## I07 desplegado — 30 de octubre de 2026
 
