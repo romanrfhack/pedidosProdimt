@@ -16,7 +16,7 @@ namespace Prodimt.Pedidos.SqlServer.Tests;
 [Collection("SQL Server")]
 public sealed class CustomerChannelRepairSqlTests : IAsyncLifetime
 {
-    private readonly SqlServerFixture database = new();
+    private readonly SqlServerFixture database = new() { LegacyCaptureSchema = true };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         { Converters = { new JsonStringEnumConverter() } };
 

@@ -1,3 +1,4 @@
+import { priceText } from './commercial-catalog-api.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -88,6 +89,8 @@ import { AdminOperationsApiService, OperationsChange } from './admin-operations-
                           <span>
                             <strong>{{ line.productName }}</strong>
                             <small>Cantidad: {{ line.quantity }} {{ unitLabel(line.unitCode) }}</small>
+                            @if (line.unitPrice != null) { <small>Precio aplicado: {{ priceText(line.unitPrice) }} MXN / {{ unitLabel(line.unitCode) }} · Importe: {{ priceText(line.lineAmount) }} MXN</small> }
+                            @else { <small>Precio pendiente</small> }
                             @if (line.notes) {
                               <small>Notas: {{ line.notes }}</small>
                             }
@@ -96,6 +99,7 @@ import { AdminOperationsApiService, OperationsChange } from './admin-operations-
                         </div>
                       }
                     </div>
+                    <p><strong>Importe del pedido: {{ detail.hasUnpricedLines || detail.totalAmount == null ? 'Pendiente de precio' : priceText(detail.totalAmount) + ' MXN' }}</strong></p>
                     <div class="review-actions">
                       @if (canCorrect(detail)) { <button type="button" class="secondary" (click)="correcting = true" [disabled]="correcting">Corregir pedido</button> }
                       <button type="button" class="secondary" (click)="loadAudit(detail.id)" [disabled]="loadingAudit || correcting">Ver historial</button>
@@ -131,6 +135,7 @@ import { AdminOperationsApiService, OperationsChange } from './admin-operations-
   `
 })
 export class AdminTodayComponent {
+  protected readonly priceText = priceText;
   protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);

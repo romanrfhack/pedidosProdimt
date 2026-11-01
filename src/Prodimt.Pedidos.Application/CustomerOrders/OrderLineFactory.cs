@@ -13,7 +13,9 @@ internal static class OrderLineFactory
         ICustomerRepository customers,
         IProductRepository products,
         IMachineRepository machines,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ICommercialCatalogRepository? commercial = null,
+        DateOnly? serviceDate = null)
     {
         if (requestLines is null || requestLines.Count == 0)
             throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.");
@@ -40,6 +42,9 @@ internal static class OrderLineFactory
             MachineId = preferences.FirstOrDefault(x => x.ProductId == line.ProductId && x.IsActive)?.PreferredMachineId ?? defaultMachine
         }).ToArray();
         var machineLookup = (await machines.GetByIdsAsync(candidates.Select(x => x.MachineId).OfType<Guid>(), cancellationToken)).ToDictionary(x => x.Id);
+        if (commercial is not null && serviceDate is null) throw new InvalidOperationException("La fecha de servicio es obligatoria para fijar precios.");
+        var prices = commercial is null ? [] : await commercial.GetQuotesAsync(customerId,
+            positiveLines.Select(x => x.ProductId).ToArray(), serviceDate!.Value, cancellationToken);
 
         return candidates.Select(candidate =>
         {
@@ -51,11 +56,17 @@ internal static class OrderLineFactory
             if (candidate.MachineId is { } machineId && (!machineLookup.TryGetValue(machineId, out var machine) || !machine.IsActive))
                 throw new ArgumentException("La maquina asignada no existe o esta inactiva; revisa el perfil del cliente.");
 
+            var price = prices.SingleOrDefault(x => x.ProductId == product.Id);
+            var priced = price is { UnitPrice: not null } && price.UnitCode == product.UnitCode;
             return new OrderLine
             {
                 Id = Guid.NewGuid(), ProductId = product.Id,
                 ProductNameSnapshot = product.Name, UnitCode = product.UnitCode,
-                Quantity = input.Quantity, AssignedMachineId = candidate.MachineId, Notes = input.Notes
+                Quantity = input.Quantity, AssignedMachineId = candidate.MachineId, Notes = input.Notes,
+                UnitPriceSnapshot = priced ? price!.UnitPrice : null,
+                CurrencyCodeSnapshot = priced ? price!.CurrencyCode : null,
+                PriceRevisionId = priced ? price!.RevisionId : null,
+                PriceEffectiveFrom = priced ? price!.EffectiveFrom : null
             };
         }).ToArray();
     }

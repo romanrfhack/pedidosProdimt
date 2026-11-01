@@ -9,6 +9,10 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<Product> Products => Set<Product>();
 
+    public DbSet<CustomerProductPriceBook> CustomerProductPriceBooks => Set<CustomerProductPriceBook>();
+    public DbSet<CustomerProductPriceRevision> CustomerProductPriceRevisions => Set<CustomerProductPriceRevision>();
+    public DbSet<ProductConsolidationOperation> ProductConsolidationOperations => Set<ProductConsolidationOperation>();
+
     public DbSet<CustomerFrequentProduct> CustomerFrequentProducts => Set<CustomerFrequentProduct>();
 
     public DbSet<Machine> Machines => Set<Machine>();

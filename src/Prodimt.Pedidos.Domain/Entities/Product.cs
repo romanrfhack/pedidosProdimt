@@ -14,6 +14,9 @@ public sealed class Product
 
     public bool IsActive { get; set; } = true;
 
+    // Retained identities resolve legacy codes; historical order lines keep their original ID.
+    public Guid? MergedIntoProductId { get; set; }
+
     public static Product Create(string name, string? description)
     {
         var product = new Product
@@ -54,6 +57,8 @@ public sealed class Product
 
     public void Activate()
     {
+        if (MergedIntoProductId is not null)
+            throw new ArgumentException("El producto fue consolidado; utiliza el producto compartido.");
         IsActive = true;
     }
 

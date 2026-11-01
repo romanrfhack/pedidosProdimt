@@ -13,6 +13,7 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
     [DbContext(typeof(PedidosDbContext))]
     partial class PedidosDbContextModelSnapshot : ModelSnapshot
     {
+        /// <inheritdoc />
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -305,6 +306,109 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasIndex("MachineId");
 
                     b.ToTable("CustomerMachineAssignments");
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceBook", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("CustomerId", "ProductId")
+                        .IsUnique();
+
+                    b.ToTable("CustomerProductPriceBooks", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("PriceBookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("PriceBookId", "Version")
+                        .IsUnique();
+
+                    b.HasIndex("PriceBookId", "EffectiveFrom", "Version")
+                        .IsDescending(false, true, true);
+
+                    b.ToTable("CustomerProductPriceRevisions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PriceRevision_Amount", "[UnitPrice] IS NULL OR ([UnitPrice] >= 0 AND [UnitPrice] <= 999999999.9999)");
+                        });
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Machine", b =>
@@ -613,11 +717,21 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AssignedMachineId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CurrencyCodeSnapshot")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("PriceEffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("PriceRevisionId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("ProductId")
@@ -635,11 +749,17 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
 
+                    b.Property<decimal?>("UnitPriceSnapshot")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssignedMachineId");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("PriceRevisionId");
 
                     b.HasIndex("ProductId");
 
@@ -686,6 +806,9 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("MergedIntoProductId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -701,7 +824,36 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[ExternalCode] IS NOT NULL");
 
-                    b.ToTable("Products");
+                    b.HasIndex("MergedIntoProductId");
+
+                    b.ToTable("Products", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Products_Consolidated", "[MergedIntoProductId] IS NULL OR ([MergedIntoProductId] <> [Id] AND [IsActive] = 0)");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.ProductConsolidationOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductConsolidationOperations", (string)null);
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.SalesChannel", b =>
@@ -775,6 +927,30 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceBook", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceRevision", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceBook", null)
+                        .WithMany("Revisions")
+                        .HasForeignKey("PriceBookId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>
                 {
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
@@ -820,11 +996,29 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceRevision", null)
+                        .WithMany()
+                        .HasForeignKey("PriceRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Product", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("MergedIntoProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceBook", b =>
+                {
+                    b.Navigation("Revisions");
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>

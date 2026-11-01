@@ -426,6 +426,12 @@ public sealed class AdminImportService(
 
             var matchedByNameFallback = false;
             var existing = FindByExternalOrName(byExternalCode, byName, externalCode, name, out matchedByNameFallback);
+            if (existing?.MergedIntoProductId is not null)
+            {
+                context.Errors.Add(new ImportIssueDto(row.RowNumber, "externalCode", "ProductWasConsolidated",
+                    "Este codigo identifica un producto archivado por consolidacion. Edita el producto compartido; no lo vuelvas a dar de alta.", externalCode));
+                continue;
+            }
             if (matchedByNameFallback && externalCode is not null)
             {
                 context.Warnings.Add(new ImportIssueDto(
@@ -708,6 +714,7 @@ public sealed class AdminImportService(
                 productExternalCode,
                 productName,
                 out _);
+            if (product is not null) product = ProductIdentity.Resolve(product, allProducts);
             if (product is null)
             {
                 context.Errors.Add(new ImportIssueDto(

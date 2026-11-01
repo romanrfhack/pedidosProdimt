@@ -57,6 +57,9 @@ export interface AdminOrderLine {
   notes: string | null;
   machineLabel: string;
   unitCode: string | null;
+  unitPrice?: number | null;
+  lineAmount?: number | null;
+  currencyCode?: string | null;
 }
 
 export interface AdminOrderDetail extends AdminOrder {
@@ -67,6 +70,8 @@ export interface AdminOrderDetail extends AdminOrder {
   internalNotes: string | null;
   salesChannel: string;
   lines: AdminOrderLine[];
+  totalAmount?: number | null;
+  hasUnpricedLines?: boolean;
 }
 
 export interface AdminOrderAuditEvent {
@@ -229,6 +234,8 @@ export class OrderDataService {
     return {
       ...summary,
       version: order.version,
+      totalAmount: order.totalAmount ?? null,
+      hasUnpricedLines: order.hasUnpricedLines ?? true,
       source: order.source ?? null,
       externalOrderKey: order.externalOrderKey ?? null,
       deliveryNotes: order.deliveryNotes,
@@ -239,6 +246,9 @@ export class OrderDataService {
         productId: line.productId,
         productName: line.productName,
         unitCode: line.unitCode,
+        unitPrice: line.unitPrice ?? null,
+        lineAmount: line.lineAmount ?? null,
+        currencyCode: line.currencyCode ?? null,
         quantity: line.quantity,
         notes: line.notes,
         machineLabel: line.assignedMachineNumber || line.assignedMachineName

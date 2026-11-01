@@ -16,7 +16,7 @@ public sealed class AdminChannelRepairSqlTests : IAsyncLifetime
 {
     // A separate disposable database prevents removing the shared test channel
     // already referenced by other SQL integration tests.
-    private readonly SqlServerFixture database = new();
+    private readonly SqlServerFixture database = new() { LegacyCaptureSchema = true };
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
         { Converters = { new JsonStringEnumConverter() } };
 

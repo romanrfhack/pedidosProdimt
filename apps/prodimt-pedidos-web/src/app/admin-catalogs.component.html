@@ -96,6 +96,7 @@
                         <div class="config-section-title"><strong>Productos frecuentes</strong><span>{{ frequentRows.length }} productos</span></div>
                         <p class="notice profile-version">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}</p>
                         <details class="profile-guide"><summary>Cómo configurar el pedido del cliente</summary><p>Una fila por producto. El orden visual organiza la pantalla; la posición indica a qué producto corresponde cada cantidad de “13 + 7”. Las posiciones comienzan en 1 para cada cliente. La abreviatura es opcional, por ejemplo HN.</p><p>Las cantidades sugeridas no crean ni cambian pedidos. La unidad pertenece al producto del catálogo. Su cambio aplica a futuras capturas; los pedidos existentes conservan su unidad registrada.</p></details>
+                        @if (priceError) { <div class="alert error">{{ priceError }} <button type="button" class="secondary compact" (click)="reloadPrices()">Consultar precios</button></div> }
                         @if (frequentRows.length === 0) { <div class="notice">Este cliente aún no tiene productos configurados. Agrega los que suele pedir.</div> }
                         <div class="line-list config-product-list">
                           @for (row of frequentRows; track row; let i = $index) {
@@ -106,7 +107,10 @@
                               </div>
                               <div class="profile-product-select">
                                 <div class="product-label-heading">
-                                  <span>Producto</span>
+                                  <app-customer-product-price [customerId]="selectedCustomer!.id" [productId]="row.productId"
+                                    [productName]="productFor(row)?.name || row.productName" [unitCode]="productFor(row)?.unitCode || null"
+                                    [price]="prices.get(row.productId) || null" [loaded]="pricesLoaded"
+                                    [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices()" />
                                   <div class="profile-unit">
                                     <span><span class="unit-prefix">Unidad de venta: </span><strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
                                     <button type="button" class="secondary compact" aria-label="Ver producto y unidad en catálogo" title="Ver producto y unidad en catálogo" (click)="editProductUnit(row)">↗</button>
@@ -223,6 +227,7 @@
 
         @if (activeTab === 'products') {
           <section class="stack" data-testid="catalog-products">
+            <app-product-consolidation [products]="products" (completed)="commercialCatalogChanged()" />
             <form class="detail-panel stack" (ngSubmit)="saveProduct()">
               <strong>{{ productForm.id ? 'Editar producto' : 'Nuevo producto' }}</strong>
               <label>
@@ -250,8 +255,9 @@
               </div>
             </form>
 
+            <button type="button" class="secondary compact" [attr.aria-pressed]="showConsolidatedProducts" (click)="showConsolidatedProducts = !showConsolidatedProducts">{{ showConsolidatedProducts ? 'Ocultar productos archivados por consolidación' : 'Mostrar productos archivados por consolidación' }}</button>
             <div class="admin-list">
-              @for (product of products; track product.id) {
+              @for (product of visibleProducts; track product.id) {
                 <article class="admin-row">
                   <div>
                     <strong>{{ product.name }}</strong>
@@ -260,14 +266,16 @@
                   </div>
                   <div class="badges">
                     <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
-                      {{ product.isActive ? 'Activo' : 'Inactivo' }}
+                      {{ product.mergedIntoProductId ? 'Consolidado' : product.isActive ? 'Activo' : 'Inactivo' }}
                     </span>
                   </div>
                   <div class="review-actions">
+                    @if (!product.mergedIntoProductId) {
                     <button type="button" class="secondary compact" (click)="editProduct(product)">Editar</button>
                     <button type="button" class="secondary compact" (click)="toggleProduct(product)">
                       {{ product.isActive ? 'Desactivar' : 'Activar' }}
                     </button>
+                    } @else { <small>Conservado para historial y equivalencia de códigos.</small> }
                   </div>
                 </article>
               }

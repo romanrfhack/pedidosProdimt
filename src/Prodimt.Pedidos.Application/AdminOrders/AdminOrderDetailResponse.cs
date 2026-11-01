@@ -24,7 +24,12 @@ public sealed record AdminOrderDetailResponse(
     IReadOnlyList<AdminOrderLineResponse> Lines,
     int Version = 1,
     string? Source = null,
-    string? ExternalOrderKey = null);
+    string? ExternalOrderKey = null)
+{
+    public bool HasUnpricedLines => Lines.Any(x => x.UnitPrice is null);
+    public decimal? TotalAmount => HasUnpricedLines ? null : Lines.Sum(x => x.LineAmount ?? 0m);
+    public string CurrencyCode => "MXN";
+}
 
 public sealed record AdminOrderLineResponse(
     Guid OrderLineId,
@@ -35,4 +40,12 @@ public sealed record AdminOrderLineResponse(
     Guid? AssignedMachineId,
     string? AssignedMachineName,
     int? AssignedMachineNumber,
-    string? UnitCode = null);
+    string? UnitCode = null,
+    decimal? UnitPrice = null,
+    string? CurrencyCode = null,
+    Guid? PriceRevisionId = null,
+    DateOnly? PriceEffectiveFrom = null)
+{
+    public decimal? LineAmount => UnitPrice is { } price
+        ? decimal.Round(Quantity * price, 2, MidpointRounding.AwayFromZero) : null;
+}

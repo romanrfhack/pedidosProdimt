@@ -1,0 +1,48 @@
+<button type="button" class="secondary" (click)="open()">Revisar productos duplicados</button>
+<dialog #dialog aria-labelledby="consolidation-title" (cancel)="close($event)">
+  <header><div><small>CATÁLOGO COMPARTIDO</small><h3 id="consolidation-title">Consolidar productos</h3></div><button type="button" class="secondary" [disabled]="saving" (click)="close()" aria-label="Cerrar consolidación">×</button></header>
+  <p>Un producto puede venderse a varios clientes. Se conservan sus posiciones, cantidades sugeridas y máquinas; los precios siguen siendo propios de cada cliente.</p>
+  @if (error) { <div role="alert" class="alert error">{{ error }}</div> }
+  @if (message) { <div role="status" class="alert success">{{ message }}</div> }
+  @if (loading) { <p role="status">Consultando catálogo…</p> }
+  @if (attempt) {
+    <div class="notice">Cambio pendiente de confirmar: <strong>{{ attempt.sharedName }}</strong>, {{ attempt.sourceProductIds.length }} duplicados. Se conserva la misma referencia aunque cierres esta ventana.</div>
+    <button type="button" class="primary" [disabled]="saving" (click)="retry()">Reintentar consolidación</button>
+  } @else if (!editing) {
+    <div class="tools"><strong>Posibles duplicados</strong><button type="button" class="secondary" [disabled]="loading" (click)="choose()">Seleccionar manualmente</button></div>
+    <small>Estas sugerencias quitan el sufijo de un cliente conocido y agrupan nombres iguales con la misma unidad. Confirma que representan el mismo producto.</small>
+    @if (!loading && !groups.length) { <p>No hay grupos sugeridos. Puedes seleccionar otros productos para revisarlos manualmente.</p> }
+    @for (group of groups; track group.suggestedTargetId) {
+      <article class="group"><div><strong>{{ group.suggestedName }}</strong><small>{{ group.products.length }} registros · {{ unitLabel(group.products[0].unitCode) }}</small>
+        @for (product of group.products; track product.id) { <span class="name" [title]="product.description || ''">{{ product.name }}</span> }</div>
+        <button type="button" class="primary" [disabled]="loading" (click)="choose(group)">Revisar grupo</button></article>
+    }
+  } @else {
+    <fieldset [disabled]="saving || loading">
+      <div class="selection" aria-label="Productos a consolidar">
+        @for (product of activeProducts; track product.id) {
+          <label class="check"><input type="checkbox" [checked]="selected.has(product.id)" (change)="toggle(product.id, $event)"><span>{{ product.name }} · {{ unitLabel(product.unitCode) }}<small>{{ product.description }}</small></span></label>
+        }
+      </div>
+      <div class="fields"><label>Registro que se conserva<select [(ngModel)]="target" (ngModelChange)="resetPreview()"><option value="">Selecciona destino</option>
+        @for (product of selectedProducts; track product.id) { <option [value]="product.id">{{ product.name }}</option> }</select></label>
+        <label>Nombre compartido<input maxlength="120" [(ngModel)]="sharedName" (ngModelChange)="resetPreview()" placeholder="Nombre del producto, sin cliente"></label></div>
+      <label>Descripción compartida (opcional)<input maxlength="500" [(ngModel)]="description" (ngModelChange)="resetPreview()"></label>
+      <button type="button" class="secondary" [disabled]="selected.size < 2 || !target || !sharedName.trim()" (click)="inspect()">Ver impacto antes de consolidar</button>
+      @if (preview; as result) {
+        <section class="impact"><strong>{{ result.sharedName }} · {{ unitLabel(result.unitCode) }}</strong>
+          <p>{{ result.sources.length }} duplicados se archivarán; {{ result.customers.length }} perfiles se actualizarán y {{ result.priceAssignments }} asignaciones de precio se conservarán con todo su historial.</p>
+          <p>Los pedidos anteriores conservan sus partidas y precios. Los perfiles actualizan su versión y requieren confirmar su aprobación para captura rápida.</p>
+          @for (customer of result.customers; track customer.customerId) { <span class="name">{{ customer.name }}</span> }
+          @for (error of result.errors; track $index) { <p class="blocking">{{ error }}</p> }
+        </section>
+        @if (result.canApply) {
+          <label>Motivo de consolidación<textarea maxlength="500" rows="2" [(ngModel)]="reason"></textarea></label>
+          <label class="check"><input type="checkbox" [(ngModel)]="confirmed"><span>Confirmo que son el mismo producto y la misma unidad de venta.</span></label>
+          <button type="button" class="primary" [disabled]="!confirmed || !reason.trim()" (click)="apply()">Consolidar productos revisados</button>
+        }
+      }
+      <button type="button" class="secondary" (click)="editing = false; resetPreview()">Volver a los grupos</button>
+    </fieldset>
+  }
+</dialog>

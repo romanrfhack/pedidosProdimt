@@ -59,6 +59,9 @@ public sealed class AdminProductCatalogService(
         ArgumentNullException.ThrowIfNull(request);
         var product = await GetRequiredProductForUpdateAsync(productId, cancellationToken);
 
+        if (product.MergedIntoProductId is not null)
+            throw new ArgumentException("Este producto fue consolidado. Edita el producto compartido.");
+
         if (product.IsActive)
         {
             await EnsureNoActiveNameDuplicateAsync(request.Name, product.Id, cancellationToken);
@@ -181,6 +184,6 @@ public sealed class AdminProductCatalogService(
 
     private static AdminProductResponse MapProduct(Product product)
     {
-        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive, product.UnitCode);
+        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive, product.UnitCode, product.MergedIntoProductId);
     }
 }
