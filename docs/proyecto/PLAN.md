@@ -80,6 +80,6 @@ El usuario autoriza enlace para el próximo pedido mediante los tokens existente
 Este paso refuerza captura de etapa 1 y permite probar el mensaje sin adelantar la integración oficial de etapa 5. No incluye envío masivo, horarios por vendedor, jobs ni comprobantes de envío. Una futura selección automática deberá consultar pedido/NoOrder/descanso para la fecha de entrega calculada, no sólo para la fecha calendario actual. La entrega nativa incluye backend/frontend y conserva configuración, cuentas, catálogos, canal reparado y esquema vigente. Contrato y criterios en `INCREMENTO-09.md`; despliegue y aceptación operativa siguen siendo hitos separados.
 
 
-## I10 — Preparar tarifas y consolidar identidad de productos
+## I11 — Preparar tarifas y consolidar identidad de productos
 
-Autorizado el 1 de noviembre: consolidación explícita de productos físicos compartidos, manteniendo configuración por cliente y alias históricos. Historial de precios cliente-producto con vigencia, fecha/usuario/motivo y snapshots de tarifa en pedidos. Antes de cobrar, se debe definir el evento que genera cargo, saldos iniciales, tratamiento de pedidos sin precio, pagos y estado de cuenta; I10 no los presume ni registra.
+Autorizado el 1 de noviembre: consolidación explícita de productos físicos compartidos, manteniendo configuración por cliente y alias históricos. Historial de precios cliente-producto con vigencia, fecha/usuario/motivo y snapshots de tarifa en pedidos. Antes de cobrar, se debe definir el evento que genera cargo, saldos iniciales, tratamiento de pedidos sin precio, pagos y estado de cuenta; I11 no los presume ni registra.

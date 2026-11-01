@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,6 +25,7 @@ public sealed class SqlServerCollection : ICollectionFixture<SqlServerFixture>;
 
 public sealed class SqlServerFixture : IAsyncLifetime
 {
+    public bool LegacyCaptureSchema { get; init; }
     // These credentials exist only in a newly created disposable test database.
     private const string AdminPassword = "Sql-test-only-admin-2026!";
     private readonly string _databaseName = $"ProdimtI02Test_{Guid.NewGuid():N}";
@@ -57,7 +61,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
         }
 
         await using var db = CreateDbContext();
-        await db.Database.MigrateAsync();
+        if (LegacyCaptureSchema) await db.GetService<IMigrator>().MigrateAsync("20261028202031_AddCustomerCaptureAliases");
+        else await db.Database.MigrateAsync();
         db.SalesChannels.Add(new SalesChannel
         {
             Id = SalesChannelId, Name = "SQL Test customer", Type = SalesChannelType.Customer
@@ -70,10 +75,15 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await db.SaveChangesAsync();
     }
 
-    public PedidosDbContext CreateDbContext() => new(new DbContextOptionsBuilder<PedidosDbContext>()
-        .UseSqlServer(ConnectionString).Options);
+    public PedidosDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<PedidosDbContext>().UseSqlServer(ConnectionString);
+        if (LegacyCaptureSchema) options.ReplaceService<IModelCustomizer, LegacyCaptureModelCustomizer>()
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+        return new(options.Options);
+    }
 
-    public SqlApiFactory CreateFactory() => new(ConnectionString);
+    public SqlApiFactory CreateFactory() => new(ConnectionString, LegacyCaptureSchema);
 
     public static async Task<HttpClient> CreateAdminClientAsync(SqlApiFactory factory)
     {
@@ -120,10 +130,12 @@ public sealed class SqlServerFixture : IAsyncLifetime
     public sealed class SqlApiFactory : WebApplicationFactory<Program>
     {
         private readonly string _connectionString;
+        private readonly bool _legacyCaptureSchema;
 
-        public SqlApiFactory(string connectionString)
+        public SqlApiFactory(string connectionString, bool legacyCaptureSchema = false)
         {
             _connectionString = connectionString;
+            _legacyCaptureSchema = legacyCaptureSchema;
             // The dedicated test project runs in its own process; no application-test env is shared.
             Environment.SetEnvironmentVariable("Persistence__Provider", "SqlServer");
             Environment.SetEnvironmentVariable("ConnectionStrings__Pedidos", connectionString);
@@ -145,6 +157,14 @@ public sealed class SqlServerFixture : IAsyncLifetime
             }));
             builder.ConfigureServices(services =>
             {
+                if (_legacyCaptureSchema)
+                {
+                    services.AddDbContext<PedidosDbContext>(options => options
+                        .ReplaceService<IModelCustomizer, LegacyCaptureModelCustomizer>()
+                        .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+                    services.RemoveAll<ICommercialCatalogRepository>();
+                    services.AddScoped<ICommercialCatalogRepository, LegacyCommercialCatalogRepository>();
+                }
                 services.RemoveAll<IDateTimeProvider>();
                 services.AddSingleton<IDateTimeProvider, FixedClock>();
                 // Business-date assertions are deterministic; JWT validity still uses the real clock.

@@ -1,6 +1,6 @@
 # Producto compartido, historial de precios y precio aplicado
 
-Decisión del 1 de noviembre de 2026 para I10.
+Decisión del 1 de noviembre de 2026 para I11.
 
 Products representa el producto físico vendible. La configuración del cliente continúa en CustomerFrequentProducts. La tarifa corresponde a cliente-producto; no se duplica el producto para variar el precio.
 

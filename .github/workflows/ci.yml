@@ -146,8 +146,8 @@ jobs:
         id: browser-tests
         run: npm test -- --workers=1 --reporter=line
         working-directory: tests/e2e
-      - name: Preserve browser failure diagnostics (fictional mock data only)
-        if: failure() && steps.browser-tests.conclusion == 'failure'
+      - name: Preserve browser screenshots and diagnostics (fictional mock data only)
+        if: always() && (steps.browser-tests.conclusion == 'success' || steps.browser-tests.conclusion == 'failure')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: browser-failures-${{ github.run_id }}-${{ github.run_attempt }}

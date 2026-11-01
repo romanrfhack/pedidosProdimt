@@ -20,6 +20,12 @@ El modo predeterminado es de lectura; --apply autoriza explícitamente la transa
 
 Se agregaron cuatro casos SQL/HTTP: inserción con DML limitado, preservación e idempotencia y captura cliente después de reparar; rollback si falla auditoría; rechazo de Customer interno o nombre vacío sin sobrescritura. Los cuatro casos pasaron en SQL Server real: [CI 41318844811](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41318844811), código `7d446992e57dc7985065a04e3da387cccd95b538`, 37 pruebas SQL en total. Revisión independiente sin bloqueantes de integridad, idempotencia, privacidad o alcance.
 
-Herramienta exportada y verificada: PRODIMT_Reparar_Canal_Cliente_I09.py, 15,310 bytes, SHA256 a8142f74b6d4946063266cf1912bee59a84431ad5a6ac3c440cc4cfc86b154df. El ZIP I09 original y sus hashes no cambian. No se ha ejecutado SSH ni modificado el VPS desde esta sesión.
+Herramienta exportada y verificada: PRODIMT_Reparar_Canal_Cliente_I09.py, 15,310 bytes, SHA256 a8142f74b6d4946063266cf1912bee59a84431ad5a6ac3c440cc4cfc86b154df. El ZIP I09 original y sus hashes no cambian. Durante la preparación no se ejecutó SSH ni se modificó el VPS desde este entorno.
 
-Una vez reparado/verificado el canal puede ejecutarse el instalador I09 original con el payload ya presente. Guardar borradores antes del reinicio de la instalación. La reparación por sí sola no instala I09 ni acredita captura real del cliente.
+## Aplicación reportada por el usuario
+
+El 1 de noviembre el usuario devolvió el resultado de la herramienta verificada: `repaired/completed`, `channel_created`, `channel_verified`, `audit_inserted` y `existing_data_counts_preserved` true; `database_migrations_run` y `service_restarted` false. Quedó confirmada la ausencia del tipo Customer y su creación puntual con auditoría. `application_save_verified=false` y `order_replay_attempted=false` son esperados porque la herramienta no registra ni reintenta pedidos.
+
+A continuación el instalador original I09 terminó `updated/completed`, con salud y frontend verificados. Backend/frontend quedaron en `customer-access-6cfdc7ff366a`, once migraciones conservadas y Customer/AdminManualCapture válidos. Snapshot privado reportado: `/var/backups/prodimt-pedidos/customer-access-20261101T150922Z-7dc011800110`. No se repite esta reparación tras actualizar: su guarda está destinada al backend previo. La evidencia procede de la salida compartida por el usuario, sin acceso SSH desde este entorno.
+
+Instalación confirmada por el reporte; captura real del cliente y envío manual de WhatsApp pendientes de aceptación funcional.

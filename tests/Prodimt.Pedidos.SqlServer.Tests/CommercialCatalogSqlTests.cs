@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
@@ -18,6 +21,8 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
 {
     private static readonly DateOnly Day = new(2026, 10, 24);
     private static readonly CancellationToken Ct = CancellationToken.None;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+        { Converters = { new JsonStringEnumConverter() } };
     private static ChangeCustomerProductPriceRequest Change(decimal? amount, int version = 0, Guid? operation = null)
         => new(amount, Day, "Precio ficticio confirmado", version, operation ?? Guid.NewGuid(), "kg");
     private static string Prices(Guid customer) => $"/api/admin/customers/{customer}/prices";
@@ -50,8 +55,8 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
         Assert.Equal("SQL Test Admin", saved.History[0].ActorDisplayName);
         var competing = await Task.WhenAll(first.PostAsJsonAsync(Price(catalog.CustomerId, catalog.ProductId), Change(21, 1)),
             second.PostAsJsonAsync(Price(catalog.CustomerId, catalog.ProductId), Change(22, 1)));
-        Assert.Single(competing.Where(x => x.StatusCode == HttpStatusCode.OK));
-        Assert.Single(competing.Where(x => x.StatusCode == HttpStatusCode.Conflict));
+        Assert.Single(competing, x => x.StatusCode == HttpStatusCode.OK);
+        Assert.Single(competing, x => x.StatusCode == HttpStatusCode.Conflict);
         var final = (await first.GetFromJsonAsync<CustomerProductPriceResponse[]>(Prices(catalog.CustomerId)))!.Single();
         Assert.Equal(2, final.Version); Assert.Equal(2, final.History.Count);
         Assert.Equal(20, final.History.Single(x => x.Version == 1).UnitPrice);
@@ -92,11 +97,11 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
         var response = await first.PostAsJsonAsync($"/api/admin/customers/{catalog.CustomerId}/orders/submit",
             new AdminSubmitCustomerOrderRequest([new(catalog.ProductId, 3, null)], null, null, null, null, null, Day));
         response.EnsureSuccessStatusCode();
-        var order = (await response.Content.ReadFromJsonAsync<AdminOrderSummaryResponse>())!;
+        var order = (await response.Content.ReadFromJsonAsync<AdminOrderSummaryResponse>(JsonOptions))!;
         (await first.PostAsJsonAsync(Price(catalog.CustomerId, catalog.ProductId), Change(20, 1))).EnsureSuccessStatusCode();
         await using var freshHost = database.CreateFactory();
         using var fresh = await SqlServerFixture.CreateAdminClientAsync(freshHost);
-        var detail = (await fresh.GetFromJsonAsync<AdminOrderDetailResponse>($"/api/admin/orders/{order.OrderId}"))!;
+        var detail = (await fresh.GetFromJsonAsync<AdminOrderDetailResponse>($"/api/admin/orders/{order.OrderId}", JsonOptions))!;
         Assert.Equal(12.3456m, detail.Lines.Single().UnitPrice);
         Assert.Equal(37.04m, detail.TotalAmount); Assert.False(detail.HasUnpricedLines);
         Assert.NotNull(detail.Lines.Single().PriceRevisionId);
@@ -193,6 +198,40 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
     // Only this fixture's GUID-based principal is embedded; SQL identifiers cannot be parameters.
 #pragma warning disable EF1002
     [Fact]
+    public async Task NativeInstallerRecognizesTheActualSchemaAndRestrictsHistoryEvenForAWriterRole()
+    {
+        var contract = await NativeContract();
+        await using var connection = new SqlConnection(database.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = contract.GetProperty("schema").GetString();
+        var schema = JsonSerializer.Deserialize<Dictionary<string, int>>((string)(await command.ExecuteScalarAsync())!)!;
+        var expected = JsonSerializer.Deserialize<Dictionary<string, int>>(contract.GetProperty("expectedSchema"))!;
+        Assert.Equal(expected.OrderBy(x => x.Key), schema.OrderBy(x => x.Key));
+        command.CommandText = "CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN; ALTER ROLE [db_datareader] ADD MEMBER [prodimt_pedidos_app]; ALTER ROLE [db_datawriter] ADD MEMBER [prodimt_pedidos_app];";
+        await command.ExecuteNonQueryAsync();
+        try
+        {
+            command.CommandText = contract.GetProperty("grants").GetString();
+            await command.ExecuteNonQueryAsync();
+            command.CommandText = "EXECUTE AS USER=N'prodimt_pedidos_app'";
+            await command.ExecuteNonQueryAsync();
+            try
+            {
+                command.CommandText = contract.GetProperty("permissions").GetString();
+                var permissions = JsonSerializer.Deserialize<Dictionary<string, int>>((string)(await command.ExecuteScalarAsync())!)!;
+                var expectedPermissions = JsonSerializer.Deserialize<Dictionary<string, int>>(contract.GetProperty("expectedPermissions"))!;
+                Assert.Equal(expectedPermissions.OrderBy(x => x.Key), permissions.OrderBy(x => x.Key));
+                command.CommandText = contract.GetProperty("schema").GetString();
+                var applicationSchema = JsonSerializer.Deserialize<Dictionary<string, int>>((string)(await command.ExecuteScalarAsync())!)!;
+                Assert.Equal(expected.OrderBy(x => x.Key), applicationSchema.OrderBy(x => x.Key));
+            }
+            finally { command.CommandText = "REVERT"; await command.ExecuteNonQueryAsync(); }
+        }
+        finally { command.CommandText = "DROP USER [prodimt_pedidos_app]"; await command.ExecuteNonQueryAsync(); }
+    }
+
+    [Fact]
     public async Task RestrictedWriterCanAppendPriceRevisionsButCannotRewriteOrDeleteTheirHistory()
     {
         var catalog = await database.CreateCatalogAsync();
@@ -223,6 +262,24 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
     }
 
 #pragma warning restore EF1002
+
+    private static async Task<JsonElement> NativeContract()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        const string relative = "scripts/pilot/install-commercial-catalog-update.py";
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, relative))) root = root.Parent;
+        Assert.NotNull(root);
+        var start = new ProcessStartInfo("python3") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("import json,runpy,sys;m=runpy.run_path(sys.argv[1]);print(json.dumps(dict(schema=m['NEW_SCHEMA'],expectedSchema=m['EXPECTED_SCHEMA'],grants=m['PRICE_GRANTS'],permissions=m['PRICE_PERMISSIONS'],expectedPermissions=m['EXPECTED_PRICE_PERMISSIONS'])))");
+        start.ArgumentList.Add(Path.Combine(root!.FullName, relative));
+        using var process = Process.Start(start)!;
+        var output = await process.StandardOutput.ReadToEndAsync();
+        var error = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        Assert.True(process.ExitCode == 0, error);
+        return JsonSerializer.Deserialize<JsonElement>(output);
+    }
 
     private sealed class TestClock : IDateTimeProvider
     {
