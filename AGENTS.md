@@ -2,7 +2,7 @@
 
 ## Alcance vigente desde 2026-10-24
 
-El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07,INCREMENTO-08,INCREMENTO-09,INCREMENTO-10,INCREMENTO-11}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07,INCREMENTO-08,INCREMENTO-09,INCREMENTO-10,INCREMENTO-11,INCREMENTO-12}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
 
 I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
 
@@ -23,6 +23,8 @@ I09, autorizado el 31 de octubre, amplía los tokens existentes con enlaces para
 I10, autorizado el 1 de noviembre, mueve Tokens de acceso a modal amplio y responsivo conservando operaciones I09 y borrador/enlace al cerrar/reabrir dentro de la misma configuración. Sólo frontend, sin contratos nuevos ni migraciones. Ver `docs/proyecto/INCREMENTO-10.md`. Actualización nativa exclusiva sobre I09 confirmado, sin reiniciar o reemplazar backend.
 
 I11, autorizado el 1 de noviembre, consolida productos compartidos y añade precios por cliente-producto con revisiones inmutables, vigencia, autor y motivo. Requiere vista previa/confirmación de equivalencia, misma unidad y ausencia de colisiones; no deducir preparación o convertir unidades. Los duplicados se archivan con equivalencia y no se reescriben pedidos históricos. Precio faltante es desconocido, no cero. Nuevas partidas fijan precio por fecha de servicio; corregir cantidad conserva el precio aplicado. El alcance prepara cobranza futura, sin registrar cobros, saldos, impuestos o facturas. Ver `docs/proyecto/INCREMENTO-11.md`.
+
+I12, autorizado el 1 de noviembre, gestiona sólo accesos activos/no vencidos con copia administrativa, edición versionada conservando enlace y reenvío individual preparado en WhatsApp. El usuario autoriza revocar todos los tokens anteriores al instalar y crear nuevos a demanda. Se conserva hash y añade secreto cifrado recuperable sólo bajo acción explícita, con clave dedicada estable fuera de releases/SQL y auditoría sin secretos. Esto amplía la regla histórica de revelar sólo al crear; nunca publicar secretos o descargarlos con el listado. Ver `docs/proyecto/INCREMENTO-12.md`. Conservar I11/productos/precios y verificar respaldo antes de migrar 12→13.
 
 ## Que es
 
@@ -83,7 +85,7 @@ No implementar todavia:
 - `Mostrador` es canal interno, no cliente externo.
 - La maquina asignada es informacion interna.
 - El cliente nunca debe ver la maquina asignada.
-- Los tokens de cliente se guardan hasheados; el token plano solo se muestra al crearlo.
+- Los tokens se autentican por hash. I12 añade copia cifrada y recuperación administrativa explícita de un acceso utilizable; el listado nunca contiene secretos.
 - No importar tokens planos de cliente por CSV; generar tokens desde el sistema despues de importar clientes.
 
 ## Convenciones

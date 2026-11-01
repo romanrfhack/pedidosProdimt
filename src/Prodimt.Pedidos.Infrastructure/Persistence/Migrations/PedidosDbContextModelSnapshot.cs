@@ -13,7 +13,6 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
     [DbContext(typeof(PedidosDbContext))]
     partial class PedidosDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -220,8 +219,23 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsReminderLink")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("MetadataVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<string>("ProtectedToken")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()

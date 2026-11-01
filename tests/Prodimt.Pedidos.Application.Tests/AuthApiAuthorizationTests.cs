@@ -335,6 +335,7 @@ public sealed class AuthApiAuthorizationTests
                     ["Authentication:Jwt:Issuer"] = "Prodimt.Pedidos.Tests",
                     ["Authentication:Jwt:Audience"] = "Prodimt.Pedidos.Tests",
                     ["Authentication:Jwt:AccessTokenMinutes"] = "60",
+                    ["CustomerAccessTokens:EncryptionKey"] = "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=", // Fictional test key only.
                     ["DevelopmentSeed:Enabled"] = "false"
                 });
             });

@@ -218,9 +218,9 @@ const accessTokensBase = {
       customerId: customerTodayBase.customerId,
       description: 'Token demo Gran Takito',
       expiresAt: null,
-      isActive: true,
+      isActive: false,
       createdAt: '2026-05-27T00:00:00Z',
-      lastUsedAt: null
+      lastUsedAt: null, version: 2, isUsable: false, canReveal: false, reminderLink: false
     }
   ]
 };
@@ -234,6 +234,8 @@ let catalogMachines = [];
 let frequentProductsByCustomer = {};
 let machineAssignmentsByCustomer = {};
 let accessTokensByCustomer = {};
+let accessTokenSecrets = new Map();
+let accessTokenSequence = 0;
 let submitCalls = 0;
 let adminSubmitCalls = 0;
 let captureReceipts = new Map();
@@ -314,6 +316,8 @@ function resetState() {
   frequentProductsByCustomer = clone(frequentProductsBase);
   machineAssignmentsByCustomer = clone(machineAssignmentsBase);
   accessTokensByCustomer = clone(accessTokensBase);
+  accessTokenSecrets = new Map();
+  accessTokenSequence = 0;
   submitCalls = 0;
   adminSubmitCalls = 0;
   captureReceipts = new Map();
@@ -1098,51 +1102,53 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const tokenUsable = token => token.isActive && (!token.expiresAt || Date.parse(token.expiresAt) > Date.parse(adminDeliveryMetadata().serverNow));
+  const tokenMetadata = token => ({ ...token, isUsable: tokenUsable(token), canReveal: accessTokenSecrets.has(token.tokenId) });
   const tokenMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/access-tokens$/);
   if (tokenMatch && (request.method === 'GET' || request.method === 'POST')) {
-    if (!requireAdminAccess(request, response)) {
-      return;
-    }
-
+    if (!requireAdminAccess(request, response)) return;
     if (request.method === 'POST') {
       const body = await readJson(request);
-      const token = {
-        tokenId: randomUUID(),
-        customerId: tokenMatch[1],
-        description: body.description ?? 'Token piloto',
-        expiresAt: body.expiresAt ?? null,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastUsedAt: null
-      };
+      const token = { tokenId: randomUUID(), customerId: tokenMatch[1], description: body.description ?? 'Token piloto',
+        expiresAt: body.expiresAt ?? null, isActive: true, version: 1, reminderLink: body.reminderLink ?? false,
+        createdAt: new Date().toISOString(), lastUsedAt: null };
+      const plainToken = ++accessTokenSequence === 1 ? 'mock-generated-token' : `mock-generated-token-${accessTokenSequence}`;
+      accessTokenSecrets.set(token.tokenId, plainToken);
       accessTokensByCustomer[tokenMatch[1]] = [...(accessTokensByCustomer[tokenMatch[1]] ?? []), token];
-      sendJson(response, 201, {
-        ...token,
-        plainToken: 'mock-generated-token'
-      });
+      sendJson(response, 201, { ...tokenMetadata(token), plainToken });
       return;
     }
-
-    sendJson(response, 200, accessTokensByCustomer[tokenMatch[1]] ?? []);
+    let tokens = accessTokensByCustomer[tokenMatch[1]] ?? [];
+    if (url.searchParams.get('activeOnly') === 'true') tokens = tokens.filter(tokenUsable);
+    sendJson(response, 200, tokens.map(tokenMetadata));
     return;
   }
-
-  const tokenRevokeMatch = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/access-tokens\/([^/]+)\/revoke$/);
-  if (request.method === 'PATCH' && tokenRevokeMatch) {
-    if (!requireAdminAccess(request, response)) {
-      return;
+  const tokenAction = url.pathname.match(/^\/api\/admin\/customers\/([^/]+)\/access-tokens\/([^/]+)(?:\/(reveal|revoke))?$/);
+  if (tokenAction && ['POST', 'PATCH'].includes(request.method)) {
+    if (!requireAdminAccess(request, response)) return;
+    const token = (accessTokensByCustomer[tokenAction[1]] ?? []).find(item => item.tokenId === tokenAction[2]);
+    if (!token) { sendJson(response, 404, { error: 'Token no encontrado.' }); return; }
+    if (request.method === 'PATCH' && tokenAction[3] === 'revoke') {
+      token.isActive = false; token.version++; sendJson(response, 200, tokenMetadata(token)); return;
     }
-
-    const tokens = accessTokensByCustomer[tokenRevokeMatch[1]] ?? [];
-    const token = tokens.find((item) => item.tokenId === tokenRevokeMatch[2]);
-    if (!token) {
-      sendJson(response, 404, { error: 'Token not found.' });
-      return;
+    if (!tokenUsable(token)) { sendJson(response, 409, { error: 'El token venció o fue revocado.' }); return; }
+    if (request.method === 'POST' && tokenAction[3] === 'reveal') {
+      const plainToken = accessTokenSecrets.get(token.tokenId);
+      if (!plainToken) { sendJson(response, 409, { error: 'Este token no puede recuperarse. Crea uno nuevo.' }); return; }
+      response.setHeader('Cache-Control', 'no-store');
+      sendJson(response, 200, { tokenId: token.tokenId, customerId: token.customerId, plainToken,
+        description: token.description, expiresAt: token.expiresAt, version: token.version, reminderLink: token.reminderLink }); return;
     }
-
-    token.isActive = false;
-    sendJson(response, 200, token);
-    return;
+    if (request.method === 'PATCH' && !tokenAction[3]) {
+      const body = await readJson(request);
+      if (body.expectedVersion !== token.version) { sendJson(response, 409, { error: 'El token cambió. Recarga sus datos antes de guardar.' }); return; }
+      if (!body.description?.trim() || body.description.length > 200 || (token.reminderLink && !body.expiresAt)
+        || (body.expiresAt && Date.parse(body.expiresAt) <= Date.parse(adminDeliveryMetadata().serverNow))) {
+        sendJson(response, 400, { error: 'Revisa la descripción y el vencimiento.' }); return;
+      }
+      token.description = body.description.trim(); token.expiresAt = body.expiresAt; token.version++;
+      sendJson(response, 200, tokenMetadata(token)); return;
+    }
   }
 
   if (request.method === 'GET' && /^\/api\/admin\/customers\/[^/]+\/prices$/.test(url.pathname)) {

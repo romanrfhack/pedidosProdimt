@@ -309,7 +309,7 @@ test('admin abre configuracion de cliente y gestiona token', async ({ page }) =>
   await page.getByLabel('Disponible hasta').fill('2030-01-01T18:00');
   await page.getByRole('button', { name: 'Crear enlace', exact: true }).click();
   await expect(page.getByLabel('Enlace de acceso', { exact: true })).toHaveValue(/\/cliente#token=mock-generated-token$/);
-  await expect(page.getByRole('button', { name: 'Abrir WhatsApp' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Abrir WhatsApp', exact: true })).toBeVisible();
 });
 
 test('cliente no ve navegacion ni pantallas de catalogos', async ({ page }) => {

@@ -4,13 +4,13 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## Tokens de acceso — ajuste solicitado, en diseño
+## I12 — Gestión de tokens activos, en implementación
 
-El usuario solicita mostrar sólo accesos activos, copiar el token y editar/reutilizar el acceso con formulario precargado y opción de reenviar. Activo significa habilitado y sin vencer según la hora del servidor; ocultar historial no elimina registros ni auditoría. Editar descripción/vigencia debe conservar el token y enlace; teléfono sigue perteneciendo al cliente. Reenvío individual prepara WhatsApp y requiere envío manual.
+El usuario autoriza revocar todos los tokens anteriores y crear los nuevos a demanda. Se implementa listado de accesos habilitados/no vencidos, copia del token o enlace por fila, edición precargada de descripción/vigencia conservando el enlace y apertura individual de WhatsApp para reenvío. El teléfono sigue siendo del cliente. No mostrar historial ni eliminar auditoría.
 
-La revisión del código vigente confirma almacenamiento exclusivo del hash y ausencia de edición o recuperación del secreto. Propuesta técnica por revisar antes de implementar: conservar el hash para autenticación y agregar copia cifrada recuperable sólo mediante acciones administrativas explícitas, con claves persistentes, respaldo privado y auditoría sin secretos. El listado no debe incluir secretos. Los tokens antiguos no se reconstruyen desde el hash; conservar sus enlaces y permitir sustitución explícita por un acceso nuevo, o incorporación del original validado si se dispone de él. No rotar o revocar automáticamente. Renovación y edición serán acciones distintas; cambiar sólo el hash manteniendo el ID no invalida las sesiones existentes.
+Los tokens nuevos conservarán hash de autenticación y una copia cifrada con clave dedicada persistente fuera de los releases/SQL. Recuperación sólo ante acción administrativa explícita, sin secretos en el listado, caché, logs o auditoría. Edición versionada para evitar sobrescrituras; revocados/vencidos no se reactivan. La migración trece revoca los accesos heredados con auditoría en transacción y conserva sus registros. No se envían mensajes automáticamente ni se reproducen pedidos.
 
-Estado: requerimiento y alternativas revisados; sin implementación, migración, nuevo paquete o cambios en el VPS por este ajuste. I11 continúa como despliegue confirmado. Falta cerrar el comportamiento de compatibilidad para los tokens históricos antes de implementar la recuperación persistente.
+Base de código y despliegue: I11 confirmado, backend/frontend prices-148a52dd7428 y doce migraciones. Rama de trabajo codex/i12-access-token-management desde 7e87a624b10597ead05d9dc4100c8d11c5af999c. Actualización nativa I12 prevista con respaldo SQL verificado, copia privada de configuración, clave estable, migración 12→13 y comprobación de salud/archivos. Un fallo no restaura SQL ni pierde la clave de cifrado. No se ha aplicado revocación o modificación remota desde este entorno. Validación técnica, paquete y aceptación pendientes al registrar. Ver `docs/proyecto/INCREMENTO-12.md`.
 
 ## I11 instalado — 1 de noviembre de 2026
 

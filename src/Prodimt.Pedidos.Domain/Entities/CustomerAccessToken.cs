@@ -8,6 +8,12 @@ public sealed class CustomerAccessToken
 
     public string TokenHash { get; set; } = string.Empty;
 
+    public string? ProtectedToken { get; set; }
+
+    public int MetadataVersion { get; set; } = 1;
+
+    public bool IsReminderLink { get; set; }
+
     public string DisplayName { get; set; } = string.Empty;
 
     public bool IsActive { get; set; } = true;
@@ -23,7 +29,8 @@ public sealed class CustomerAccessToken
         string tokenHash,
         string? description,
         DateTimeOffset? expiresAt,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool isReminderLink = false)
     {
         if (string.IsNullOrWhiteSpace(tokenHash))
         {
@@ -37,6 +44,7 @@ public sealed class CustomerAccessToken
             TokenHash = tokenHash,
             DisplayName = string.IsNullOrWhiteSpace(description) ? "Token de cliente" : description.Trim(),
             ExpiresAt = expiresAt,
+            IsReminderLink = isReminderLink,
             IsActive = true,
             CreatedAt = now
         };
@@ -44,6 +52,10 @@ public sealed class CustomerAccessToken
 
     public void Revoke()
     {
+        if (!IsActive) return;
         IsActive = false;
+        MetadataVersion = checked(MetadataVersion + 1);
     }
+
+    public bool IsUsableAt(DateTimeOffset now) => IsActive && (ExpiresAt is null || ExpiresAt > now);
 }

@@ -4,6 +4,8 @@ namespace Prodimt.Pedidos.Application.Abstractions;
 
 public interface ICustomerAccessTokenRepository
 {
+    Task<T> ExecuteMutationAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task<CustomerAccessToken?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken);
 
     Task<CustomerAccessToken?> GetByIdAsync(Guid tokenId, CancellationToken cancellationToken);

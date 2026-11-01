@@ -133,6 +133,10 @@ export interface AdminCustomerAccessTokenApiResponse {
   isActive: boolean;
   createdAt: string;
   lastUsedAt: string | null;
+  version: number;
+  isUsable: boolean;
+  canReveal: boolean;
+  reminderLink: boolean;
 }
 
 export interface CreatedCustomerAccessTokenApiResponse {
@@ -142,6 +146,13 @@ export interface CreatedCustomerAccessTokenApiResponse {
   description: string;
   expiresAt: string | null;
   isActive: boolean;
+  version: number;
+  reminderLink: boolean;
+}
+
+export interface RevealedCustomerAccessTokenApiResponse {
+  tokenId: string; customerId: string; plainToken: string; description: string;
+  expiresAt: string | null; version: number; reminderLink: boolean; isActive?: boolean;
 }
 
 export interface CreateCustomerAccessTokenApiRequest {
@@ -269,9 +280,9 @@ export class AdminCatalogApiService {
     );
   }
 
-  getAccessTokens(customerId: string): Observable<AdminCustomerAccessTokenApiResponse[]> {
+  getAccessTokens(customerId: string, activeOnly = true): Observable<AdminCustomerAccessTokenApiResponse[]> {
     return this.http.get<AdminCustomerAccessTokenApiResponse[]>(
-      `${this.apiBaseUrl}/api/admin/customers/${customerId}/access-tokens`
+      `${this.apiBaseUrl}/api/admin/customers/${customerId}/access-tokens`, { params: { activeOnly } }
     );
   }
 
@@ -289,6 +300,18 @@ export class AdminCatalogApiService {
     return this.http.patch<AdminCustomerAccessTokenApiResponse>(
       `${this.apiBaseUrl}/api/admin/customers/${customerId}/access-tokens/${tokenId}/revoke`,
       {}
+    );
+  }
+
+  updateAccessToken(customerId: string, tokenId: string, request: { expectedVersion: number; description: string; expiresAt: string | null }): Observable<AdminCustomerAccessTokenApiResponse> {
+    return this.http.patch<AdminCustomerAccessTokenApiResponse>(
+      `${this.apiBaseUrl}/api/admin/customers/${customerId}/access-tokens/${tokenId}`, request
+    );
+  }
+
+  revealAccessToken(customerId: string, tokenId: string): Observable<RevealedCustomerAccessTokenApiResponse> {
+    return this.http.post<RevealedCustomerAccessTokenApiResponse>(
+      `${this.apiBaseUrl}/api/admin/customers/${customerId}/access-tokens/${tokenId}/reveal`, {}
     );
   }
 }

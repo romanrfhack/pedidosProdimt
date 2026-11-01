@@ -5,6 +5,15 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class InMemoryCustomerAccessTokenRepository(InMemoryDataStore dataStore) : ICustomerAccessTokenRepository
 {
+    private readonly SemaphoreSlim mutationGate = new(1, 1);
+
+    public async Task<T> ExecuteMutationAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    {
+        await mutationGate.WaitAsync(cancellationToken);
+        try { return await action(cancellationToken); }
+        finally { mutationGate.Release(); }
+    }
+
     public Task<CustomerAccessToken?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
     {
         lock (dataStore.SyncRoot)

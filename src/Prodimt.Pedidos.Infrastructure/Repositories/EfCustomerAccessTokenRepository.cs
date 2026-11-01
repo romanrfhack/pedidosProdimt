@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 
@@ -7,6 +8,9 @@ namespace Prodimt.Pedidos.Infrastructure.Repositories;
 
 public sealed class EfCustomerAccessTokenRepository(PedidosDbContext dbContext) : ICustomerAccessTokenRepository
 {
+    public Task<T> ExecuteMutationAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+        => CatalogTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+
     public Task<CustomerAccessToken?> GetByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
     {
         return dbContext.CustomerAccessTokens
@@ -35,8 +39,13 @@ public sealed class EfCustomerAccessTokenRepository(PedidosDbContext dbContext) 
         await dbContext.CustomerAccessTokens.AddAsync(accessToken, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            throw new CatalogConflictException("El acceso cambió durante la operación. Actualiza la lista antes de reintentar.");
+        }
     }
 }

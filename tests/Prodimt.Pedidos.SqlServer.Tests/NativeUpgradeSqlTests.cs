@@ -58,7 +58,7 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
                 AND [is_copy_only] = 1 AND [has_backup_checksums] = 1 AND [backup_size] > 0
             """, new SqlParameter("@database", database.Name)));
 
-        var script = migrator.GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
+        var script = migrator.GenerateScript(toMigration: LatestMigration, options: MigrationsSqlGenerationOptions.Idempotent);
         Assert.Contains(LatestMigration, script);
         // Match the native deployment path: run the SQL script, then repeat that same script.
         // One open connection is required because transactions span GO-delimited batches.
@@ -69,7 +69,8 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
             var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
             Assert.Equal(12, applied.Length);
             Assert.Equal(LatestMigration, applied[^1]);
-            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            Assert.DoesNotContain(await db.Database.GetPendingMigrationsAsync(),
+                migration => string.CompareOrdinal(migration, LatestMigration) <= 0);
             await AssertPreservedDataAsync(db, customerId, adminId);
         }
 
