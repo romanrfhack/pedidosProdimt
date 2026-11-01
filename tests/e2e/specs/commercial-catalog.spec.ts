@@ -46,7 +46,12 @@ async function priceFixture(page: Page, options: { lost?: boolean; conflict?: bo
 }
 async function fillPrice(page: Page, value: string, date = day) {
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Precio por kg (MXN)', { exact: true }).fill(value);
+  const amount = dialog.getByLabel('Precio por kg (MXN)', { exact: true });
+  // Opening the native dialog is synchronous; ngModel renders its initial value
+  // on the next Angular update. Wait for this fixture's price before replacing it.
+  await expect(amount).toHaveValue('20');
+  await amount.fill(value);
+  await expect(amount).toHaveJSProperty('valueAsNumber', Number(value));
   await dialog.getByLabel('Vigente desde', { exact: true }).fill(date);
   await dialog.getByLabel('Motivo del cambio', { exact: true }).fill('Nuevo acuerdo ficticio');
   return dialog;
