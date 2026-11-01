@@ -2,6 +2,16 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## I11 instalado — 1 de noviembre de 2026
+
+El usuario ejecutó el instalador revisión 2 verificado y compartió dos salidas: lectura planned/completed con preflight_step=completed, database_mismatches vacío y once migraciones; después --apply terminó updated/completed. La operación migró once→doce versiones, verificó respaldo, esquema, conteos existentes, permisos anexables del historial, salud de API y frontend. Configuración conservada; contraseñas sin cambio. Hubo reinicio únicamente de PRODIMT. No se restauró SQL automáticamente.
+
+Fuente de aplicación desplegada `148a52dd7428cd1f948441f6709407a22be5944b`; backend/frontend activos `prices-148a52dd7428`. Actualizador `20261101-commercial-catalog-install2` (fuente `152cfc95ab2d68cf8f32c9867b4305bb1a329628`). Snapshot reportado `/var/backups/prodimt-pedidos/commercial-catalog-update-20261101T194810Z-6963d06f26a1`; respaldo SQL verificado `/var/opt/mssql/backup/prodimt-i11-20261101T194810Z-6963d06f26a1/ProdimtPedidos-copy-only.bak`. Se trata de evidencia suministrada por el usuario; no se accedió por SSH desde este entorno.
+
+Esquema comprobado: tres tablas nuevas, 27 columnas válidas, tres índices únicos, tres columnas del índice de vigencia, dos checks y cinco FKs confiables. Precio e historial: lectura/inserción permitidas; UPDATE/DELETE de revisiones y recibos denegados, DELETE de cabeceras denegado. Los once de database_checks pertenecen al preflight; migrations_after=12 y migrated_schema_verified=true confirman el resultado final. existing_data_counts_preserved, price_history_append_only_verified, health_verified y frontend_verified en true.
+
+products_consolidated=false y prices_preloaded=false son esperados: la instalación habilita las pantallas y conserva los datos. Pendientes revisión/confirmación de equivalencias, precios reales y aceptación funcional. Recargar Ctrl+F5, Catálogos → Productos → Revisar productos duplicados; comenzar por un grupo conocido, revisar misma identidad/unidad e impacto y confirmar nombre compartido/motivo. Revisar y aprobar perfiles afectados; en configuración del cliente abrir Precio e historial para registrar importe real por unidad, vigencia y motivo. Pedidos nuevos fijan precio; los existentes y sus correcciones conservan la tarifa aplicada. Históricos sin precio siguen pendientes. No repetir instaladores, importaciones o reparaciones por este reporte.
+
 ## I11 — Comprobación previa detenida y actualizador revisión 2
 
 El usuario verificó el ZIP original `0f97c7bb...`, copió sus archivos y ejecutó sólo lectura. Resultado: failed/read-only-preflight/local_operation_failed, changes_made=false, sin migraciones, reinicio, cambio de contraseñas, precios o consolidaciones. I11 no quedó instalado.

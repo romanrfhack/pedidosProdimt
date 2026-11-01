@@ -1,6 +1,6 @@
 # I11 — Productos compartidos y precios por cliente con historial
 
-Autorizado el 1 de noviembre de 2026. Implementado y validado; no desplegado. Rama `codex/i10-shared-products-prices`, PR #3 en borrador sobre I09. Se integra la base `9998e30ac8e912ae54d56274d8217229e5672944` con I09 instalado y modal de tokens I10. El primer checkpoint de productos/precios se llamó I10; este alcance queda renumerado como I11 para preservar la numeración y el trabajo concurrente del modal. No requiere aplicar el ZIP de modal I10 antes de I11.
+Autorizado el 1 de noviembre de 2026. Implementado, validado e instalado según reporte del usuario del 1 de noviembre; aceptación funcional pendiente. Rama `codex/i10-shared-products-prices`, PR #3 en borrador sobre I09. Se integra la base `9998e30ac8e912ae54d56274d8217229e5672944` con I09 instalado y modal de tokens I10. El primer checkpoint de productos/precios se llamó I10; este alcance queda renumerado como I11 para preservar la numeración y el trabajo concurrente del modal. No requiere aplicar el ZIP de modal I10 antes de I11.
 
 ## Catálogo compartido
 
@@ -57,3 +57,8 @@ El intento de lectura del usuario se detuvo sin cambios por una omisión del ins
 Descarga independiente PRODIMT_Instalar_I11_v2.py, 32,663 bytes, SHA256 b1185a8ebb01fc139410c55f4d2d8e8a23bd709d24991d76c5fb9a7cffd659e0. Tiene los mismos bytes que el instalador del ZIP actualizado. Basta copiar el nuevo script y comprobar lectura antes de --apply, reutilizando el payload existente en el VPS. ZIP anterior 0f97c7bb... queda como antecedente; usar el instalador revisión 2. Instalación y aceptación operativa siguen pendientes del usuario. Ver evidencia del incidente.
 
 Validación de la corrección: [CI final 41340426602](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41340426602) con cuatro trabajos correctos: 273 Python, 323 .NET, 46 SQL Server, 114 E2E y smoke Production. La sincronización de una prueba espera el valor inicial antes de reemplazarlo; no altera frontend o binarios. Entregas verificadas y guardadas; instalación remota pendiente.
+
+
+## Despliegue confirmado
+
+El usuario reportó instalador revisión 2 updated/completed, doce migraciones, esquema/conteos/permisos/salud/frontend verificados y configuración conservada. Backend/frontend prices-148a52dd7428, fuente de aplicación148a52dd7428cd1f948441f6709407a22be5944b. Respaldo SQL verificado y snapshot registrados en la evidencia. Contraseñas sin cambio, PRODIMT reiniciado, sin restauración automática ni consolidación/tarifas precargadas. No se accedió al VPS desde este entorno. La instalación está confirmada; revisión de equivalencias, precios reales y aceptación operativa siguen pendientes del usuario.

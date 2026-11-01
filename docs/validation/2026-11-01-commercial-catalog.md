@@ -2,6 +2,10 @@
 
 Fecha: 1 de noviembre de 2026. Datos técnicos ficticios; imagen y datos reales del usuario fuera del repositorio.
 
+## Estado actual — instalación confirmada por reporte del usuario
+
+El 1 de noviembre el usuario ejecutó la revisión 2 y reportó lectura planned/completed y aplicación updated/completed. Migraciones11→12, esquema/conteos/permisos del historial/salud/frontend verificados; configuración conservada, contraseñas sin cambio y servicio PRODIMT reiniciado. Aplicación148a52dd7428cd1f948441f6709407a22be5944b, backend/frontend prices-148a52dd7428. No se accedió por SSH desde este entorno. La evidencia técnica de instalación no confirma aún la revisión de equivalencias, precios reales o aceptación funcional.
+
 ## Fuente y alcance final
 
 Código `148a52dd7428cd1f948441f6709407a22be5944b`, rama `codex/i10-shared-products-prices`, PR #3 en borrador sobre `codex/i09-customer-order-links`. Incluye la base `9998e30` y el modal de tokens I10, sin sobrescribir su contrato/documento. Productos/precios fueron renumerados a I11 al integrar ese avance concurrente. I09 está instalado según reporte del usuario en la rama base; I10 independiente no tiene despliegue confirmado. I11 funciona sobre I09 con o sin ese modal ya instalado.
@@ -68,3 +72,26 @@ Siguiente paso autorizado: copiar sólo el instalador v2 y repetir lectura; apli
 
 
 En CI 41339805853, herramientas/Production, 323 .NET y 46 SQL pasan; una de 114 pruebas de navegador interactúa antes de que ngModel pinte el precio inicial del modal (20), y obtiene 2025.125 en vez de 25.125. Se ajusta únicamente el helper de prueba para esperar el valor inicial conocido y verificar valueAsNumber después de reemplazarlo; mantiene la aserción del contenido enviado y no modifica frontend o payload. Fuente de esa sincronización: 559c4dc2018285b0dcebf2ffd4f452e338d9442d. Tres repeticiones dirigidas locales correctas, sin pausa fija o relajación de importe esperado. CI final 41340426602 con cuatro trabajos correctos, incluida la suite completa de 114 E2E.
+
+
+## Reporte remoto de instalación — 1 de noviembre de 2026
+
+La lectura con PRODIMT_Instalar_I11_v2.py de hash verificado termina planned/completed, preflight_step=completed, database_mismatches=[] y once migraciones; sin cambios. La posterior aplicación con SSH -t termina updated/completed y fuente148a52dd7428cd1f948441f6709407a22be5944b. Ambos enlaces activos quedan en prices-148a52dd7428.
+
+| Evidencia reportada | Resultado |
+|---|---|
+| migrations_before / migrations_after | 11 / 12 |
+| migrated_schema_verified | true |
+| existing_data_counts_preserved | true |
+| price_history_append_only_verified | true |
+| health_verified / frontend_verified | true / true |
+| env_preserved | true |
+| service_restarted | true |
+| password_changed / database_automatically_restored | false / false |
+| products_consolidated / prices_preloaded | false / false, previstos durante instalación |
+
+Esquema: tres tablas; columnas4/14/4, 27 columnas válidas, tres índices únicos, tres columnas del índice de vigencia, dos checks confiables y cinco FKs confiables. Permisos: lectura/inserción del historial y recibos permitidas, UPDATE/DELETE denegados; cabeceras permiten SELECT/INSERT/UPDATE y deniegan DELETE.
+
+Snapshot reportado: /var/backups/prodimt-pedidos/commercial-catalog-update-20261101T194810Z-6963d06f26a1. Respaldo SQL verificado: /var/opt/mssql/backup/prodimt-i11-20261101T194810Z-6963d06f26a1/ProdimtPedidos-copy-only.bak. Rutas reportadas por el usuario, sin inspección SSH directa desde este entorno. Los once en database_checks corresponden al preflight; migrations_after y la verificación final confirman doce.
+
+Siguiente paso: Ctrl+F5 y revisar un grupo conocido en Productos → Revisar productos duplicados; confirmar sólo equivalencias reales con igual unidad y nombre compartido. Revisar posiciones y aprobar los perfiles afectados. Registrar precios reales por cliente, vigencia y motivo en Precio e historial. Instalar no crea consolidaciones ni tarifas; quedan pendientes aceptación funcional y su revisión/captura. No repetir instaladores, importaciones o reparaciones por este resultado.

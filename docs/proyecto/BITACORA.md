@@ -478,3 +478,10 @@ La CI del actualizador pasa .NET/SQL/Production y detecta una carrera del helper
 
 
 Cierre de corrección: ambos archivos guardados y verificados, ZIP actualizado bajo la misma identidad y descarga independiente del instalador v2. CRC/hashes/carga correctos; payload original idéntico y aplicación148a52d intacta. Instalador152cfc9 y sincronización de prueba559c4dc; CI final41340426602 completo y correcto. No se realizaron cambios en el VPS; el usuario repetirá primero lectura con v2 y después --apply si planned/completed. Se conservan los respaldos/guardas previstos para la instalación real.
+
+
+## 2026-11-01 — I11 instalado con actualizador revisión 2
+
+Usuario reporta SHA de instalador v2 correcto, lectura planned/completed con database_mismatches vacío y aplicación updated/completed. Migraciones11→12, migrated_schema_verified, existing_data_counts_preserved y price_history_append_only_verified true. Se verifica respaldo SQL, salud y frontend; reinicio de PRODIMT confirmado, configuración conservada y contraseñas sin cambio. Historial protegido: UPDATE/DELETE de revisiones/recibos y DELETE de cabeceras denegados. Esquema3tablas/27columnas/3índicesúnicos/3columnasíndicevigencia/2checks/5FKs comprobado.
+
+Aplicación148a52dd7428cd1f948441f6709407a22be5944b, backend/frontend prices-148a52dd7428; instalador20261101-commercial-catalog-install2. Snapshot /var/backups/prodimt-pedidos/commercial-catalog-update-20261101T194810Z-6963d06f26a1; respaldo SQL /var/opt/mssql/backup/prodimt-i11-20261101T194810Z-6963d06f26a1/ProdimtPedidos-copy-only.bak. Evidencia aportada por usuario; no se operó el VPS desde este entorno. No hubo restauración automática. Los flags products_consolidated/prices_preloaded false son previstos: consolidación y tarifas requieren confirmación de negocio en pantalla. Instalación confirmada; aceptación funcional, unificaciones y precios reales pendientes. No repetir cargas o instaladores. El PR #3 continúa en borrador, sin fusión a main.
