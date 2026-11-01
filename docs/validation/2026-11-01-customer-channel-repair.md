@@ -18,8 +18,8 @@ El modo predeterminado es de lectura; --apply autoriza explícitamente la transa
 
 238 pruebas Python locales correctas, incluidos trece casos de la nueva herramienta: idempotencia, rechazo de fila incompatible, privacidad, transportes/SQL autorizados, identidad I07/I08 y payload fijado. Se cargó el inspector real del payload original sin ejecutar reparación o preflight real en este entorno.
 
-Se agregaron cuatro casos SQL/HTTP: inserción con DML limitado, preservación e idempotencia y captura cliente después de reparar; rollback si falla auditoría; rechazo de Customer interno o nombre vacío sin sobrescritura. La ejecución SQL real en CI queda pendiente antes de entregar la herramienta.
+Se agregaron cuatro casos SQL/HTTP: inserción con DML limitado, preservación e idempotencia y captura cliente después de reparar; rollback si falla auditoría; rechazo de Customer interno o nombre vacío sin sobrescritura. Los cuatro casos pasaron en SQL Server real: [CI 41318844811](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41318844811), código `7d446992e57dc7985065a04e3da387cccd95b538`, 37 pruebas SQL en total. Revisión independiente sin bloqueantes de integridad, idempotencia, privacidad o alcance.
 
-Exportación prevista: PRODIMT_Reparar_Canal_Cliente_I09.py, 15,310 bytes, SHA256 a8142f74b6d4946063266cf1912bee59a84431ad5a6ac3c440cc4cfc86b154df. El ZIP I09 original y sus hashes no cambian. No se ha ejecutado SSH ni modificado el VPS desde esta sesión.
+Herramienta exportada y verificada: PRODIMT_Reparar_Canal_Cliente_I09.py, 15,310 bytes, SHA256 a8142f74b6d4946063266cf1912bee59a84431ad5a6ac3c440cc4cfc86b154df. El ZIP I09 original y sus hashes no cambian. No se ha ejecutado SSH ni modificado el VPS desde esta sesión.
 
 Una vez reparado/verificado el canal puede ejecutarse el instalador I09 original con el payload ya presente. Guardar borradores antes del reinicio de la instalación. La reparación por sí sola no instala I09 ni acredita captura real del cliente.
