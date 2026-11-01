@@ -13,6 +13,11 @@ public sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.Property(x => x.Quantity)
             .HasPrecision(18, 2);
 
+        builder.Property(x => x.UnitPriceSnapshot).HasPrecision(18, 4);
+        builder.Property(x => x.CurrencyCodeSnapshot).HasMaxLength(3);
+        builder.HasOne<CustomerProductPriceRevision>().WithMany().HasForeignKey(x => x.PriceRevisionId).OnDelete(DeleteBehavior.Restrict);
+        builder.Ignore(x => x.LineAmount);
+
         builder.Property(x => x.ProductNameSnapshot).HasMaxLength(200);
         builder.Property(x => x.UnitCode).HasMaxLength(16);
         builder.HasOne<Product>().WithMany().HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Restrict);

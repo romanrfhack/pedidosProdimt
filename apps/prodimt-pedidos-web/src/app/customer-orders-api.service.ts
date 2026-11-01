@@ -76,6 +76,8 @@ export interface AdminOrderDetailApiResponse extends AdminOrderSummaryApiRespons
   salesChannelType: string | null;
   lines: AdminOrderLineApiResponse[];
   version: number;
+  totalAmount?: number | null;
+  hasUnpricedLines?: boolean;
 }
 
 export interface AdminOrderLineApiResponse {
@@ -88,6 +90,10 @@ export interface AdminOrderLineApiResponse {
   assignedMachineName: string | null;
   assignedMachineNumber: number | null;
   unitCode: string | null;
+  unitPrice?: number | null;
+  lineAmount?: number | null;
+  currencyCode?: string | null;
+  priceRevisionId?: string | null;
 }
 
 export interface AdminOrderAuditApiResponse {

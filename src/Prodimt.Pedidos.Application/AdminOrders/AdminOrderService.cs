@@ -16,7 +16,8 @@ public sealed class AdminOrderService(
     IMachineRepository machines,
     ISalesChannelRepository salesChannels,
     IDateTimeProvider dateTimeProvider,
-    OrderChangeNoticePublisher changeNotices)
+    OrderChangeNoticePublisher changeNotices,
+    ICommercialCatalogRepository? commercial = null)
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -119,7 +120,7 @@ public sealed class AdminOrderService(
         var evaluation = ServiceDatePolicy.Evaluate(serviceDate, submissionClock, hasExistingOrder);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
-            customers, products, machines, cancellationToken);
+            customers, products, machines, cancellationToken, commercial, serviceDate);
 
         var order = Order.CreateSubmitted(
             customer.Id,
@@ -475,7 +476,7 @@ public sealed class AdminOrderService(
     {
         var customerNames = await GetCustomerNamesAsync([order], cancellationToken);
         var customerName = GetCustomerName(order, customerNames);
-        var productLookup = (await products.GetByIdsAsync(order.Lines.Select(x => x.ProductId), cancellationToken))
+        var productLookup = (await products.GetByIdsIncludingInactiveAsync(order.Lines.Select(x => x.ProductId), cancellationToken))
             .ToDictionary(product => product.Id);
         var machineLookup = (await machines.GetByIdsAsync(order.Lines.Select(x => x.AssignedMachineId).OfType<Guid>(), cancellationToken))
             .ToDictionary(machine => machine.Id);
@@ -499,7 +500,7 @@ public sealed class AdminOrderService(
                     line.AssignedMachineId,
                     machine?.Name,
                     machine?.Number,
-                    line.UnitCode);
+                    line.UnitCode, line.UnitPriceSnapshot, line.CurrencyCodeSnapshot, line.PriceRevisionId, line.PriceEffectiveFrom);
             })
             .ToArray();
 

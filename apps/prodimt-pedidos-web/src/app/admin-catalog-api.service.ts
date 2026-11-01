@@ -47,6 +47,7 @@ export interface AdminProductCatalogApiResponse {
   description: string | null;
   isActive: boolean;
   unitCode: UnitCode | null;
+  mergedIntoProductId?: string | null;
 }
 
 export interface UpsertAdminProductApiRequest {

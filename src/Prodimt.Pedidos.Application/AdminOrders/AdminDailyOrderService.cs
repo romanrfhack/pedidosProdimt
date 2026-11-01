@@ -1,3 +1,4 @@
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,7 +22,8 @@ public sealed class AdminDailyOrderService(
     ISalesChannelRepository salesChannels,
     IDateTimeProvider clock,
     IOrderOperationStore operationStore,
-    OrderChangeNoticePublisher changeNotices)
+    OrderChangeNoticePublisher changeNotices,
+    ICommercialCatalogRepository? commercial = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly OrderStatus[] ActiveStatuses = [OrderStatus.Submitted, OrderStatus.Accepted, OrderStatus.PendingAdminReview];
@@ -106,20 +108,29 @@ public sealed class AdminDailyOrderService(
                 throw new CustomerOrderConflictException("El pedido cambio o su estado no permite corregirlo. Recarga el detalle.");
             var before = Snapshot(order);
             var previousDemand = OrderChangeNoticePublisher.Capture(order);
-            var oldLines = order.Lines.ToDictionary(x => x.ProductId);
-            var newInputs = request.Lines.Where(x => !oldLines.ContainsKey(x.ProductId))
+            var catalog = await products.GetAllAsync(token);
+            Guid Canonical(Guid id) => catalog.FirstOrDefault(x => x.Id == id) is { } product
+                ? ProductIdentity.Resolve(product, catalog).Id : id;
+            if (request.Lines.Select(x => Canonical(x.ProductId)).Distinct().Count() != request.Lines.Count)
+                throw new ArgumentException("El mismo producto compartido aparece mas de una vez; corrige su cantidad en una sola partida.");
+            if (order.Lines.Select(x => Canonical(x.ProductId)).Distinct().Count() != order.Lines.Count)
+                throw new ArgumentException("El pedido historico contiene productos equivalentes; requiere revision antes de corregirlo.");
+            var oldLines = order.Lines.ToDictionary(x => Canonical(x.ProductId));
+            var newInputs = request.Lines.Where(x => !oldLines.ContainsKey(Canonical(x.ProductId)))
                 .Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray();
             var newLines = newInputs.Length == 0 ? [] : await OrderLineFactory.CreateAsync(order.CustomerId.Value,
-                newInputs, customers, products, machines, token);
+                newInputs, customers, products, machines, token, commercial, order.OrderDate);
             var newLookup = newLines.ToDictionary(x => x.ProductId);
             var replacements = request.Lines.Select(input =>
             {
-                if (!oldLines.TryGetValue(input.ProductId, out var previous)) return newLookup[input.ProductId];
+                if (!oldLines.TryGetValue(Canonical(input.ProductId), out var previous)) return newLookup[input.ProductId];
                 if (previous.UnitCode is null || !ProductUnitCodes.IsSupported(previous.UnitCode))
                     throw new ArgumentException("No se puede corregir una partida historica sin unidad validada.");
-                return new OrderLine { Id = Guid.NewGuid(), ProductId = input.ProductId, Quantity = input.Quantity,
+                return new OrderLine { Id = Guid.NewGuid(), ProductId = previous.ProductId, Quantity = input.Quantity,
                     Notes = input.Notes, UnitCode = previous.UnitCode, ProductNameSnapshot = previous.ProductNameSnapshot,
-                    AssignedMachineId = previous.AssignedMachineId };
+                    AssignedMachineId = previous.AssignedMachineId, UnitPriceSnapshot = previous.UnitPriceSnapshot,
+                    CurrencyCodeSnapshot = previous.CurrencyCodeSnapshot, PriceRevisionId = previous.PriceRevisionId,
+                    PriceEffectiveFrom = previous.PriceEffectiveFrom };
             }).ToArray();
             await orders.ReplaceLinesAsync(order, replacements, token);
             await changeNotices.PublishAsync(order, previousDemand, "correction", request.Reason.Trim(), actor, clock.Now, token);
@@ -208,15 +219,16 @@ public sealed class AdminDailyOrderService(
                         throw new ArgumentException("quantity debe ser positiva, con punto decimal y hasta dos decimales; X no es valida.");
                     var productCode = row.Get("productExternalCode");
                     var matches = allProducts.Where(x => string.Equals(x.ExternalCode, productCode, StringComparison.OrdinalIgnoreCase)).ToArray();
-                    if (string.IsNullOrWhiteSpace(productCode) || matches.Length != 1 || !matches[0].IsActive)
+                    if (string.IsNullOrWhiteSpace(productCode) || matches.Length != 1)
                         throw new ArgumentException("Producto inexistente, ambiguo o inactivo para el codigo indicado.");
-                    var product = matches[0];
+                    var product = ProductIdentity.Resolve(matches[0], allProducts);
+                    if (!product.IsActive) throw new ArgumentException("El producto compartido esta inactivo.");
                     if (product.UnitCode is null || !ProductUnitCodes.IsSupported(product.UnitCode) ||
                         !string.Equals(product.UnitCode, row.Get("unitCode"), StringComparison.OrdinalIgnoreCase))
                         throw new ArgumentException("unitCode debe coincidir con la unidad validada del producto.");
                     inputs.Add(new(product.Id, quantity, string.IsNullOrEmpty(row.Get("notes")) ? null : row.Get("notes")));
                 }
-                var lines = action == "no_order" ? [] : await OrderLineFactory.CreateAsync(customer.Id, inputs, customers, products, machines, token);
+                var lines = action == "no_order" ? [] : await OrderLineFactory.CreateAsync(customer.Id, inputs, customers, products, machines, token, commercial, date);
                 creates.Add(new(group.Key, customer, date, action, fingerprint, lines, action == "no_order" ? first.Get("notes") : null));
                 results.Add(new(group.Key, customer.Id, customer.Name, date, action, "create", null,
                     lines.Select(x => new DailyOrderImportLine(x.ProductId, x.ProductNameSnapshot!, x.Quantity, x.UnitCode!, x.Notes)).ToArray()));
@@ -256,7 +268,8 @@ public sealed class AdminDailyOrderService(
         CultureInfo.InvariantCulture, out var number) ? number.ToString("G29", CultureInfo.InvariantCulture) : value;
     private static string Hash(object value) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions)));
     private static object Snapshot(Order order) => new { order.Version, order.OrderDate, order.Status, order.InternalNotes, lines = order.Lines
-        .OrderBy(x => x.ProductId).Select(x => new { x.Id, x.ProductId, productName = x.ProductNameSnapshot, x.Quantity, x.UnitCode, x.AssignedMachineId, x.Notes }).ToArray() };
+        .OrderBy(x => x.ProductId).Select(x => new { x.Id, x.ProductId, productName = x.ProductNameSnapshot, x.Quantity, x.UnitCode, x.AssignedMachineId, x.Notes,
+            x.UnitPriceSnapshot, x.CurrencyCodeSnapshot, x.PriceRevisionId, x.PriceEffectiveFrom, x.LineAmount }).ToArray() };
     private sealed record PreparedOrder(string Key, Customer Customer, DateOnly ServiceDate, string Action, string PayloadHash, OrderLine[] Lines, string? NoOrderNotes);
     private sealed record PreparedImport(DailyOrderImportResponse Response, IReadOnlyList<PreparedOrder> Creates, bool HasSourceConflict);
     private sealed class ImportValidationException(DailyOrderImportResponse response) : Exception

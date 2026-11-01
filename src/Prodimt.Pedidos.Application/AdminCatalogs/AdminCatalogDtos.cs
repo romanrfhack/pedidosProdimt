@@ -35,7 +35,8 @@ public sealed record UpsertAdminCustomerRequest(
     string? InternalDeliveryInstructions = null,
     IReadOnlyList<int>? RestDays = null);
 
-public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null);
+public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null,
+    Guid? MergedIntoProductId = null);
 
 public sealed record UpsertAdminProductRequest(string Name, string? Description, string? UnitCode = null);
 

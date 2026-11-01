@@ -4,6 +4,14 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I10 — Productos compartidos y precio por cliente (en implementación)
+
+El usuario confirma que los productos no cambian por cliente y solicita retirar esa duplicación del catálogo, con precio cliente-producto e historial de cambios para cobranza futura. Implementación en `codex/i10-shared-products-prices`, basada en I09; no se sobrescribe el trabajo de acceso por enlace. Ver `docs/proyecto/INCREMENTO-10.md` y ADR de precios.
+
+Incluye consolidación revisada con huella/recibo, archivo de duplicados sin reescribir pedidos, preservación de posiciones/máquinas/alias y precios con revisiones/vigencia/autor/motivo. Nuevas partidas conservan precio aplicado; falta de precio es null, no cero. No se crean cobros o saldos. Código y pruebas locales en validación, SQL real/paquete/despliegue pendientes. No asignar tarifas desconocidas ni ejecutar consolidación real por parecido de nombre.
+
+I08 ya fue instalado por el usuario en este chat: frontend client-config-be3995fdce69, updated/completed y salud/frontend verificados, snapshot /var/backups/prodimt-pedidos/client-configuration-20261031T162118Z-cfccc3ef23b6. El estado I09 que sigue corresponde a la otra rama/sesión y no demuestra instalación posterior; verificar baseline antes del despliegue I10.
+
 ## I09 — Diagnóstico confirmado y reparación puntual preparada
 
 El 1 de noviembre el usuario ejecutó el diagnóstico original verificado: `inspected/completed`, sin mutaciones, `database_mismatches=[customer_channel]`. La base corresponde al destino, tiene once migraciones e I07, el canal administrativo válido y los trece permisos consultados en 1. `customer_channel=0` significa que no hay una fila Customer con IsInternal=0; no distingue ausencia de una fila incompatible. No conceder permisos ni ejecutar bootstrap por este resultado.

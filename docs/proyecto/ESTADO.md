@@ -2,6 +2,12 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## I10 en implementación — catálogo compartido y tarifas históricas
+
+Autorizado el 1 de noviembre. Rama codex/i10-shared-products-prices desde I09 c0566c1f48d3ac87c6f66956beff978cb8217a63. Un solo producto físico para varios clientes; consolidación revisada y precios por cliente con revisión inmutable, vigencia y actor. Partidas guardan el precio aplicado sin revalorar pedidos históricos. Editor/historial integrado en configuración y consolidación en Productos. No implica cobranza, estado de cuenta o facturación implementados.
+
+Compilaciones backend/Angular correctas durante desarrollo y primeras 15 pruebas dirigidas correctas; ampliación de pruebas, SQL Server, paquete y despliegue pendientes. Ver INCREMENTO-10.md. I08 se confirmó instalado en el chat del catálogo, con frontend client-config-be3995fdce69 y snapshot client-configuration-20261031T162118Z-cfccc3ef23b6; I09 conserva su seguimiento independiente debajo. No se ha operado SSH desde este entorno.
+
 ## I09 — Diagnóstico confirmado y reparación puntual preparada
 
 El 1 de noviembre el usuario ejecutó el diagnóstico original verificado: `inspected/completed`, sin mutaciones, `database_mismatches=[customer_channel]`. La base corresponde al destino, tiene once migraciones e I07, el canal administrativo válido y los trece permisos consultados en 1. `customer_channel=0` significa que no hay una fila Customer con IsInternal=0; no distingue ausencia de una fila incompatible. No conceder permisos ni ejecutar bootstrap por este resultado.

@@ -1,0 +1,39 @@
+<button type="button" class="price-trigger" [class.missing]="price?.unitPrice == null"
+  [disabled]="!loaded || !configured" [attr.aria-label]="'Precio e historial de ' + productName"
+  [title]="configured ? 'Precio por cliente en MXN; abrir historial y editar' : 'Guarda primero el producto en este cliente'" (click)="open()">
+  {{ attempt ? 'Cambio pendiente' : !loaded ? 'Consultando precio…' : price?.unitPrice == null ? 'Asignar precio' : priceText(price?.unitPrice) }}
+</button>
+<dialog #dialog [attr.aria-labelledby]="'price-title-' + productId" (cancel)="close($event)">
+  <header><div><small>PRECIO POR CLIENTE · MXN</small><h3 [id]="'price-title-' + productId">{{ productName }}</h3></div>
+    <button type="button" class="secondary" [disabled]="saving" (click)="close()" aria-label="Cerrar precio">×</button></header>
+  <p>Actual: <strong>{{ priceText(price?.unitPrice) }}</strong> / {{ unitLabel(unitCode) }}.
+    Los cambios se aplican a nuevas capturas según su fecha de servicio. Los pedidos existentes conservan su precio.</p>
+  @if (!available) { <p>Para cambiar precio, el producto debe estar activo y su unidad confirmada. Puedes consultar su historial.</p> }
+  @if (error) { <div role="alert" class="alert error">{{ error }}</div> }
+  @if (message) { <div role="status" class="alert success">{{ message }}</div> }
+  @if (attempt) {
+    <div class="notice">Hay un cambio pendiente de confirmar. Puedes cerrar y volver a revisar este producto; conserva la misma referencia.</div>
+    <button type="button" class="primary" [disabled]="saving" (click)="retry()">Reintentar cambio de precio</button>
+  }
+  <form (ngSubmit)="save()">
+    <fieldset [disabled]="saving || !!attempt || !available">
+      <div class="fields"><label>Precio por {{ unitLabel(unitCode) }} (MXN)
+        <input type="number" name="unitPrice" min="0" max="999999999.9999" step="0.0001" [required]="!clearPrice" [disabled]="clearPrice" [(ngModel)]="amount"></label>
+        <label>Vigente desde<input type="date" name="effectiveFrom" min="2000-01-01" max="2100-12-31" required [(ngModel)]="effectiveFrom"></label></div>
+      <label class="check"><input type="checkbox" name="clearPrice" [(ngModel)]="clearPrice"><span>Dejar sin precio desde esa fecha</span></label>
+      <small>Sin precio significa pendiente. Un precio explícito de $0.00 significa gratuito.</small>
+      <label>Motivo del cambio<textarea name="priceReason" required maxlength="500" rows="2" [(ngModel)]="reason"></textarea></label>
+      <button type="submit" class="primary">Guardar precio</button>
+    </fieldset>
+  </form>
+  <section aria-label="Historial de precios"><div class="history-title"><h4>Historial de precios</h4><button type="button" class="secondary" [disabled]="saving" (click)="refresh()">Actualizar historial</button></div>
+    @if (!price?.history?.length) { <p>Todavía no hay precios registrados para este cliente y producto.</p> }
+    @for (revision of price?.history ?? []; track revision.id) {
+      <article class="revision"><div><strong>{{ priceText(revision.unitPrice) }} / {{ unitLabel(revision.unitCode) }}</strong><span>Vigencia: {{ priceDate(revision.effectiveFrom) }}{{ revision.effectiveUntil ? ' al ' + priceDate(revision.effectiveUntil) : ' en adelante' }}</span></div>
+        <small>Revisión {{ revision.version }} · {{ recordedAt(revision.recordedAt) }} CDMX · <span [title]="revision.actorId">{{ revision.actorDisplayName || revision.actorId }}</span></small>
+        <p>{{ revision.reason }}</p>
+        @if (revision.supersededForDate) { <small>Reemplazado por una revisión posterior con la misma vigencia.</small> }
+      </article>
+    }
+  </section>
+</dialog>

@@ -3,6 +3,9 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
 import { CustomerEditorValue } from './customer-editor.model';
 import { CustomerWorkingWeekComponent } from './customer-working-week.component';
+import { CustomerProductPriceComponent } from './customer-product-price.component';
+import { ProductConsolidationComponent } from './product-consolidation.component';
+import { CommercialCatalogApiService, CustomerProductPrice } from './commercial-catalog-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -40,12 +43,18 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, CustomerWorkingWeekComponent],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, CustomerWorkingWeekComponent, CustomerProductPriceComponent, ProductConsolidationComponent],
   styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css'],
   templateUrl: './admin-catalogs.component.html'
 })
 export class AdminCatalogsComponent {
   private readonly api = inject(AdminCatalogApiService);
+  private readonly commercial = inject(CommercialCatalogApiService);
+  protected prices = new Map<string, CustomerProductPrice>();
+  protected pricesLoaded = false;
+  protected priceError: string | null = null;
+  private priceReadSequence = 0;
+  protected showConsolidatedProducts = false;
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -328,6 +337,8 @@ export class AdminCatalogsComponent {
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
     const sequence = ++this.profileReadSequence;
     this.selectedCustomer = customer;
+    this.prices.clear();
+    this.reloadPrices();
     this.setWorkingWeek(customer.restDays ?? []);
     this.profileApproval.setValue(false);
     this.generatedPlainToken = null;
@@ -391,6 +402,37 @@ export class AdminCatalogsComponent {
     this.customerForm = this.emptyCustomerForm();
     this.customerDialogOpen = false;
     this.customerDialogError = null;
+  }
+
+  protected isProductConfigured(row: AdminCustomerFrequentProductApiResponse): boolean {
+    return this.profileProductSnapshot.has(row.productId);
+  }
+
+  protected reloadPrices(): void {
+    const customerId = this.selectedCustomer?.id;
+    if (!customerId) return;
+    const sequence = ++this.priceReadSequence;
+    this.pricesLoaded = false; this.priceError = null;
+    this.commercial.getPrices(customerId).subscribe({
+      next: values => {
+        if (sequence !== this.priceReadSequence || this.selectedCustomer?.id !== customerId) return;
+        this.prices = new Map(values.map(x => [x.productId, x])); this.pricesLoaded = true;
+        this.changeDetector.detectChanges();
+      },
+      error: () => {
+        if (sequence !== this.priceReadSequence || this.selectedCustomer?.id !== customerId) return;
+        this.priceError = 'No se pudieron consultar los precios. Las cantidades del perfil se conservan.';
+        this.changeDetector.detectChanges();
+      }
+    });
+  }
+
+  protected get visibleProducts(): AdminProductCatalogApiResponse[] {
+    return this.products.filter(x => this.showConsolidatedProducts || !x.mergedIntoProductId);
+  }
+
+  protected commercialCatalogChanged(): void {
+    this.resetProductForm(); this.loadCatalogs(false);
   }
 
   protected get workingWeekDirty(): boolean {
@@ -571,6 +613,7 @@ export class AdminCatalogsComponent {
         this.isProfileSaving = false;
         this.profileApproval.setValue(false);
         this.profileMessage = 'Productos frecuentes guardados.';
+        this.reloadPrices();
         this.reloadProfile();
         this.changeDetector.detectChanges();
       },

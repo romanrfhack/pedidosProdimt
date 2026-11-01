@@ -12,7 +12,8 @@ public sealed class CustomerOrderService(
     IOrderRepository orders,
     IOrderAuditLogRepository auditLogs,
     IDateTimeProvider dateTimeProvider,
-    IMachineRepository machines)
+    IMachineRepository machines,
+    ICommercialCatalogRepository? commercial = null)
 {
     public async Task<CustomerOrderTodayResponse> GetTodayAsync(Guid customerId, CancellationToken cancellationToken)
     {
@@ -62,7 +63,7 @@ public sealed class CustomerOrderService(
         ArgumentNullException.ThrowIfNull(request);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
-            customers, products, machines, cancellationToken);
+            customers, products, machines, cancellationToken, commercial, dateTimeProvider.Today);
 
         var order = Order.CreateSubmitted(
             customer.Id,

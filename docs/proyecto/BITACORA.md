@@ -426,3 +426,12 @@ Usuario devuelve diagnóstico read-only inspected/completed con base correcta, o
 Pruebas previstas: SQL real de inserción limitada/idempotencia/portal después de reparar, rollback si falla auditoría y rechazo de fila interna/nombrevacío sin sobrescribir. Se conserva ZIP I09 original y se reejecutará su instalador sólo después de verificar el canal. Evidencia del VPS es reportada por el usuario; no se accedió por SSH desde este entorno.
 
 Cierre reparación: código 7d446992e57dc7985065a04e3da387cccd95b538, CI 41318844811 con 37 SQL Server correctas (cuatro nuevas) y 238 Python locales. Los casos nuevos comprueban SQL exacto bajo identidad limitada, rollback/auditoría, idempotencia y captura/reintento de cliente tras reparar. Revisión independiente sin bloqueantes. Script exportado PRODIMT_Reparar_Canal_Cliente_I09.py de 15,310 bytes, SHA256 a8142f74b6d4946063266cf1912bee59a84431ad5a6ac3c440cc4cfc86b154df. Se conserva el ZIP I09 original; reparación e instalación remotas pendientes de ejecución/reportes del usuario. graphify update . no disponible (127); no existe grafo previo en esta copia.
+
+
+## 2026-11-01 — I10: productos compartidos y precio por cliente
+
+El usuario aporta imagen privada de productos repetidos por cliente y confirma identidad compartida con tarifa variable por cliente. Se recupera el repositorio y se identifica I09 en rama/PR separados; se trabaja sobre c0566c1f48d3ac87c6f66956beff978cb8217a63 en rama I10 para conservar ese avance. La imagen y datos reales permanecen fuera del repositorio.
+
+Se implementan cabecera de precio y revisiones anexadas con vigencia/registro/actor/motivo, recibo durable de consolidación y precio aplicado en OrderLine. Consolidación con vista previa, huella, colisiones bloqueantes, archivo de duplicados/alias y preservación de perfiles; no se modifican pedidos anteriores. Portal/captura/importación y correcciones consultan tarifa por fecha de servicio; una corrección conserva la tarifa anterior. Precio desconocido no es cero.
+
+Editor e historial en la fila del perfil, importes en detalle administrativo y revisión de duplicados en Productos. Build Angular/backend correctos y primer bloque de 15 pruebas de integración correcto; se amplían casos, validación responsive y SQL real. Schema/migration coherentes mediante has-pending-model-changes. Paquete nativo/despliegue pendientes. No se ejecutan cambios en el VPS ni asignaciones de precio o consolidaciones reales. Se incorpora la evidencia ya aportada de instalación I08; no se infiere instalación I09.

@@ -9,6 +9,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
     public void Configure(EntityTypeBuilder<Product> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasOne<Product>().WithMany().HasForeignKey(x => x.MergedIntoProductId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable("Products", table => table.HasCheckConstraint("CK_Products_Consolidated",
+            "[MergedIntoProductId] IS NULL OR ([MergedIntoProductId] <> [Id] AND [IsActive] = 0)"));
 
         builder.Property(x => x.Name)
             .HasMaxLength(120)
