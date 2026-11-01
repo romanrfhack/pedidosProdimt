@@ -134,6 +134,33 @@ public sealed class CommercialCatalogSqlTests(SqlServerFixture database)
     }
 
     [Fact]
+    public async Task MaximumSpanishReasonPersistsInPriceHistoryAndConsolidationReceipt()
+    {
+        var a = await database.CreateCatalogAsync(); var b = await database.CreateCatalogAsync();
+        await using var host = database.CreateFactory(); using var client = await SqlServerFixture.CreateAdminClientAsync(host);
+        await Configure(client, a.CustomerId, a.ProductId); await Configure(client, b.CustomerId, b.ProductId);
+        var reason = new string('á', 500);
+        (await client.PostAsJsonAsync(Price(a.CustomerId, a.ProductId), Change(20) with { Reason = reason })).EnsureSuccessStatusCode();
+        var selection = new PreviewProductConsolidationRequest(a.ProductId, [b.ProductId], "Shared unicode test " + Guid.NewGuid().ToString("N"));
+        var preview = (await (await client.PostAsJsonAsync("/api/admin/products/consolidation/preview", selection))
+            .Content.ReadFromJsonAsync<ProductConsolidationPreview>())!;
+        Assert.True(preview.CanApply);
+        var request = new ApplyProductConsolidationRequest(a.ProductId, [b.ProductId], selection.SharedName, null,
+            preview.Fingerprint, reason, Guid.NewGuid());
+        (await client.PostAsJsonAsync("/api/admin/products/consolidation/apply", request)).EnsureSuccessStatusCode();
+        await using var db = database.CreateDbContext();
+        var book = await db.CustomerProductPriceBooks.SingleAsync(x => x.CustomerId == a.CustomerId && x.ProductId == a.ProductId);
+        Assert.Equal(reason, (await db.CustomerProductPriceRevisions.SingleAsync(x => x.PriceBookId == book.Id)).Reason);
+        var receipt = await db.ProductConsolidationOperations.SingleAsync(x => x.Id == request.OperationId);
+        using var json = JsonDocument.Parse(receipt.ResultJson);
+        Assert.Equal(reason, json.RootElement.GetProperty("reason").GetString());
+        var ids = new[] { book.Id.ToString(), request.OperationId.ToString() };
+        var audits = await db.AuditLogs.Where(x => ids.Contains(x.EntityId)).ToArrayAsync();
+        Assert.Equal(2, audits.Length);
+        Assert.All(audits, x => Assert.InRange(x.MetadataJson!.Length, 1, 2000));
+    }
+
+    [Fact]
     public async Task ConsolidationMovesProfilesAndPriceAssignmentsAtomicallyAndReplaysAcrossHosts()
     {
         var a = await database.CreateCatalogAsync(); var b = await database.CreateCatalogAsync();

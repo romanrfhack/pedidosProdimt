@@ -21,6 +21,23 @@ public sealed class CommercialCatalogTests
         => new(amount, date ?? Day, "Cambio confirmado en prueba ficticia", version, operation ?? Guid.NewGuid(), "kg");
 
     [Fact]
+    public async Task LongSpanishReasonsStayCompleteInHistoryAndReceiptWithoutOverflowingAuditMetadata()
+    {
+        await using var f = await Fixture.Create();
+        var reason = new string('á', 500);
+        await f.Prices.ChangeAsync(f.A.Id, f.P.Id, Change(20) with { Reason = reason }, Actor, Ct);
+        Assert.Equal(reason, (await f.Db.CustomerProductPriceRevisions.SingleAsync()).Reason);
+        Assert.InRange((await f.Db.AuditLogs.SingleAsync()).MetadataJson!.Length, 1, 2000);
+        var preview = await f.Merge.PreviewAsync(f.Selection, Ct);
+        var request = f.Apply(preview) with { Reason = reason };
+        await f.Merge.ApplyAsync(request, Actor, Ct);
+        var receipt = await f.Db.ProductConsolidationOperations.SingleAsync(x => x.Id == request.OperationId);
+        using var json = System.Text.Json.JsonDocument.Parse(receipt.ResultJson);
+        Assert.Equal(reason, json.RootElement.GetProperty("reason").GetString());
+        Assert.All(await f.Db.AuditLogs.ToArrayAsync(), x => Assert.InRange(x.MetadataJson!.Length, 1, 2000));
+    }
+
+    [Fact]
     public async Task PricesArePerCustomer_AndFutureEffectiveDateDoesNotOverwriteTodayOrPriorRevisions()
     {
         await using var f = await Fixture.Create();

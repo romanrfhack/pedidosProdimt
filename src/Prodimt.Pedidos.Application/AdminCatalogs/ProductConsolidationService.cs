@@ -112,7 +112,8 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
                 await audit.AddAsync(CatalogAudit.Create("ProductConsolidation", request.OperationId, "ProductsConsolidated",
                     clock.Now, actor, "Productos consolidados; pedidos historicos y revisiones de precio conservados.",
                     new { request.TargetProductId, response.SharedName, response.ArchivedProducts,
-                        response.UpdatedProfiles, response.PriceAssignments, reason = request.Reason.Trim() }), ct);
+                        // Full reason/evidence remain in the immutable operation receipt.
+                        response.UpdatedProfiles, response.PriceAssignments }), ct);
                 // Profile replacements and every other tracked change share this SQL transaction/commit.
                 await customers.SaveChangesAsync(ct);
                 await commercial.SaveChangesAsync(ct);

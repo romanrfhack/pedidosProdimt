@@ -84,7 +84,9 @@ public sealed class CustomerProductPricingService(ICustomerRepository customers,
                     revision.RecordedAt, actor, "Precio por cliente-producto actualizado con historial.",
                     new { customerId, productId, revision.Id, revision.OperationId, revision.Version,
                         before = previous?.UnitPrice, after = revision.UnitPrice, revision.UnitCode,
-                        revision.CurrencyCode, revision.EffectiveFrom, revision.Reason }), ct);
+                        // The complete reason belongs to the immutable revision. Repeating it
+                        // in the bounded audit JSON can overflow after Unicode escaping.
+                        revision.CurrencyCode, revision.EffectiveFrom }), ct);
                 await commercial.SaveChangesAsync(ct);
                 return Map(customerId, product, book, clock.Today);
             }, token);
