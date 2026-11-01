@@ -2,11 +2,11 @@
 
 Actualizado: 1 de noviembre de 2026.
 
-## I10 — Tokens en modal responsivo, en validación
+## I10 — Tokens en modal responsivo, validado y empaquetado
 
 El usuario solicita ampliar Tokens de acceso tras instalar I09. Implementado modal nativo amplio con configuración/vista previa en PC, contenido apilado en tableta y móvil, historial a todo el ancho y cuerpo desplazable con cabecera/cierre visibles. Escape/fondo/Cerrar restauran foco; operaciones pendientes bloquean el cierre. Borrador y enlace permanecen al cerrar/reabrir; se limpian al cambiar de configuración como antes. Mensajes de revocación visibles dentro del modal. Sin contratos API/SQL o reglas de negocio nuevas.
 
-Build Angular correcto y 250 pruebas Python correctas (12 nuevas del actualizador). Revisión independiente sin bloqueantes; pruebas de navegador y distribución aún en curso. Preparado actualizador nativo I10 sólo frontend sobre I09 exacto, sin reinicio, con snapshot y reversión de frontend. No se ha instalado I10 en el VPS ni confirmado aceptación del usuario. Ver [contrato I10](INCREMENTO-10.md) y [evidencia I10](../validation/2026-11-01-token-modal.md). I09 sigue siendo el despliegue confirmado.
+Código `89b51ddc3308b42e5ab9b4e0532826b568beb684`. Build Angular y 250 pruebas Python correctas (12 nuevas del actualizador); [CI 41323199461](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41323199461) con cuatro trabajos correctos: 103 E2E, 305 .NET, 37 SQL Server y smoke Production. Capturas PC/tableta/móvil revisadas y controles accesibles; se corrigió la altura del botón de acceso a 1366×768 sin relajar los criterios. Actualizador nativo I10 sólo frontend sobre I09 exacto, sin reinicio, con snapshot y reversión de frontend. ZIP de 180,442 bytes, SHA256 `1ff5df6abbf1ce0066662c1dccb88e1ff503f4291f8fc9754d52c5434f0657fc`, payload y exportación verificados. No se ha instalado I10 en el VPS ni confirmado aceptación del usuario. Ver [contrato I10](INCREMENTO-10.md) y [evidencia I10](../validation/2026-11-01-token-modal.md). I09 sigue siendo el despliegue confirmado.
 
 ## I09 instalado — 1 de noviembre de 2026
 
