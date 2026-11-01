@@ -1,6 +1,6 @@
 # I11 — Productos compartidos y precios por cliente con historial
 
-Autorizado el 1 de noviembre de 2026. Implementación y validación en curso; no desplegado. Base: rama I09 `codex/i09-customer-order-links`, código `c0566c1f48d3ac87c6f66956beff978cb8217a63`; se conserva acceso de clientes y asignación de fecha. Nueva rama `codex/i10-shared-products-prices`.
+Autorizado el 1 de noviembre de 2026. Implementado y validado; no desplegado. Rama `codex/i10-shared-products-prices`, PR #3 en borrador sobre I09. Se integra la base `9998e30ac8e912ae54d56274d8217229e5672944` con I09 instalado y modal de tokens I10. El primer checkpoint de productos/precios se llamó I10; este alcance queda renumerado como I11 para preservar la numeración y el trabajo concurrente del modal. No requiere aplicar el ZIP de modal I10 antes de I11.
 
 ## Catálogo compartido
 
@@ -35,6 +35,16 @@ Captura administrativa, portal cliente, importación diaria y productos nuevos e
 
 Importe de partida = cantidad × precio, redondeado a dos decimales AwayFromZero; total de pedido es null si alguna partida está sin precio. Se muestran importes aplicados en detalle administrativo. No se crean cargos de cuenta, pagos, saldos, impuestos o facturas. La etapa de cobranza usará snapshots, no el precio actual del catálogo, y deberá definir cómo valorar históricos aún pendientes y qué entrega genera el cargo.
 
+## Instalación y protección de datos
+
+Migración `20261101154618_AddSharedProductsAndCustomerPrices`: once→doce versiones, tres tablas y columnas nullable en Products/OrderLines. No modifica datos existentes ni inventa precios. El usuario SQL de aplicación puede consultar/agregar revisiones, pero recibe DENY UPDATE/DELETE sobre el historial y los recibos; las cabeceras permiten UPDATE para su versión y equivalencia de producto, con DELETE denegado.
+
+El actualizador nativo admite backend I09 con frontend I09 o modal I10 `token-modal-89b51ddc3308`, y las bases I07/I08 conocidas. Comprueba paquete/archivos, proceso, configuración Production, canales y permisos antes de escribir. Solicita SQL admin oculto sólo con --apply; crea snapshot privado, prepara archivos de forma atómica y detiene únicamente la API de PRODIMT. Ejecuta COPY_ONLY/CHECKSUM y RESTORE VERIFYONLY antes del SQL incremental. Verifica esquema, conteos existentes, ausencia de precios/consolidaciones creados por instalación y permisos anexables. Conserva api.env y JSON productivos. Activa enlaces, comprueba endpoints protegidos y archivos HTTPS; si falla recupera los enlaces previos y salud, nunca restaura SQL automáticamente. Repetir el mismo paquete verifica already_current sin nuevas migraciones o reinicio.
+
 ## Validación y entrega
 
-Build Angular y compilación backend correctos. 105 E2E correctos, incluyendo once nuevos de precios/consolidación y medidas previas sin scroll en laptop. Primer bloque dirigido de 15 pruebas de integración correcto, suite ampliada de .NET en cierre; SQL Server real se validará en CI. Datos sólo ficticios. Migración aditiva, respaldo y paquete nativo I11 pendientes de cierre. No se ha operado el VPS ni consolidado datos reales desde este entorno.
+Código `148a52dd7428cd1f948441f6709407a22be5944b`; [CI 41329868536](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41329868536), cuatro trabajos correctos: 323 .NET, 46 SQL Server, 114 E2E, 269 Python y smoke Production. Dieciocho casos de aplicación y nueve SQL nuevos para historial/vigencia, precio desconocido/cero/retiro, snapshots/correcciones, consolidación/alias/perfiles, concurrencia entre hosts y rollback. Once E2E nuevos; se preservan 103 de la base con modal I10. Diecinueve pruebas Python nuevas del paquete y respaldo/recuperación; los reparadores históricos mantienen su guarda de once migraciones y sus fixtures propios. Esquema y permisos exactos del instalador ejecutados contra SQL Server, también bajo usuario db_datawriter con DENY efectivo. Modelo/migración coherentes, publicación linux-x64 y build Angular correctos. Sólo datos ficticios en pruebas. graphify update . no disponible (127), sin grafo previo.
+
+ZIP `PRODIMT_Productos_Precios_I11.zip`, 5,742,775 bytes, SHA256 `0f97c7bb460b92c1070d9e0f333e49bbe1e60b1f4bcbf867754e0801affb463c`. Payload SHA256 `8a43682026c7da6d3dc4a3cf0ef0e47475bf1bfe7d7883748005053e32f6d436`, 61 archivos y avisos de terceros. Descarga verificada/guardada; LEEME y SHA256SUMS incluidos. Nuevo backend/frontend `prices-148a52dd7428`. [Evidencia y pasos](../validation/2026-11-01-commercial-catalog.md).
+
+No se ha operado el VPS ni consolidado productos o registrado tarifas reales. La aceptación de negocio, instalación, revisión de equivalencias y precios reales corresponden al siguiente paso con el usuario.
