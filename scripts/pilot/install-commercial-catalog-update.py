@@ -20,7 +20,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261101-commercial-catalog-install1'
+REVISION = '20261101-commercial-catalog-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -107,6 +107,12 @@ class InstallError(Exception):
 
 def require(condition, issue):
     if not condition: raise InstallError(issue)
+
+def error_issue(error, inspector=None):
+    # Both reviewed exception types contain fixed issue codes. Other exception
+    # messages can include configuration values and must never be printed.
+    types_allowed = (InstallError, getattr(inspector, 'InspectionError', InstallError))
+    return str(error) if isinstance(error, types_allowed) else 'local_operation_failed'
 
 def sha(raw): return hashlib.sha256(raw).hexdigest()
 
@@ -251,6 +257,7 @@ def make_installer(package):
                 self.verify_stage(part)
 
         def preflight(self):
+            self.state['preflight_step'] = 'directories-and-releases'
             for path in (ROOT, BACKUPS, *(ROOT/part/'releases' for part in self.new)):
                 runtime.directory_safe(path)
             for part in self.new:
@@ -261,11 +268,18 @@ def make_installer(package):
             require(own or (self.old['backend'].name == I07 and self.old['frontend'].name in (I07, *I08_FRONTENDS))
                 or (self.old['backend'].name == I09 and self.old['frontend'].name in (I09, I10_FRONTEND)), 'previous_release_not_supported')
             require(all(path.parent == ROOT/part/'releases' for part, path in self.old.items()), 'previous_release_path_unexpected')
+            self.state['preflight_step'] = 'running-service'
             pid, cwd, argv = self.process(self.old['backend'])
             self.original_dll = regular(cwd/'Prodimt.Pedidos.Api.dll')
             self.environment = regular(ENV_FILE)
             inspector = types.ModuleType('reviewed_i11_inventory')
             exec(compile(files['inspect-native.py'], 'inspect-native.py', 'exec'), inspector.__dict__)
+            # The inspector rejects every query outside its exact allowlist.
+            # Authorize only the three fixed read-only queries used by I11,
+            # including verification when the same release is already active.
+            inspector.QUERIES = (PERMISSION_QUERY, NEW_SCHEMA, PRICE_PERMISSIONS)
+            self.inspector = inspector
+            self.state['preflight_step'] = 'effective-configuration'
             configuration, source = inspector.configuration(inspector.process_environment(pid), argv, cwd)
             require(source['environment'] == 'Production' and inspector.policy_flags(configuration) == {
                 'provider_is_sqlserver': True, 'jwt_compatible_with_production_policy': True,
@@ -274,9 +288,9 @@ def make_installer(package):
                 'production_configuration_unexpected')
             self.fields = inspector.connection_fields(inspector.first(configuration, 'ConnectionStrings:Pedidos', 'PRODIMT_PEDIDOS_CONNECTION_STRING', default=''))
             require(inspector.permitted_connection(self.fields), 'sql_target_unexpected')
-            self.inspector = inspector
             self.sql_tool = next((tool for tool in inspector.SQL_TOOLS if Path(tool).is_file()), None)
             require(self.sql_tool, 'sqlcmd_required')
+            self.state['preflight_step'] = 'application-sql-read'
             self.app_checks = inspector.query_sql(self.sql_tool, self.fields, PERMISSION_QUERY)
             mismatch = permission_mismatches(self.app_checks, (12,) if own else (11,12))
             self.state['database_checks'] = {key: value for key,value in self.app_checks.items()
@@ -287,16 +301,19 @@ def make_installer(package):
             for name in ('appsettings.json','appsettings.Production.json'):
                 path = self.old['backend']/name
                 if path.exists(): self.overrides['backend/'+name] = regular(path)
+            self.state['preflight_step'] = 'previous-application-health'
             require(runtime.shutil.disk_usage(ROOT).free >= 2*sum(map(len,files.values()))+100*1024*1024, 'disk_space_insufficient')
             require(self.http('/health/db')[0] == 200 and json.loads(self.http('/health/db')[1]).get('database') == 'reachable', 'previous_health_failed')
             require(self.http('/admin/catalogos') == (200,regular(self.old['frontend']/'index.html')), 'previous_frontend_not_served')
             self.state['env_preserved'] = True
             if own:
+                self.state['preflight_step'] = 'installed-files-and-schema'
                 self.verify_stage('backend'); self.verify_stage('frontend')
                 require(inspector.query_sql(self.sql_tool,self.fields,NEW_SCHEMA) == EXPECTED_SCHEMA, 'commercial_schema_unexpected')
                 require(inspector.query_sql(self.sql_tool,self.fields,PRICE_PERMISSIONS) == EXPECTED_PRICE_PERMISSIONS, 'price_history_permissions_unexpected')
                 self.health(True)
                 self.state.update(status='already_current',phase='completed',health_verified=True,frontend_verified=True)
+            self.state['preflight_step'] = 'completed'
 
         def verify_schema(self):
             rows = self.sql_json(self.inspector.SQL_MIGRATIONS)
@@ -414,7 +431,7 @@ def main():
                 installer.preflight()
                 if installer.state['status']!='already_current':installer.state['phase']='completed'
         except (Exception,KeyboardInterrupt) as error:
-            installer.state.update(status='failed',issue=str(error) if isinstance(error,InstallError) else 'local_operation_failed')
+            installer.state.update(status='failed',issue=error_issue(error,getattr(installer,'inspector',None)))
             for number in previous:signal.signal(number,signal.SIG_IGN)
             try:installer.rollback()
             except (Exception,KeyboardInterrupt):installer.state['rollback_failed']=True

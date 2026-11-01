@@ -1,6 +1,10 @@
 """Native commercial update: package integrity, verified backup and recovery boundaries."""
+from contextlib import contextmanager
 import importlib.util
+import io
+import json
 from pathlib import Path
+import subprocess
 import tempfile
 import types
 import unittest
@@ -69,6 +73,137 @@ class CommercialPackageTests(unittest.TestCase):
 
     def support(self, instance):
         return instance.__class__.__mro__[1].stage.__globals__
+
+    @contextmanager
+    def real_preflight(self, current=False, sql_failure=False):
+        """Keep the real process/configuration/query policy; fake only OS and transports."""
+        self.build()
+        app, backups, env_file = self.root/'app', self.root/'backups', self.root/'api.env'
+        backups.mkdir(); env_file.write_bytes(b'synthetic-private-environment-file')
+        with patch.object(installer, 'ROOT', app), patch.object(installer, 'BACKUPS', backups), \
+                patch.object(installer, 'ENV_FILE', env_file):
+            instance = installer.make_installer(self.payload)
+            old = {}
+            for part in ('backend', 'frontend'):
+                name = 'prices-'+SOURCE[:12] if current else (installer.I09 if part=='backend' else installer.I10_FRONTEND)
+                folder = app/part/'releases'/name
+                folder.mkdir(parents=True)
+                old[part] = folder
+                (app/part/'current').symlink_to(folder)
+                for path, raw in instance.files.items():
+                    if path.startswith(part+'/'):
+                        target = folder/path.removeprefix(part+'/')
+                        target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(raw)
+            pid = 424242
+            argv = ['/usr/bin/dotnet',str(old['backend']/'Prodimt.Pedidos.Api.dll'),'--urls','http://127.0.0.1:5080']
+            secret = 'synthetic-password-never-print'
+            environment = {
+                'ASPNETCORE_ENVIRONMENT':'Production',
+                'ConnectionStrings__Pedidos':'Server=127.0.0.1,14330;Database=ProdimtPedidos;User Id=prodimt_pedidos_app;Password='+secret+';',
+                'Authentication__Jwt__SigningKey':'synthetic-test-signing-key-'+'a'*48,
+                'Authentication__Jwt__AccessTokenMinutes':'720',
+                'DevelopmentSeed__Enabled':'false','DevelopmentSeed__ApplyMigrations':'false',
+                'Hosting__UseHttpsRedirection':'true','UNRELATED_PRIVATE_VALUE':secret}
+            environment_raw = ('\0'.join(key+'='+value for key,value in environment.items())+'\0').encode()
+            real_open, real_is_file = Path.open, Path.is_file
+            tool = '/opt/mssql-tools/bin/sqlcmd'
+            queries, checked_stages = [], []
+            def proc_path(value):
+                if str(value)==f'/proc/{pid}/cwd': return types.SimpleNamespace(resolve=lambda strict=True: old['backend'])
+                return Path(value)
+            def read_file(path, limit=0):
+                if str(path)==f'/proc/{pid}/cmdline': return ('\0'.join(argv)+'\0').encode()
+                return Path(path).read_bytes()
+            def open_file(path, *args, **kwargs):
+                if str(path)==f'/proc/{pid}/environ': return io.BytesIO(environment_raw)
+                return real_open(path,*args,**kwargs)
+            def execute(args, **kwargs):
+                if args[:2]==['systemctl','show']:
+                    self.assertEqual(installer.SERVICE,args[2])
+                    values=dict(ActiveState='active',MainPID=str(pid),User='www-data',Group='',
+                        WorkingDirectory=str(app/'backend/current'),EnvironmentFiles=str(env_file)+' (ignore_errors=no)')
+                    return subprocess.CompletedProcess(args,0,'\n'.join(k+'='+v for k,v in values.items()),'')
+                if args[0]==tool:
+                    self.assertIn('-Q',args)
+                    wrapped=args[args.index('-Q')+1]
+                    query=next((q for q in (installer.PERMISSION_QUERY,installer.NEW_SCHEMA,installer.PRICE_PERMISSIONS)
+                        if wrapped.endswith('SELECT ('+q.rstrip().removesuffix(';')+') AS ProdimtInspectionJson;')),None)
+                    self.assertIsNotNone(query)
+                    self.assertEqual({'PATH','LANG','LC_ALL','SQLCMDUSER','SQLCMDPASSWORD'},set(kwargs['env']))
+                    self.assertEqual(secret,kwargs['env']['SQLCMDPASSWORD'])
+                    self.assertNotIn(secret,' '.join(args))
+                    queries.append(query)
+                    if sql_failure: return subprocess.CompletedProcess(args,1,secret+' private SQL error','')
+                    data=(dict(installer.EXPECTED_PERMISSIONS,migrations_count=12 if current else 11)
+                        if query==installer.PERMISSION_QUERY else installer.EXPECTED_SCHEMA
+                        if query==installer.NEW_SCHEMA else installer.EXPECTED_PRICE_PERMISSIONS)
+                    return subprocess.CompletedProcess(args,0,'ProdimtInspectionJson\n---------------------\n'+json.dumps(data),'')
+                if args[0]=='curl':
+                    url=next(value for value in args if value.startswith('https://'))
+                    path=url.removeprefix('https://'+installer.DOMAIN)
+                    if path=='/health/db': body,status=json.dumps({'database':'reachable'}),200
+                    elif path.startswith('/api/'): body,status='{}',401
+                    else:
+                        name='index.html' if path.startswith('/admin/') else path.removeprefix('/')
+                        self.assertIn('frontend/'+name,instance.files)
+                        body,status=(old['frontend']/name).read_text(),200
+                    return subprocess.CompletedProcess(args,0,body+'\n'+str(status),'')
+                raise AssertionError('unexpected OS mutation or transport: '+args[0])
+            def verify_stage(part):
+                checked_stages.append(part)
+                self.assertEqual(instance.expected(part),{str(p.relative_to(instance.new[part])):p.read_bytes()
+                    for p in instance.new[part].rglob('*') if p.is_file()})
+            with patch.dict(self.support(instance),Path=proc_path,regular=read_file,directory_safe=lambda path: self.assertTrue(path.is_dir()),
+                    prompt_secret=Mock(side_effect=AssertionError('read-only requested credentials'))), \
+                    patch.object(Path,'open',open_file), \
+                    patch.object(Path,'is_file',lambda path: str(path)==tool or real_is_file(path)), \
+                    patch.object(subprocess,'run',side_effect=execute) as transport, \
+                    patch.object(instance,'verify_stage',side_effect=verify_stage):
+                yield instance, queries, checked_stages, transport, secret
+
+    def test_real_preflight_process_configuration_and_query_guard_accept_i09_with_i10_without_writes(self):
+        with self.real_preflight() as (instance,queries,checked,transport,secret):
+            instance.preflight()
+            self.assertEqual([installer.PERMISSION_QUERY],queries)
+            self.assertEqual([],checked)
+            self.assertEqual([],instance.state['database_mismatches'])
+            self.assertFalse(instance.state['changes_made'])
+            self.assertFalse(instance.state['service_restarted'])
+            self.assertNotIn(secret,json.dumps(instance.state))
+
+    def test_real_already_current_path_authorizes_all_three_selects_and_rejects_foreign_sql(self):
+        with self.real_preflight(current=True) as (instance,queries,checked,transport,secret):
+            instance.preflight()
+            self.assertEqual([installer.PERMISSION_QUERY,installer.NEW_SCHEMA,installer.PRICE_PERMISSIONS],queries)
+            self.assertEqual(['backend','frontend'],checked)
+            self.assertEqual('already_current',instance.state['status'])
+            self.assertFalse(instance.state['changes_made'])
+            self.assertFalse(instance.state['service_restarted'])
+            calls=transport.call_count
+            for sql in ('SELECT 1;','UPDATE dbo.Products SET IsActive=0;'):
+                with self.assertRaisesRegex(instance.inspector.InspectionError,'^sql_query_not_authorized$'):
+                    instance.inspector.query_sql(instance.sql_tool,instance.fields,sql)
+            self.assertEqual(calls,transport.call_count)
+
+    def test_real_sql_read_failure_reports_only_its_fixed_issue_without_private_streams(self):
+        with self.real_preflight(sql_failure=True) as (instance,queries,checked,transport,secret):
+            with self.assertRaises(Exception) as caught:
+                instance.preflight()
+            self.assertIsInstance(caught.exception,instance.inspector.InspectionError)
+            issue=installer.error_issue(caught.exception,instance.inspector)
+            self.assertEqual('sql_read_failed',issue)
+            self.assertEqual('application-sql-read',instance.state['preflight_step'])
+            self.assertEqual([installer.PERMISSION_QUERY],queries)
+            self.assertNotIn(secret,json.dumps(dict(instance.state,issue=issue)))
+            self.assertFalse(instance.state['changes_made'])
+            self.assertFalse(instance.state['service_restarted'])
+
+    def test_unknown_exception_messages_remain_private(self):
+        inspector=types.SimpleNamespace(InspectionError=type('InspectionError',(Exception,),{}))
+        for error in (ValueError('synthetic-private-value'),OSError('synthetic-private-value')):
+            self.assertEqual('local_operation_failed',installer.error_issue(error,inspector))
+            self.assertEqual('local_operation_failed',installer.error_issue(error))
+        self.assertEqual('known_guard',installer.error_issue(installer.InstallError('known_guard'),inspector))
 
     def metadata(self, query):
         if 'AS priced_lines' in query: return MONETARY.copy()
