@@ -27,7 +27,7 @@ Código `6cfdc7ff366a2caa7dac399b9842b3630a30328a`, [PR #2](https://github.com/r
 - El instalador incluido contiene los pines del código y payload; SHA256SUMS y load_payload verificaron el ZIP final. Incluye avisos de terceros del build; sin PDB, mapas, secretos, datos operativos o paquetes de importación.
 - Previos admitidos: backend `capture-46fed604732e`; frontend igual, `client-config-42f6eb4c225a` o `client-config-be3995fdce69`. Ambos builds I08 son ancestros del código I09. Once migraciones y canales Customer/AdminManualCapture deben existir.
 - Sin --apply sólo comprobaciones de lectura. Aplicación explícita crea snapshot privado de configuración/enlaces y reinicia sólo PRODIMT. Ante fallo revierte aplicación; no restaura SQL. Repetición verifica already_current sin reinicio.
-- Se compiló/empaquetó fuera del VPS. No se ejecutó SSH, despliegue, modificación SQL, registro de pedido real o envío WhatsApp desde esta sesión. Instalación y aceptación de negocio pendientes.
+- Se compiló/empaquetó fuera del VPS. No se ejecutó SSH, despliegue, modificación SQL, registro de pedido real o envío WhatsApp desde esta sesión. Al cierre de la preparación, instalación y aceptación de negocio pendientes; ver el despliegue reportado más abajo.
 
 Después de extraer y verificar SHA256SUMS:
 
@@ -44,6 +44,20 @@ El usuario ejecutó el paquete original y reportó `failed/read-only-preflight`,
 
 Diagnóstico independiente de sólo lectura: `PRODIMT_Diagnostico_Acceso_I09.py`, revisión `20261031-customer-access-diagnosis1`, 9,528 bytes, SHA256 `0b1c9cf84cdf58dd36e34ac5650ec8a784eef2433e0097923a6387da3872fd0e`. Verifica instalador original SHA256 `d9623be63603d0448b532828f0c2063e0da703a27ea84d303f072507f1bc68c2`, payload original `90c0e6505212f5165df56107a70d19085bb920ebdbf63c9bfc083fb7e0723d5c` y código 6cfdc7f. Selecciona sólo preflight, allowlist exacta de procesos y SQL, conserva DEVNULL, no crea lock ni acepta apply. Captura metadata antes de la guarda: booleans, contadores y campos faltantes/inválidos/diferentes; sin nombres ajenos, credenciales ni streams crudos.
 
-225 pruebas Python correctas. Carga del instalador/payload originales y regresión completa de lectura verificadas; casos de éxito, canal ausente, permiso0 y NULL omitido. El template install2 añade reporte sanitizado previo al rechazo, sin relajar la igualdad original; no reemplaza el ZIP entregado ni se aplica al VPS. Código diagnóstico `64e3680874b1eff54a70b1253a6819fac72092cf`. La salida del VPS sigue pendiente para decidir la corrección mínima.
+225 pruebas Python correctas. Carga del instalador/payload originales y regresión completa de lectura verificadas; casos de éxito, canal ausente, permiso0 y NULL omitido. El template install2 añade reporte sanitizado previo al rechazo, sin relajar la igualdad original; no reemplaza el ZIP entregado ni se aplica al VPS. Código diagnóstico `64e3680874b1eff54a70b1253a6819fac72092cf`. En ese momento faltaba la salida del VPS; el diagnóstico y su resolución se documentan a continuación.
 
 La consulta original completa fue verificada con ODBC real en [CI 41220905526](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41220905526): identifica ambos canales ausentes, acepta esquema de once migraciones con canales válidos y distingue UPDATE denegado en Customers. Son pruebas de infraestructura efímera; no identifican por sí mismas la diferencia del VPS.
+
+## Despliegue reportado — 1 de noviembre de 2026
+
+El diagnóstico ejecutado por el usuario aisló `database_mismatches=[customer_channel]`; el resto del contrato fue válido. La reparación puntual verificada terminó `repaired/completed`, creó Customer con auditoría y conservó conteos existentes, sin migraciones ni reinicio. Ver [evidencia de reparación](2026-11-01-customer-channel-repair.md).
+
+El usuario ejecutó después el instalador original y reportó `updated/completed`, `service_restarted=true`, `health_verified=true` y `frontend_verified=true`. El preflight confirmó base esperada, once migraciones, I07, ambos canales válidos y todos los permisos previstos. `database_writes_run`, `database_migrations_run` y `password_changed` false corresponden al instalador; la reparación previa sí insertó canal/auditoría.
+
+Código desplegado: `6cfdc7ff366a2caa7dac399b9842b3630a30328a`. Releases reportados:
+
+- Backend: `/var/www/prodimt-pedidos/backend/releases/customer-access-6cfdc7ff366a`.
+- Frontend: `/var/www/prodimt-pedidos/frontend/releases/customer-access-6cfdc7ff366a`.
+- Snapshot privado: `/var/backups/prodimt-pedidos/customer-access-20261101T150922Z-7dc011800110`.
+
+Se trata de evidencia compartida por el usuario; no se accedió por SSH desde este entorno. Queda pendiente la aceptación con acceso automático por enlace, fecha de entrega correcta, rápida/manual y registro único de un pedido real autorizado. No hay evidencia todavía de guardado real o envío de WhatsApp. No repetir instaladores ni importaciones.
