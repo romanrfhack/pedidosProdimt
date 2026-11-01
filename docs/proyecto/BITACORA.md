@@ -434,3 +434,9 @@ El usuario verificó SHA256 de PRODIMT_Reparar_Canal_Cliente_I09.py y ejecutó r
 Código activo 6cfdc7ff366a2caa7dac399b9842b3630a30328a, releases backend/frontend customer-access-6cfdc7ff366a. Snapshot privado reportado /var/backups/prodimt-pedidos/customer-access-20261101T150922Z-7dc011800110. Evidencia del despliegue proporcionada por el usuario; no se realizó acceso SSH desde este entorno. No se repite reparación o instalador.
 
 Aceptación de negocio pendiente: recarga/reautenticación, teléfono y vigencia al crear enlace, acceso automático, fecha visible y captura rápida/manual; guardar sólo un pedido real autorizado y verificar su registro único en administración. application_save_verified=false de la reparación no es fallo: el script no crea pedidos. No se ha confirmado guardado real ni envío de WhatsApp. Actualización exclusivamente documental; sin cambios de aplicación ni repetición de las suites ya correctas.
+
+## 2026-11-01 — I10: Tokens en modal responsivo
+
+Usuario aporta capturas del formulario I09 comprimido en 290 px y autoriza moverlo a modal amplio PC/tableta/móvil. Se extrae sólo la presentación a un diálogo nativo fuera del grid; operaciones y estado permanecen en el padre. Cierre/Escape/backdrop/foco y scroll interno, columnas responsivas e historial amplio. Se conserva borrador/enlace al cerrar y se mantiene limpieza al cambiar cliente. Revocación informa dentro del diálogo y bloquea cierre durante operación. No cambian contratos, SQL o reglas I09.
+
+Se preparan builder/installer I10 frontend-only sobre I09 exacto, snapshot y rollback sin reinicio/backend. Build Angular correcto con advertencia previa de estilo de configuración (dentro del máximo 8 kB, sin modificar presupuesto); 250 Python correctas, 12 nuevas. Revisión independiente estática sin bloqueantes de UI/paquete. graphify update . no disponible (127), sin grafo previo. Navegador/CI/ZIP final pendientes al registrar; sin acceso SSH o despliegue I10.

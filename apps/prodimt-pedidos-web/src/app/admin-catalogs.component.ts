@@ -1,6 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
+import { AdminAccessTokensDialogComponent } from './admin-access-tokens-dialog.component';
 import { CustomerEditorValue } from './customer-editor.model';
 import { CustomerWorkingWeekComponent } from './customer-working-week.component';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -40,8 +41,8 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, CustomerWorkingWeekComponent],
-  styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css'],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, AdminAccessTokensDialogComponent, CustomerWorkingWeekComponent],
+  styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css', './admin-access-tokens-content.css'],
   templateUrl: './admin-catalogs.component.html'
 })
 export class AdminCatalogsComponent {
@@ -88,7 +89,9 @@ export class AdminCatalogsComponent {
   protected newTokenDescription: string | null = 'Recuerda hacer tu próximo pedido';
   protected newTokenExpiresAt: string | null = null;
   protected tokenPhone = '';
+  protected accessTokensOpen = false;
   protected isTokenSaving = false;
+  protected isRevokingToken = false;
   protected isSharingToken = false;
   protected tokenError: string | null = null;
   protected tokenMessage: string | null = null;
@@ -327,6 +330,7 @@ export class AdminCatalogsComponent {
 
   protected openCustomerConfig(customer: AdminCustomerCatalogApiResponse): void {
     const sequence = ++this.profileReadSequence;
+    this.accessTokensOpen = false;
     this.selectedCustomer = customer;
     this.setWorkingWeek(customer.restDays ?? []);
     this.profileApproval.setValue(false);
@@ -780,20 +784,27 @@ export class AdminCatalogsComponent {
   }
 
   protected revokeAccessToken(token: AdminCustomerAccessTokenApiResponse): void {
-    if (!this.selectedCustomer) {
-      return;
-    }
-
-    this.api.revokeAccessToken(this.selectedCustomer.id, token.tokenId).subscribe({
+    if (!this.selectedCustomer || this.isTokenSaving || this.isSharingToken || this.isRevokingToken) return;
+    this.isRevokingToken = true;
+    this.tokenError = null;
+    this.tokenMessage = null;
+    this.api.revokeAccessToken(this.selectedCustomer.id, token.tokenId)
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
-        this.resultMessage = 'Token revocado.';
+        this.isRevokingToken = false;
+        this.tokenMessage = 'Token revocado.';
         if (this.generatedAccess?.tokenId === token.tokenId) {
           this.generatedPlainToken = null;
           this.generatedAccess = null;
         }
         this.reloadAccessTokens();
+        this.changeDetector.detectChanges();
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo revocar el token.')
+      error: (error: unknown) => {
+        this.isRevokingToken = false;
+        this.tokenError = this.profileErrorText(error, 'No se pudo revocar el token.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 

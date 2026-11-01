@@ -2,6 +2,12 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## I10 — Tokens en modal responsivo, en validación
+
+El usuario solicita ampliar Tokens de acceso tras instalar I09. Implementado modal nativo amplio con configuración/vista previa en PC, contenido apilado en tableta y móvil, historial a todo el ancho y cuerpo desplazable con cabecera/cierre visibles. Escape/fondo/Cerrar restauran foco; operaciones pendientes bloquean el cierre. Borrador y enlace permanecen al cerrar/reabrir; se limpian al cambiar de configuración como antes. Mensajes de revocación visibles dentro del modal. Sin contratos API/SQL o reglas de negocio nuevas.
+
+Build Angular correcto y 250 pruebas Python correctas (12 nuevas del actualizador). Revisión independiente sin bloqueantes; pruebas de navegador y distribución aún en curso. Preparado actualizador nativo I10 sólo frontend sobre I09 exacto, sin reinicio, con snapshot y reversión de frontend. No se ha instalado I10 en el VPS ni confirmado aceptación del usuario. Ver [contrato I10](INCREMENTO-10.md) y [evidencia I10](../validation/2026-11-01-token-modal.md). I09 sigue siendo el despliegue confirmado.
+
 ## I09 instalado — 1 de noviembre de 2026
 
 El usuario reportó la reparación `20261101-customer-channel-repair1` con `repaired/completed`: canal Customer creado y verificado, auditoría insertada y conteos existentes preservados. No ejecutó migraciones ni reinició el servicio durante la reparación. Después, el instalador original `20261031-customer-access-install1` terminó `updated/completed`, con `service_restarted`, `health_verified` y `frontend_verified` en true. El preflight ya encuentra Customer y AdminManualCapture válidos, once migraciones y todos los permisos esperados. La instalación no ejecutó escrituras SQL, migraciones ni cambios de contraseña; la reparación previa sí insertó el canal y su auditoría.

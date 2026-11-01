@@ -1,0 +1,12 @@
+<dialog #dialog aria-labelledby="access-dialog-title" aria-describedby="access-dialog-customer" data-testid="access-token-dialog"
+  (cancel)="dismiss($event)" (pointerdown)="pressBackdrop($event)" (click)="backdrop($event)">
+  <header class="access-dialog-heading">
+    <div><h2 id="access-dialog-title">Tokens de acceso</h2><p id="access-dialog-customer">{{ customerName }}</p></div>
+    <button type="button" class="secondary" aria-label="Cerrar tokens de acceso" autofocus [disabled]="busy" (click)="dismiss()">×</button>
+  </header>
+  <div class="access-dialog-body"><ng-content /></div>
+  <footer class="access-dialog-footer">
+    <span>{{ busy ? 'Espera a que termine la operación…' : 'Puedes cerrar y continuar sin perder lo capturado en esta configuración.' }}</span>
+    <button type="button" class="secondary" [disabled]="busy" (click)="dismiss()">Cerrar</button>
+  </footer>
+</dialog>

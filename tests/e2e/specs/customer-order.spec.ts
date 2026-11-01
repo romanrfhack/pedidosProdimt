@@ -301,8 +301,8 @@ test('admin abre configuracion de cliente y gestiona token', async ({ page }) =>
   await expect(page.getByTestId('customer-config')).toBeVisible();
   await expect(page.getByText('Productos frecuentes')).toBeVisible();
   await expect(page.getByText('Maquinas asignadas')).toBeVisible();
-  await expect(page.getByText('Tokens de acceso')).toBeVisible();
-  await page.locator('.config-access > summary').click();
+  await page.getByRole('button', { name: 'Tokens de acceso', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Tokens de acceso', exact: true })).toBeVisible();
 
   await page.getByLabel('Descripción', { exact: true }).fill('Token e2e');
   await page.getByLabel('Teléfono de WhatsApp').fill('5512345678');

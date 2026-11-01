@@ -1,0 +1,30 @@
+.access-token-content { display:grid; gap:16px; min-width:0; }
+.access-token-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:18px; align-items:start; }
+.access-token-panel { border:1px solid #dce6eb; border-radius:12px; padding:18px; min-width:0; gap:14px; }
+.access-token-panel h3 { margin:0; font-size:1rem; color:#254957; }
+.access-token-content label { display:grid; gap:6px; min-width:0; }
+.access-token-content input, .access-token-content textarea { width:100%; min-width:0; min-height:44px; box-sizing:border-box; font:inherit; }
+.access-token-content textarea { resize:vertical; }
+.access-token-content small, .access-token-content .access-help { margin:0; font-size:.8rem; line-height:1.5; color:#536f7e; overflow-wrap:anywhere; }
+.access-settings-fields { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+.access-settings-fields .access-description, .access-settings-fields .access-delivery, .access-settings-fields > button { grid-column:1/-1; }
+@media(min-width:1100px) { .access-settings-fields { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.access-delivery { display:grid; gap:5px; background:#eef5f5; border-radius:8px; padding:12px; margin:0; font-size:.85rem; }
+.access-delivery strong { color:#214c50; }
+.access-preview { background:#f8fafb; }
+.access-preview textarea { line-height:1.5; background:white; min-height:275px; }
+.access-token-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.access-token-content button { min-height:44px; }
+.access-history-heading { display:flex; gap:12px; justify-content:space-between; align-items:center; }
+.access-history-heading > span { color:#627787; }
+.access-token-history { display:grid; gap:10px; }
+.access-token-row { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border:1px solid #dce6eb; border-radius:8px; padding:12px; }
+.access-token-row > div { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.access-token-row > button { flex-shrink:0; }
+@media(max-width:850px) { .access-token-columns { grid-template-columns:minmax(0,1fr); } }
+@media(max-width:600px) {
+  .access-token-panel { padding:12px; }
+  .access-token-actions > button { flex:1 1 130px; }
+  .access-token-row { flex-direction:column; gap:10px; }
+  .access-token-row > button { align-self:flex-end; }
+}
