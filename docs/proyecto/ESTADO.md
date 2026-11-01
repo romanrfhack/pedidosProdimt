@@ -2,6 +2,14 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## Tokens de acceso — ajuste solicitado, en diseño
+
+El usuario solicita mostrar sólo accesos activos, copiar el token y editar/reutilizar el acceso con formulario precargado y opción de reenviar. Activo significa habilitado y sin vencer según la hora del servidor; ocultar historial no elimina registros ni auditoría. Editar descripción/vigencia debe conservar el token y enlace; teléfono sigue perteneciendo al cliente. Reenvío individual prepara WhatsApp y requiere envío manual.
+
+La revisión del código vigente confirma almacenamiento exclusivo del hash y ausencia de edición o recuperación del secreto. Propuesta técnica por revisar antes de implementar: conservar el hash para autenticación y agregar copia cifrada recuperable sólo mediante acciones administrativas explícitas, con claves persistentes, respaldo privado y auditoría sin secretos. El listado no debe incluir secretos. Los tokens antiguos no se reconstruyen desde el hash; conservar sus enlaces y permitir sustitución explícita por un acceso nuevo, o incorporación del original validado si se dispone de él. No rotar o revocar automáticamente. Renovación y edición serán acciones distintas; cambiar sólo el hash manteniendo el ID no invalida las sesiones existentes.
+
+Estado: requerimiento y alternativas revisados; sin implementación, migración, nuevo paquete o cambios en el VPS por este ajuste. I11 continúa como despliegue confirmado. Falta cerrar el comportamiento de compatibilidad para los tokens históricos antes de implementar la recuperación persistente.
+
 ## I11 instalado — 1 de noviembre de 2026
 
 El usuario ejecutó el instalador revisión 2 verificado y compartió dos salidas: lectura planned/completed con preflight_step=completed, database_mismatches vacío y once migraciones; después --apply terminó updated/completed. La operación migró once→doce versiones, verificó respaldo, esquema, conteos existentes, permisos anexables del historial, salud de API y frontend. Configuración conservada; contraseñas sin cambio. Hubo reinicio únicamente de PRODIMT. No se restauró SQL automáticamente.
