@@ -65,7 +65,8 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
             var audits = await upgraded.AuditLogs.Where(x => x.EventType == RevocationEvent).ToArrayAsync();
             Assert.Equal(legacy.Count(x => x.IsActive), audits.Length);
             Assert.All(audits, x => { Assert.Equal(AuditActorType.System, x.ActorType); Assert.Equal(TimeSpan.Zero, x.OccurredAt.Offset); });
-            Assert.Equal(legacy.Where(x => x.IsActive).Select(x => x.Id.ToString()).Order(), audits.Select(x => x.EntityId).Order());
+            Assert.Equal(legacy.Where(x => x.IsActive).Select(x => x.Id).Order(),
+                audits.Select(x => Guid.Parse(x.EntityId)).Order());
             Assert.True(await upgraded.AuditLogs.AnyAsync(x => x.Id == historicalAuditId));
             Assert.Single(await upgraded.Customers.ToArrayAsync());
             Assert.Equal(2, await upgraded.Products.CountAsync());
@@ -178,7 +179,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
         Assert.Equal(current.ProtectedToken, retained.ProtectedToken);
         var audit = Assert.Single(await verified.AuditLogs.Where(x => x.EventType == RevocationEvent).ToArrayAsync());
         Assert.Equal(AuditActorType.System, audit.ActorType);
-        Assert.Equal(legacy.Id.ToString(), audit.EntityId);
+        Assert.Equal(legacy.Id, Guid.Parse(audit.EntityId));
     }
 
     [Theory]
