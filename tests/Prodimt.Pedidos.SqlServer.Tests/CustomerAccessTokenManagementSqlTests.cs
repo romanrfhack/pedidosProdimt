@@ -298,8 +298,12 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
 
     private async Task Execute(string sql)
     {
-        await using var db = database.CreateDbContext();
-        await db.Database.ExecuteSqlRawAsync(sql);
+        // Execute the reviewed SQL verbatim, including JSON metadata braces.
+        await using var connection = new SqlConnection(database.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync();
     }
 
     private async Task<T> Scalar<T>(string sql)
