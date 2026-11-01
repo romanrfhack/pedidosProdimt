@@ -418,3 +418,9 @@ Usuario ejecuta ZIP original a6c4bd85... y reporta failed/read-only-preflight/da
 Se prepara diagnóstico independiente con pines del instalador/payload original y allowlist de comandos/SQL de lectura; sólo ejecuta preflight y muestra diferencias sanitizadas. Template install2 registra esas diferencias sin cambiar guarda. Regresión ODBC prueba SELECT exacto con canales ausentes/presentes y DENY UPDATE sobre Customers en SQL efímero. Sin acceso al VPS ni cambios remotos. Pendiente salida del diagnóstico para decidir corrección mínima.
 
 Diagnóstico final: 9,528 bytes, SHA256 0b1c9cf84cdf58dd36e34ac5650ec8a784eef2433e0097923a6387da3872fd0e; 225 Python correctas. Código 64e3680 y CI 41220905526 verifican la consulta exacta mediante ODBC real con canales ausentes/presentes y UPDATE denegado; sin cambios de aplicación. Entregado diagnóstico independiente usando los archivos originales existentes del VPS. Pendiente JSON del diagnóstico con database_mismatches para determinar causa.
+
+## 2026-11-01 — I09: canal Customer válido ausente
+
+Usuario devuelve diagnóstico read-only inspected/completed con base correcta, once migraciones/I07, admin_channel1 y trece permisos1; única diferencia customer_channel0. No acredita todavía ausencia del tipo (puede existir incompatible). Se prepara reparación específica que cuenta tipo y valida índice/forma exacta antes de insertar Customer/IsInternal0/Cliente y auditoríaSystem=2 en transacción. Permisos adicionales comprobados con identidad limitada; sin cuentas, bootstrap, migraciones, reinicio, cambios de pedidos o interpretación de datos operativos.
+
+Pruebas previstas: SQL real de inserción limitada/idempotencia/portal después de reparar, rollback si falla auditoría y rechazo de fila interna/nombrevacío sin sobrescribir. Se conserva ZIP I09 original y se reejecutará su instalador sólo después de verificar el canal. Evidencia del VPS es reportada por el usuario; no se accedió por SSH desde este entorno.

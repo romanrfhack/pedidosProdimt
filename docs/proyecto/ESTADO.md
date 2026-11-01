@@ -1,6 +1,14 @@
 # Estado del proyecto
 
-Actualizado: 31 de octubre de 2026.
+Actualizado: 1 de noviembre de 2026.
+
+## I09 — Diagnóstico confirmado y reparación puntual preparada
+
+El 1 de noviembre el usuario ejecutó el diagnóstico original verificado: `inspected/completed`, sin mutaciones, `database_mismatches=[customer_channel]`. La base corresponde al destino, tiene once migraciones e I07, el canal administrativo válido y los trece permisos consultados en 1. `customer_channel=0` significa que no hay una fila Customer con IsInternal=0; no distingue ausencia de una fila incompatible. No conceder permisos ni ejecutar bootstrap por este resultado.
+
+Se prepara `PRODIMT_Reparar_Canal_Cliente_I09.py`, con el inspector del payload I09 original fijado por SHA. Consulta todas las filas Customer e índice único; sólo inserta si el tipo está ausente, junto con auditoría en una transacción. Rechaza canal existente con tipo/IsInternal/nombre incompatibles sin sobrescribir. Comprueba permisos SELECT/INSERT adicionales de SalesChannels/AuditLogs. Mantiene pedidos, clientes, productos, perfiles, cuentas y esquema; no reinicia servicios. El modo de lectura es predeterminado y la reparación requiere --apply explícito.
+
+Después de reparar/verificar el canal se puede reejecutar el instalador I09 original, sin reconstruir o descargar otra vez el ZIP. Aún no se ha ejecutado la reparación ni instalado I09 en el VPS desde esta sesión. Próximo paso: aplicar herramienta verificada, comprobar repaired o already_configured y luego instalar I09.
 
 ## I09 — Preflight remoto detenido; diagnóstico pendiente
 
