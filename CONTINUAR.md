@@ -4,7 +4,19 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I11 — Productos compartidos y precios por cliente, validado y empaquetado
+## I11 — Comprobación previa detenida y actualizador revisión 2
+
+El usuario verificó el ZIP original `0f97c7bb...`, copió sus archivos y ejecutó sólo lectura. Resultado: failed/read-only-preflight/local_operation_failed, changes_made=false, sin migraciones, reinicio, cambio de contraseñas, precios o consolidaciones. I11 no quedó instalado.
+
+Se reproduce el defecto del instalador: no configuraba QUERIES del inspector, que rechaza PERMISSION_QUERY con InspectionError(sql_query_not_authorized) antes de ejecutar SQL. La excepción terminaba como error local genérico. Revisión `20261101-commercial-catalog-install2`, fuente `152cfc95ab2d68cf8f32c9867b4305bb1a329628`: autoriza únicamente los tres SELECT fijos de I11, conserva el rechazo de cualquier otra consulta, informa paso de preflight y muestra sólo códigos fijos del inspector. No relaja destino, permisos, configuración, respaldo o validaciones.
+
+273 Python locales correctas; cuatro regresiones nuevas recorren proceso/configuración/inspector/guardia SQL/JSON y health sin sustituir query_sql. Los dos recorridos de éxito fallan en la revisión anterior con sql_query_not_authorized y pasan en la nueva. Se comprueban I09 con modal I10, already_current con los tres SELECT, rechazo de SQL ajeno y redacción de salidas privadas. [CI final 41340426602](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41340426602) con cuatro trabajos correctos: 273 Python, 323 .NET, 46 SQL Server, 114 E2E y smoke Production.
+
+Entrega independiente `PRODIMT_Instalar_I11_v2.py`, 32,663 bytes, SHA256 `b1185a8ebb01fc139410c55f4d2d8e8a23bd709d24991d76c5fb9a7cffd659e0`. Reutiliza el payload ya copiado: SHA256 `8a43682026c7da6d3dc4a3cf0ef0e47475bf1bfe7d7883748005053e32f6d436`, fuente de aplicación `148a52dd7428cd1f948441f6709407a22be5944b`, release `prices-148a52dd7428`. Binarios y migración intactos; no recompilar o volver a cargar el payload. ZIP actualizado de 5,743,517 bytes, SHA256 `671c743b7da1b98a05dd032aa16e3e75aabd4f0de43a8b0e9c86c02c6f834c1d`; reemplaza la entrega anterior conservando su identidad/historial. Validación CRC/hashes/carga y payload idéntico completada. Archivos verificados y guardados.
+
+Siguiente paso: descargar sólo el instalador revisión 2, verificar su hash, copiarlo al VPS y ejecutarlo sin --apply contra el payload existente. Si resulta planned/completed, aplicar con SSH -t, el mismo archivo v2 y credenciales ocultas del administrador SQL. No se accedió al VPS desde este entorno; instalación I11 y aceptación siguen pendientes. Ver evidencia I11 y apartado de incidente al final.
+
+## I11 — Aplicación validada y entrega inicial (antecedente)
 
 Implementado en `codex/i10-shared-products-prices`, PR #3 en borrador sobre la rama I09. Un producto físico puede atender a varios clientes; cada cliente conserva posiciones, cantidades sugeridas, abreviaturas y máquinas, con su propia tarifa. La consolidación exige revisar equivalencia/impacto y motivo; archiva duplicados como equivalencias y conserva pedidos. El editor de precio registra importe MXN por unidad, vigencia, instante de registro, usuario y motivo en revisiones anexadas. Nuevas partidas fijan el precio aplicado; cambios posteriores y correcciones de cantidad conservan esa tarifa. Precio faltante sigue pendiente, no cero. No hay cobros, saldos, impuestos o facturación.
 
