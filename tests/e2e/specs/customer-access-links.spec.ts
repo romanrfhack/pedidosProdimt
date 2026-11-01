@@ -210,6 +210,13 @@ for (const viewport of [
       isActive: index % 2 === 0, expiresAt: '2030-01-01T00:00:00Z', createdAt: '2026-10-31T09:00:00-06:00', lastUsedAt: null }));
     await page.route(`**/api/admin/customers/${customerId}/access-tokens`, async route => {
       if (route.request().method() === 'GET') await route.fulfill({ json: history });
+      else if (route.request().method() === 'POST') {
+        const response = await route.fetch();
+        const created = await response.json();
+        const { plainToken: _plainToken, ...metadata } = created;
+        history.push(metadata);
+        await route.fulfill({ response, json: created });
+      }
       else await route.fallback();
     });
     const dialog = await openAccess(page);
@@ -231,18 +238,19 @@ for (const viewport of [
     }
     await expect(dialog.getByRole('button', { name: 'Cerrar tokens de acceso', exact: true })).toBeInViewport();
     await expect(dialog.getByRole('button', { name: 'Cerrar', exact: true })).toBeInViewport();
+    await page.screenshot({ path: test.info().outputPath(`tokens-modal-initial-${viewport.width}.png`), fullPage: false });
     await dialog.getByRole('heading', { name: 'Tokens creados', exact: true }).scrollIntoViewIfNeeded();
     await expect(dialog.getByText(history[34].description, { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Revocar', exact: true }).last().scrollIntoViewIfNeeded();
     await expect(dialog.getByRole('button', { name: 'Revocar', exact: true }).last()).toBeInViewport();
     await expect(dialog.getByRole('button', { name: 'Cerrar', exact: true })).toBeInViewport();
-    await page.screenshot({ path: test.info().outputPath(`tokens-modal-history-${viewport.width}.png`), fullPage: true });
+    await page.screenshot({ path: test.info().outputPath(`tokens-modal-history-${viewport.width}.png`), fullPage: false });
     if (viewport.width === 1366) {
       await dialog.getByLabel('Teléfono de WhatsApp').fill('5512345678');
       await dialog.getByRole('button', { name: 'Crear enlace', exact: true }).click();
       await expect(dialog.getByLabel('Enlace de acceso', { exact: true })).toHaveValue(/#token=mock-generated-token$/);
-      await dialog.getByRole('heading', { name: 'Recordatorio para el cliente', exact: true }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: test.info().outputPath('tokens-modal-generated-1366.png'), fullPage: true });
+      await dialog.getByRole('heading', { name: 'Configurar enlace', exact: true }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: test.info().outputPath('tokens-modal-generated-1366.png'), fullPage: false });
     }
     await dialog.getByRole('button', { name: 'Cerrar', exact: true }).click();
     await expect(dialog).not.toBeVisible();

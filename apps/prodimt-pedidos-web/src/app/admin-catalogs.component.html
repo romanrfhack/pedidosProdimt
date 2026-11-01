@@ -207,11 +207,9 @@
                         </div>
                       </section>
 
-                      <section class="config-access stack">
-                        <div class="config-section-title"><strong>Acceso del cliente</strong><span>{{ accessTokens.length }} tokens</span></div>
-                        <p>Crea enlaces de pedido y prepara recordatorios por WhatsApp.</p>
-                        <button type="button" class="secondary" aria-haspopup="dialog" (click)="accessTokensOpen = true">Tokens de acceso</button>
-                      </section>
+                      <button type="button" class="config-access secondary" aria-haspopup="dialog" (click)="accessTokensOpen = true">
+                        <strong>Tokens de acceso</strong><span aria-hidden="true">{{ accessTokens.length }}</span>
+                      </button>
                       </fieldset>
                     </section>
                   }
