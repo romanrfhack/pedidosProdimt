@@ -104,3 +104,7 @@ Autorizado aprovechar PC y adaptar tarjetas como el catálogo I15. Sólo present
 ## I18 — Administración de usuarios, roles y permisos (2 de noviembre)
 
 Preparar gestión de acceso granular antes de incorporar nuevas áreas internas: usuarios multirrol, permisos por rol y concesiones directas aditivas, evaluación vigente por solicitud, auditoría y guardas contra pérdida de administración. La UI debe aprovechar PC y adaptarse a móvil. Entrega nativa con migración aditiva respaldada, conservando I12–I17 y rechazando releases paralelos no integrados. Validación técnica y aceptación/despliegue remotos permanecen hitos separados. Ver `INCREMENTO-18.md`.
+
+## I21 — Pedidos responsivos, filtros y colores (2 de noviembre)
+
+Autorizado adaptar la pestaña Pedidos al catálogo de Clientes: aprovechar PC, columnas automáticas, búsqueda y filtros por estados reales, colores/etiquetas y actualización conservada. Detalle/corrección a toda la fila y borrador intacto al cambiar ancho. Sólo frontend sobre I19 instalado; preservar producción, seguridad y productos adicionales integrados. Validar siete anchos, estados/fechas/CDMX, refresco, avisos, permisos y correcciones; después entregar actualizador verificable sin migrar ni reiniciar backend. Instalación y aceptación separadas del código validado. Ver `INCREMENTO-21.md`.

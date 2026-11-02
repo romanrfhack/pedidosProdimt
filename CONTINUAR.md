@@ -1,6 +1,16 @@
 # Continuar PRODIMT
 
-## I19 — Producción y asignación de kilos; integración y validación
+## I21 — Pedidos responsivos con filtros y colores; validado localmente, paquete en preparación
+
+El usuario solicita que Pedidos aproveche pantalla y tenga filtros/colores como Clientes. Implementado en rama local `codex/i21-responsive-orders`, desde I19 recuperado exactamente de `PRODIMT_Produccion_I19_Cambios.zip`: checkpoint `77457633f5a510aca48855b5a9078adf0a66d271`, aplicación instalada `d3a11420b2025fa0a19f84e1796d5a8b252259a3`. La continuidad del proyecto confirma I19 aplicado por el usuario el 2 de noviembre, migraciones 13→16 y backend/frontend `production-d3a11420b202` saludables, con respaldo verificado y datos/permisos/tokens/claves conservados. Esta evidencia posterior sustituye el pendiente de instalación en los antecedentes; no es inspección SSH desde esta sesión.
+
+Pedidos usa ancho completo/rejilla mínima de 280px, búsqueda sin distinguir acentos por cliente/número, filtros con conteos, fecha de servicio y Hoy CDMX. Verde registrado/aceptado, ámbar por revisar, gris NoOrder, rojo rechazado; desconocidos neutros. Conserva avisos/tardíos, consulta visible cada 15 s, historial, correcciones y permisos I18. Detalle/corrección ocupa toda la fila; filtros/refresco pausados durante corrección. No se cambian estados ni se crean pedidos por filtrar. Sin backend/API/SQL/migraciones o dependencias nuevas.
+
+Build correcto; 15 pruebas aisladas del nuevo paquete correctas. Geometría siete anchos y filtros/colores/refresco verificados; suite completa de navegador: 204/205 correctas; la prueba de altura de Configuración a 1366px también falla sin cambios en I19 (782px frente a 769px). Pruebas ampliadas de Python detectan tres fixtures I19 que exigen UID 0 en este entorno UID 1000; no se relajan las guardas del instalador. Ver contrato/evidencia I21. Las 14 pruebas nuevas pasan después del ajuste final de campos de corrección. Falta fijar fuente, verificar ZIP y guardar entrega; instalación/aceptación I21 pendientes.
+
+No se publica la base I19 por otro transporte: sigue documentado el rechazo automático previo por falta de autorización explícita de publicación en GitHub. Conservar esta continuación en bundle/parche incremental y paquete descargable; no afirmar PR o CI remoto. No hubo VPS/SQL real en esta sesión.
+
+## I19 — Producción y asignación de kilos; integración y validación (antecedente)
 
 Autorizado el 2 de noviembre: distinguir «No requiere máquina», excluir esos productos del panel de producción, asignar máquinas a partidas diarias y registrar lotes físicos en kg para distribuirlos entre pedidos concretos. Implementación en `codex/i19-production-allocation`, integrando las fuentes I16 e I18 sobre I17; ver `docs/proyecto/INCREMENTO-19.md`. No encadenar los instaladores históricos I16/I18 para obtener esta unión.
 

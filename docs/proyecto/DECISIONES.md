@@ -4,6 +4,7 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 
 | ID | Fecha | Decisión y fundamento |
 |---|---|---|
+| NOV-009 | 2026-11-02 | I21: Pedidos usa tarjetas responsivas, búsqueda local, filtros con conteos y colores por estado real. Verde registrado/aceptado, ámbar por revisar, gris NoOrder, rojo rechazado; siempre etiqueta y desconocidos neutros. Conservar fecha de servicio/CDMX, refresco visible cada 15 s, permisos, avisos y corrección/borrador. Sólo frontend sobre I19 instalado, sin migraciones ni cambio de estado por filtrar. |
 | OCT-001 | 2026-10-24 | Reutilizar `pedidosProdimt`; conservar `prodimt` sólo como referencia. Ya existe API, persistencia, autenticación piloto y captura. |
 | OCT-002 | 2026-10-24 | El usuario confirma que no hay instalación ni datos operativos existentes que conservar. No implica borrar el historial del repositorio. |
 | OCT-003 | 2026-10-24 | Piloto con la ruta de la nueva fotografía: 23 candidatos, incluido el añadido a mano. Código de ruta y orden son configuración del piloto, no deducción automática de rutas históricas. |

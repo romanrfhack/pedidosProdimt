@@ -559,16 +559,16 @@ button.compact {
 .config-access > span { color:#627787; font-size:.8rem; font-weight:400; }
 
 /* Product catalog: use the available width while preserving page margins. */
-.app-shell__main:has(.products-page, .customers-page, .pending-page) { width:min(100%,1920px); padding:16px clamp(12px,1.5vw,30px); }
-.app-shell__main:has(.customers-page, .pending-page) { width:100%; }
-.products-page, .customers-page, .pending-page { min-width:0; padding:clamp(14px,1.6vw,26px); }
+.app-shell__main:has(.products-page, .customers-page, .pending-page, .orders-page) { width:min(100%,1920px); padding:16px clamp(12px,1.5vw,30px); }
+.app-shell__main:has(.customers-page, .pending-page, .orders-page) { width:100%; }
+.products-page, .customers-page, .pending-page, .orders-page { min-width:0; padding:clamp(14px,1.6vw,26px); }
 .products-page > .tab-bar, .customers-page > .tab-bar { max-width:640px; }
 
 @media (min-width:1200px) {
-  body:has(.customers-page, .pending-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
-  body:has(.customers-page, .pending-page) .app-shell__header h1 { font-size:1.2rem; }
-  body:has(.customers-page, .pending-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
-  body:has(.customers-page, .pending-page) nav a, body:has(.customers-page, .pending-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
+  body:has(.customers-page, .pending-page, .orders-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.customers-page, .pending-page, .orders-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.customers-page, .pending-page, .orders-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+  body:has(.customers-page, .pending-page, .orders-page) nav a, body:has(.customers-page, .pending-page, .orders-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }
 
 /* Identity administration uses the available desktop width. */
@@ -591,3 +591,15 @@ button.compact {
   body:has(.production-page) nav a, body:has(.production-page) nav button { min-height:34px; padding:6px 7px; font-size:.75rem; }
 }
 @media print{.app-shell__main:has(.production-page){width:100%;padding:0}}
+
+/* Keep correction fields readable within the expanded order card. */
+.orders-page [data-testid="correction-line"]>label { min-width:0; }
+.orders-page [data-testid="correction-line"]>small { grid-column:1/-1; }
+@media(min-width:700px) {
+  .orders-page [data-testid="correction-line"] { grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr); align-items:end; }
+  .orders-page [data-testid="correction-line"]>button { grid-column:3; justify-self:end; }
+}
+@media(min-width:1100px) {
+  .orders-page [data-testid="correction-line"] { grid-template-columns:minmax(160px,1fr) 140px minmax(180px,1.4fr) auto; }
+  .orders-page [data-testid="correction-line"]>button { grid-column:4; grid-row:1; }
+}

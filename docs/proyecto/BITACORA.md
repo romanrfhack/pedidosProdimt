@@ -1,5 +1,15 @@
 # Bitácora de trabajo
 
+## 2026-11-02 — I21: Pedidos responsivos, filtros y colores
+
+El usuario solicita adaptar Pedidos como Clientes. Se comprueba que I19 instalado integra I16/I18 y se recupera su fuente exacta del paquete de cambios: hashes verificados, bundle con prerrequisitos públicos I16/I18 y checkpoint `77457633f5a510aca48855b5a9078adf0a66d271`. La continuidad confirma instalación de aplicación `d3a11420b2025fa0a19f84e1796d5a8b252259a3`, migraciones 13→16 y salud correcta; actualiza el último estado confirmado sin inspección SSH independiente. No se trabaja desde una base I17/I18 que perdería Producción.
+
+Se separan plantilla/CSS de Pedidos y añaden sólo controles locales de presentación. Rejilla automática, colores con etiqueta, búsqueda sin acentos, filtros/conteos, fecha/Hoy CDMX y detalle/corrección a toda la fila. Conservados código de carga/refresco/detalle/historial/correcciones/permisos, misma instancia/borrador al redimensionar y bloqueo de filtros durante corrección. I21 sólo reemplaza frontend I19; sin backend, API, SQL o migraciones nuevas.
+
+Build correcto,15 pruebas específicas del paquete correctas y primera verificación de navegador 13/14; el caso restante apuntaba a «Cancelar» en lugar del botón existente «Cancelar corrección», selector corregido. Suite completa: 204/205 correctas. El fallo de altura en Configuración se reproduce sin cambios en I19 (782px frente a 769px), por lo que no se modifica ese módulo en I21. Chromium de escritorio no pudo iniciar por IPC no disponible; se usa Chromium headless aislado153 sin cambiar dependencias del proyecto. Python ampliado: 409 casos, 405 correctas, 1 omitida, 3 fixtures de I19 fallan por UID 0 exigido en un host UID 1000; no se relajan guardas. Graphify ausente. Sin VPS/SQL real; paquete y cierre pendientes. Se respeta el rechazo previo a publicar I19 en GitHub; no se cambia de transporte para eludirlo.
+
+Cierre funcional: 14/14 E2E nuevas correctas tras ajustar el ancho de los campos de corrección, 15.8s. Se conserva el único fallo previo de altura en Configuración reproducido en la base limpia I19, sin alterar su test o módulo. No se cuenta como completa una ejecución de 39 casos interrumpida sin resultado global. Instalador específico 15/15 correcto. Paquete/fuentes en preparación.
+
 ## 2026-11-02 — I19 producción y asignación a pedidos
 
 El usuario autoriza el rediseño de Operación y amplía el alcance para definir «No requiere máquina», asignar máquinas desde producción, registrar kilos físicos y asignarlos a pedidos concretos. Se integran las fuentes paralelas I16/I18 conservando I17, sus migraciones y la seguridad por petición. Nueva migración aditiva de flags/lotes/asignaciones y permisos separados para asignar máquina, producir y distribuir. Se validan reintentos, concurrencia de saldo, correcciones compatibles, reversión, avisos y diseño responsive. El cierre de regresiones/SQL del instalador y empaquetado se registrará en evidencia I19. Sin operaciones en el VPS ni datos reales.

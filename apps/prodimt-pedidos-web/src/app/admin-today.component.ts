@@ -11,129 +11,13 @@ import { FormsModule } from '@angular/forms';
 import { AdminOrderCorrectionComponent } from './admin-order-correction.component';
 import { AdminOperationsApiService, OperationsChange } from './admin-operations-api.service';
 
+type OrderListFilter = 'all' | 'registered' | 'review' | 'noOrder' | 'rejected' | 'late' | 'changes';
+
 @Component({
   selector: 'app-admin-today',
   imports: [FormsModule, AdminOrderCorrectionComponent, RouterLink],
-  template: `
-    <section class="page stack" data-testid="admin-today">
-      <div class="page-title">
-        <p class="eyebrow">Admin</p>
-        <h2>{{ serviceDate === today ? 'Pedidos de hoy' : 'Pedidos por fecha' }}</h2>
-      </div>
-
-      <form class="operations-filters" (ngSubmit)="load()">
-        <label><span>Fecha de servicio</span><input name="ordersServiceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="clearDate()" [disabled]="isLoading || !!loadingDetailOrderId || correcting"></label>
-        <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || correcting">Consultar pedidos</button>
-      </form>
-      <p class="notice">Si el cliente modifica un pedido, abre su detalle y usa «Corregir pedido». Por ejemplo, 15 kg más 5 kg se corrigen a un total de 20 kg con motivo. Una captura separada requiere revisión.</p>
-      @if (lastUpdated) { <small>Última consulta: {{ lastUpdated }}. Se actualiza cada 15 segundos mientras la pantalla está visible; una corrección abierta conserva lo que estás editando.</small> }
-      @if (refreshError) { <div class="alert warning" role="alert">{{ refreshError }} Los datos visibles pueden estar desactualizados.</div> }
-
-      @if (isLoading) {
-        <div class="notice">Cargando pedidos...</div>
-      }
-
-      @if (errorMessage) {
-        <div class="alert error" role="alert">{{ errorMessage }}</div>
-      }
-      @if (resultMessage) { <div class="alert success" role="status">{{ resultMessage }}</div> }
-
-      @if (!isLoading && !errorMessage) {
-        @if (orders.length === 0) {
-          <div class="notice">No hay pedidos registrados para esta fecha.</div>
-        } @else {
-          <div class="admin-list">
-            @for (order of orders; track order.id) {
-              <article class="admin-row">
-                <div>
-                  <strong>{{ order.customerName }}</strong>
-                  <small>{{ order.status }} · Servicio {{ order.orderDate }} · Enviado {{ order.submittedAt }}</small>
-                  <small>Entrega: {{ order.requestedDelivery }}</small>
-                </div>
-                <div class="badges">
-                  @if (orderChanges(order.id).length) { <span class="badge warning">Con cambios registrados</span> }
-                  @if (pendingChangeCount(order.id)) { <a class="badge danger" routerLink="/admin/operacion" [queryParams]="{ date: serviceDate }">{{ pendingChangeCount(order.id) }} avisos pendientes de recibir</a> }
-                  @if (order.isLate) {
-                    <span class="badge warning">Tardio</span>
-                  }
-                  @if (order.requiresReview) {
-                    <span class="badge danger">Revision</span>
-                  }
-                </div>
-                <div class="review-actions">
-                  <button
-                    type="button"
-                    class="secondary compact"
-                    [disabled]="!!loadingDetailOrderId || correcting"
-                    (click)="loadDetail(order)">
-                    Ver detalle
-                  </button>
-                </div>
-                @if (getSelectedDetail(order); as detail) {
-                  <section class="detail-panel">
-                    <div>
-                      <strong>Detalle interno</strong>
-                      <small>Versión {{ detail.version }}</small>
-                      <small>Canal: {{ detail.salesChannel }}</small>
-                      @if (detail.source) { <small>Origen: {{ detail.source }} · Referencia {{ detail.externalOrderKey }}</small> }
-                      <small>Entrega: {{ detail.requestedDelivery }}</small>
-                      @if (detail.deliveryNotes) {
-                        <small>Notas entrega: {{ detail.deliveryNotes }}</small>
-                      }
-                      @if (detail.internalNotes) {
-                        <small>Notas internas: {{ detail.internalNotes }}</small>
-                      }
-                    </div>
-                    <div class="line-list">
-                      @for (line of detail.lines; track line.id) {
-                        <div class="line-row">
-                          <span>
-                            <strong>{{ line.productName }}</strong>
-                            <small>Cantidad: {{ line.quantity }} {{ unitLabel(line.unitCode) }}</small>
-                            @if (line.unitPrice != null) { <small>Precio aplicado: {{ priceText(line.unitPrice) }} MXN / {{ unitLabel(line.unitCode) }} · Importe: {{ priceText(line.lineAmount) }} MXN</small> }
-                            @else { <small>Precio pendiente</small> }
-                            @if (line.notes) {
-                              <small>Notas: {{ line.notes }}</small>
-                            }
-                          </span>
-                          <small>Maquina: {{ line.machineLabel }}</small>
-                        </div>
-                      }
-                    </div>
-                    <p><strong>Importe del pedido: {{ detail.hasUnpricedLines || detail.totalAmount == null ? 'Pendiente de precio' : priceText(detail.totalAmount) + ' MXN' }}</strong></p>
-                    <div class="review-actions">
-                      @if (canCorrect(detail)) { <button type="button" class="secondary" (click)="correcting = true" [disabled]="correcting">Corregir pedido</button> }
-                      <button type="button" class="secondary" (click)="loadAudit(detail.id)" [disabled]="loadingAudit || correcting">Ver historial</button>
-                    </div>
-                    @if (correcting) {
-                      <app-admin-order-correction [detail]="detail" (saved)="correctionSaved(order)" (cancel)="correcting = false" (reload)="reloadDetail(order)" />
-                    }
-                    @if (audit !== null) {
-                      <section class="audit-list" aria-label="Historial del pedido">
-                        @for (event of audit; track event.id) {
-                          <article class="audit-event"><strong>{{ event.summary }}</strong><small>{{ event.occurredAt }} · {{ event.actorType }}</small>
-                            @if (event.correction; as correction) {
-                              <p><b>Motivo:</b> {{ correction.reason }}</p>
-                              @for (change of correction.changes; track $index) {
-                                <div><strong>{{ change.productName }}</strong><small>Antes: {{ change.before }} → Después: {{ change.after }}</small>
-                                  @if (change.beforeNotes !== change.afterNotes) { <small>Nota anterior: {{ change.beforeNotes || 'Sin nota' }} · Nota nueva: {{ change.afterNotes || 'Sin nota' }}</small> }
-                                </div>
-                              }
-                            }
-                          </article>
-                        }
-                        @if (!audit.length) { <p>No hay eventos disponibles.</p> }
-                      </section>
-                    }
-                  </section>
-                }
-              </article>
-            }
-          </div>
-        }
-      }
-    </section>
-  `
+  styleUrl: './admin-today.component.css',
+  templateUrl: './admin-today.component.html'
 })
 export class AdminTodayComponent {
   protected readonly priceText = priceText;
@@ -149,13 +33,21 @@ export class AdminTodayComponent {
   private detailGeneration = 0;
   private requestedOrderId = this.route.snapshot.queryParamMap.get('orderId');
 
+  protected searchText = '';
+  protected selectedFilter: OrderListFilter = 'all';
+  protected readonly filters: { id: OrderListFilter; label: string }[] = [
+    { id: 'all', label: 'Todos' }, { id: 'registered', label: 'Registrados / aceptados' },
+    { id: 'review', label: 'Por revisar' }, { id: 'noOrder', label: 'No pide' },
+    { id: 'rejected', label: 'Rechazados' }, { id: 'late', label: 'Tardíos' },
+    { id: 'changes', label: 'Avisos pendientes' }
+  ];
   protected orders: AdminOrder[] = [];
   protected selectedDetail: AdminOrderDetail | null = null;
   protected isLoading = true;
   protected loadingDetailOrderId: string | null = null;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
-  protected readonly today = businessDateToday();
+  protected get today(): string { return businessDateToday(); }
   protected serviceDate = this.route.snapshot.queryParamMap.get('date') || this.today;
   protected correcting = false;
   protected audit: AdminOrderAuditEvent[] | null = null;
@@ -177,6 +69,69 @@ export class AdminTodayComponent {
       document.removeEventListener('visibilitychange', refresh);
       this.queryRequest?.unsubscribe();
     });
+  }
+
+  protected get visibleOrders(): AdminOrder[] {
+    const query = this.normalizeSearch(this.searchText);
+    return this.orders.filter(order => this.matchesFilter(order, this.selectedFilter)
+      && (!query || this.normalizeSearch(`${order.customerName} #${order.sequenceNumber} ${this.statusLabel(order)}`).includes(query)));
+  }
+
+  protected filterCount(filter: OrderListFilter): number {
+    return this.orders.filter(order => this.matchesFilter(order, filter)).length;
+  }
+
+  protected setFilter(filter: OrderListFilter): void {
+    if (!this.correcting) this.selectedFilter = filter;
+  }
+
+  protected clearFilters(): void {
+    if (this.correcting) return;
+    this.searchText = '';
+    this.selectedFilter = 'all';
+  }
+
+  protected showToday(): void {
+    if (this.correcting || this.isLoading || this.isRefreshing || this.loadingDetailOrderId) return;
+    this.serviceDate = this.today;
+    this.load();
+  }
+
+  protected statusClass(order: AdminOrder): string {
+    switch (order.status) {
+      case 'Submitted': case 'Accepted': return 'order-registered';
+      case 'PendingAdminReview': return 'order-review';
+      case 'NoOrder': return 'order-off';
+      case 'Rejected': return 'order-rejected';
+      default: return 'order-unknown';
+    }
+  }
+
+  protected statusLabel(order: AdminOrder): string {
+    switch (order.status) {
+      case 'Submitted': return 'Registrado';
+      case 'Accepted': return order.adminDecision === 'AcceptedWithChanges' ? 'Aceptado con cambios' : 'Aceptado';
+      case 'PendingAdminReview': return 'Por revisar';
+      case 'NoOrder': return 'No pide en esta fecha';
+      case 'Rejected': return 'Rechazado';
+      default: return 'Sin clasificar';
+    }
+  }
+
+  private matchesFilter(order: AdminOrder, filter: OrderListFilter): boolean {
+    switch (filter) {
+      case 'all': return true;
+      case 'registered': return ['Submitted', 'Accepted'].includes(order.status);
+      case 'review': return order.status === 'PendingAdminReview';
+      case 'noOrder': return order.status === 'NoOrder';
+      case 'rejected': return order.status === 'Rejected';
+      case 'late': return order.isLate;
+      case 'changes': return this.pendingChangeCount(order.id) > 0;
+    }
+  }
+
+  private normalizeSearch(value: string): string {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-MX').trim();
   }
 
   protected clearDate(): void {

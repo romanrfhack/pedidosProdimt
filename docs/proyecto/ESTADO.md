@@ -1,6 +1,14 @@
 # Estado del proyecto
 
-## I19 — Producción por máquina y distribución a pedidos
+## I21 — Pedidos como catálogo responsivo; validado localmente, paquete en preparación
+
+Autorizada presentación similar a Clientes: ancho completo, tarjetas automáticas, búsqueda cliente/número, filtros con contadores, fecha/Hoy CDMX y colores por estado real con etiqueta. Refresco visible cada 15 s conserva filtros y datos previos ante fallo; detalle/corrección a toda la fila sin perder borrador al redimensionar. Filtros pausados durante corrección. Lógica de carga, permisos, historial y guardado conservada; sin API, backend, SQL o migraciones.
+
+Base I19 recuperada de bundle verificado, rama local `codex/i21-responsive-orders` desde `77457633f5a510aca48855b5a9078adf0a66d271`, aplicación instalada `d3a11420b2025fa0a19f84e1796d5a8b252259a3`. Continuidad del proyecto confirma posterior instalación I19 por el usuario (migraciones 13→16, backend/frontend saludables, respaldo verificado, configuración/permisos/tokens/claves conservados). I19 es el último despliegue confirmado, sustituyendo el pendiente histórico; sin inspección SSH en esta sesión.
+
+Build correcto y15 pruebas específicas del paquete correctas. Verificación responsive/filtros correcta; suite completa de navegador: 204/205 correctas; el fallo de altura en Configuración se reproduce en I19 sin cambios (782px frente a 769px). Las 14 pruebas nuevas de Pedidos pasan en una ejecución final de 15.8s; paquete final en preparación. Los tres fallos de fixtures I19 en la suite Python ampliada corresponden a propietario UID 0 no disponible aquí; no se cambian guardas ni se afirma suite completa correcta. Ver `INCREMENTO-21.md` y evidencia. Instalación/aceptación I21 pendientes. Publicación remota pendiente por el rechazo automático previo de la base I19; se conserva entrega incremental sin eludirlo.
+
+## I19 — Producción por máquina y distribución a pedidos (antecedente)
 
 Implementación completa en `codex/i19-production-allocation`: panel amplio/responsive, selección de varias máquinas, separación explícita «No requiere máquina»/pendiente, asignación diaria de máquina, lotes físicos de kilos y distribución parcial trazable a renglones de pedidos. Seguridad por acción y petición; recibo durable, saldo protegido bajo concurrencia y reversión con motivo. Las correcciones compatibles conservan identidad/asignaciones y las incompatibles se rechazan antes de perder producción. Los avisos I04 conservan su semántica de lectura y se publican al mover demanda entre máquinas.
 
