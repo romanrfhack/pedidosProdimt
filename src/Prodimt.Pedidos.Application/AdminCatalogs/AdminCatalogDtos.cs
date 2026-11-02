@@ -36,9 +36,10 @@ public sealed record UpsertAdminCustomerRequest(
     IReadOnlyList<int>? RestDays = null);
 
 public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null,
-    Guid? MergedIntoProductId = null);
+    Guid? MergedIntoProductId = null, bool RequiresMachine = true);
 
-public sealed record UpsertAdminProductRequest(string Name, string? Description, string? UnitCode = null);
+public sealed record UpsertAdminProductRequest(string Name, string? Description, string? UnitCode = null,
+    bool? RequiresMachine = null);
 
 public sealed record AdminMachineResponse(Guid Id, int Number, string? ExternalCode, string? Name, bool IsActive);
 
@@ -54,7 +55,8 @@ public sealed record AdminCustomerFrequentProductResponse(
     int? InterpretationPosition = null,
     string? UnitCode = null,
     bool ProductIsActive = true,
-    string? CaptureAlias = null);
+    string? CaptureAlias = null,
+    bool UseCustomerDefaultMachine = true, bool RequiresMachine = true, bool ProductRequiresMachine = true);
 
 public sealed record UpdateCustomerFrequentProductsRequest(
     IReadOnlyList<UpdateCustomerFrequentProductItemRequest> Items,
@@ -75,7 +77,8 @@ public sealed record UpdateCustomerFrequentProductItemRequest(
     Guid? PreferredMachineId = null,
     int? InterpretationPosition = null,
     string? ExpectedUnitCode = null,
-    string? CaptureAlias = null);
+    string? CaptureAlias = null,
+    bool? UseCustomerDefaultMachine = null, bool? RequiresMachine = null);
 
 public sealed record AdminCustomerMachineAssignmentResponse(
     Guid MachineId,

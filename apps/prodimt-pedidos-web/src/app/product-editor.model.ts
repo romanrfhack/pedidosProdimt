@@ -5,4 +5,5 @@ export interface ProductEditorValue {
   name: string;
   description: string | null;
   unitCode: UnitCode | null;
+  requiresMachine: boolean;
 }

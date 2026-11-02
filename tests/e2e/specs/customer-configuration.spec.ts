@@ -70,6 +70,31 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${apiBase}/__test/reset`);
 });
 
+test('distingue No requiere máquina de pendiente por asignar y persiste ambos modos explícitamente', async ({ page }) => {
+  const { writes } = await mockProfile(page);
+  const config = await openConfiguration(page);
+  const choices = config.getByRole('combobox', { name: 'Máquina para este producto' });
+  await choices.nth(0).selectOption('not-required');
+  await choices.nth(1).selectOption('none');
+  await config.getByRole('button', { name: 'Guardar frecuentes', exact: true }).click();
+  await expect(config).toContainText('Perfil versión 8');
+  expect(writes).toHaveLength(1);
+  expect(writes[0].items).toMatchObject([
+    { productId: productIds[0], requiresMachine: false, preferredMachineId: null, useCustomerDefaultMachine: false },
+    { productId: productIds[1], requiresMachine: true, preferredMachineId: null, useCustomerDefaultMachine: false }
+  ]);
+  await expect(choices.nth(0)).toHaveValue('not-required');
+  await expect(choices.nth(1)).toHaveValue('none');
+});
+
+test('el requisito global del producto forma parte del perfil versionado e impide asignarle máquina', async ({ page }) => {
+  await mockProfile(page, items().map((item, index) => ({ ...item, productRequiresMachine: index !== 0 })));
+  const config = await openConfiguration(page);
+  const choice = config.getByRole('combobox', { name: 'Máquina para este producto' }).first();
+  await expect(choice).toHaveValue('not-required');
+  await expect(choice).toBeDisabled();
+});
+
 test('configuración enfocada separa reorden visual de posiciones hasta renumerar explícitamente', async ({ page }) => {
   const { writes } = await mockProfile(page);
   const config = await openConfiguration(page);

@@ -24,5 +24,8 @@ public sealed class OrderLine
 
     public Guid? AssignedMachineId { get; set; }
 
+    // Frozen when captured; profile changes do not rewrite existing production.
+    public bool RequiresMachine { get; set; } = true;
+
     public string? Notes { get; set; }
 }

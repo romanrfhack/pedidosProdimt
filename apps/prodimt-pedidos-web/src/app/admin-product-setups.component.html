@@ -1,0 +1,30 @@
+<section class="page stack product-setup-page" data-testid="product-setup-inbox">
+  <div class="inbox-heading"><div><p class="eyebrow">Administración General</p><h2>Productos por configurar</h2><p>Los pedidos continúan mientras completas su configuración comercial.</p></div>
+    <button type="button" class="secondary" [disabled]="loading" (click)="load()">Actualizar bandeja</button></div>
+  <div class="inbox-tools"><label><span>Buscar cliente o producto</span><input type="search" name="setupSearch" autocomplete="off" [(ngModel)]="search" placeholder="Nombre del cliente o producto"></label><span role="status">{{ items.length }} configuraciones pendientes</span></div>
+  @if (loading) { <p class="notice" role="status">Consultando productos por configurar…</p> }
+  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
+  @if (selectedId) {
+    <div class="review-wrapper"><button type="button" class="secondary" (click)="closeReview()">Cerrar revisión</button>
+      <app-product-setup-review [requestId]="selectedId" (completed)="load()" />
+    </div>
+  }
+  <div class="setup-grid">
+    @for (item of visible; track item.id) {
+      <article class="setup-card" data-testid="product-setup-card">
+        <div class="setup-card-heading"><h3>{{ item.customerName }}</h3><span class="pending-badge">{{ pendingPrice(item) ? 'Precio pendiente' : 'Revisar configuración' }}</span></div>
+        <strong class="setup-product">{{ item.productName }}</strong><p class="unit">Unidad: {{ unitLabel(item.unitCode) }}</p>
+        @if (!item.isConfigured) { <p class="profile-pending">Falta agregar al perfil del cliente</p> }
+        <ul class="requested-orders">
+          @for (order of item.orders; track order.orderId) {
+            <li><strong>{{ date(order.serviceDate) }}</strong> · {{ order.quantity ?? '—' }} {{ unitLabel(order.unitCode) }}<small>{{ order.source === 'Customer' ? 'Capturado por el cliente' : 'Capturado por administración' }}{{ order.isActive ? '' : ' · Sin partida activa' }}</small></li>
+          }
+        </ul>
+        <div class="setup-card-actions"><a class="setup-config-link" [routerLink]="['/admin/clientes', item.customerId, 'configuracion']" [queryParams]="{ setupRequestId: item.id }">Configurar producto</a>
+          <button type="button" class="secondary" (click)="review(item.id)">Revisar pendientes</button></div>
+      </article>
+    } @empty {
+      @if (!loading && !error) { <p class="notice">{{ search ? 'No hay coincidencias con esa búsqueda.' : 'No hay productos pendientes de configuración.' }}</p> }
+    }
+  </div>
+</section>

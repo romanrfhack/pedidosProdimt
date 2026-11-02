@@ -17,9 +17,11 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         foreach (var fk in product.Metadata.GetForeignKeys().Where(x => x.Properties.Any(p => p.Name == nameof(Product.MergedIntoProductId))).ToArray())
             product.Metadata.RemoveForeignKey(fk);
         product.Ignore(x => x.MergedIntoProductId);
+        product.Ignore(x => x.RequiresMachine);
         foreach (var constraint in product.Metadata.GetCheckConstraints().Where(x => x.Name == "CK_Products_Consolidated").ToArray())
             product.Metadata.RemoveCheckConstraint(constraint.Name!);
         var line = builder.Entity<OrderLine>();
+        line.Ignore(x => x.RequiresMachine);
         foreach (var fk in line.Metadata.GetForeignKeys().Where(x => x.Properties.Any(p => p.Name == nameof(OrderLine.PriceRevisionId))).ToArray())
             line.Metadata.RemoveForeignKey(fk);
         line.Ignore(x => x.UnitPriceSnapshot); line.Ignore(x => x.CurrencyCodeSnapshot);
@@ -36,7 +38,24 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         builder.Ignore<SecurityRole>(); builder.Ignore<SecurityPermission>();
         builder.Ignore<SecurityUserRole>(); builder.Ignore<SecurityRolePermission>();
         builder.Ignore<SecurityUserPermission>(); builder.Ignore<SecurityState>();
+        builder.Entity<CustomerFrequentProduct>().Ignore(x => x.UseCustomerDefaultMachine);
+        builder.Entity<CustomerFrequentProduct>().Ignore(x => x.RequiresMachine);
+        builder.Ignore<CustomerProductSetupRequest>(); builder.Ignore<CustomerProductSetupOrder>();
+        builder.Ignore<ProductionBatch>(); builder.Ignore<ProductionAllocation>();
     }
+}
+
+// Historical repair fixtures have no I16 tables. New-product writes stay disabled
+// instead of weakening their eleven-migration guard or shipping this adapter.
+public sealed class LegacyCustomerProductSetupRepository : ICustomerProductSetupRepository
+{
+    public Task<int> CountOpenAsync(CancellationToken token) => Task.FromResult(0);
+    public Task<IReadOnlyList<CustomerProductSetupRequest>> GetOpenAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<CustomerProductSetupRequest>>([]);
+    public Task<CustomerProductSetupRequest?> GetAsync(Guid id, CancellationToken token) => Task.FromResult<CustomerProductSetupRequest?>(null);
+    public Task<CustomerProductSetupRequest?> GetByPairAsync(Guid customerId, Guid productId, CancellationToken token) => Task.FromResult<CustomerProductSetupRequest?>(null);
+    public Task<IReadOnlyList<Order>> GetOrdersAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken token) => Task.FromResult<IReadOnlyList<Order>>([]);
+    public Task AddAsync(CustomerProductSetupRequest request, CancellationToken token) => throw new NotSupportedException();
+    public Task SaveChangesAsync(CancellationToken token) => Task.CompletedTask;
 }
 
 // The historical portal/capture has no pricing dependency. Never published with the API.

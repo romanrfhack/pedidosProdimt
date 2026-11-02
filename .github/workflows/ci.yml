@@ -116,8 +116,22 @@ jobs:
         run: |
           set -euo pipefail
           dotnet tool run dotnet-ef migrations script 0 20261101190000_AddRecoverableCustomerAccessTokens --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i18-baseline.sql"
-          dotnet tool run dotnet-ef migrations script 20261101190000_AddRecoverableCustomerAccessTokens 20261102235000_AddSecurityAdministration --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i18-upgrade.sql"
+          # Generate only the historical I18 migration; its original package upgrades I12 without I16.
+          dotnet tool run dotnet-ef migrations script 20261102152307_AddCustomerProductSetup 20261102235000_AddSecurityAdministration --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i18-upgrade.sql"
           python3 tests/pilot/verify_identity_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-i18-baseline.sql" --script "$RUNNER_TEMP/native-cli-i18-upgrade.sql"
+      - name: Verify I16 native migration and atomic minimal grants with ODBC sqlcmd
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool run dotnet-ef migrations script 0 20261101190000_AddRecoverableCustomerAccessTokens --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i12-baseline.sql"
+          dotnet tool run dotnet-ef migrations script 20261101190000_AddRecoverableCustomerAccessTokens 20261102152307_AddCustomerProductSetup --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i16.sql"
+          python3 tests/pilot/verify_customer_products_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-i12-baseline.sql" --migration "$RUNNER_TEMP/native-cli-i16.sql"
+      - name: Verify I19 production upgrade from I12, I16 and I18 with ODBC sqlcmd
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool run dotnet-ef migrations script 20261102235000_AddSecurityAdministration 20261103010000_AddProductionAllocation --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i19.sql"
+          python3 tests/pilot/verify_production_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-i12-baseline.sql" --setup-migration "$RUNNER_TEMP/native-cli-i16.sql" --identity-migration "$RUNNER_TEMP/native-cli-i18-upgrade.sql" --migration "$RUNNER_TEMP/native-cli-i19.sql"
       - name: Remove disposable SQL Server
         if: always()
         run: docker rm --force prodimt-i02-sqlserver || true

@@ -15,7 +15,7 @@ internal static class OrderLineFactory
         IMachineRepository machines,
         CancellationToken cancellationToken,
         ICommercialCatalogRepository? commercial = null,
-        DateOnly? serviceDate = null)
+        DateOnly? serviceDate = null, IReadOnlySet<Guid>? unconfiguredProductIds = null)
     {
         if (requestLines is null || requestLines.Count == 0)
             throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.");
@@ -36,10 +36,20 @@ internal static class OrderLineFactory
         var preferences = await customers.GetFrequentProductsAsync(customerId, cancellationToken);
         var assignments = await customers.GetMachineAssignmentsAsync(customerId, cancellationToken);
         var defaultMachine = assignments.FirstOrDefault(x => x.IsActive && x.IsDefault)?.MachineId;
-        var candidates = positiveLines.Select(line => new
+        var preferenceLookup = preferences.Where(x => x.IsActive).ToDictionary(x => x.ProductId);
+        var candidates = positiveLines.Select(line =>
         {
-            Input = line,
-            MachineId = preferences.FirstOrDefault(x => x.ProductId == line.ProductId && x.IsActive)?.PreferredMachineId ?? defaultMachine
+            var preference = preferenceLookup.GetValueOrDefault(line.ProductId);
+            var requiresMachine = productLookup.GetValueOrDefault(line.ProductId)?.RequiresMachine != false
+                && preference?.RequiresMachine != false;
+            return new
+            {
+                Input = line,
+                RequiresMachine = requiresMachine,
+                MachineId = !requiresMachine || unconfiguredProductIds?.Contains(line.ProductId) == true ? null
+                    : preference?.PreferredMachineId
+                      ?? (preference?.UseCustomerDefaultMachine == false ? null : defaultMachine)
+            };
         }).ToArray();
         var machineLookup = (await machines.GetByIdsAsync(candidates.Select(x => x.MachineId).OfType<Guid>(), cancellationToken)).ToDictionary(x => x.Id);
         if (commercial is not null && serviceDate is null) throw new InvalidOperationException("La fecha de servicio es obligatoria para fijar precios.");
@@ -62,7 +72,8 @@ internal static class OrderLineFactory
             {
                 Id = Guid.NewGuid(), ProductId = product.Id,
                 ProductNameSnapshot = product.Name, UnitCode = product.UnitCode,
-                Quantity = input.Quantity, AssignedMachineId = candidate.MachineId, Notes = input.Notes,
+                Quantity = input.Quantity, AssignedMachineId = candidate.MachineId,
+                RequiresMachine = candidate.RequiresMachine, Notes = input.Notes,
                 UnitPriceSnapshot = priced ? price!.UnitPrice : null,
                 CurrencyCodeSnapshot = priced ? price!.CurrencyCode : null,
                 PriceRevisionId = priced ? price!.RevisionId : null,

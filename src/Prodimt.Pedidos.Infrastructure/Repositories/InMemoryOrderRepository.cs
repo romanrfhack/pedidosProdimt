@@ -114,7 +114,19 @@ public sealed class InMemoryOrderRepository(InMemoryDataStore store) : IOrderRep
 
     public Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken)
     {
-        lock (store.SyncRoot) order.ReplaceLines(lines);
+        lock (store.SyncRoot)
+        {
+            foreach (var group in store.ProductionAllocations.Where(x => x.OrderId == order.Id && x.ReversedAt is null).GroupBy(x => x.OrderLineId))
+            {
+                var previous = order.Lines.SingleOrDefault(x => x.Id == group.Key);
+                var replacement = lines.SingleOrDefault(x => x.Id == group.Key);
+                if (previous is null || replacement is null || replacement.Quantity < group.Sum(x => x.Quantity) ||
+                    previous.ProductId != replacement.ProductId || previous.UnitCode != replacement.UnitCode ||
+                    previous.AssignedMachineId != replacement.AssignedMachineId || previous.RequiresMachine != replacement.RequiresMachine)
+                    throw new CustomerOrderConflictException("El renglón tiene kilos asignados. Revierte explícitamente sus asignaciones antes de corregirlo.");
+            }
+            order.ReplaceLines(lines);
+        }
         return Task.CompletedTask;
     }
 

@@ -8,7 +8,8 @@ public sealed class AdminProductCatalogService(
     IProductRepository products,
     IAuditLogRepository auditLogs,
     IDateTimeProvider dateTimeProvider,
-    ICustomerRepository customers)
+    ICustomerRepository customers,
+    IProductionRepository? production = null)
 {
     public async Task<IReadOnlyList<AdminProductResponse>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -32,6 +33,7 @@ public sealed class AdminProductCatalogService(
 
         var product = Product.Create(request.Name, request.Description);
         product.SetUnitCode(request.UnitCode);
+        product.RequiresMachine = request.RequiresMachine ?? true;
 
         await products.AddAsync(product, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
@@ -69,9 +71,14 @@ public sealed class AdminProductCatalogService(
 
         var previousName = product.Name;
         var previousUnit = product.UnitCode;
+        var previousRequiresMachine = product.RequiresMachine;
+        if (previousRequiresMachine && request.RequiresMachine == false && production is not null
+            && await production.HasRecordedProductProductionAsync(productId, cancellationToken))
+            throw new CatalogConflictException("El producto tiene producción registrada; conserva su requisito de máquina para mantener asignaciones y saldos.");
         product.SetUnitCode(request.UnitCode);
         product.Update(request.Name, request.Description);
-        if (previousName != product.Name || previousUnit != product.UnitCode)
+        product.RequiresMachine = request.RequiresMachine ?? previousRequiresMachine;
+        if (previousName != product.Name || previousUnit != product.UnitCode || previousRequiresMachine != product.RequiresMachine)
             await OrderingProfileInvalidation.InvalidateForProductAsync(product.Id, customers, auditLogs,
                 dateTimeProvider.Now, actor, cancellationToken);
         await auditLogs.AddAsync(CatalogAudit.Create(
@@ -80,7 +87,8 @@ public sealed class AdminProductCatalogService(
             CatalogAuditEventTypes.ProductUpdated,
             dateTimeProvider.Now,
             actor,
-            $"Producto actualizado: {product.Name}."), cancellationToken);
+            $"Producto actualizado: {product.Name}.",
+            new { previousRequiresMachine, product.RequiresMachine }), cancellationToken);
         await products.SaveChangesAsync(cancellationToken);
 
         return MapProduct(product);
@@ -184,6 +192,7 @@ public sealed class AdminProductCatalogService(
 
     private static AdminProductResponse MapProduct(Product product)
     {
-        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description, product.IsActive, product.UnitCode, product.MergedIntoProductId);
+        return new AdminProductResponse(product.Id, product.Name, product.ExternalCode, product.Description,
+            product.IsActive, product.UnitCode, product.MergedIntoProductId, product.RequiresMachine);
     }
 }

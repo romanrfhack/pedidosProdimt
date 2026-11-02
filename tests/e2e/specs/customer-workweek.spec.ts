@@ -113,7 +113,7 @@ for(const viewport of [{width:1366,height:768},{width:1920,height:1080},{width:7
     if(viewport.width>=1200) {
       const main=await page.locator('.app-shell__main').boundingBox();
       expect(main!.width).toBeGreaterThan(viewport.width-20);
-      expect(await page.evaluate(()=>document.documentElement.scrollHeight<=window.innerHeight+1)).toBe(true);
+      expect(await page.evaluate(()=>document.documentElement.scrollHeight)).toBeLessThanOrEqual(viewport.height+1);
     }
     await page.screenshot({path:test.info().outputPath(`configuration-${viewport.width}.png`),fullPage:true});
   });

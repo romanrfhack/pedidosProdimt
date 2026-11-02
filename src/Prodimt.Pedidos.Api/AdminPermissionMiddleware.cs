@@ -23,8 +23,8 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         if (!Guid.TryParse(context.User.FindFirstValue(ProdimtAuthClaims.UserId), out var userId))
         { context.Response.StatusCode = 401; return; }
         var key = RequiredPermission(context.Request.Method, path);
-        if (key is not null && !(await security.GetPermissionsAsync(userId, context.RequestAborted))
-            .Intersect(AcceptedPermissions(context.Request.Method, path), StringComparer.Ordinal).Any())
+        if (key == "__unmapped__" || (key is not null && !(await security.GetPermissionsAsync(userId, context.RequestAborted))
+            .Intersect(AcceptedPermissions(context.Request.Method, path), StringComparer.Ordinal).Any()))
         {
             context.Response.StatusCode = 403;
             await context.Response.WriteAsJsonAsync(new { error = "No tienes permiso para realizar esta acción.", permission = key }, context.RequestAborted);
@@ -43,7 +43,8 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         return segments[2] switch
         {
             "security" or "users" => "security.manage",
-            "operations" => get ? "operations.read" : "operations.acknowledge",
+            "operations" => OperationPermission(method, path, segments),
+            "product-setups" => get ? "customers.manage" : "pricing.manage",
             "daily-orders" or "import" => "imports.manage",
             "machines" => get ? "machines.read" : "machines.manage",
             "products" => segments.Contains("consolidation") ? "products.manage" : get ? "products.read" : "products.manage",
@@ -64,12 +65,24 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         return primary switch
         {
             "customers.read" => ["customers.read", "customers.manage", "tokens.manage", "pricing.manage", "orders.capture"],
-            "products.read" => ["products.read", "products.manage", "customers.manage", "pricing.manage", "orders.capture"],
-            "machines.read" => ["machines.read", "machines.manage", "customers.manage", "orders.capture", "operations.read", "operations.acknowledge"],
+            "products.read" => ["products.read", "products.manage", "customers.manage", "pricing.manage", "orders.capture", "operations.produce"],
+            "machines.read" => ["machines.read", "machines.manage", "customers.manage", "orders.capture", "operations.read", "operations.acknowledge", "operations.assign", "operations.produce", "operations.allocate"],
             "orders.read" => ["orders.read", "orders.review", "orders.capture"],
-            "operations.read" => ["operations.read", "operations.acknowledge"],
+            "operations.read" => ["operations.read", "operations.acknowledge", "operations.assign", "operations.produce", "operations.allocate"],
+            "customers.manage" when path.Contains("/product-setups", StringComparison.OrdinalIgnoreCase) => ["customers.manage", "pricing.manage"],
             _ => [primary]
         };
+    }
+    private static string OperationPermission(string method, string path, string[] segments)
+    {
+        if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method)) return "operations.read";
+        if (!HttpMethods.IsPost(method)) return "__unmapped__";
+        if (segments.Length == 6 && segments[3] == "changes" && segments[5] == "acknowledge") return "operations.acknowledge";
+        if (path == "/api/admin/operations/production/batches") return "operations.produce";
+        if (path == "/api/admin/operations/production/allocations" ||
+            (segments.Length == 7 && segments[3] == "production" && segments[4] == "allocations" && segments[6] == "reverse")) return "operations.allocate";
+        if (segments.Length == 8 && segments[3] == "orders" && segments[5] == "lines" && segments[7] == "machine") return "operations.assign";
+        return "__unmapped__";
     }
     private static string CustomerPermission(string[] segments, bool get)
     {

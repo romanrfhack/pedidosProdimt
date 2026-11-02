@@ -99,7 +99,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
         return client;
     }
 
-    public async Task<TestCatalog> CreateCatalogAsync()
+    public async Task<TestCatalog> CreateCatalogAsync(Func<PedidosDbContext>? contextFactory = null)
     {
         var code = Guid.NewGuid().ToString("N");
         var customer = Customer.Create($"Synthetic client {code}", null, null, null, null, null, Now);
@@ -111,7 +111,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
         var second = Product.Create($"Synthetic package {code}", null);
         second.SetExternalCode($"Q-{code}");
         second.SetUnitCode("package");
-        await using var db = CreateDbContext();
+        await using var db = (contextFactory ?? CreateDbContext)();
         db.Customers.Add(customer);
         db.Products.AddRange(product, second);
         await db.SaveChangesAsync();
@@ -172,6 +172,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                     services.AddScoped<ICommercialCatalogRepository, LegacyCommercialCatalogRepository>();
                     services.RemoveAll<Prodimt.Pedidos.Application.Security.ISecurityStore>();
                     services.AddScoped<Prodimt.Pedidos.Application.Security.ISecurityStore, LegacySecurityStore>();
+                    services.RemoveAll<ICustomerProductSetupRepository>();
+                    services.AddScoped<ICustomerProductSetupRepository, LegacyCustomerProductSetupRepository>();
                 }
                 services.RemoveAll<IDateTimeProvider>();
                 services.AddSingleton<IDateTimeProvider, FixedClock>();

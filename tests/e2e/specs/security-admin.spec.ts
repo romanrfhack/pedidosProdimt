@@ -164,7 +164,7 @@ for (const permission of ['tokens.manage', 'pricing.manage', 'products.read']) {
       const allowed = permission === 'products.read' ? path === '/api/admin/products' :
         ['/api/admin/customers', '/api/admin/customers/day-status'].includes(path) ||
         (permission === 'tokens.manage' && (path === '/api/admin/orders/next-delivery-date' || /\/customers\/[^/]+\/access-tokens$/.test(path))) ||
-        (permission === 'pricing.manage' && (path === '/api/admin/products' || /\/customers\/[^/]+\/(ordering-profile|prices)$/.test(path)));
+        (permission === 'pricing.manage' && (path === '/api/admin/product-setups/count' || path === '/api/admin/products' || /\/customers\/[^/]+\/(ordering-profile|prices)$/.test(path)));
       if (!allowed) {
         forbidden.push(path); await route.fulfill({ status: 403, json: { error: 'Sin permiso para esta acción.' } }); return;
       }

@@ -14,6 +14,9 @@ public sealed class Product
 
     public bool IsActive { get; set; } = true;
 
+    // Explicit production configuration; a missing machine never means resale.
+    public bool RequiresMachine { get; set; } = true;
+
     // Retained identities resolve legacy codes; historical order lines keep their original ID.
     public Guid? MergedIntoProductId { get; set; }
 

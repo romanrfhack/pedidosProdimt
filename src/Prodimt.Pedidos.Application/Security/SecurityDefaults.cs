@@ -27,6 +27,9 @@ public static class SecurityDefaults
         ("imports.manage", "Importar catálogos y pedidos", "Importación"),
         ("operations.read", "Consultar operación y avisos", "Operación"),
         ("operations.acknowledge", "Reconocer avisos", "Operación"),
-        ("security.manage", "Administrar usuarios, roles y permisos", "Seguridad")
+        ("security.manage", "Administrar usuarios, roles y permisos", "Seguridad"),
+        ("operations.assign", "Asignar máquinas a pedidos", "Operación"),
+        ("operations.produce", "Registrar kilos producidos", "Operación"),
+        ("operations.allocate", "Asignar y revertir kilos de pedidos", "Operación")
     ];
 }

@@ -120,7 +120,8 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
                                    item.DefaultQuantity, item.SortOrder, item.IsActive,
                                    item.PreferredMachineId, item.InterpretationPosition,
                                    product == null ? null : product.UnitCode,
-                                   product != null && product.IsActive, item.CaptureAlias)).ToArrayAsync(cancellationToken);
+                                   product != null && product.IsActive, item.CaptureAlias, item.UseCustomerDefaultMachine,
+                                   item.RequiresMachine, product == null || product.RequiresMachine)).ToArrayAsync(cancellationToken);
             var result = new CustomerOrderingProfileSnapshot(customer.Id, customer.OrderingProfileVersion,
                 customer.IsOrderProfileApproved, items);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);

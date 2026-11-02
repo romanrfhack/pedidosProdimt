@@ -31,9 +31,11 @@ public static class DependencyInjection
             services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
             services.AddSingleton<IProductRepository, InMemoryProductRepository>();
             services.AddSingleton<ICommercialCatalogRepository, InMemoryCommercialCatalogRepository>();
+            services.AddSingleton<ICustomerProductSetupRepository, InMemoryCustomerProductSetupRepository>();
             services.AddSingleton<IMachineRepository, InMemoryMachineRepository>();
             services.AddSingleton<ISalesChannelRepository, InMemorySalesChannelRepository>();
             services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+            services.AddSingleton<IProductionRepository, InMemoryProductionRepository>();
             services.AddSingleton<IOrderOperationStore, InMemoryOrderOperationStore>();
             services.AddSingleton<IOrderChangeNoticeRepository, InMemoryOrderChangeNoticeRepository>();
             services.AddSingleton<IOrderAuditLogRepository, InMemoryOrderAuditLogRepository>();
@@ -53,9 +55,11 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<IProductRepository, EfProductRepository>();
         services.AddScoped<ICommercialCatalogRepository, EfCommercialCatalogRepository>();
+        services.AddScoped<ICustomerProductSetupRepository, EfCustomerProductSetupRepository>();
         services.AddScoped<IMachineRepository, EfMachineRepository>();
         services.AddScoped<ISalesChannelRepository, EfSalesChannelRepository>();
         services.AddScoped<IOrderRepository, EfOrderRepository>();
+        services.AddScoped<IProductionRepository, EfProductionRepository>();
         services.AddScoped<IOrderOperationStore, EfOrderOperationStore>();
         services.AddScoped<IOrderChangeNoticeRepository, EfOrderChangeNoticeRepository>();
         services.AddScoped<IOrderAuditLogRepository, EfOrderAuditLogRepository>();

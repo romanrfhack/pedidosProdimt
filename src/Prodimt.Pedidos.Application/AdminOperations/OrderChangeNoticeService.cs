@@ -9,7 +9,7 @@ using Prodimt.Pedidos.Domain.Entities;
 namespace Prodimt.Pedidos.Application.AdminOperations;
 
 public sealed class OrderChangeNoticeService(IOrderChangeNoticeRepository notices, IOrderOperationStore operations,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock, IProductRepository? products = null)
 {
     public async Task<OrderChangeNoticeListResponse> GetAsync(DateOnly? date, string? routeCode, Guid? machineId,
         bool pendingOnly, CancellationToken cancellationToken)
@@ -19,9 +19,21 @@ public sealed class OrderChangeNoticeService(IOrderChangeNoticeRepository notice
         var filtered = (await notices.GetByDateAsync(serviceDate, cancellationToken))
             .Where(x => (route is null || string.Equals(x.RouteCode, route, StringComparison.OrdinalIgnoreCase)) &&
                 (machineId is null || x.MachineId == machineId)).ToArray();
-        return new(serviceDate, filtered.Count(x => x.AcknowledgedAt is null), filtered
+        var mapped = filtered.Select(Map).ToArray();
+        if (products is not null)
+        {
+            var productLookup = (await products.GetByIdsIncludingInactiveAsync(mapped.SelectMany(x => x.Lines).Select(x => x.ProductId), cancellationToken))
+                .ToDictionary(x => x.Id);
+            mapped = mapped.Select(notice => notice with { Lines = notice.Lines.Where(line =>
+                    // A removal remains actionable even if the product is now
+                    // outside production; its former machine must receive it.
+                    (line.BeforeQuantity > 0 && line.AfterQuantity == 0) ||
+                    !productLookup.TryGetValue(line.ProductId, out var product) || product.RequiresMachine).ToArray() })
+                .Where(notice => notice.Lines.Count > 0).ToArray();
+        }
+        return new(serviceDate, mapped.Count(x => x.AcknowledgedAt is null), mapped
             .Where(x => !pendingOnly || x.AcknowledgedAt is null).OrderByDescending(x => x.OccurredAt)
-            .ThenByDescending(x => x.OrderVersion).ThenBy(x => x.Id).Select(Map).ToArray());
+            .ThenByDescending(x => x.OrderVersion).ThenBy(x => x.Id).ToArray());
     }
 
     public async Task<OrderChangeNoticeResponse> AcknowledgeAsync(Guid id, AcknowledgeOrderChangeRequest request,

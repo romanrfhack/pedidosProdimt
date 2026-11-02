@@ -73,7 +73,7 @@ fieldset { border:0; margin:0; padding:0; min-width:0; }
   .profile-actions button { min-width:26px; width:26px; padding:6px; }
   .profile-product-card input, .profile-product-card select { min-height:36px; height:36px; padding:6px; }
   .profile-product-card label > span { white-space:nowrap; font-size:.73rem; }
-  .config-product-list { max-height:calc(100dvh - 485px); min-height:90px; overflow:auto; padding:2px; scrollbar-width:thin; }
+  .config-product-list { max-height:calc(100dvh - 525px); min-height:90px; overflow:auto; padding:2px; scrollbar-width:thin; }
 }
 @media (max-width:1199px) {
   .config-page .config-layout { grid-template-columns:minmax(0,1fr); }

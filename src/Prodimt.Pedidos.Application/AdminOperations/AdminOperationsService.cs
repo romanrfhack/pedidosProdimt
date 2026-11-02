@@ -8,7 +8,8 @@ public sealed class AdminOperationsService(
     IOrderRepository orders,
     ICustomerRepository customers,
     IMachineRepository machines,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IProductRepository? products = null)
 {
     public async Task<OperationsPlanResponse> GetPlanAsync(DateOnly? date, string? routeCode, CancellationToken cancellationToken)
     {
@@ -17,11 +18,16 @@ public sealed class AdminOperationsService(
         var sourceOrders = (await orders.GetByDateAsync(serviceDate, cancellationToken))
             .Where(x => route is null || string.Equals(x.RouteCode, route, StringComparison.OrdinalIgnoreCase))
             .ToArray();
+        var productLookup = products is null ? new Dictionary<Guid, Product>() :
+            (await products.GetByIdsIncludingInactiveAsync(sourceOrders.SelectMany(x => x.Lines).Select(x => x.ProductId), cancellationToken))
+                .ToDictionary(x => x.Id);
+        bool Required(OrderLine line) => line.RequiresMachine &&
+            (!productLookup.TryGetValue(line.ProductId, out var product) || product.RequiresMachine);
         var customerLookup = (await customers.GetByIdsAsync(sourceOrders.Select(x => x.CustomerId).OfType<Guid>(), cancellationToken))
             .ToDictionary(x => x.Id);
         string Name(Order order) => order.CustomerNameSnapshot ??
             (order.CustomerId is { } id && customerLookup.TryGetValue(id, out var customer) ? customer.Name : "Mostrador");
-        var ready = sourceOrders.Where(x => x.Status is OrderStatus.Submitted or OrderStatus.Accepted).ToArray();
+        var ready = sourceOrders.Where(x => (x.Status is OrderStatus.Submitted or OrderStatus.Accepted) && x.Lines.Any(Required)).ToArray();
         var machineLookup = (await machines.GetByIdsAsync(ready.SelectMany(x => x.Lines).Select(x => x.AssignedMachineId).OfType<Guid>(), cancellationToken))
             .ToDictionary(x => x.Id);
         var warnings = new List<OperationsPlanWarning>();
@@ -30,7 +36,7 @@ public sealed class AdminOperationsService(
         {
             if (order.RouteCode is null)
                 warnings.Add(new("ROUTE_UNKNOWN", "El pedido no tiene ruta capturada; revisa su destino.", order.Id, null));
-            var lines = order.Lines.OrderBy(x => x.ProductNameSnapshot).Select(line =>
+            var lines = order.Lines.Where(Required).OrderBy(x => x.ProductNameSnapshot).Select(line =>
             {
                 var machine = line.AssignedMachineId is { } id && machineLookup.TryGetValue(id, out var found) ? found : null;
                 if (line.UnitCode is null || !ProductUnitCodes.IsSupported(line.UnitCode))
@@ -59,7 +65,7 @@ public sealed class AdminOperationsService(
                     first.AssignedMachineName, first.ProductId, first.ProductName, first.UnitCode!, group.Sum(x => x.Quantity));
             })
             .OrderBy(x => x.MachineNumber ?? int.MaxValue).ThenBy(x => x.ProductName).ThenBy(x => x.UnitCode).ToArray();
-        var pending = sourceOrders.Where(x => x.Status == OrderStatus.PendingAdminReview)
+        var pending = sourceOrders.Where(x => x.Status == OrderStatus.PendingAdminReview && x.Lines.Any(Required))
             .OrderBy(x => x.SubmittedAt)
             .Select(x => new OperationsPendingReviewResponse(x.Id, x.CustomerId, Name(x), x.SequenceNumber, x.AdminReviewReason))
             .ToArray();

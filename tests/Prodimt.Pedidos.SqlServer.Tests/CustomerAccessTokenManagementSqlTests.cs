@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +12,7 @@ using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Infrastructure.Authentication;
+using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Persistence.Migrations;
 using Prodimt.Pedidos.Infrastructure.Repositories;
 
@@ -132,13 +134,13 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
     [Fact]
     public async Task NativeSchemaAndLegacyCatchup_UseExactInstallerSqlAndPreserveProtectedAccesses()
     {
-        // The historical installer deliberately accepts exactly thirteen migrations.
+        // The historical installer targets exactly I12's thirteen migrations, not later additive schemas.
         await using (var pinned = database.CreateDbContext()) await pinned.GetService<IMigrator>().MigrateAsync(I12);
         var contract = await NativeContract();
         var expected = JsonSerializer.Deserialize<Dictionary<string, int>>(contract.GetProperty("expectedSchema"))!;
         var observed = JsonSerializer.Deserialize<Dictionary<string, int>>(await Scalar<string>(contract.GetProperty("schema").GetString()!))!;
         Assert.Equal(expected.OrderBy(x => x.Key), observed.OrderBy(x => x.Key));
-        var catalog = await database.CreateCatalogAsync();
+        var catalog = await database.CreateCatalogAsync(CreatePreProductionCatalogContext);
         var legacy = CustomerAccessToken.Create(catalog.CustomerId, "synthetic-native-catchup-hash", "Legacy retry", null, SqlServerFixture.Now);
         await InsertLegacy(legacy);
         var current = CustomerAccessToken.Create(catalog.CustomerId, "synthetic-current-protected-hash", "Protected access", null, SqlServerFixture.Now);
@@ -278,7 +280,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
     private async Task<(SqlServerFixture.TestCatalog Catalog, List<CustomerAccessToken> Legacy)> PrepareLegacyI11()
     {
         await using (var db = database.CreateDbContext()) await db.GetService<IMigrator>().MigrateAsync(I11);
-        var catalog = await database.CreateCatalogAsync();
+        var catalog = await database.CreateCatalogAsync(CreatePreProductionCatalogContext);
         var legacy = Enumerable.Range(0, 4).Select(index => CustomerAccessToken.Create(catalog.CustomerId,
             "synthetic-legacy-hash-" + index, "Synthetic legacy " + index,
             index == 0 ? null : SqlServerFixture.Now.AddDays(index == 1 ? -1 : 1), SqlServerFixture.Now.AddDays(-3))).ToList();
@@ -296,6 +298,16 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
             VALUES({token.Id},{token.CustomerId},{token.TokenHash},{token.DisplayName},{token.IsActive},
               {token.ExpiresAt},{token.CreatedAt},{token.LastUsedAt});
             """);
+    }
+
+    private PedidosDbContext CreatePreProductionCatalogContext()
+    {
+        // Only catalog seeding uses this model: these regressions deliberately retain
+        // the shipped I11/I12 schema, including the exact thirteen-migration guard.
+        var options = new DbContextOptionsBuilder<PedidosDbContext>().UseSqlServer(database.ConnectionString)
+            .ReplaceService<IModelCustomizer, PreProductionCatalogModelCustomizer>()
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+        return new(options.Options);
     }
 
     private async Task Execute(string sql)
@@ -336,5 +348,18 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
         Assert.True(process.ExitCode == 0, error);
         using var json = JsonDocument.Parse(output);
         return json.RootElement.Clone();
+    }
+}
+
+public sealed class PreProductionCatalogModelCustomizer(ModelCustomizerDependencies dependencies) : ModelCustomizer(dependencies)
+{
+    public override void Customize(ModelBuilder builder, DbContext context)
+    {
+        base.Customize(builder, context);
+        builder.Entity<Product>().Ignore(x => x.RequiresMachine);
+        builder.Entity<CustomerFrequentProduct>().Ignore(x => x.RequiresMachine);
+        builder.Entity<OrderLine>().Ignore(x => x.RequiresMachine);
+        builder.Ignore<ProductionBatch>();
+        builder.Ignore<ProductionAllocation>();
     }
 }

@@ -8,13 +8,11 @@ import { AdminTodayComponent } from './admin-today.component';
 import { permissionGuard } from './permission.guard';
 import { AdminAccessDeniedComponent } from './admin-access-denied.component';
 import { adminAuthGuard } from './admin-auth.guard';
-import { CustomerTodayComponent } from './customer-today.component';
-import { AdminOperationsComponent } from './admin-operations.component';
 import { AdminDailyImportComponent } from './admin-daily-import.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'cliente', pathMatch: 'full' },
-  { path: 'cliente', component: CustomerTodayComponent },
+  { path: 'cliente', loadComponent: () => import('./customer-today.component').then(m => m.CustomerTodayComponent) },
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'admin/cambiar-contrasena', component: AdminPasswordComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/sin-acceso', component: AdminAccessDeniedComponent, canActivate: [adminAuthGuard] },
@@ -22,9 +20,10 @@ export const routes: Routes = [
   { path: 'admin/pedidos', component: AdminTodayComponent, canActivate: [permissionGuard], data: { permissions: ['orders.read'] } },
   { path: 'admin/pendientes', component: AdminPendingComponent, canActivate: [permissionGuard], data: { permissions: ['orders.review'] } },
   { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [permissionGuard], data: { permissions: ['orders.capture'] } },
+  { path: 'admin/productos-por-configurar', loadComponent: () => import('./admin-product-setups.component').then(m => m.AdminProductSetupsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage','pricing.manage'] } },
   { path: 'admin/catalogos', loadComponent: () => import('./admin-catalogs.component').then(m => m.AdminCatalogsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.read', 'customers.manage', 'products.read', 'products.manage', 'machines.read', 'machines.manage', 'tokens.manage', 'pricing.manage'] } },
   { path: 'admin/clientes/:customerId/configuracion', loadComponent: () => import('./admin-catalogs.component').then(m => m.AdminCatalogsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage', 'tokens.manage', 'pricing.manage'] } },
-  { path: 'admin/operacion', component: AdminOperationsComponent, canActivate: [permissionGuard], data: { permissions: ['operations.read','operations.acknowledge'] } },
+  { path: 'admin/operacion', loadComponent: () => import('./admin-operations.component').then(m => m.AdminOperationsComponent), canActivate: [permissionGuard], data: { permissions: ['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'] } },
   { path: 'admin/importar-pedidos', component: AdminDailyImportComponent, canActivate: [permissionGuard], data: { permissions: ['imports.manage'] } },
   { path: 'admin/importacion', component: AdminImportComponent, canActivate: [permissionGuard], data: { permissions: ['imports.manage'] } }
 ];

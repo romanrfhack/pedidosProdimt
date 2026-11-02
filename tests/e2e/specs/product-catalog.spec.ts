@@ -89,8 +89,22 @@ test('modal edita el producto por su id, conserva unidad y muestra errores sin p
   await expect(dialog.getByLabel('Descripción', { exact: true })).toHaveValue('Presentación de prueba');
   await dialog.getByRole('button', { name: 'Guardar producto', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(f.writes).toEqual(Array(2).fill({ name: 'BURRRERA', description: 'Presentación de prueba', unitCode: 'package' }));
+  expect(f.writes).toEqual(Array(2).fill({ name: 'BURRRERA', description: 'Presentación de prueba', unitCode: 'package', requiresMachine: true }));
   await expect(page.getByTestId('product-card').filter({ hasText: 'BURRRERA' })).toContainText('Presentación de prueba');
+});
+
+test('el catálogo guarda No requiere máquina como decisión explícita sin deducirla del nombre', async ({ page }) => {
+  const f = await open(page);
+  await page.getByRole('button', { name: 'Nuevo producto', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Producción', { exact: true })).toHaveValue('0: true');
+  await dialog.getByLabel('Nombre', { exact: true }).fill('Producto de prueba sin máquina');
+  await dialog.getByLabel('Unidad de venta', { exact: true }).selectOption('package');
+  await dialog.getByLabel('Producción', { exact: true }).selectOption({ label: 'No requiere máquina' });
+  await dialog.getByRole('button', { name: 'Crear producto', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(f.writes).toEqual([{ name: 'Producto de prueba sin máquina', description: null,
+    unitCode: 'package', requiresMachine: false }]);
 });
 
 test('estado distingue inactivos y archivados, sin permitir editar o reactivar los consolidados', async ({ page }) => {

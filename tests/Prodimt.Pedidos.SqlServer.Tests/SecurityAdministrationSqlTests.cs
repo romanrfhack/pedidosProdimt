@@ -212,7 +212,7 @@ public sealed class SecurityAdministrationSqlTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Upgrade13To14_BackfillsExistingAdministratorsWithoutChangingPasswordsCustomerTokensOrHistory()
+    public async Task Upgrade13ThroughSetupAndSecurity_BackfillsExistingAdministratorsWithoutChangingPasswordsCustomerTokensOrHistory()
     {
         var isolated = new SqlConnectionStringBuilder(database.ConnectionString)
         {
@@ -237,7 +237,7 @@ public sealed class SecurityAdministrationSqlTests : IAsyncLifetime
             await old.GetService<IMigrator>().MigrateAsync(I18);
             await old.GetService<IMigrator>().MigrateAsync(I18);
             old.ChangeTracker.Clear();
-            Assert.Equal(14, (await old.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(15, (await old.Database.GetAppliedMigrationsAsync()).Count());
             Assert.Equal(15, await old.SecurityPermissions.CountAsync());
             Assert.Equal(15, await old.SecurityRolePermissions.CountAsync());
             Assert.Equal(2, await old.SecurityUserRoles.CountAsync(x => x.RoleId == SecurityDefaults.AdministratorRoleId));

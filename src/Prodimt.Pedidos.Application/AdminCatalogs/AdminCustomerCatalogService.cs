@@ -187,7 +187,7 @@ public sealed class AdminCustomerCatalogService(
         return new(snapshot.CustomerId, snapshot.OrderingProfileVersion, snapshot.IsOrderProfileApproved,
             snapshot.Items.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId, item.ProductName,
                 item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
-                item.InterpretationPosition, item.UnitCode, item.ProductIsActive, item.CaptureAlias)).ToArray());
+                item.InterpretationPosition, item.UnitCode, item.ProductIsActive, item.CaptureAlias, item.UseCustomerDefaultMachine, item.RequiresMachine, item.ProductRequiresMachine)).ToArray());
     }
 
     public Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsAsync(
@@ -230,7 +230,9 @@ public sealed class AdminCustomerCatalogService(
         if (productIds.Any(productId => !productLookup.ContainsKey(productId)))
             throw new ArgumentException("Uno de los productos frecuentes no existe.", nameof(request));
 
-        var preferredMachineIds = items.Where(x => x.PreferredMachineId.HasValue).Select(x => x.PreferredMachineId!.Value).Distinct().ToArray();
+        var preferredMachineIds = items.Where(x => productLookup[x.ProductId].RequiresMachine
+            && (x.RequiresMachine ?? previous.GetValueOrDefault(x.ProductId)?.RequiresMachine ?? true)
+            && x.PreferredMachineId.HasValue).Select(x => x.PreferredMachineId!.Value).Distinct().ToArray();
         var machineLookup = (await machines.GetByIdsAsync(preferredMachineIds, cancellationToken)).ToDictionary(x => x.Id);
         if (preferredMachineIds.Any(id => !machineLookup.TryGetValue(id, out var machine) || !machine.IsActive))
             throw new ArgumentException("La maquina preferida debe existir y estar activa.", nameof(request));
@@ -254,9 +256,15 @@ public sealed class AdminCustomerCatalogService(
             DefaultQuantity = item.DefaultQuantity,
             SortOrder = item.SortOrder > 0 ? item.SortOrder : index + 1,
             IsActive = item.IsActive,
-            PreferredMachineId = item.PreferredMachineId,
+            PreferredMachineId = productLookup[item.ProductId].RequiresMachine
+                && (item.RequiresMachine ?? previous.GetValueOrDefault(item.ProductId)?.RequiresMachine ?? true)
+                ? item.PreferredMachineId : null,
             InterpretationPosition = item.InterpretationPosition,
-            CaptureAlias = aliases[item.ProductId]
+            CaptureAlias = aliases[item.ProductId],
+            UseCustomerDefaultMachine = productLookup[item.ProductId].RequiresMachine
+                && (item.RequiresMachine ?? previous.GetValueOrDefault(item.ProductId)?.RequiresMachine ?? true)
+                && (item.UseCustomerDefaultMachine ?? previous.GetValueOrDefault(item.ProductId)?.UseCustomerDefaultMachine ?? true),
+            RequiresMachine = item.RequiresMachine ?? previous.GetValueOrDefault(item.ProductId)?.RequiresMachine ?? true
         }).OrderBy(x => x.SortOrder).ToArray();
 
         var now = dateTimeProvider.Now;
@@ -275,6 +283,7 @@ public sealed class AdminCustomerCatalogService(
                 activeCount = replacement.Count(x => x.IsActive),
                 productIds = replacement.Select(x => x.ProductId).ToArray(),
                 captureAliases = replacement.Select(x => new { x.ProductId, x.CaptureAlias }).ToArray(),
+                machineInheritance = replacement.Select(x => new { x.ProductId, x.UseCustomerDefaultMachine, x.RequiresMachine }).ToArray(),
                 customer.OrderingProfileVersion,
                 customer.IsOrderProfileApproved
             }), cancellationToken);
@@ -283,7 +292,8 @@ public sealed class AdminCustomerCatalogService(
         return replacement.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId,
             productLookup[item.ProductId].Name, item.DefaultQuantity, item.SortOrder, item.IsActive,
             item.PreferredMachineId, item.InterpretationPosition, productLookup[item.ProductId].UnitCode,
-            productLookup[item.ProductId].IsActive, item.CaptureAlias)).ToArray();
+            productLookup[item.ProductId].IsActive, item.CaptureAlias, item.UseCustomerDefaultMachine,
+            item.RequiresMachine, productLookup[item.ProductId].RequiresMachine)).ToArray();
     }
 
     public async Task<IReadOnlyList<AdminCustomerMachineAssignmentResponse>> GetMachineAssignmentsAsync(

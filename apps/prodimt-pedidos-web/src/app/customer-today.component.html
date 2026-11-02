@@ -48,13 +48,17 @@
           } @else {
             <div class="manual-products">
               @for (product of products; track product.productId) {
-                <label class="product-row"><span><strong>{{ product.productName }}</strong><small>{{ unitLabel(product.unitCode) }}</small></span>
+                <div class="manual-product-wrap" [class.additional]="additionalIds.has(product.productId)">
+                <label class="product-row"><span><strong>{{ product.productName }}</strong><small>{{ unitLabel(product.unitCode) }} @if (additionalIds.has(product.productId)) { · Producto agregado }</small></span>
                   <input type="number" min="0" max="9999999999999999" step="0.01" inputmode="decimal" [name]="'quantity' + product.productId"
                     [(ngModel)]="product.quantity" (ngModelChange)="manualChanged()" [disabled]="locked || !product.unitCode" [attr.aria-label]="'Cantidad de ' + product.productName">
                 </label>
+                @if (additionalIds.has(product.productId)) { <button type="button" class="remove-additional" [disabled]="locked" [attr.aria-label]="'Quitar ' + product.productName" (click)="removeAdditionalProduct(product.productId)">Quitar del pedido</button> }
+                </div>
               }
             </div>
-            @if (!products.length) { <p class="notice">PRODIMT aún no ha configurado tus productos. Comunícate con nosotros para registrar tu pedido.</p> }
+            <button type="button" class="secondary additional-product-trigger" [disabled]="locked" (click)="openProductPicker()">+ Pedir otro producto</button>
+            @if (!products.length) { <p class="notice">Puedes elegir un producto del catálogo con «Pedir otro producto».</p> }
           }
           <label><span>Notas de entrega</span><textarea name="deliveryNotes" maxlength="500" rows="2" [(ngModel)]="deliveryNotes" [disabled]="locked" placeholder="Indicaciones para esta entrega"></textarea></label>
           @if (notice) { <p class="notice" role="status">{{ notice }}</p> }
@@ -79,3 +83,10 @@
     }
   }
 </section>
+
+@defer (when productPicker.isOpen) {
+  @if (productPicker.isOpen) {
+    <app-add-order-product-dialog [products]="productPicker.products" [loading]="productPicker.loading" [error]="productPicker.error"
+      (added)="addProduct($event)" (dismissed)="productPicker.close()" (retried)="productPicker.reload()" />
+  }
+}

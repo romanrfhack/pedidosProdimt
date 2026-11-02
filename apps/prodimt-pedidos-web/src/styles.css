@@ -550,8 +550,8 @@ button.compact {
 @media (min-width:1200px) {
   body:has(.config-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
   body:has(.config-page) .app-shell__header h1 { font-size:1.2rem; }
-  body:has(.config-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
-  body:has(.config-page) nav a, body:has(.config-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
+  body:has(.config-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; }
+  body:has(.config-page) nav a, body:has(.config-page) nav button { min-height:34px; padding:6px 7px; font-size:.75rem; }
 }
 
 /* Customer access dialog launcher */
@@ -579,3 +579,15 @@ button.compact {
   body:has(.security-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
   body:has(.security-page) nav a, body:has(.security-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }
+
+.app-shell__main:has(.product-setup-page){width:min(100%,1600px);padding:16px clamp(12px,1.5vw,30px)}.setup-nav-count{font-size:.68rem;padding:2px 5px;border-radius:4px;background:#e9bc52;color:#47361a;margin-left:5px}
+
+/* Production uses the available desktop width without changing other modules. */
+.app-shell__main:has(.production-page){width:min(100%,1600px);padding:16px clamp(12px,1.5vw,30px)}
+@media (min-width:1200px) {
+  body:has(.production-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.production-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.production-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; }
+  body:has(.production-page) nav a, body:has(.production-page) nav button { min-height:34px; padding:6px 7px; font-size:.75rem; }
+}
+@media print{.app-shell__main:has(.production-page){width:100%;padding:0}}

@@ -10,13 +10,16 @@ import {
   CustomerCaptureReceipt, CustomerCaptureRequest, CustomerNextOrder, CustomerNoOrderRequest
 } from './customer-capture-api.service';
 import { unitLabel } from './operational-labels';
+import { AdditionalProduct, ProductSetupApiService } from './product-setup-api.service';
+import { AddOrderProductDialogComponent } from './add-order-product-dialog.component';
+import { OrderProductPicker } from './order-product-picker';
 
 interface ProductDraft extends CustomerCaptureProduct { quantity: number; notes: string | null; }
 type SaveAttempt = { kind: 'order'; request: CustomerCaptureRequest } | { kind: 'no-order'; request: CustomerNoOrderRequest };
 
 @Component({
   selector: 'app-customer-today',
-  imports: [FormsModule],
+  imports: [FormsModule, AddOrderProductDialogComponent],
   templateUrl: './customer-today.component.html',
   styleUrl: './customer-today.component.css'
 })
@@ -27,6 +30,8 @@ export class CustomerTodayComponent implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  protected readonly productPicker = new OrderProductPicker(inject(ProductSetupApiService), () => this.changeDetector.detectChanges());
+  protected additionalIds = new Set<string>();
   private readonly requests = new Subscription();
   private previewRequest: Subscription | null = null;
   private previewGeneration = 0;
@@ -69,7 +74,8 @@ export class CustomerTodayComponent implements OnDestroy {
     }
   }
 
-  ngOnDestroy(): void { this.stopPreview(); this.requests.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.productPicker.close(); this.stopPreview(); this.requests.unsubscribe(); }
 
   protected get isCustomerAuthenticated(): boolean { return this.auth.isCustomer(); }
   protected get locked(): boolean { return this.isLoading || this.isSubmitting || this.uncertain; }
@@ -141,8 +147,26 @@ export class CustomerTodayComponent implements OnDestroy {
     });
   }
 
+  protected openProductPicker(): void {
+    if (this.locked || this.hasActiveOrder || !this.nextOrder) return;
+    this.productPicker.show(this.nextOrder.customerId, false, this.products.map(x => x.productId));
+  }
+  protected addProduct(value: { product: AdditionalProduct; quantity: number }): void {
+    if (this.locked || this.products.some(x => x.productId === value.product.productId)) return;
+    this.products = [...this.products, { ...value.product, quantity: value.quantity, notes: null,
+      interpretationPosition: null, captureAlias: null, sortOrder: this.products.length + 1 }];
+    this.additionalIds = new Set([...this.additionalIds, value.product.productId]);
+    this.productPicker.close(); this.manualChanged();
+  }
+  protected removeAdditionalProduct(id: string): void {
+    if (this.locked || !this.additionalIds.has(id)) return;
+    this.products = this.products.filter(x => x.productId !== id);
+    this.additionalIds = new Set([...this.additionalIds].filter(x => x !== id)); this.manualChanged();
+  }
+
   protected changeMode(mode: 'quick' | 'manual'): void {
     if (this.locked || mode === this.mode) return;
+    if (mode === 'quick' && this.additionalIds.size) { this.error = 'Conserva la captura manual para pedir los productos agregados, o quítalos antes de cambiar a captura rápida.'; return; }
     if (mode === 'manual' && this.text.trim() && !this.preview && this.nextOrder?.isProfileApproved) {
       this.pendingManual = true;
       if (!this.interpreting) this.interpret();
@@ -235,6 +259,7 @@ export class CustomerTodayComponent implements OnDestroy {
   }
 
   private loadNext(preserveDraft = false): void {
+    this.productPicker.close();
     const customerId = this.auth.getCustomerId();
     if (!customerId) return;
     this.stopPreview(); this.pendingManual = false; this.isLoading = true; this.loadError = null;
@@ -246,6 +271,11 @@ export class CustomerTodayComponent implements OnDestroy {
         this.products = next.products.slice().sort((a, b) => a.sortOrder - b.sortOrder).map(x => ({ ...x,
           quantity: preserveDraft && previous.get(x.productId)?.unitCode === x.unitCode ? previous.get(x.productId)!.quantity : 0,
           notes: preserveDraft ? previous.get(x.productId)?.notes ?? null : null }));
+        if (preserveDraft) {
+          const known = new Set(this.products.map(x => x.productId));
+          this.products.push(...[...previous.values()].filter(x => this.additionalIds.has(x.productId) && !known.has(x.productId)));
+          this.additionalIds = new Set([...this.additionalIds].filter(id => !next.products.some(x => x.productId === id)));
+        } else this.additionalIds = new Set();
         this.nextOrder = next; this.customerName = next.customerName; this.loadedCustomerId = customerId;
         if (changedUnits) this.notice = 'Cambió la unidad de un producto. Revisa el desglose antes de confirmar; las cantidades manuales de unidades cambiadas se dejaron en cero.';
         if (!preserveDraft) { this.text = ''; this.deliveryNotes = ''; this.manualDirty = false; this.mode = next.isProfileApproved ? 'quick' : 'manual'; }

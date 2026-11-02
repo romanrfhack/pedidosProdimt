@@ -9,6 +9,7 @@ public sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
     public void Configure(EntityTypeBuilder<OrderLine> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.RequiresMachine).HasDefaultValue(true).HasSentinel(true);
 
         builder.Property(x => x.Quantity)
             .HasPrecision(18, 2);

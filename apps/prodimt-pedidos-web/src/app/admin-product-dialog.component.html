@@ -10,7 +10,10 @@
         <label><span id="product-unit-label">Unidad de venta</span><select name="productUnit" aria-labelledby="product-unit-label" [(ngModel)]="value.unitCode">
           <option [ngValue]="null">Por confirmar</option><option value="kg">Kilogramos</option><option value="piece">Piezas</option><option value="dozen">Docenas</option><option value="package">Paquetes</option>
         </select></label>
-        <p class="product-note">La unidad se usa al capturar cantidades. El precio se configura para cada cliente.</p>
+        <label><span id="product-production-label">Producción</span><select name="productRequiresMachine" aria-labelledby="product-production-label" [(ngModel)]="value.requiresMachine">
+          <option [ngValue]="true">Requiere máquina</option><option [ngValue]="false">No requiere máquina</option>
+        </select></label>
+        <p class="product-note">Los productos que no requieren máquina quedan fuera del panel de producción. Los registros anteriores se conservan. El precio se configura para cada cliente.</p>
       </fieldset>
     </div>
     <footer><button type="button" class="secondary" [disabled]="saving" (click)="dismiss()">Cancelar</button>

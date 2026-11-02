@@ -24,6 +24,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasMaxLength(500);
 
         builder.Property(x => x.UnitCode).HasMaxLength(16);
+        builder.Property(x => x.RequiresMachine).HasDefaultValue(true).HasSentinel(true);
 
         builder.HasMany<OrderLine>()
             .WithOne()

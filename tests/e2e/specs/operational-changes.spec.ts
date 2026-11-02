@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { productionFromPlan } from '../production-fixture';
 const api = 'http://127.0.0.1:5088';
 const date = '2026-10-25';
 const orderId = '33333333-3333-3333-3333-333333333301';
@@ -26,7 +27,9 @@ function plan(version = 2, quantity = 20) {
     pendingReview: [], warnings: [] };
 }
 async function board(page: Page, notices: () => any[], readPlan: () => any = () => plan()) {
-  await page.route(/\/api\/admin\/operations\/plan\?/, route => route.fulfill({ json: readPlan() }));
+  let lastPlan = plan();
+  await page.route(/\/api\/admin\/operations\/plan\?/, route => { lastPlan = readPlan(); return route.fulfill({ json: lastPlan }); });
+  await page.route(/\/api\/admin\/operations\/production\?/, route => route.fulfill({ json: productionFromPlan(lastPlan) }));
   await page.route(/\/api\/admin\/operations\/changes\?/, route => route.fulfill({ json: { date, pendingCount: notices().filter(item => !item.acknowledgedAt).length, changes: notices() } }));
   await page.goto(`/admin/operacion?date=${date}`);
   await expect(page.getByTestId('operations-changes')).toBeVisible();
@@ -88,7 +91,8 @@ test('filtro incluye avisos sin máquina, bajas y unidades separadas; móvil no 
     lines: [{ productId: 'product-dozen', productName: 'Producto por docena', unitCode: 'dozen', beforeQuantity: 2, afterQuantity: 0, deltaQuantity: -2, beforeNotes: 'Antigua', afterNotes: null }] })];
   await board(page, () => notices);
   await expect(page.getByTestId('pending-operation-change')).toHaveCount(2);
-  await page.getByLabel('Máquina a consultar').selectOption('unassigned');
+  const filters = page.getByRole('region', { name: 'Máquinas a mostrar', exact: true });
+  await filters.getByRole('button', { name: /Máquina 1/ }).click();
   const pending = page.getByTestId('pending-operation-change');
   await expect(pending).toHaveCount(1);
   await expect(pending).toContainText('Sin máquina asignada');
@@ -99,7 +103,8 @@ test('filtro incluye avisos sin máquina, bajas y unidades separadas; móvil no 
   await expect(page.getByTestId('preparation-order')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath('changes-mobile.png'), fullPage: true });
-  await page.getByLabel('Máquina a consultar').selectOption(machineId);
+  await filters.getByRole('button', { name: /Sin máquina asignada/ }).click();
+  await filters.getByRole('button', { name: /Máquina 1/ }).click();
   await expect(pending).toHaveCount(1);
   await expect(pending).toContainText('+5 kg');
 });
@@ -225,4 +230,12 @@ test('sondeo de 15 segundos consulta cambios sin recargar la pantalla', async ({
   await page.clock.fastForward(15_000);
   await expect(page.getByTestId('pending-operation-change')).toHaveCount(1);
   await expect(page.getByTestId('pending-operation-change')).toContainText('+5 kg solicitados');
+});
+
+test('demanda retirada conserva su aviso aunque el pedido ya no esté en el plan de producción', async ({ page }) => {
+  await login(page);
+  await board(page, () => [notice({ lines: [{ productId: 'product-kg', productName: 'Producto retirado', unitCode: 'kg', beforeQuantity: 15, afterQuantity: 0, deltaQuantity: -15, beforeNotes: null, afterNotes: null }] })], () => ({ ...plan(), orders: [], machineDemand: [] }));
+  await expect(page.getByTestId('pending-operation-change')).toContainText('Producto retirado');
+  await expect(page.getByRole('button', { name: 'Cambio recibido', exact: true })).toBeEnabled();
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });

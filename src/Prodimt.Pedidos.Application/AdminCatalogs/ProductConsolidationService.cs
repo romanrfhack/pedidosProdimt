@@ -24,7 +24,8 @@ public sealed record ProductConsolidationResponse(Guid OperationId, Guid TargetP
     int ArchivedProducts, int UpdatedProfiles, int PriceAssignments, bool Replayed = false);
 
 public sealed class ProductConsolidationService(IProductRepository products, ICustomerRepository customers,
-    ICommercialCatalogRepository commercial, IAuditLogRepository audit, IDateTimeProvider clock)
+    ICommercialCatalogRepository commercial, IAuditLogRepository audit, IDateTimeProvider clock,
+    ICustomerProductSetupRepository? setups = null, IProductionRepository? production = null)
 {
     private sealed record Profile(Customer Customer, IReadOnlyList<CustomerFrequentProduct> Items);
     private sealed record Plan(ProductConsolidationPreview Preview, Product[] Products, Profile[] Profiles,
@@ -96,7 +97,8 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
                     {
                         CustomerId = x.CustomerId, ProductId = sourceIds.Contains(x.ProductId) ? request.TargetProductId : x.ProductId,
                         DefaultQuantity = x.DefaultQuantity, SortOrder = x.SortOrder, InterpretationPosition = x.InterpretationPosition,
-                        CaptureAlias = x.CaptureAlias, PreferredMachineId = x.PreferredMachineId, IsActive = x.IsActive
+                        CaptureAlias = x.CaptureAlias, PreferredMachineId = x.PreferredMachineId, IsActive = x.IsActive,
+                        UseCustomerDefaultMachine = x.UseCustomerDefaultMachine, RequiresMachine = x.RequiresMachine
                     }).ToArray();
                     await customers.ReplaceFrequentProductsAsync(profile.Customer.Id, replacement, ct);
                     profile.Customer.RecordOrderingProfileChange(false, clock.Now);
@@ -142,9 +144,20 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
             selected.Add(await products.GetByIdForUpdateAsync(id, token) ?? throw new ArgumentException("Un producto ya no existe."));
         var target = selected.Single(x => x.Id == request.TargetProductId);
         var errors = new List<string>();
+        if (production is not null)
+            foreach (var product in selected)
+                if (await production.HasRecordedProductProductionAsync(product.Id, token))
+                {
+                    errors.Add("Un producto tiene producción registrada; no se consolida para conservar la identidad de sus lotes, asignaciones y saldos.");
+                    break;
+                }
+        if (setups is not null && (await setups.GetOpenAsync(token)).Any(x => ids.Contains(x.ProductId)))
+            errors.Add("Completa primero las configuraciones pendientes de estos productos antes de consolidarlos.");
         if (selected.Any(x => !x.IsActive || x.MergedIntoProductId is not null)) errors.Add("Selecciona solamente productos activos sin consolidar.");
         if (target.UnitCode is null || !ProductUnitCodes.IsSupported(target.UnitCode) || selected.Any(x => x.UnitCode != target.UnitCode))
             errors.Add("Todos los productos deben tener la misma unidad confirmada. No se convierten kilos, piezas o paquetes.");
+        if (selected.Any(x => x.RequiresMachine != target.RequiresMachine))
+            errors.Add("Los productos deben coincidir en Requiere máquina; no se cambia su modo de producción al consolidar.");
         var duplicate = (await products.GetAllAsync(token)).FirstOrDefault(x => x.IsActive
             && !ids.Contains(x.Id) && Normalize(x.Name) == Normalize(request.SharedName));
         if (duplicate is not null) errors.Add("Ya existe ese nombre: incluye ese producto como destino.");
@@ -166,7 +179,7 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
         var fingerprint = CommercialHash.Of(new
         {
             request.TargetProductId, name = request.SharedName.Trim(), description = Clean(request.Description),
-            products = selected.OrderBy(x => x.Id).Select(x => new { x.Id, x.Name, x.Description, x.UnitCode, x.ExternalCode, x.IsActive, x.MergedIntoProductId }),
+            products = selected.OrderBy(x => x.Id).Select(x => new { x.Id, x.Name, x.Description, x.UnitCode, x.ExternalCode, x.IsActive, x.MergedIntoProductId, x.RequiresMachine }),
             profiles = profiles.Select(x => new { x.Customer.Id, x.Customer.OrderingProfileVersion,
                 x.Customer.IsOrderProfileApproved, items = x.Items.OrderBy(i => i.ProductId) }),
             prices = books.OrderBy(x => x.Id).Select(x => new { x.Id, x.CustomerId, x.ProductId, x.Version })

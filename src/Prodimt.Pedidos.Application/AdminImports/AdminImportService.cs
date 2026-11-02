@@ -1237,6 +1237,7 @@ public sealed class AdminImportService(
 
         foreach (var group in plan.Items.GroupBy(x => x.CustomerId))
         {
+            var previous = (await customers.GetAllFrequentProductsAsync(group.Key, cancellationToken)).ToDictionary(x => x.ProductId);
             var replacement = group
                 .Select((item, index) => new CustomerFrequentProduct
                 {
@@ -1245,9 +1246,13 @@ public sealed class AdminImportService(
                     DefaultQuantity = item.DefaultQuantity,
                     SortOrder = item.SortOrder is > 0 ? item.SortOrder.Value : index + 1,
                     IsActive = item.IsActive,
-                    PreferredMachineId = item.PreferredMachineId,
+                    PreferredMachineId = previous.GetValueOrDefault(item.ProductId)?.RequiresMachine == false
+                        ? null : item.PreferredMachineId,
                     InterpretationPosition = item.InterpretationPosition,
-                    CaptureAlias = item.CaptureAlias
+                    CaptureAlias = item.CaptureAlias,
+                    UseCustomerDefaultMachine = previous.GetValueOrDefault(item.ProductId)?.RequiresMachine != false
+                        && (previous.GetValueOrDefault(item.ProductId)?.UseCustomerDefaultMachine ?? true),
+                    RequiresMachine = previous.GetValueOrDefault(item.ProductId)?.RequiresMachine ?? true
                 })
                 .OrderBy(x => x.SortOrder)
                 .ToArray();

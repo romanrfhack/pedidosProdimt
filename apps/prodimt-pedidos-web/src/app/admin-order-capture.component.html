@@ -36,11 +36,15 @@
     }
   } @else {
     <div class="manual-products">@for (product of config.products; track product.id) {
-      <label class="manual-product"><span><strong>{{ product.name }}</strong><small>{{ product.unitCode ? unitLabel(product.unitCode) : 'Confirma la unidad en Configurar cliente' }}</small></span>
+      <div class="manual-product-wrap" [class.additional]="additionalIds.has(product.id)">
+      <label class="manual-product"><span><strong>{{ product.name }}</strong><small>{{ product.unitCode ? unitLabel(product.unitCode) : 'Confirma la unidad en Configurar cliente' }} @if (additionalIds.has(product.id)) { · Producto agregado }</small></span>
         <input type="number" min="0" max="9999999999999999" step="0.01" inputmode="decimal" [name]="'captureQuantity' + product.id"
           [(ngModel)]="product.quantity" [disabled]="locked || !product.unitCode" [attr.aria-label]="'Cantidad de ' + product.name">
       </label>
+      @if (additionalIds.has(product.id)) { <button type="button" class="remove-additional" [disabled]="locked" [attr.aria-label]="'Quitar ' + product.name" (click)="removeAdditionalProduct(product.id)">Quitar del pedido</button> }
+      </div>
     }</div>
+    <button type="button" class="secondary additional-product-trigger" [disabled]="locked" (click)="openProductPicker()">+ Pedir otro producto</button>
   }
   @if (notice) { <p class="notice" role="status">{{ notice }}</p> }
   @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
@@ -58,3 +62,10 @@
     <button type="button" class="refresh-config" [disabled]="locked" (click)="refreshConfiguration()">Actualizar configuración</button>
   </div>
 </form>
+
+@defer (when productPicker.isOpen) {
+  @if (productPicker.isOpen) {
+    <app-add-order-product-dialog [products]="productPicker.products" [loading]="productPicker.loading" [error]="productPicker.error"
+      (added)="addProduct($event)" (dismissed)="productPicker.close()" (retried)="productPicker.reload()" />
+  }
+}

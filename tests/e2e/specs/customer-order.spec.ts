@@ -1,3 +1,4 @@
+import { productionFromPlan } from '../production-fixture';
 import { expect, test, type Page } from '@playwright/test';
 
 const mockApiBaseUrl = 'http://127.0.0.1:5088';
@@ -335,7 +336,7 @@ const operationsFixture = {
   date: '2026-10-24', routeCode: 'PILOTO-DEMO', demandLabel: 'Por producir', preparationLabel: 'Por preparar',
   orders: [{
     orderId: '33333333-3333-3333-3333-333333333310', customerId: '11111111-1111-1111-1111-111111111110',
-    customerName: 'Cliente Piloto Demo', sequenceNumber: 1, status: 'Accepted', routeCode: 'PILOTO-DEMO', routeStopOrder: 1,
+    customerName: 'Cliente Piloto Demo', sequenceNumber: 1, orderVersion: 1, status: 'Accepted', routeCode: 'PILOTO-DEMO', routeStopOrder: 1,
     hasStoreKey: true, paymentTermCode: 'cash_on_delivery', internalDeliveryInstructions: 'Dejar en la mesa derecha.',
     requestedDeliveryTime: '10:30:00', requestedDeliveryWindowStart: null, requestedDeliveryWindowEnd: null,
     deliveryNotes: null, orderingProfileVersion: 3,
@@ -355,6 +356,7 @@ const operationsFixture = {
 };
 
 async function mockOperationsPlan(page: Page) {
+  await page.route(/\/api\/admin\/operations\/production\?/, route => route.fulfill({ json: productionFromPlan(operationsFixture) }));
   await page.route(/\/api\/admin\/operations\/plan\?/, async (route) => {
     const requestUrl = new URL(route.request().url());
     await route.fulfill({ json: {
@@ -446,12 +448,12 @@ test('plan móvil e impresión separan unidades y muestran preparación e instru
   await loginAdmin(page);
   await page.getByRole('link', { name: 'Operación' }).click();
   const plan = page.getByTestId('operations-plan');
-  await expect(plan.getByRole('heading', { name: 'Por producir', exact: true })).toBeVisible();
+  await expect(plan.getByRole('heading', { name: 'Carga por máquina', exact: true })).toBeVisible();
   await expect(page.getByTestId('machine-demand').locator('tbody tr')).toHaveCount(2);
   await expect(page.getByTestId('machine-demand').locator('tbody tr').nth(0)).toContainText('kg');
   await expect(page.getByTestId('machine-demand').locator('tbody tr').nth(1)).toContainText('docenas');
-  await expect(page.getByTestId('preparation-order')).toContainText('Con llave del local');
-  await expect(page.getByTestId('preparation-order')).toContainText('Cobro diario contraentrega · requiere ticket');
+  await expect(page.getByTestId('preparation-order')).not.toContainText('Con llave del local');
+  await expect(page.getByTestId('preparation-order')).not.toContainText('Cobro diario contraentrega · requiere ticket');
   await expect(page.getByText('Dejar en la mesa derecha.', { exact: false })).toBeVisible();
   await expect(page.getByTestId('plan-pending-review')).toContainText('Cliente Pendiente Demo');
   await expect(page.getByTestId('machine-demand')).not.toContainText('Cliente Pendiente Demo');

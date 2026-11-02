@@ -14,7 +14,7 @@ public sealed class OrderChangeNoticePublisher(IOrderChangeNoticeRepository noti
         Guid? MachineId, string? Notes);
 
     public static IReadOnlyList<DemandLine> Capture(Order order) => order.Status is OrderStatus.Submitted or OrderStatus.Accepted
-        ? order.Lines.Select(line => new DemandLine(line.ProductId, line.ProductNameSnapshot ?? "Producto historico",
+        ? order.Lines.Where(line => line.RequiresMachine).Select(line => new DemandLine(line.ProductId, line.ProductNameSnapshot ?? "Producto historico",
             line.UnitCode, line.Quantity, line.AssignedMachineId, line.Notes)).ToArray()
         : [];
 

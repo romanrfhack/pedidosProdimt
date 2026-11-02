@@ -1,0 +1,24 @@
+<dialog #dialog aria-labelledby="additional-product-title" (cancel)="close($event)" (click)="backdrop($event)">
+  <header><div><p>CAPTURA MANUAL</p><h2 id="additional-product-title">Agregar producto al pedido</h2></div>
+    <button type="button" aria-label="Cerrar selección de producto" (click)="close()">×</button></header>
+  <form (ngSubmit)="add()">
+    <div class="picker-body">
+      @if (loading) { <p class="notice" role="status">Consultando productos disponibles…</p> }
+      @if (error) { <div class="alert error" role="alert">{{ error }} <button type="button" class="secondary" (click)="retried.emit()">Reintentar consulta</button></div> }
+      @if (!loading && !error && products.length === 0) { <p class="notice">No hay otros productos disponibles. Puedes ajustar las cantidades de los productos que ya aparecen en tu pedido.</p> }
+      @if (products.length) {
+        <label><span>Buscar producto</span><input type="search" name="additionalSearch" autofocus autocomplete="off" [(ngModel)]="query" (ngModelChange)="searchChanged()" placeholder="Nombre del producto" [disabled]="loading"></label>
+        <label><span id="additional-product-label">Producto</span><select name="additionalProduct" aria-labelledby="additional-product-label" [(ngModel)]="selectedId" (ngModelChange)="productChanged()" [disabled]="loading || !!error">
+          <option value="">Selecciona un producto</option>
+          @for (product of filtered; track product.productId) { <option [value]="product.productId">{{ product.productName }} · {{ unitLabel(product.unitCode) }}</option> }
+        </select></label>
+        @if (filtered.length === 0) { <p role="status">No encontramos productos con ese nombre.</p> }
+        <label><span>Cantidad</span><input type="number" name="additionalQuantity" min="0.01" step="0.01" max="9999999999999999" inputmode="decimal" [(ngModel)]="quantity" [disabled]="loading || !selected" placeholder="¿Cuánto quieres pedir?"></label>
+        @if (selected; as product) { <p class="selected-unit">Unidad de venta: <strong>{{ unitLabel(product.unitCode) }}</strong></p> }
+      }
+      <p class="picker-help">PRODIMT completará la configuración de este producto. Tu pedido puede continuar.</p>
+    </div>
+    <footer><button type="button" class="secondary" (click)="close()">Cancelar</button>
+      <button type="submit" class="primary" [disabled]="!valid">Agregar al pedido</button></footer>
+  </form>
+</dialog>

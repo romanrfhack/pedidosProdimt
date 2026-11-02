@@ -126,9 +126,11 @@ public sealed class AdminDailyOrderService(
                 if (!oldLines.TryGetValue(Canonical(input.ProductId), out var previous)) return newLookup[input.ProductId];
                 if (previous.UnitCode is null || !ProductUnitCodes.IsSupported(previous.UnitCode))
                     throw new ArgumentException("No se puede corregir una partida historica sin unidad validada.");
-                return new OrderLine { Id = Guid.NewGuid(), ProductId = previous.ProductId, Quantity = input.Quantity,
+                // Compatible corrections keep the line identity used by production allocations.
+                return new OrderLine { Id = previous.Id, ProductId = previous.ProductId, Quantity = input.Quantity,
                     Notes = input.Notes, UnitCode = previous.UnitCode, ProductNameSnapshot = previous.ProductNameSnapshot,
-                    AssignedMachineId = previous.AssignedMachineId, UnitPriceSnapshot = previous.UnitPriceSnapshot,
+                    AssignedMachineId = previous.AssignedMachineId, RequiresMachine = previous.RequiresMachine,
+                    UnitPriceSnapshot = previous.UnitPriceSnapshot,
                     CurrencyCodeSnapshot = previous.CurrencyCodeSnapshot, PriceRevisionId = previous.PriceRevisionId,
                     PriceEffectiveFrom = previous.PriceEffectiveFrom };
             }).ToArray();

@@ -307,10 +307,10 @@ function clone(value) {
 
 const securityPermissionKeys = ['orders.read', 'orders.capture', 'orders.review', 'customers.read', 'customers.manage',
   'products.read', 'products.manage', 'machines.read', 'machines.manage', 'pricing.manage', 'tokens.manage', 'imports.manage',
-  'operations.read', 'operations.acknowledge', 'security.manage'];
+  'operations.read', 'operations.acknowledge', 'security.manage', 'operations.assign', 'operations.produce', 'operations.allocate'];
 const securityPermissionNames = ['Consultar pedidos', 'Capturar pedidos', 'Revisar pedidos', 'Consultar clientes', 'Administrar clientes',
   'Consultar productos', 'Administrar productos', 'Consultar máquinas', 'Administrar máquinas', 'Administrar precios',
-  'Administrar accesos', 'Importar datos', 'Consultar operación', 'Reconocer avisos', 'Administrar seguridad'];
+  'Administrar accesos', 'Importar datos', 'Consultar operación', 'Reconocer avisos', 'Administrar seguridad', 'Asignar máquinas', 'Registrar producción', 'Asignar producción'];
 let securityState;
 function resetSecurityState() {
   const permissions = securityPermissionKeys.map((key, i) => ({ id: `90000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`,
@@ -346,6 +346,13 @@ function resetState() {
   catalogProducts = clone(catalogProductsBase);
   catalogMachines = clone(catalogMachinesBase);
   frequentProductsByCustomer = clone(frequentProductsBase);
+  for (const items of Object.values(frequentProductsByCustomer)) {
+    for (const item of items) {
+      item.interpretationPosition ??= null;
+      item.captureAlias ??= null;
+      item.useCustomerDefaultMachine ??= true;
+    }
+  }
   machineAssignmentsByCustomer = clone(machineAssignmentsBase);
   accessTokensByCustomer = clone(accessTokensBase);
   accessTokenSecrets = new Map();
@@ -788,6 +795,20 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/operations/plan') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: url.searchParams.get('date'), routeCode: url.searchParams.get('routeCode'),
+      demandLabel: 'Por producir', preparationLabel: 'Por preparar', orders: [], machineDemand: [], pendingReview: [], warnings: [] });
+    return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/admin/operations/production') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { date: url.searchParams.get('date'), routeCode: url.searchParams.get('routeCode'), summaryScope: 'all-routes',
+      machines: catalogMachines.filter(machine => machine.isActive).map(machine => ({ machineId: machine.id, machineNumber: machine.number, machineName: machine.name,
+        assignedQuantity: 0, producedQuantity: 0, pendingQuantity: 0, allocatedQuantity: 0, availableQuantity: 0 })), batches: [], orders: [], allocations: [] });
+    return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/operations/changes') {
     if (!requireAdminAccess(request, response)) return;
     sendJson(response, 200, { date: url.searchParams.get('date'), pendingCount: 0, changes: [] });
@@ -1134,7 +1155,8 @@ const server = http.createServer(async (request, response) => {
           defaultQuantity: item.defaultQuantity ?? null,
           sortOrder: item.sortOrder,
           isActive: item.isActive,
-          preferredMachineId: item.preferredMachineId ?? null, interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null, captureAlias: item.captureAlias?.trim().toUpperCase() || null
+          preferredMachineId: item.preferredMachineId ?? null, useCustomerDefaultMachine: item.useCustomerDefaultMachine ?? true,
+          interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null, captureAlias: item.captureAlias?.trim().toUpperCase() || null
         };
       });
     }
@@ -1221,6 +1243,15 @@ const server = http.createServer(async (request, response) => {
     if (!requireAdminAccess(request, response)) return;
     sendJson(response, 200, []);
     return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups/count') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { pendingCount: 0 }); return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, []); return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/products') {

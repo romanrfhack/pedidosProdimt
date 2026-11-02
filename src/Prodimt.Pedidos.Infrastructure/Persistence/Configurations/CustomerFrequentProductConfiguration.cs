@@ -14,6 +14,8 @@ public sealed class CustomerFrequentProductConfiguration : IEntityTypeConfigurat
             .HasPrecision(18, 2);
 
         builder.Property(x => x.CaptureAlias).HasMaxLength(16);
+        builder.Property(x => x.UseCustomerDefaultMachine).HasDefaultValue(true).HasSentinel(true);
+        builder.Property(x => x.RequiresMachine).HasDefaultValue(true).HasSentinel(true);
         builder.HasIndex(x => new { x.CustomerId, x.CaptureAlias })
             .IsUnique().HasFilter("[CaptureAlias] IS NOT NULL");
 

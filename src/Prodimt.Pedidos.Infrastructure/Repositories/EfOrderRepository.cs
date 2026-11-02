@@ -101,9 +101,21 @@ public sealed class EfOrderRepository(PedidosDbContext dbContext) : IOrderReposi
 
     public Task ReplaceLinesAsync(Order order, IReadOnlyList<OrderLine> lines, CancellationToken cancellationToken)
     {
-        dbContext.OrderLines.RemoveRange(order.Lines);
-        order.ReplaceLines(lines);
-        dbContext.OrderLines.AddRange(lines);
+        var existing = order.Lines.ToDictionary(x => x.Id);
+        var retainedIds = lines.Select(x => x.Id).ToHashSet();
+        dbContext.OrderLines.RemoveRange(order.Lines.Where(x => !retainedIds.Contains(x.Id)));
+        var replacements = lines.Select(line =>
+        {
+            line.OrderId = order.Id;
+            if (!existing.TryGetValue(line.Id, out var retained))
+            {
+                dbContext.OrderLines.Add(line);
+                return line;
+            }
+            dbContext.Entry(retained).CurrentValues.SetValues(line);
+            return retained;
+        }).ToArray();
+        order.ReplaceLines(replacements);
         return Task.CompletedTask;
     }
 

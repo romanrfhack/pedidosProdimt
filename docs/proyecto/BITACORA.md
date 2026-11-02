@@ -1,5 +1,9 @@
 # Bitácora de trabajo
 
+## 2026-11-02 — I19 producción y asignación a pedidos
+
+El usuario autoriza el rediseño de Operación y amplía el alcance para definir «No requiere máquina», asignar máquinas desde producción, registrar kilos físicos y asignarlos a pedidos concretos. Se integran las fuentes paralelas I16/I18 conservando I17, sus migraciones y la seguridad por petición. Nueva migración aditiva de flags/lotes/asignaciones y permisos separados para asignar máquina, producir y distribuir. Se validan reintentos, concurrencia de saldo, correcciones compatibles, reversión, avisos y diseño responsive. El cierre de regresiones/SQL del instalador y empaquetado se registrará en evidencia I19. Sin operaciones en el VPS ni datos reales.
+
 ## 2026-11-02 — I18: validación completa y entrega instalable
 
 Fuente `c49df453de9d07f5be301fb109dbb813309326d9` y PR#10 en borrador sobre I17. [CI 41477009188](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41477009188) completo: cuatro trabajos correctos, **356 Domain/Application, 72 SQL/criptografía, 163 E2E y 366 Python**, más smoke Production inicial y persistido. SQL ODBC validó la migración13→14, rollback integral del DDL/seed y repetición sin reotorgar roles. El SQL exacto del ZIP coincide con el probado por ODBC: SHA256 `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`. Se conserva la confirmación de instalación I17 integrada desde su rama documental, sin cambios funcionales adicionales.
@@ -25,6 +29,18 @@ Build Angular correcto con avisos de tamaño CSS preexistentes (sin elevar presu
 Publicado código de aplicación `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, [PR #8](https://github.com/romanrfhack/pedidosProdimt/pull/8). [CI 41472464468](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41472464468) completo: 335 Domain/Application, 66 SQL/criptografía, 151 E2E y 350 Python más smoke Production; cuatro trabajos correctos. La lógica de la clase de Pendientes permanece idéntica byte por byte; sólo cambia la referencia a plantilla/estilos.
 
 Construido desde fuente limpia y alineada con remoto; empaquetada sólo la clausura activa de assets (once archivos/licencias, sin residuos de builds previos). Verificados CRC exterior/interior, SHA256SUMS, pines, manifiesto, imports, cargador exportado e I14/I15 preservados; creada entrega descargable y guardada `PRODIMT_Clientes_Pendientes_I17.zip`, 200296 bytes, SHA256 `6d3ff6d47282852dde32c340d283b53e860e0566efa5530d04e2abf357684f5a`, payload `8b88052dcff7a0c5668e09f8a8d2106741c1bf56fa03b4dc3ec8f70fc03a1cc7`. Nuevo release `pending-customers-cdbfec3071bc`. No se accedió al VPS/SQL ni se operaron datos reales; instalación/aceptación pendientes. Siguiente: preflight sobre I15, aplicar, verificar frontend/salud y revisar Pendientes con Ctrl+F5 y cambio de ancho.
+
+## 2026-11-02 — I16: cierre validado y paquete disponible
+
+Se completan selector mínimo en ambas capturas manuales, guardado con seguimiento atómico/durable y pedido con precio pendiente, bandeja administrativa y resolución explícita/auditada de precios iniciales null. Conserva snapshots previos/cero, clave/accesos y UI I14/I15. Solicitud enlaza pedido/producto para sobrevivir a correcciones de partidas; modo manual conserva agregados y reintentos. Flag de máquina opcional conserva relaciones/importaciones anteriores y evita herencia para solicitudes nuevas. Motivo de revisión se registra también en auditoría general, incluso sin partidas que completar. Producción diaria/reventa/roles completos siguen diferidos.
+
+Fuente `b68982a14d1b2be4789de0e410993b1d9985f98d`, [PR #9](https://github.com/romanrfhack/pedidosProdimt/pull/9). [CI 41480769432](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41480769432) con cuatro trabajos correctos: 350 Domain/Application, 72 SQL/criptografía, 156 E2E y 349 Python, además de smoke Production inicial/persistido. ODBC real verifica el SQL exacto del incremento, rollback DDL/historial ante fallo de permisos, grants mínimos, defaults, conservación de tokens/cero/herencia y repetición con pendientes existentes. Se corrige visibilidad de metadatos separando lectura estructural del usuario limitado y comprobación estricta del administrador SQL; no se elevan privilegios. Fixtures históricos se fijan a sus versiones originales, manteniendo los instaladores anteriores intactos. Build .NET, modelo, Angular, anchos/capturas ficticias y artefacto final correctos.
+
+Entrega guardada: `PRODIMT_Productos_Adicionales_I16.zip`, 7,407,834 bytes, SHA256 `342e617624a9a1bfb8f130a7c96fe3efad5edc62bec7b9dad9e22aa858184812`; payload `78b56fa533ddbe1603e14171f7f783da438c3c399ea8c038556c39a64a6b5a16`. Setenta y siete archivos, licencias backend/frontend, CRC/hashes/imports y loader del instalador final verificados. Fuente de binarios y pines coincide con el cierre; cambios documentales posteriores no cambian ese pin. Sin despliegue o acceso VPS/SQL real, mensajes o datos reales publicados. Pendiente instalación/aceptación del usuario: preflight, aplicar sobre frontend I15/backend I12 con respaldo 13→14, comprobar indicadores, Ctrl+F5 y probar captura/bandeja. Main no cambia; no se repiten importaciones o incrementos previos.
+
+## 2026-11-02 — I16: captura y seguimiento transaccional en validación
+
+Implementados selector compartido de catálogo en captura manual cliente/administración, pedido con precio null sin heredar máquina, pendiente por relación con referencias durables a pedidos, bandeja y resolución comercial explícita/auditada. Mantiene I14/I15, contratos previos y precios fijados (incluido cero). Modelo y migración aditiva 13→14 generados con EF. Trece regresiones nuevas de Application pasan, además de 335 previas; Angular dentro del límite inicial y build Release correcto. Nuevos HTTP SQL/E2E en curso. Ajustados fixtures históricos al esquema que prueban, conservando guardas de mantenimiento anteriores. Instalador nativo con respaldo, clave estable y permisos mínimos en preparación; no hay paquete final ni despliegue I16.
 
 ## 2026-11-02 — I15: instalación confirmada por el usuario
 
@@ -630,3 +646,21 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Instalador/constructor nuevos fijan fuente/payload/archivos, aceptan sólo backendI12+frontendI15/I17 y requieren respaldo verificado antes de13→14. SQL EF se separa en DDL/seed porGO sin cambiar statements ni cerrar transacción.
 - Revisión identifica downgrade inseguro: I12 da administración total a usuarios internos activos. Rollback inmediato exige detener API antes de consultar y verificar revisión inicial/grafo puro; cambios o incertidumbre bloquean I12 y requieren recuperación manual. Regresiones del orden y de stopfallido correctas.
 - Preparado transporte ODBC real del SQL exacto del constructor con base aleatoria/credenciales sintéticas de CI: rollback por fallo de seed, preservación de cuentas/contraseñas y repetición sin restaurar roles retirados. Ejecución real pendiente de CI. Sin VPS/SQL operativo, publicación o aceptación de negocio.
+
+## 2026-11-02 — Propuesta I16, pedir otro producto del catálogo
+
+- Usuario solicita en captura manual cliente/administración un modal mínimo de producto del catálogo y cantidad, con pendiente de revisión/configuración para Administración General; no duplicar producto global.
+- Revisada captura privada adjunta y contratos/código vigentes de captura, snapshots de precios, configuración de relación y autorización. Ambas capturas rechazan productos fuera del perfil; precio se fija al confirmar y un cambio posterior de tarifa no resuelve por sí solo una partida sin precio.
+- Preparada propuesta docs/proyecto/INCREMENTO-16.md: borrador y modal, catálogo público mínimo, guardado de pedido/pendiente en transacción y reintentos durables, bandeja separada, configuración enfocada y resolución auditada inicial del precio.
+- Registradas reglas de producción diferidas: Burreras/harina reventa sin máquina; producción interna con asignación diaria humana y preferencia permanente separada. No heredar máquina del cliente a reventa ni inferir abastecimiento por ausencia de máquina.
+- Pendiente funcional a consultar: si una partida nueva continúa el flujo operativo con precio pendiente o espera revisión administrativa; no asumir autorización de producción/entrega sin esa definición.
+- Rama de diseño codex/i16-add-customer-products sobre checkpoint I15 afb8f3a. No aplicación modificada, tests nuevos, migraciones, paquete, SQL o SSH. I15 sigue en validación y no se afirma despliegue.
+
+
+## 2026-11-02 — I16 autorizado: pedido continúa con precio pendiente
+
+- Usuario confirma el flujo recomendado y autoriza implementar. Integrado cierre I15 71461b7 y su instalación reportada, conservando el mensaje I14 y rejillas.
+- Servidor: selector seguro, validación manual ampliada a catálogo activo sin saltar relaciones inactivas, guardado de solicitud/referencias junto al recibo/pedido, bandeja y resolución de snapshots null con vista previa, vigencia, versión y auditoría. Perfil/posiciones no cambian al capturar.
+- UI: selector modal compartido y borrador en ambas capturas, conservación de productos añadidos al refrescar, bloqueo de cambio a modo rápido para no perder líneas, bandeja y revisión enfocada con reintento durable de confirmación.
+- Máquina: nuevos productos sin herencia, relación con flag explícito persistido; versiones antiguas/importaciones omiten el campo sin sobrescribirlo. Preferencia y producción diaria no se equiparan; no se implementa planificación.
+- Dos tablas y columna nuevas, migración20261102152307 13→14 sin aplicar en VPS. Build Angular y 335 pruebas previas correctos. Regresiones nuevas/SQL real/paquete nativo pendientes de cierre; no se declara entrega o despliegue.

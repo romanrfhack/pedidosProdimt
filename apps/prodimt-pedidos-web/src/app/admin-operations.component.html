@@ -1,0 +1,136 @@
+<section class="page stack operations-plan production-page" data-testid="operations-plan">
+  <div class="operations-heading production-title">
+    <div class="page-title"><p class="eyebrow">Operación · producción</p><h2>Producción del día</h2><p>Asigna máquinas, registra kilos producidos y distribúyelos entre pedidos.</p></div>
+    @if (plan) { <button class="secondary no-print" type="button" (click)="print()">Imprimir plan</button> }
+  </div>
+  <form class="operations-filters no-print" (ngSubmit)="load()">
+    <label><span>Fecha de servicio</span><input name="serviceDate" type="date" required [(ngModel)]="date" (ngModelChange)="clearPlan()" [disabled]="isLoading"></label>
+    <label><span>Código de ruta</span><input name="routeCode" [(ngModel)]="routeCode" maxlength="80" placeholder="Todas las rutas" (ngModelChange)="clearPlan()" [disabled]="isLoading"></label>
+    <button class="primary" type="submit" [disabled]="isLoading || !date">Consultar plan</button>
+  </form>
+  @if (isLoading) { <p class="notice" aria-live="polite">Consultando producción…</p> }
+  @if (errorMessage) { <p class="alert error" role="alert">{{ errorMessage }}</p> }
+  @if (refreshError) { <p class="alert warning" role="alert">{{ refreshError }} Las cantidades y avisos mostrados pueden estar desactualizados. Vuelve a consultar antes de continuar.</p> }
+  @if (successMessage) { <p class="notice production-success" role="status">{{ successMessage }}</p> }
+  @if (plan; as current) {
+    @if (production; as day) {
+      <div class="production-caption"><strong>{{ current.date }} · {{ current.routeCode || 'Todas las rutas' }}</strong><small>Última consulta: {{ lastUpdated }} · actualización automática cada 15 segundos.</small></div>
+      <p class="production-print-scope">Máquinas del detalle: {{ selectedMachineLabels.join(' · ') || 'Ninguna seleccionada' }}.</p>
+      <section class="stack" aria-labelledby="production-machines-heading">
+        <div class="section-heading"><h3 id="production-machines-heading">Carga por máquina</h3><small>Totales en kg del día · todas las rutas</small></div>
+        <div class="production-machine-grid">
+          @for (machine of day.machines; track machine.machineId) {
+            <article class="production-machine" data-testid="production-machine">
+              <div class="section-heading"><h4>{{ machineLabel(machine.machineNumber, machine.machineName) }}</h4>
+                @if (access.has('operations.produce') && machine.isActive !== false) { <button type="button" class="secondary compact no-print" (click)="openEditor('batch', null, null, null, machine.machineId)" [disabled]="!canWrite()" [attr.aria-label]="'Registrar producción en ' + machineLabel(machine.machineNumber, machine.machineName)">Registrar</button> }
+              </div>
+              <dl class="production-metrics"><div><dt>Asignado a máquina</dt><dd>{{ quantity(machine.assignedQuantity) }} <small>kg</small></dd></div><div><dt>Producido</dt><dd>{{ quantity(machine.producedQuantity) }} <small>kg</small></dd></div><div><dt>Por producir</dt><dd>{{ quantity(machine.pendingQuantity) }} <small>kg</small></dd></div></dl>
+              <p class="production-available">Disponible para asignar <strong>{{ quantity(machine.availableQuantity) }} kg</strong></p>
+            </article>
+          }
+          @empty { <p class="notice">No hay máquinas disponibles. Revisa el catálogo de máquinas.</p> }
+        </div>
+        <p class="production-help">El resumen incluye todas las rutas. La ruta filtra los pedidos; los kilos sin asignar todavía no pertenecen a un cliente.</p>
+      </section>
+      <section class="stack production-machine-filter no-print" aria-label="Máquinas a mostrar">
+        <div class="section-heading"><h3>Máquinas a mostrar</h3><button class="production-text-action" type="button" (click)="selectAllMachines()">Seleccionar todas</button></div>
+        <div class="production-chips">
+          <button type="button" class="production-chip" [class.active]="selectedMachines.has('unassigned')" [attr.aria-pressed]="selectedMachines.has('unassigned')" (click)="toggleMachine('unassigned')"><span aria-hidden="true">{{ selectedMachines.has('unassigned') ? '✓' : '+' }}</span> Sin máquina asignada <small>{{ machineCount(null) }}</small></button>
+          @for (machine of availableMachines; track machine.id) { <button type="button" class="production-chip" [class.active]="selectedMachines.has(machine.id)" [attr.aria-pressed]="selectedMachines.has(machine.id)" (click)="toggleMachine(machine.id)"><span aria-hidden="true">{{ selectedMachines.has(machine.id) ? '✓' : '+' }}</span> {{ machine.label }} <small>{{ machineCount(machine.id) }}</small></button> }
+        </div>
+      </section>
+      <section class="stack change-board" aria-labelledby="changes-heading" data-testid="operations-changes">
+        <div class="section-heading"><h3 id="changes-heading">Cambios para la máquina</h3><span class="badge" [class.danger]="pendingChanges.length > 0" [class.neutral]="pendingChanges.length === 0" role="status">{{ pendingChanges.length }} pendientes de recibir</span></div>
+        @if (acknowledgeError) { <p class="alert error" role="alert">{{ acknowledgeError }}</p> }
+        @if (!pendingChanges.length) { <small>No hay cambios pendientes para las opciones activas.</small> }
+        @for (change of pendingChanges; track change.id) {
+          <article class="change-card" data-testid="pending-operation-change">
+            <div class="operations-heading"><div><h4>{{ change.customerName }} · {{ machineLabel(change.machineNumber, change.machineName) }}</h4><small>{{ change.kind === 'review' ? 'Pedido autorizado' : 'Pedido corregido' }} · Versión {{ change.orderVersion }} · {{ formatTimestamp(change.occurredAt) }}</small></div><span class="badge danger">Pendiente de recibir</span></div>
+            <p><b>Motivo:</b> {{ change.reason }}</p>
+            <small>Registró: {{ change.actorDisplayName || 'Administración' }}</small>
+            <ul class="change-lines">@for (line of change.lines; track $index) { <li><strong>{{ line.productName }}</strong><span>Antes: {{ line.beforeQuantity }} {{ unitLabel(line.unitCode) }} → Después: {{ line.afterQuantity }} {{ unitLabel(line.unitCode) }}</span><b>{{ deltaLabel(line.deltaQuantity, line.unitCode) }}</b>@if (line.deltaQuantity < 0) { <small>Si ya se elaboró, revisa con administración el excedente; no se descuenta producción automáticamente.</small> }@if (line.beforeNotes !== line.afterNotes) { <small>Nota anterior: {{ line.beforeNotes || 'Sin nota' }} · Nota actual: {{ line.afterNotes || 'Sin nota' }}</small> }</li> }</ul>
+            <div class="review-actions no-print">@if (access.has('operations.acknowledge')) { <button class="primary" type="button" (click)="acknowledge(change)" [disabled]="acknowledgingIds.has(change.id) || isLoading || isRefreshing || !!refreshError">{{ acknowledgingIds.has(change.id) ? 'Guardando recepción…' : 'Cambio recibido' }}</button> }@if (access.has('orders.read')) { <a routerLink="/admin/pedidos" [queryParams]="{ date: current.date, orderId: change.orderId }">Ver pedido y sus cambios</a> }</div>
+          </article>
+        }
+        @if (pendingChanges.length) { <small>Recibir un cambio confirma su lectura; no registra producción ni asigna kilos.</small> }
+        @if (receivedChanges.length) { <details class="received-changes"><summary>{{ receivedChanges.length }} avisos recibidos · ver historial</summary>@for (change of receivedChanges; track change.id) { <article class="detail-panel" data-testid="received-operation-change"><strong>{{ change.customerName }} · {{ machineLabel(change.machineNumber, change.machineName) }} · Versión {{ change.orderVersion }}</strong><small>Recibido por {{ change.acknowledgedBy || 'Administración' }} · {{ formatTimestamp(change.acknowledgedAt!) }}</small><p>{{ change.reason }}</p>@for (line of change.lines; track $index) { <small>{{ line.productName }} · {{ line.beforeQuantity }} → {{ line.afterQuantity }} {{ unitLabel(line.unitCode) }} · {{ deltaLabel(line.deltaQuantity, line.unitCode) }}</small> }</article> }</details> }
+      </section>
+      @if (visibleWarnings.length) { <details class="alert warning production-warnings" open><summary>Datos por resolver · {{ visibleWarnings.length }}</summary><ul>@for (warning of visibleWarnings; track $index) { <li>@if (warning.orderId) { <a [href]="'#pedido-' + warning.orderId">{{ warningContext(warning) }}</a>: }{{ warning.message }}</li> }</ul></details> }
+      <section class="stack" aria-labelledby="preparation-heading">
+        <div class="section-heading"><h3 id="preparation-heading">Pedidos por cliente</h3><span class="badge neutral" aria-live="polite">{{ visibleOrders.length }} pedidos visibles</span></div>
+        @if (!selectedMachines.size) { <p class="notice">Selecciona al menos una opción para ver los pedidos.</p> }
+        @else if (!visibleOrders.length) { <p class="notice">No hay pedidos incluidos para esta fecha, ruta y máquinas.</p> }
+        <div class="production-order-grid">
+          @for (order of visibleOrders; track order.orderId) {
+            <article class="preparation-card production-order" data-testid="preparation-order" [id]="'pedido-' + order.orderId">
+              <div class="operations-heading"><div><h4>{{ order.customerName }}</h4><small>Ruta {{ order.routeCode || 'por confirmar' }}@if (order.routeStopOrder !== null) { · Posición {{ order.routeStopOrder }} } · Pedido #{{ order.sequenceNumber }}</small></div><span class="badge neutral">{{ status(order) }}</span></div>
+              @if (hasPendingOrderChange(order.orderId)) { <span class="badge danger">Cambio pendiente de recibir</span> }
+              @if (deliveryWindow(order)) { <p class="production-order-instruction"><b>Horario:</b> {{ deliveryWindow(order) }}</p> }
+              @if (order.internalDeliveryInstructions) { <p class="production-order-instruction"><b>Preparación:</b> {{ order.internalDeliveryInstructions }}</p> }
+              <div class="production-order-lines">
+                @for (line of visibleLines(order); track line.orderLineId) {
+                  <div class="production-order-line" data-testid="production-line">
+                    <div class="production-line-heading"><strong>{{ line.productName }}</strong><strong class="line-quantity">{{ quantity(line.quantity) }} {{ unitLabel(line.unitCode) }}</strong></div>
+                    <small>{{ machineLabel(line.assignedMachineNumber, line.assignedMachineName) }}</small>
+                    @if (line.notes) { <p class="production-line-note">{{ line.notes }}</p> }
+                    @if (line.unitCode === 'kg') { <dl class="production-line-quantities"><div><dt>Asignado a pedido</dt><dd>{{ quantity(line.allocatedQuantity) }} kg</dd></div><div><dt>Por asignar</dt><dd>{{ quantity(line.pendingAllocationQuantity) }} kg</dd></div></dl> }
+                    @else { <small>Preparación en {{ unitLabel(line.unitCode) }} · registro de producción disponible en kg.</small> }
+                    <div class="production-line-actions no-print">
+                      @if (access.has('operations.assign')) { <button type="button" class="secondary compact" (click)="openEditor('machine', order, line)" [disabled]="!canWrite() || line.allocatedQuantity > 0" [attr.aria-label]="'Asignar máquina a ' + order.customerName + ' ' + line.productName">{{ line.assignedMachineId ? 'Cambiar máquina' : 'Asignar máquina' }}</button> }
+                      @if (access.has('operations.allocate') && line.unitCode === 'kg' && line.assignedMachineId && line.pendingAllocationQuantity > 0) { <button type="button" class="primary compact" (click)="openEditor('allocation', order, line)" [disabled]="!canWrite() || !matchingBatches(line).length" [attr.aria-label]="'Asignar kilos a ' + order.customerName + ' ' + line.productName">Asignar kilos</button> }
+                    </div>
+                    @if (line.allocatedQuantity > 0 && access.has('operations.assign')) { <small>Para cambiar de máquina, revierte primero las asignaciones del pedido.</small> }
+                    @if (line.allocatedQuantity > 0) { <details class="production-assignment-detail"><summary>Asignaciones del pedido</summary>@for (allocation of lineAllocations(line); track allocation.id) { <div class="production-allocation-row"><span>{{ quantity(allocation.quantity) }} kg · {{ formatTimestamp(allocation.createdAt) }}</span>@if (access.has('operations.allocate')) { <button type="button" class="secondary compact no-print" (click)="openEditor('reverse', order, line, allocation)" [disabled]="!canWrite()" [attr.aria-label]="'Revertir asignación de ' + quantity(allocation.quantity) + ' kilos de ' + order.customerName">Revertir</button> }</div> }</details> }
+                  </div>
+                }
+              </div>
+              @if (visibleLines(order).length < order.lines.length) { <small>{{ visibleLines(order).length }} de {{ order.lines.length }} renglones del pedido visibles</small> }
+            </article>
+          }
+        </div>
+      </section>
+      <section class="stack production-stock" aria-labelledby="production-stock-heading">
+        <div class="section-heading"><div><h3 id="production-stock-heading">Producción registrada</h3><small>Lotes del día · todas las rutas · máquinas activas en el filtro</small></div>@if (access.has('operations.produce')) { <button type="button" class="primary no-print" (click)="openEditor('batch')" [disabled]="!canWrite() || !activeMachines.length">Registrar producción</button> }</div>
+        <div class="production-stock-grid">
+          @for (batch of visibleBatches; track batch.id) { <article class="production-batch" data-testid="production-batch"><div class="section-heading"><strong>{{ batch.productName }}</strong><strong>{{ quantity(batch.quantity) }} kg</strong></div><small>{{ machineLabel(batch.machineNumber, batch.machineName) }} · {{ formatTimestamp(batch.createdAt) }}</small><div class="production-batch-balance"><span>Asignado {{ quantity(batch.allocatedQuantity) }} kg</span><strong>Disponible {{ quantity(batch.availableQuantity) }} kg</strong></div>@if (access.has('operations.allocate') && batch.availableQuantity > 0) { <button type="button" class="secondary compact no-print" (click)="openBatchAllocation(batch)" [disabled]="!canWrite() || !batchTargets(batch).length" [attr.aria-label]="'Asignar lote de ' + batch.productName + ' a pedido'">Asignar a pedido</button> }@if (batch.availableQuantity > 0 && !batchTargets(batch).length) { <small>No hay pedidos compatibles pendientes en la ruta consultada.</small> }</article> }
+          @empty { <p class="notice">Todavía no hay producción registrada para las máquinas seleccionadas.</p> }
+        </div>
+      </section>
+      <details class="production-demand-detail"><summary>Demanda por producto y unidad</summary><div class="table-scroll"><table class="operations-table" data-testid="machine-demand"><thead><tr><th>Máquina</th><th>Producto</th><th>Cantidad solicitada</th></tr></thead><tbody>@for (item of visibleDemand; track $index) { <tr><td>{{ machineLabel(item.machineNumber, item.machineName) }}</td><td>{{ item.productName }}</td><td class="quantity-cell">{{ item.quantity }} {{ unitLabel(item.unitCode) }}</td></tr> }</tbody></table></div></details>
+      @if (current.pendingReview.length) { <section class="stack pending-plan" data-testid="plan-pending-review"><h3>Pendientes de revisión</h3><p>Estos pedidos todavía no forman parte de la demanda por producir.</p><ul>@for (order of current.pendingReview; track order.orderId) { <li [id]="'pedido-' + order.orderId">{{ order.customerName }} · Pedido #{{ order.sequenceNumber }}</li> }</ul>@if (access.has('orders.review')) { <a class="no-print" routerLink="/admin/pendientes">Ir a revisión administrativa</a> }</section> }
+      <p class="print-footer">Plan de preparación. No es comprobante de entrega ni de pago.</p>
+    }
+  }
+</section>
+@if (editor; as edit) {
+  <dialog #productionDialog class="production-dialog no-print" aria-labelledby="production-dialog-heading" (cancel)="closeEditor($event)">
+    <form class="stack" (ngSubmit)="saveEditor()">
+      <div class="section-heading"><h3 id="production-dialog-heading">{{ edit.kind === 'batch' ? 'Registrar producción' : edit.kind === 'machine' ? 'Asignar máquina al pedido' : edit.kind === 'allocation' ? 'Asignar kilos a pedido' : 'Revertir asignación' }}</h3><button type="button" class="secondary compact" (click)="closeEditor()" [disabled]="saving || pendingConfirmation" aria-label="Cerrar">Cerrar</button></div>
+      @if (edit.order) { <p><strong>{{ edit.order.customerName }} · Pedido #{{ edit.order.sequenceNumber }}</strong><br>{{ edit.line?.productName }}</p> }
+      @if (edit.error) { <p class="alert error" role="alert">{{ edit.error }}</p> }
+      @if (edit.kind === 'batch') {
+        <p class="production-help">Servicio {{ production!.date }}. Registra únicamente kilos ya producidos; después puedes asignarlos a uno o varios pedidos.</p>
+        <label><span>Máquina de producción</span><select name="batchMachine" required [(ngModel)]="edit.machineId" [disabled]="edit.locked"><option value="">Seleccionar máquina</option>@for (machine of activeMachines; track machine.machineId) { <option [value]="machine.machineId">{{ machineLabel(machine.machineNumber, machine.machineName) }}</option> }</select></label>
+        <label><span>Producto producido</span><select name="batchProduct" required [(ngModel)]="edit.productId" [disabled]="edit.locked || loadingProducts"><option value="">{{ loadingProducts ? 'Consultando productos…' : 'Seleccionar producto' }}</option>@for (product of productionProducts; track product.id) { <option [value]="product.id">{{ product.name }}</option> }</select></label>
+        <label><span>Kilos producidos</span><input name="producedQuantity" type="number" min="0.01" step="0.01" required [(ngModel)]="edit.quantity" [disabled]="edit.locked"></label>
+        <label><span>Nota de producción (opcional)</span><textarea name="productionNotes" maxlength="500" rows="2" [(ngModel)]="edit.notes" [disabled]="edit.locked"></textarea></label>
+      } @else if (edit.kind === 'machine') {
+        <p class="production-help">La asignación aplica a este pedido. La preferencia habitual del cliente se conserva.</p>
+        <label><span>Máquina para este pedido</span><select name="assignedMachine" [(ngModel)]="edit.machineId" [disabled]="edit.locked"><option value="">Sin máquina / por asignar</option>@for (machine of activeMachines; track machine.machineId) { <option [value]="machine.machineId">{{ machineLabel(machine.machineNumber, machine.machineName) }}</option> }</select></label>
+        <label><span>Motivo de la asignación</span><textarea name="machineReason" maxlength="500" rows="2" required [(ngModel)]="edit.reason" [disabled]="edit.locked"></textarea></label>
+      } @else if (edit.kind === 'allocation') {
+        @if (edit.sourceBatch) { <label><span>Pedido del cliente</span><select name="allocationTarget" [ngModel]="edit.order!.orderId + ':' + edit.line!.orderLineId" (ngModelChange)="changeAllocationTarget($event)" [disabled]="edit.locked">@for (target of batchTargets(edit.sourceBatch); track target.key) { <option [value]="target.key">{{ target.label }}</option> }</select></label> }
+        <label><span>Lote disponible</span><select name="allocationBatch" required [(ngModel)]="edit.batchId" [disabled]="edit.locked || !!edit.sourceBatch"><option value="">Seleccionar lote</option>@for (batch of editorBatches; track batch.id) { <option [value]="batch.id">{{ batch.productName }} · {{ quantity(batch.availableQuantity) }} kg disponibles · {{ formatTimestamp(batch.createdAt) }}</option> }</select></label>
+        <p class="notice">Pedido: {{ quantity(edit.line!.quantity) }} kg · Por asignar: {{ quantity(edit.line!.pendingAllocationQuantity) }} kg.<br>Máximo disponible para este pedido: <strong>{{ quantity(allocationLimit) }} kg</strong>.</p>
+        @if (!editorBatches.length) { <p class="alert warning">Primero registra producción de este producto en la máquina asignada.</p> }
+        <label><span>Kilos a asignar al pedido</span><input name="allocatedQuantity" type="number" min="0.01" step="0.01" [max]="allocationLimit" required [(ngModel)]="edit.quantity" [disabled]="edit.locked"></label>
+      } @else {
+        <p>Se devolverán <strong>{{ quantity(edit.allocation!.quantity) }} kg</strong> al lote de producción. El registro de lo producido se conserva.</p>
+        <label><span>Motivo de la reversión</span><textarea name="reverseReason" maxlength="500" rows="2" required [(ngModel)]="edit.reason" [disabled]="edit.locked"></textarea></label>
+      }
+      @if (pendingConfirmation && !saving) { <p class="production-help">La operación está pendiente de confirmación. Reintenta con la misma referencia antes de cerrar para evitar un registro duplicado.</p> }
+      @if (edit.conflict) { <p class="production-help">Consulta el estado actual antes de preparar otra operación. El borrador se conserva hasta cerrar.</p><button type="button" class="secondary" (click)="closeAndRefresh()">Cerrar y consultar plan</button> }
+      <div class="production-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || pendingConfirmation">Cancelar</button><button type="submit" class="primary" [disabled]="saving || edit.conflict || (edit.kind === 'batch' && loadingProducts) || (edit.kind === 'allocation' && !editorBatches.length)">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : edit.kind === 'batch' ? 'Guardar producción' : edit.kind === 'allocation' ? 'Asignar kilos' : edit.kind === 'machine' ? 'Guardar asignación' : 'Confirmar reversión' }}</button></div>
+    </form>
+  </dialog>
+}

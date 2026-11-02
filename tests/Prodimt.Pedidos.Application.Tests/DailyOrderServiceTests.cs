@@ -359,13 +359,16 @@ public sealed class DailyOrderServiceTests
     }
 
     [Fact]
-    public async Task QuantityCorrection_KeepsExistingProductAndUnitSnapshots()
+    public async Task QuantityCorrection_KeepsExistingProductUnitAndMachineRequirementSnapshots()
     {
         await using var fixture = await Fixture.CreateAsync();
         var id = await fixture.CreateOrderAsync();
         var product = await fixture.Db.Products.SingleAsync(x => x.Id == fixture.KgProduct.Id);
         product.Update("Nombre de catálogo posterior", null);
         product.SetUnitCode("package");
+        var previousLine = await fixture.Db.OrderLines.SingleAsync();
+        previousLine.RequiresMachine = false;
+        previousLine.AssignedMachineId = null;
         await fixture.Db.SaveChangesAsync();
         fixture.Db.ChangeTracker.Clear();
 
@@ -380,6 +383,8 @@ public sealed class DailyOrderServiceTests
         var persisted = await fixture.Db.OrderLines.SingleAsync();
         Assert.Equal("Variante Demo A", persisted.ProductNameSnapshot);
         Assert.Equal("kg", persisted.UnitCode);
+        Assert.False(persisted.RequiresMachine);
+        Assert.Null(persisted.AssignedMachineId);
     }
 
     [Fact]

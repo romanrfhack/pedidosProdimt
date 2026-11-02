@@ -1,5 +1,9 @@
 # PRODIMT — Pedidos y operación
 
+## Producción I19
+
+`/admin/operacion` incorpora resumen por máquina, filtros combinables, asignación diaria de máquina, registro de lotes físicos en kg y asignación de su saldo a pedidos concretos. La configuración distingue «No requiere máquina» de pendiente; los primeros quedan fuera de producción. Se integran I16/I18 sin encadenar sus paquetes históricos, preservando productos adicionales, permisos y diseño I17. Alcance, saldos, instalación y validación: [`docs/proyecto/INCREMENTO-19.md`](docs/proyecto/INCREMENTO-19.md). Instalación remota pendiente; las pruebas locales no acreditan despliegue.
+
 ## Administración de seguridad I18
 
 El incremento autorizado I18 añade gestión de usuarios, roles, permisos, asignación multirrol y concesiones directas aditivas. Los permisos efectivos se verifican en servidor por petición; retirar un origen conserva permisos recibidos por otro. Ruta prevista `/admin/seguridad`, con interfaz responsive y control de gestión `security.manage`. Contrato, compatibilidad, actualización nativa y estado de validación: [`docs/proyecto/INCREMENTO-18.md`](docs/proyecto/INCREMENTO-18.md). Implementación local completa; validación SQL/CI y entrega en curso, sin despliegue remoto.
