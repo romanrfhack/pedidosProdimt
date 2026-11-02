@@ -4,11 +4,13 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I14 — Plantilla simplificada autorizada, validación en curso
+## I14 — Plantilla simplificada validada y empaquetada; instalación pendiente
 
-El usuario aprueba retirar del mensaje la entrega prevista y la explicación del corte, y usar «Haz tu pedido aquí:» con URL completa al conservar el envío normal por WhatsApp. Implementado en la plantilla común de vista previa/copia/copia manual/WhatsApp; conserva saludo, descripción, token y vencimiento CDMX. No cambia cálculo o confirmación de entrega dentro del portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`. Build Angular y 15 pruebas del instalador/paquete correctas; E2E/CI y ZIP final pendientes en este checkpoint. Ver `docs/proyecto/INCREMENTO-14.md` y `docs/validation/2026-11-01-reminder-message.md`.
+El usuario aprueba retirar del mensaje la entrega prevista y la explicación del corte, y usar «Haz tu pedido aquí:» con URL completa al conservar el envío normal por WhatsApp. Implementado en la plantilla común de vista previa/copia/copia manual/WhatsApp; conserva saludo, descripción, token y vencimiento CDMX. No cambia cálculo o confirmación de entrega dentro del portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`; fuente de aplicación y paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6). [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Build Angular local correcto; no cambiaron dependencias. Ver `docs/proyecto/INCREMENTO-14.md` y `docs/validation/2026-11-01-reminder-message.md`.
 
 Entrega sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conserva backend I12 `access-tokens-65560ca3cf98`. Sin migraciones, claves, contraseñas, revocaciones ni reinicio. No se ha instalado I14 ni operado el VPS desde este entorno. No repetir I12/I13 ni importaciones para este cambio.
+
+Entrega verificada y guardada: `PRODIMT_Plantilla_Mensaje_I14.zip`, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Payload `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`, once archivos frontend/licencias y carga del instalador exportado correctos. Siguiente: preflight `planned/completed`, aplicar y comprobar `updated/completed`, `frontend_verified` y `health_verified` true. Ctrl+F5 y revisar Tokens de acceso/mensaje simplificado, mismo enlace, vencimiento y fecha del portal; conservar I13. Instalación y aceptación remotas pendientes.
 
 ## I13 — Instalación confirmada; aceptación visual pendiente
 

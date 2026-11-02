@@ -13,10 +13,15 @@ El instalador de frontend conserva el patrón validado de I13: preflight de lect
 - `npm ci` con ambos lockfiles: correcto; sin cambios de dependencias.
 - `npm run build`: correcto; 493.06 kB iniciales. Advertencias de estilos heredadas de I13, sin ampliar presupuestos.
 - Pruebas del instalador/paquete I14: 15 correctas, incluidos rechazo de I11/I12, lectura sin escrituras, activación/repetición, rollback por fallo de asset/interrupción y backend alterado.
-- Pruebas E2E actualizadas y regresión completa: pendientes en este checkpoint.
+- [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018), fuente `768230826a3eff9d02cea0620acd814cb0047359`: cuatro trabajos correctos, 335 Domain/Application (5 + 330), 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production.
+- E2E de enlace nuevo y Guardar y abrir WhatsApp comprueban nueva llamada a la acción, URL y vencimiento, con ambas leyendas ausentes. La regresión nueva prueba mismo contenido en vista previa, copia, WhatsApp y fallback manual incluso al cambiar de fecha de entrega, sin crear/editar otro token; el enlace conserva el secreto en el fragmento.
 - La descarga del Chromium del lockfile falló localmente por un archivo de navegador inválido. No se cambió el lockfile ni se afirmó ejecución de navegador por ese intento.
 - `graphify update .`: herramienta no instalada; no existe grafo versionado que actualizar.
 
 ## Estado
 
-Compilación local verificada. Paquete final y validación remota pendientes de cierre. No se accedió al VPS o a la base real, no se reescribieron tokens ni se enviaron mensajes.
+Implementación publicada en [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6), rama `codex/i14-reminder-message-template`, sobre I13. Fuente de aplicación/paquete `768230826a3eff9d02cea0620acd814cb0047359`. Las actualizaciones documentales posteriores no cambian esos binarios o su pin.
+
+Entrega verificada y guardada: `PRODIMT_Plantilla_Mensaje_I14.zip`, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Payload SHA256 `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`. Once archivos frontend/licencias. CRC de ambos ZIP, SHA256SUMS, manifiesto, pines del instalador exportado, dependencias relativas de JS/HTML y ausencia de leyendas retiradas comprobados. Se ejecutó `load_payload` del instalador final contra el payload final, sin preflight o cambios remotos.
+
+Siguiente: verificar hashes, copiar instalador/payload, preflight `planned/completed` sin cambios y aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`; luego Ctrl+F5 y revisar mensaje/portal/catálogo. No se accedió al VPS o a la base real, no se reescribieron tokens ni se enviaron mensajes. Instalación y aceptación de negocio pendientes.

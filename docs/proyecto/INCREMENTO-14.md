@@ -22,4 +22,6 @@ Instalador fijado por hashes, preflight de lectura de proceso/enlaces y comproba
 
 Build Angular, regresión E2E de enlaces nuevos y existentes, igualdad de mensaje entre vista previa/copia/WhatsApp/copia manual, y pruebas Python de paquete/instalador. Evidencia en `docs/validation/2026-11-01-reminder-message.md`.
 
+Aplicación y paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6). [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) completo con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. ZIP final verificado/guardado: `PRODIMT_Plantilla_Mensaje_I14.zip`, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Instalación remota pendiente.
+
 Tras instalar, recargar con Ctrl+F5 y abrir Configuración de cliente → Tokens de acceso. Verificar texto simplificado, vencimiento y mismo enlace; comprobar fecha de entrega visible dentro del portal y conservación de Catálogos → Productos I13. No crear pedidos ni enviar mensajes desde las pruebas. La entrega no demuestra instalación remota o aceptación de negocio.

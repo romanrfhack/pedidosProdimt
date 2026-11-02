@@ -8,6 +8,10 @@ El usuario autoriza la propuesta: retirar entrega prevista/leyenda de corte y co
 
 `npm ci` sin cambios de lockfiles, `npm run build` correcto y 15 pruebas Python del paquete I14 correctas. E2E actualizados para enlazar el mensaje con el mismo acceso y comprobar copia/WhatsApp, sin crear otro token; corrida pendiente en este checkpoint. Chromium del lockfile no pudo descargarse localmente (archivo inválido); no se sustituyen dependencias. graphify no instalado y sin grafo previo. CI, publicación y ZIP final pendientes. No se accedió al VPS/SQL real ni se enviaron mensajes. Evidencia en `../validation/2026-11-01-reminder-message.md`.
 
+Cierre: código y fuente del paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6), rama `codex/i14-reminder-message-template`. [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) completo con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Las 320 Python también pasan localmente. La prueba de plantilla comprueba igualdad de vista previa/copia/WhatsApp/fallback, mismo enlace/vencimiento y cero creación/edición de tokens.
+
+ZIP final `PRODIMT_Plantilla_Mensaje_I14.zip` verificado y guardado, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Payload `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`, once archivos frontend/licencias; CRC/hashes/manifiesto, imports y carga del instalador exportado correctos. Sólo compilación/validación local y CI con datos ficticios. No se operó el VPS o la BD real ni se enviaron mensajes. Pendiente aplicación del paquete sobre I13 y aceptación por el usuario; no repetir instaladores o importaciones anteriores.
+
 ## 2026-10-24 — Análisis y arranque de I01
 
 ### Entrada y decisiones

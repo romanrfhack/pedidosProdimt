@@ -2,11 +2,11 @@
 
 Actualizado: 1 de noviembre de 2026.
 
-## I14 — Plantilla simplificada autorizada, validación en curso
+## I14 — Plantilla simplificada validada y empaquetada; instalación pendiente
 
-El usuario aprueba simplificar el mensaje de acceso: saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Implementado en una plantilla común para vista previa, copia, copia manual y WhatsApp; retiradas sólo del mensaje las dos leyendas de entrega/corte. La fecha y sus validaciones siguen en el portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`. Build Angular y 15 pruebas Python I14 correctas; E2E/CI y paquete final pendientes en este checkpoint.
+El usuario aprueba simplificar el mensaje de acceso: saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Implementado en una plantilla común para vista previa, copia, copia manual y WhatsApp; retiradas sólo del mensaje las dos leyendas de entrega/corte. La fecha y sus validaciones siguen en el portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`; aplicación/paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6). [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) completo, cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Build Angular y dependencias de lockfiles correctos, sin cambios de dependencias.
 
-Actualización sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conservando backend I12 y funcionalidades de catálogo/precios/accesos. No se ha instalado I14 ni operado VPS/SQL o enviado mensajes. Próximo: cerrar pruebas, empaquetar y entregar preflight/aplicación al usuario. Ver `INCREMENTO-14.md` y evidencia I14.
+Actualización sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conservando backend I12 y funcionalidades de catálogo/precios/accesos. No se ha instalado I14 ni operado VPS/SQL o enviado mensajes. Entrega verificada y guardada: `PRODIMT_Plantilla_Mensaje_I14.zip`, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`; payload `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`. Próximo: preflight y aplicación según LEEME, verificar salud/frontend, Ctrl+F5 y aceptación del mensaje/portal/I13. Ver `INCREMENTO-14.md` y evidencia I14.
 
 ## I13 — Instalación confirmada; aceptación visual pendiente
 
