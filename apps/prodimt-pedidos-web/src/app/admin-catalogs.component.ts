@@ -6,6 +6,9 @@ import { CustomerEditorValue } from './customer-editor.model';
 import { CustomerWorkingWeekComponent } from './customer-working-week.component';
 import { CustomerProductPriceComponent } from './customer-product-price.component';
 import { ProductConsolidationComponent } from './product-consolidation.component';
+import { AdminProductsComponent } from './admin-products.component';
+import { AdminProductDialogComponent } from './admin-product-dialog.component';
+import { ProductEditorValue } from './product-editor.model';
 import { CommercialCatalogApiService, CustomerProductPrice } from './commercial-catalog-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
@@ -27,13 +30,6 @@ import { UnitCode, unitLabel, storeKeyLabel, paymentTermLabel } from './operatio
 type CatalogTab = 'customers' | 'products' | 'machines';
 
 
-interface ProductForm {
-  id: string | null;
-  name: string;
-  description: string | null;
-  unitCode: UnitCode | null;
-}
-
 interface MachineForm {
   id: string | null;
   number: number | null;
@@ -42,7 +38,7 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, AdminAccessTokensDialogComponent, CustomerWorkingWeekComponent, CustomerProductPriceComponent, ProductConsolidationComponent],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, AdminAccessTokensDialogComponent, CustomerWorkingWeekComponent, CustomerProductPriceComponent, ProductConsolidationComponent, AdminProductsComponent, AdminProductDialogComponent],
   styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css', './admin-access-tokens-content.css'],
   templateUrl: './admin-catalogs.component.html'
 })
@@ -53,7 +49,10 @@ export class AdminCatalogsComponent {
   protected pricesLoaded = false;
   protected priceError: string | null = null;
   private priceReadSequence = 0;
-  protected showConsolidatedProducts = false;
+  protected productDialogOpen = false;
+  protected isProductSaving = false;
+  protected productDialogError: string | null = null;
+  protected pendingProductIds: ReadonlySet<string> = new Set();
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -98,7 +97,7 @@ export class AdminCatalogsComponent {
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
   protected customerForm: CustomerEditorValue = this.emptyCustomerForm();
-  protected productForm: ProductForm = this.emptyProductForm();
+  protected productForm: ProductEditorValue = this.emptyProductForm();
   protected machineForm: MachineForm = this.emptyMachineForm();
   protected readonly profileApproval = new FormControl(false, { nonNullable: true });
   protected readonly unitLabel = unitLabel;
@@ -400,10 +399,6 @@ export class AdminCatalogsComponent {
     });
   }
 
-  protected get visibleProducts(): AdminProductCatalogApiResponse[] {
-    return this.products.filter(x => this.showConsolidatedProducts || !x.mergedIntoProductId);
-  }
-
   protected commercialCatalogChanged(): void {
     this.resetProductForm(); this.loadCatalogs(false);
   }
@@ -660,51 +655,78 @@ export class AdminCatalogsComponent {
     });
   }
 
-  protected saveProduct(): void {
+  protected newProduct(): void {
+    this.productForm = this.emptyProductForm();
+    this.productDialogError = null;
+    this.productDialogOpen = true;
+  }
+
+  protected saveProduct(value: ProductEditorValue): void {
+    if (this.isProductSaving) return;
+    this.isProductSaving = true;
+    this.productDialogError = null;
     const request = {
-      name: this.productForm.name,
-      description: this.emptyToNull(this.productForm.description),
-      unitCode: this.productForm.unitCode
+      name: value.name,
+      description: this.emptyToNull(value.description),
+      unitCode: value.unitCode
     };
-    const operation = this.productForm.id
-      ? this.api.updateProduct(this.productForm.id, request)
+    const operation = value.id
+      ? this.api.updateProduct(value.id, request)
       : this.api.createProduct(request);
 
-    operation.subscribe({
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
+        this.isProductSaving = false;
         this.resultMessage = 'Producto guardado.';
         this.resetProductForm();
         this.loadCatalogs(false);
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo guardar el producto.')
+      error: (error: unknown) => {
+        this.isProductSaving = false;
+        this.productDialogError = this.profileErrorText(error, 'No se pudo guardar el producto. Revisa los datos e intenta de nuevo.');
+        this.changeDetector.detectChanges();
+      }
     });
   }
 
   protected editProduct(product: AdminProductCatalogApiResponse): void {
+    if (product.mergedIntoProductId || this.isProductSaving || this.pendingProductIds.has(product.id)) return;
     this.productForm = {
       id: product.id,
       name: product.name,
       description: product.description,
       unitCode: product.unitCode ?? null
     };
+    this.productDialogError = null;
+    this.productDialogOpen = true;
   }
 
   protected toggleProduct(product: AdminProductCatalogApiResponse): void {
+    if (product.mergedIntoProductId || this.pendingProductIds.has(product.id)) return;
+    this.pendingProductIds = new Set([...this.pendingProductIds, product.id]);
     const operation = product.isActive
       ? this.api.deactivateProduct(product.id)
       : this.api.activateProduct(product.id);
 
-    operation.subscribe({
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
+        this.pendingProductIds = new Set([...this.pendingProductIds].filter(id => id !== product.id));
+        this.products = this.products.map(item => item.id === product.id ? { ...item, isActive: !product.isActive } : item);
         this.resultMessage = product.isActive ? 'Producto desactivado.' : 'Producto activado.';
         this.loadCatalogs(false);
       },
-      error: (error: unknown) => this.showError(error, 'No se pudo cambiar el estado del producto.')
+      error: (error: unknown) => {
+        this.pendingProductIds = new Set([...this.pendingProductIds].filter(id => id !== product.id));
+        this.showError(error, 'No se pudo cambiar el estado del producto.');
+      }
     });
   }
 
   protected resetProductForm(): void {
+    if (this.isProductSaving) return;
     this.productForm = this.emptyProductForm();
+    this.productDialogOpen = false;
+    this.productDialogError = null;
   }
 
   protected saveMachine(): void {
@@ -837,7 +859,7 @@ export class AdminCatalogsComponent {
     };
   }
 
-  private emptyProductForm(): ProductForm {
+  private emptyProductForm(): ProductEditorValue {
     return {
       id: null,
       name: '',

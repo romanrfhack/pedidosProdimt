@@ -529,3 +529,23 @@ Corrección local: instalador revisión `20261101-access-token-management-instal
 Corrección validada: instalador revisión `20261101-access-token-management-install2`, fuente `b8588ab0afb6be059bb8f29091d1586c35185069`. [CI 41379682207](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41379682207) completo con cuatro trabajos correctos: 335 Application/Domain, 66 SQL/criptografía, 121 E2E y 290 Python más smoke Production. Regresión ODBC real ejecuta el SQL exacto del ZIP: reproduce207 sin cambiar I11, verifica rollback de DDL/revocación/historial ante auditoría fallida y éxito12→13 con repetición que conserva accesos protegidos nuevos. No modifica aplicación ni payload.
 
 Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 bytes, SHA256 `a289e0615dfa7480db31cca55d721a187889390648df5e80ed4991e00b627a12`. Reutiliza el payload original ya subido, SHA256 `6ba05d78c0a4dfe33cebb18413c879ce0822bf4a683f9a9b3b6222a68a148f26`, y binarios fuente65560ca. Ejecutar v2 primero sólo lectura y continuar --apply únicamente si termina correctamente; ambos recorridos conservan y verifican la clave existente. El preflight determina el esquema remoto12/13 y rechaza estados parciales. No repetir v1, regenerar clave, aplicar DDL manual o restaurar SQL por este incidente. No se operó el VPS desde este entorno; instalación I12, revocación efectiva y aceptación siguen pendientes del reporte del usuario.
+
+
+## 2026-11-01 — I13, catálogo visual por tipo
+
+- Usuario reporta duplicados consolidados y autoriza rediseñar Productos con tarjetas responsivas agrupadas.
+- Revisado GET /api/admin/products y DTO: nombre, descripción, estado, unidad y equivalencia; no hay categoría persistida. Agrupación visual explícita sin SQL ni modificación de datos.
+- Presentación ancha sólo en Productos, grupos con texto/color, búsqueda sin acentos, filtros tipo/estado, orden numérico y archivo consultable.
+- Alta/edición trasladadas a modal bajo demanda, con unidad null y borrador/error/foco conservados; guardado pendiente bloquea cierre/envío repetido.
+- Se integra base I12 7ad9bb0 con corrección v2 ya validada en otro chat. I12 sigue pendiente de confirmación remota; I13 no lo instala ni intenta repararlo.
+- Se prepara instalador frontend exclusivo sobre I12 saludable, con pines, snapshot, activación atómica, verificación HTTP y recuperación del enlace previo.
+- Validaciones y entrega en curso; no se operó el VPS ni consultó la base real.
+
+
+### Cierre I13
+
+- Fuente de aplicación a6b7cec; paquete2345c7f con ajuste de prueba para CI sin root, sin cambiar aplicación ni permisos requeridos del VPS.
+- [CI 41381704462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41381704462) completo: cuatro trabajos correctos, 335 Application/Domain, 66 SQL/criptografía, 133 E2E, 305 Python y smoke Production. Doce casos nuevos de interfaz y quince del paquete. Build Angular correcto; avisos CSS documentados sin elevar límites.
+- Paquete PRODIMT_Catalogo_Productos_I13.zip, 271205 bytes, SHA256 26c27c5e1972af27321ac47efab18692e2fc39ab6a8af5e1d9c13eec30b1cd2d. CRC/checksums, manifest, pines y carga del instalador generado verificados; archivo guardado.
+- PR #5 en borrador sobre I12; main492bbe9 y baseI12 7ad9bb0 sin alterar. graphify no disponible. Sin acceso SSH ni consulta a BD real.
+- Pendiente: completar I12 con instalador v2 y confirmar remoto, después preflight/aplicación I13 y aceptación visual real. El paquete no adelanta ni reemplaza I12.

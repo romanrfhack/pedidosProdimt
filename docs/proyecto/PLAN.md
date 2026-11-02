@@ -83,3 +83,8 @@ Este paso refuerza captura de etapa 1 y permite probar el mensaje sin adelantar 
 ## I11 — Preparar tarifas y consolidar identidad de productos
 
 Autorizado el 1 de noviembre: consolidación explícita de productos físicos compartidos, manteniendo configuración por cliente y alias históricos. Historial de precios cliente-producto con vigencia, fecha/usuario/motivo y snapshots de tarifa en pedidos. Antes de cobrar, se debe definir el evento que genera cargo, saldos iniciales, tratamiento de pedidos sin precio, pagos y estado de cuenta; I11 no los presume ni registra.
+
+
+## I13 — Presentación del catálogo (1 de noviembre)
+
+Tarjetas responsivas agrupadas por tipo/número, búsqueda principal y editor modal. Conserva identidades, equivalencias, unidades, perfiles y precios por cliente; no incorpora nuevas reglas de pedido. Requiere completar y verificar I12 antes de sustituir sólo el frontend. Aceptación: revisar grupos, búsqueda, edición y archivos en teléfono/tableta/laptop; base y backend sin cambios.

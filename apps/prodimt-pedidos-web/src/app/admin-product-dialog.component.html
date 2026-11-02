@@ -1,0 +1,19 @@
+<dialog #dialog aria-labelledby="product-dialog-title" (cancel)="dismiss($event)" (click)="backdrop($event)">
+  <header><div><p>CATÁLOGO DE PRODUCTOS</p><h2 id="product-dialog-title">{{ value.id ? 'Editar producto' : 'Nuevo producto' }}</h2></div>
+    <button type="button" class="close-button" aria-label="Cerrar producto" [disabled]="saving" (click)="dismiss()">×</button></header>
+  <form (ngSubmit)="submit()">
+    <div class="dialog-body">
+      @if (error) { <div class="alert error" role="alert">{{ error }}</div> }
+      <fieldset [disabled]="saving">
+        <label><span>Nombre</span><input name="productName" required maxlength="120" autocomplete="off" autofocus [(ngModel)]="value.name" placeholder="Ej. #11 Sancochado"></label>
+        <label><span>Descripción</span><textarea name="productDescription" maxlength="500" rows="3" [(ngModel)]="value.description" placeholder="Detalles que ayudan a identificar el producto"></textarea></label>
+        <label><span id="product-unit-label">Unidad de venta</span><select name="productUnit" aria-labelledby="product-unit-label" [(ngModel)]="value.unitCode">
+          <option [ngValue]="null">Por confirmar</option><option value="kg">Kilogramos</option><option value="piece">Piezas</option><option value="dozen">Docenas</option><option value="package">Paquetes</option>
+        </select></label>
+        <p class="product-note">La unidad se usa al capturar cantidades. El precio se configura para cada cliente.</p>
+      </fieldset>
+    </div>
+    <footer><button type="button" class="secondary" [disabled]="saving" (click)="dismiss()">Cancelar</button>
+      <button type="submit" class="primary" [disabled]="saving || !value.name.trim()">{{ saving ? 'Guardando…' : value.id ? 'Guardar producto' : 'Crear producto' }}</button></footer>
+  </form>
+</dialog>
