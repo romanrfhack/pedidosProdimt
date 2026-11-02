@@ -1,0 +1,62 @@
+<section class="page stack pending-page" data-testid="admin-pending-customers">
+  <div class="pending-heading">
+    <div class="page-title"><p class="eyebrow">Admin</p><h2>Clientes pendientes</h2></div>
+    @if (!isLoading && !errorMessage) {
+      <p class="pending-count" data-testid="pending-count">{{ customers.length }} {{ customers.length === 1 ? 'cliente en la lista' : 'clientes en la lista' }}</p>
+    }
+  </div>
+
+  <form class="operations-filters pending-filters" (ngSubmit)="load()">
+    <label><span>Fecha de servicio</span><input name="serviceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="changeDate()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"></label>
+    <label class="check-row"><input type="checkbox" name="automaticDeliveryDate" [(ngModel)]="automaticDeliveryDate" (ngModelChange)="changeDateMode()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"><span>Próxima entrega automática · corte 18:00, Ciudad de México</span></label>
+    <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!submittingCustomerId || !!loadingCustomerId">Consultar clientes</button>
+  </form>
+
+  @if (isLoading) { <div class="notice">Cargando clientes pendientes...</div> }
+  @if (resultMessage) { <div class="alert success">{{ resultMessage }}</div> }
+  @if (errorMessage) { <div class="alert error">{{ errorMessage }}</div> }
+
+  @if (!isLoading && !errorMessage) {
+    @if (scheduledRestCount > 0) {
+      <label class="check-row pending-rest" data-testid="pending-rest-filter">
+        <input type="checkbox" name="includeRestCustomers" [(ngModel)]="includeRestCustomers" [disabled]="!!submittingCustomerId || !!loadingCustomerId || !!template">
+        <span>Mostrar también clientes en descanso ({{ scheduledRestCount }})<small>No se espera pedido de ellos en esta fecha. Puedes mostrarlos para capturar una excepción.</small></span>
+      </label>
+    }
+    @if (customers.length === 0) {
+      <div class="notice">No hay clientes pendientes por responder.</div>
+    } @else {
+      <div class="admin-list pending-grid">
+        @for (customer of customers; track customer.id) {
+          <article class="admin-row pending-card" data-testid="pending-customer-card" [class.capture-open]="template?.customerId === customer.id">
+            <div class="pending-card-body">
+              <div class="pending-card-heading">
+                <strong class="pending-name">{{ customer.name }}</strong>
+                @if (customer.isScheduledRest) { <small class="badge neutral">Descanso programado · no se espera pedido</small> }
+              </div>
+              <dl class="pending-details">
+                <div><dt>Teléfono</dt><dd>{{ customer.phoneNumber || 'Sin teléfono' }}</dd></div>
+                <div><dt>Entrega</dt><dd>{{ customer.requestedDelivery }}</dd></div>
+                <div><dt>Productos frecuentes</dt><dd>{{ customer.frequentProductsCount }}</dd></div>
+              </dl>
+              @if (customer.deliveryNotes) { <p class="pending-notes"><span>Notas:</span> {{ customer.deliveryNotes }}</p> }
+            </div>
+            <div class="review-actions pending-actions">
+              <button type="button" class="primary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="startCapture(customer)">Capturar pedido</button>
+              <button type="button" class="secondary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="markNoOrder(customer)">{{ isToday() ? 'No pedir hoy' : 'No pide en esta fecha' }}</button>
+            </div>
+            @if (getTemplate(customer); as selectedTemplate) {
+              @if (profile; as currentProfile) {
+                <app-admin-order-capture [template]="selectedTemplate" [initialProfile]="currentProfile"
+                  [serviceDate]="serviceDate" [existingOrders]="existingOrders"
+                  [autoDeliveryDate]="automaticDeliveryDate" (deliveryDateChanged)="serviceDate = $event"
+                  (busy)="submittingCustomerId = $event ? customer.id : null"
+                  (saved)="captureSaved($event)" (dismissed)="cancelCapture()" />
+              }
+            }
+          </article>
+        }
+      </div>
+    }
+  }
+</section>

@@ -52,6 +52,8 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 
 | NOV-003 | 2026-11-02 | I15: catálogo de clientes con ancho completo/márgenes, tarjetas en rejilla automática según espacio y controles responsivos. Conservar estados/orden, búsqueda/filtros, modales, configuración enfocada y contratos; sólo frontend sobre I14 instalado, sin migraciones o cambios de datos. |
 
+| NOV-005 | 2026-11-02 | I17: Clientes pendientes usa ancho completo y rejilla automática similar a I15; acciones al pie y captura a toda la fila. Redimensionar conserva instancia/borrador. Sólo presentación sobre I15 instalado, sin alterar fecha, corte, descansos, captura o guardado. I16 permanece separado en su rama; no sobreescribir un release nuevo. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

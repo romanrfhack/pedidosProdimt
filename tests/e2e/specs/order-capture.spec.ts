@@ -21,7 +21,7 @@ test.beforeEach(async({request})=>{await request.post(api+'/__test/reset');});
 test('captura rápida desglosa al perder foco, confirma perfil una vez y mantiene horario informativo',async({page,request})=>{
   await open(page);
   await expect(page.locator('input[type=time]')).toHaveCount(0);
-  await expect(page.getByText('13:30',{exact:true})).toBeVisible();
+  await expect(page.getByTestId('order-capture').getByText('13:30',{exact:true})).toBeVisible();
   await expect(page.getByRole('spinbutton')).toHaveCount(0);
   const capture=await page.getByTestId('order-capture').boundingBox();
   const card=await page.getByTestId('order-capture').locator('xpath=ancestor::article').boundingBox();

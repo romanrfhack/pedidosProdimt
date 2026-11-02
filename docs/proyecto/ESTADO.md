@@ -2,6 +2,14 @@
 
 Actualizado: 2 de noviembre de 2026.
 
+## I17 — Clientes pendientes responsivos; implementación local completa
+
+Usuario autoriza aprovechar el ancho para las tarjetas de Pendientes de forma similar a Clientes. Implementado sobre I15 confirmado, rama `codex/i17-responsive-pending-customers`: ancho completo, rejilla automática, metadatos legibles, acciones al pie y contador de clientes visibles. Captura abierta a toda la fila sin recrear formulario al redimensionar; cantidades/notas/foco conservados. Sólo HTML/CSS y pruebas/instalador; lógica y API intactas.
+
+Build correcto; 350 Python correctos, incluidas 15 pruebas del nuevo paquete/rollback. Diseño verificado a siete anchos con 1/1/2/3/4/6/8 columnas, sin desbordamiento. Captura/descansos/diseño: 19 E2E correctas en total; un selector anterior se acota al formulario para distinguir el horario repetido en la tarjeta. Capturas PC/móvil revisadas con datos ficticios. CI y ZIP en preparación; instalación/aceptación pendientes. No se operó VPS/SQL; el último release confirmado sigue siendo I15. I16 continúa separado en su rama de propuesta, sin cambios de aplicación en su checkpoint revisado.
+
+Ver `INCREMENTO-17.md` y evidencia `../validation/2026-11-02-pending-customers-layout.md`. Próximo: cerrar CI y paquete verificable sobre frontend I15, preservar I13/productos, I14/mensaje y catálogo I15.
+
 ## I15 — Instalación confirmada; aceptación visual pendiente
 
 El usuario reporta el 2 de noviembre ZIP con SHA256 correcto y salida de `20261102-customer-catalog-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. El catálogo responsivo queda instalado por esa evidencia; aceptación visual/funcional pendiente. No hubo inspección SSH independiente desde este entorno.

@@ -32,6 +32,8 @@ I14, autorizado el 1 de noviembre, simplifica exclusivamente el mensaje predeter
 
 I15, autorizado el 2 de noviembre, aprovecha el ancho del catálogo de clientes con rejilla automática, tarjetas legibles/acciones al pie y controles responsivos. Sólo `.customers-page`; conserva estados/orden I06, búsqueda, modales, configuración enfocada, productos/precios y mensaje I14. Ver `docs/proyecto/INCREMENTO-15.md`. Actualización nativa sólo frontend sobre I14 confirmado, sin migraciones, SQL directo, reinicio o cambios de datos/credenciales. Verificar medidas y desbordamiento en móvil/tablet/PC/ultrawide antes de entregar.
 
+I17, autorizado el 2 de noviembre tras instalar I15, aplica ancho completo y rejilla responsiva a Clientes pendientes. La tarjeta en captura ocupa toda la fila conservando la instancia y el borrador al redimensionar; las acciones quedan al pie. Ver `docs/proyecto/INCREMENTO-17.md`. Sólo presentación/frontend sobre I15 confirmado, sin modificar fecha/corte, descansos, captura, guardado o reintentos. Conservar I13/I14/I15 y rechazar un release diferente para no reemplazar trabajo paralelo de I16, que permanece en su rama de diseño.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

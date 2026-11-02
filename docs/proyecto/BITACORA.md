@@ -2,6 +2,14 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I17: tarjetas responsivas en Clientes pendientes
+
+Usuario autoriza rediseñar Pendientes para aprovechar PC y adaptar columnas/tamaño. Se trabaja desde I15 instalado y se reserva I17 para no colisionar con la propuesta I16 en otra rama. Comparado checkpoint I16 `74b7926ff2aba09e60fca54b800409b83d05241e`: sólo documentación, sin frontend/backend nuevo que incorporar. No se modifica esa rama.
+
+Separada plantilla/estilos de Pendientes; ancho completo, navegación compacta en PC, rejilla mínima 280px, metadatos/nota con ajuste de línea, botones al pie y contador. La tarjeta seleccionada abarca todas las columnas sin cambiar la instancia de captura. Se conservan fecha explícita/automática, corte, descansos, permisos, pedidos existentes, interpretación, guardado y reintentos. Sin cambios de lógica, API, dependencias o datos reales.
+
+Build Angular correcto con avisos de tamaño CSS preexistentes (sin elevar presupuestos); 350 Python correctos. Las 19 E2E de captura/descanso/diseño pasan en total tras ajustar un selector anterior de horario al formulario: siete medidas 320–2560px con columnas 1/1/2/3/4/6/8, sin desbordamiento, botones de 44px, acciones alineadas; mismo borrador/foco al redimensionar y cancelación sin POST de pedido. Capturas PC/móvil revisadas. `graphify update .` no disponible en este entorno (comando ausente). No se accedió al VPS/SQL. Falta CI, paquete fijado por hashes y entrega; instalación/aceptación remotas pendientes.
+
 ## 2026-11-02 — I15: instalación confirmada por el usuario
 
 Recibidos SHA256 del ZIP correcto y JSON de lectura/aplicación de `20261102-customer-catalog-install1`. Preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, release `customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporta sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos.

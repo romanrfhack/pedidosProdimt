@@ -4,6 +4,14 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I17 — Clientes pendientes responsivos; validado localmente, entrega en preparación
+
+Autorizado por el usuario aplicar el diseño de tarjetas de Clientes a Pendientes/captura administrativa. Rama `codex/i17-responsive-pending-customers` desde I15 `71461b78b07183af215742b399d21f0fa5443146`. Ancho completo, rejilla automática mínimo 280px, acciones al pie, metadatos/nota completos y contador visible. La captura abierta ocupa toda la fila; CSS conserva la misma instancia, cantidades, notas y foco al redimensionar. No cambió la lógica de negocio ni se operó el VPS/SQL. I15 sigue siendo el último despliegue confirmado.
+
+Build Angular correcto, 350 pruebas Python correctas. Siete anchos 320/390/768/1024/1366/1920/2560 dan 1/1/2/3/4/6/8 columnas, sin desbordamiento; borrador manual/foco y cancelación comprobados. Las 19 pruebas E2E de captura/descanso/diseño pasan tras acotar un selector de horario al formulario (la tarjeta ahora muestra el mismo dato por separado). Capturas PC/móvil revisadas con datos ficticios. Ver `docs/proyecto/INCREMENTO-17.md` y `docs/validation/2026-11-02-pending-customers-layout.md`.
+
+Instalador sólo frontend sobre `customer-catalog-afb8f3ad9c33`, conserva backend I12 `access-tokens-65560ca3cf98`; pines, snapshot privado, activación atómica y reversión. Falta cerrar CI, generar/verificar/guardar ZIP y documentar sus hashes; instalación/aceptación remotas pendientes. I16 (`codex/i16-add-customer-products`, checkpoint `74b7926ff2aba09e60fca54b800409b83d05241e`) sólo añade documentación de diseño y no se mezcla con esta entrega. No instalar este paquete encima de otro release nuevo.
+
 ## I15 — Instalación confirmada; aceptación visual pendiente
 
 El 2 de noviembre el usuario comparte SHA256 correcto del ZIP, preflight `planned/completed` sin cambios y aplicación `updated/completed` de `20261102-customer-catalog-install1`. Base y salud verificadas en lectura; `frontend_verified=true` y `health_verified=true` en la aplicación. Confirma por reporte del usuario el despliegue de I15 y sustituye el pendiente de instalación anterior. No es inspección SSH independiente ni aceptación visual del catálogo.

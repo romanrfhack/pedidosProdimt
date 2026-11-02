@@ -96,3 +96,7 @@ Retirar del recordatorio compartido la entrega prevista y el aviso del corte. Co
 ## I15 — Catálogo de clientes responsivo (2 de noviembre)
 
 Aprovechar ancho disponible en PC con rejilla de tarjetas cuyo tamaño/número de columnas dependa del espacio; datos completos y acciones legibles en móvil/tablet/PC. Mantener búsqueda/filtros/estados, modales y perfil enfocado. Cambios sólo del frontend sobre I14, sin reglas nuevas o cambios de clientes/pedidos. Ver `INCREMENTO-15.md`.
+
+## I17 — Clientes pendientes responsivos (2 de noviembre)
+
+Autorizado aprovechar PC y adaptar tarjetas como el catálogo I15. Sólo presentación: ancho completo, rejilla automática y captura seleccionada a toda la fila, con borrador/foco conservados al redimensionar. Mantener fecha/corte, descansos y captura/guardado actuales. Entrega nativa sólo frontend sobre I15 confirmado; no incluye la propuesta paralela I16. Aceptación técnica en siete anchos y flujos existentes; después instalación/verificación y revisión visual por el usuario. Ver `INCREMENTO-17.md`.
