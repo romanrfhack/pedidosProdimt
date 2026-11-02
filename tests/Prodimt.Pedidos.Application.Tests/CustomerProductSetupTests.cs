@@ -142,6 +142,9 @@ public sealed class CustomerProductSetupTests
         Assert.Null(first.AssignedMachineId); Assert.Null(existing.AssignedMachineId);
         Assert.Empty(await f.Setup.GetOpenAsync(Ct));
         Assert.Single(await f.Db.OrderAuditLogs.Where(x => x.EventType == OrderAuditEventType.OrderLineInitialPriceResolved).ToArrayAsync());
+        var reviewAudit = await f.Db.AuditLogs.SingleAsync(x => x.EventType == "CustomerProductSetupCompleted");
+        using var metadata = JsonDocument.Parse(reviewAudit.MetadataJson!);
+        Assert.Equal(request.Reason, metadata.RootElement.GetProperty("reason").GetString());
         Assert.Equal(2, await f.Db.CustomerProductPriceRevisions.CountAsync());
         Assert.Empty(await f.Db.OrderChangeNotices.ToArrayAsync());
     }

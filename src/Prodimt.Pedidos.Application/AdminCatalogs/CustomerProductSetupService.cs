@@ -163,7 +163,8 @@ public sealed class CustomerProductSetupService(ICustomerRepository customers, I
                 setup.ResolvedByName = actor.ActorDisplayName; setup.Version = checked(setup.Version + 1);
                 await catalogAudit.AddAsync(CatalogAudit.Create("CustomerProductSetup", id, "CustomerProductSetupCompleted",
                     now, actor, "Configuración de producto revisada; precios pendientes resueltos.",
-                    new { setup.CustomerId, setup.ProductId, request.OperationId, pricedLines = preview.Lines.Count(x => x.ApplyPrice) }), inner);
+                    new { setup.CustomerId, setup.ProductId, request.OperationId, reason = request.Reason.Trim(),
+                        pricedLines = preview.Lines.Count(x => x.ApplyPrice) }), inner);
                 await setups.SaveChangesAsync(inner);
                 return new CompleteProductSetupResponse(id, setup.Version, now, preview.Lines.Count(x => x.ApplyPrice));
             }, ct), token);
