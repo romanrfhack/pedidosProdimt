@@ -30,6 +30,8 @@ I13, autorizado el 1 de noviembre tras la consolidación reportada por el usuari
 
 I14, autorizado el 1 de noviembre, simplifica exclusivamente el mensaje predeterminado de los accesos: saludo/descripción, «Haz tu pedido aquí:», URL completa con fragmento y vencimiento CDMX. Retira del mensaje la entrega prevista y el aviso del corte; conserva cálculo/validación y fecha en el portal. Vista previa, copiar, copia manual y WhatsApp comparten plantilla. Sin integración API de WhatsApp, envío automático, cambios de tokens/backend/SQL. Actualización nativa sólo frontend sobre I13 saludable, conservando tarjetas/productos/precios y backend I12. Ver `docs/proyecto/INCREMENTO-14.md`.
 
+I15, autorizado el 2 de noviembre, aprovecha el ancho del catálogo de clientes con rejilla automática, tarjetas legibles/acciones al pie y controles responsivos. Sólo `.customers-page`; conserva estados/orden I06, búsqueda, modales, configuración enfocada, productos/precios y mensaje I14. Ver `docs/proyecto/INCREMENTO-15.md`. Actualización nativa sólo frontend sobre I14 confirmado, sin migraciones, SQL directo, reinicio o cambios de datos/credenciales. Verificar medidas y desbordamiento en móvil/tablet/PC/ultrawide antes de entregar.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

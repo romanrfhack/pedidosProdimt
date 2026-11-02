@@ -4,6 +4,22 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I15 — Instalación confirmada; aceptación visual pendiente
+
+El 2 de noviembre el usuario comparte SHA256 correcto del ZIP, preflight `planned/completed` sin cambios y aplicación `updated/completed` de `20261102-customer-catalog-install1`. Base y salud verificadas en lectura; `frontend_verified=true` y `health_verified=true` en la aplicación. Confirma por reporte del usuario el despliegue de I15 y sustituye el pendiente de instalación anterior. No es inspección SSH independiente ni aceptación visual del catálogo.
+
+Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`; frontend `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`. Snapshot privado `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. El instalador reporta sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos. El `frontend_verified=false` de lectura era esperado; terminó true al aplicar.
+
+Siguiente: Ctrl+F5 → Catálogos → Clientes. Maximizar y reducir la ventana para revisar columnas, tamaño/textos de tarjetas y ausencia de desplazamiento horizontal; comprobar búsqueda/filtros y alta/edición con cancelación. La aceptación visual del usuario sigue pendiente. No repetir instalación o importaciones por este resultado. En esta sesión sólo se registra la evidencia en documentación; sin operar VPS/SQL o modificar aplicación/paquete.
+
+## I15 — Validación y paquete (antecedente)
+
+El usuario solicita aprovechar el ancho en PC y adaptar número/tamaño de tarjetas. Implementado catálogo con ancho completo/márgenes, rejilla CSS automática de mínimo 280px, controles compactos en PC/apilados en móvil, datos legibles/acciones al pie y contador/limpieza de filtros. Conserva estados, orden, búsqueda, modales, configuración enfocada, Productos I13 y mensaje I14. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`. Sólo frontend sobre I14 confirmado; sin backend, SQL directo, migraciones o reinicio. Ver `docs/proyecto/INCREMENTO-15.md` y evidencia `docs/validation/2026-11-02-customer-catalog-layout.md`.
+
+Aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) completo, cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build y Python locales correctos; capturas PC/móvil revisadas. Columnas verificadas 1/1/2/3/4/6/8 a 320/390/768/1024/1366/1920/2560px, sin desbordamiento ni superposición de cabecera. Configuración enfocada/productos/accesos conservados.
+
+Entrega verificada y guardada: `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`. Payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`, once archivos activos frontend/licencias, sin residuos de builds anteriores. CRC/hashes/manifiesto/imports y carga del instalador exportado correctos. Requiere frontend I14 `reminder-message-768230826a3e`, conserva backend I12. Nuevo frontend `customer-catalog-afb8f3ad9c33`; instalación/aceptación pendientes. Siguiente: preflight `planned/completed`, aplicar, verificar salud/frontend true y Ctrl+F5 → Catálogos → Clientes. No se operó el VPS/SQL ni se instaló I15; la aceptación del mensaje I14 sigue pendiente por separado.
+
 ## I14 — Instalación confirmada; revisión funcional pendiente
 
 El 2 de noviembre el usuario comparte verificación SHA256 del ZIP, preflight y aplicación de `20261101-reminder-message-install1`. Lectura `planned/completed`, `changes_made=false`, `base_release_verified=true`, `health_verified=true`; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. Confirma la instalación de I14 por reporte del usuario y sustituye el pendiente de instalación de la entrega anterior. No es una inspección SSH independiente ni aceptación visual del mensaje.

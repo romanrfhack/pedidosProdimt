@@ -2,6 +2,22 @@
 
 Actualizado: 2 de noviembre de 2026.
 
+## I15 — Instalación confirmada; aceptación visual pendiente
+
+El usuario reporta el 2 de noviembre ZIP con SHA256 correcto y salida de `20261102-customer-catalog-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. El catálogo responsivo queda instalado por esa evidencia; aceptación visual/funcional pendiente. No hubo inspección SSH independiente desde este entorno.
+
+Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, frontend `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporte sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos. La lectura con `frontend_verified=false` era esperada antes de activar; la aplicación terminó con esa comprobación true.
+
+Próximo: Ctrl+F5 → Catálogos → Clientes, revisar ventana maximizada/reducida, tarjetas/columnas/textos y búsqueda/filtros/modales, conservando configuración/productos/accesos. No repetir instaladores/importaciones. Sólo documentación en esta sesión, sin operar VPS/SQL, cambiar código/paquete o ejecutar nuevas pruebas de binarios.
+
+## I15 — Validación y paquete (antecedente)
+
+Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.
+
+Aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build/locales correctos y capturas PC/móvil revisadas; columnas 1/1/2/3/4/6/8 a 320/390/768/1024/1366/1920/2560px, sin desbordamiento. La configuración enfocada, productos, precios y accesos se conservan.
+
+Entrega verificada y guardada: `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`, payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`. Once archivos frontend/licencias; pines, CRC/hashes/imports y carga exportada comprobados. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL. Próximo: preflight, aplicación, salud/frontend true, Ctrl+F5 y aceptación de catálogo responsivo. Ver `INCREMENTO-15.md` y evidencia I15.
+
 ## I14 — Instalación confirmada; revisión funcional pendiente
 
 El usuario reporta el 2 de noviembre SHA256 del ZIP correcto y ambas fases de `20261101-reminder-message-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. I14 queda instalado por evidencia proporcionada; no se realizó inspección SSH desde este entorno ni se recibió todavía aceptación visual del mensaje.

@@ -92,3 +92,7 @@ Tarjetas responsivas agrupadas por tipo/número, búsqueda principal y editor mo
 ## I14 — Simplificación del mensaje (1 de noviembre)
 
 Retirar del recordatorio compartido la entrega prevista y el aviso del corte. Conservar saludo/descripción, «Haz tu pedido aquí:» con URL completa y vencimiento CDMX. Plantilla única para vista previa/copia/WhatsApp y recuperación de accesos existentes, sin cambiar fecha ni validación dentro del portal. Actualización sólo frontend sobre I13, preservando catálogo, perfiles, precios y backend I12; sin integración de mensajería, migraciones o revocaciones. Ver `INCREMENTO-14.md`.
+
+## I15 — Catálogo de clientes responsivo (2 de noviembre)
+
+Aprovechar ancho disponible en PC con rejilla de tarjetas cuyo tamaño/número de columnas dependa del espacio; datos completos y acciones legibles en móvil/tablet/PC. Mantener búsqueda/filtros/estados, modales y perfil enfocado. Cambios sólo del frontend sobre I14, sin reglas nuevas o cambios de clientes/pedidos. Ver `INCREMENTO-15.md`.
