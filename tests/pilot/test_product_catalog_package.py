@@ -165,7 +165,10 @@ class ProductCatalogPackageTests(unittest.TestCase):
         instance,backups=self.fixture()
         del instance.preflight
         instance.package,pin=self.payload()
-        with patch.object(I,'ROOT',instance.current.parent.parent),patch.object(I,'BACKUPS',backups),patch.object(I,'EXPECTED_PAYLOAD_SHA256',pin):
+        # CI owns temporary directories as its unprivileged runner, whereas the
+        # VPS guard deliberately requires root. Keep that boundary mocked here;
+        # exercise the actual payload, links, disk, health and served bytes.
+        with patch.object(I,'ROOT',instance.current.parent.parent),patch.object(I,'BACKUPS',backups),patch.object(I,'EXPECTED_PAYLOAD_SHA256',pin),patch.object(I,'safe_directory'):
             instance.preflight()
         self.assertEqual(instance.old,instance.previous)
         self.assertTrue(instance.state['health_verified']);self.assertTrue(instance.state['base_release_verified'])
