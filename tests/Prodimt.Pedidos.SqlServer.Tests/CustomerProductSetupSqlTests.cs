@@ -25,6 +25,44 @@ public sealed class CustomerProductSetupSqlTests(SqlServerFixture database)
     private static string SetupUrl(Guid id) => $"/api/admin/product-setups/{id}";
 
     [Fact]
+    public async Task CompletionAuditFailure_RollsBackPriceRequestAndReceipt_ThenSameOperationCanRetry()
+    {
+        var (catalog, plain, version) = await Prepare();
+        await using var host = database.CreateFactory();
+        using var customer = await CustomerClient(host, plain);
+        using var captured = await customer.PostAsJsonAsync(CustomerUrl(catalog.CustomerId) + "/capture", Capture(catalog, version));
+        captured.EnsureSuccessStatusCode();
+        var orderId = (await captured.Content.ReadFromJsonAsync<SubmitCustomerOrderCaptureResponse>(JsonOptions))!.Order.OrderId;
+        using var admin = await SqlServerFixture.CreateAdminClientAsync(host);
+        await ConfigureExtra(admin, catalog);
+        using var price = await admin.PostAsJsonAsync($"/api/admin/customers/{catalog.CustomerId}/products/{catalog.SecondProductId}/prices",
+            new ChangeCustomerProductPriceRequest(20, Day, "Tarifa ficticia", 0, Guid.NewGuid(), "package"));
+        price.EnsureSuccessStatusCode();
+        var request = (await admin.GetFromJsonAsync<ProductSetupResponse[]>("/api/admin/product-setups", JsonOptions))!.Single(x => x.CustomerId == catalog.CustomerId);
+        var preview = (await admin.GetFromJsonAsync<ProductSetupResolutionPreview>(SetupUrl(request.Id) + "/resolution-preview"))!;
+        var body = new CompleteProductSetupRequest(Guid.NewGuid(), preview.Version, preview.Fingerprint, "Auditoría ficticia");
+        await using var db = database.CreateDbContext();
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE dbo.AuditLogs ADD CONSTRAINT CK_I16_TestAudit CHECK (EventType<>N'CustomerProductSetupCompleted');");
+        try
+        {
+            HttpResponseMessage? failure = null; Exception? exception = null;
+            try { failure = await admin.PostAsJsonAsync(SetupUrl(request.Id) + "/complete", body); }
+            catch (Exception ex) { exception = ex; }
+            using (failure) Assert.True(exception is not null || failure?.StatusCode == HttpStatusCode.InternalServerError);
+            Assert.Null((await db.OrderLines.SingleAsync(x => x.OrderId == orderId)).UnitPriceSnapshot);
+            Assert.False((await db.CustomerProductSetupRequests.SingleAsync(x => x.Id == request.Id)).IsResolved);
+            Assert.False(await db.OrderOperations.AnyAsync(x => x.OperationKey == $"PRODUCT-SETUP:{request.Id:N}:{body.OperationId:N}"));
+            Assert.False(await db.OrderAuditLogs.AnyAsync(x => x.OrderId == orderId && x.EventType == OrderAuditEventType.OrderLineInitialPriceResolved));
+        }
+        finally { await db.Database.ExecuteSqlRawAsync("ALTER TABLE dbo.AuditLogs DROP CONSTRAINT CK_I16_TestAudit;"); }
+        using var retry = await admin.PostAsJsonAsync(SetupUrl(request.Id) + "/complete", body);
+        retry.EnsureSuccessStatusCode();
+        db.ChangeTracker.Clear();
+        Assert.Equal(20, (await db.OrderLines.SingleAsync(x => x.OrderId == orderId)).UnitPriceSnapshot);
+        Assert.True((await db.CustomerProductSetupRequests.SingleAsync(x => x.Id == request.Id)).IsResolved);
+    }
+
+    [Fact]
     public async Task CaptureAcrossHosts_ReplaysOrderAndFollowUp_WithoutChangingProfileOrAssigningCustomerMachine()
     {
         var (catalog, plain, version) = await Prepare();

@@ -161,6 +161,44 @@ public sealed class CustomerProductSetupTests
     }
 
     [Fact]
+    public async Task ReplacingAnEditedOrderLine_RetainsFollowUpAndPricesOnlyTheCurrentLine()
+    {
+        await using var f = await Fixture.Create();
+        var orderId = await f.Capture(false);
+        await f.ConfigureExtra(12);
+        var previous = await f.Db.OrderLines.SingleAsync();
+        f.Db.OrderLines.Remove(previous); await f.Db.SaveChangesAsync();
+        var current = new OrderLine { Id = Guid.NewGuid(), OrderId = orderId, ProductId = f.Extra.Id,
+            ProductNameSnapshot = f.Extra.Name, UnitCode = "package", Quantity = 5 };
+        f.Db.OrderLines.Add(current); (await f.Db.Orders.SingleAsync()).Version++;
+        await f.Db.SaveChangesAsync(); f.Db.ChangeTracker.Clear();
+        var setup = Assert.Single(await f.Setup.GetOpenAsync(Ct));
+        Assert.Equal(5, Assert.Single(setup.Orders).Quantity);
+        var preview = await f.Setup.PreviewAsync(setup.Id, Ct);
+        Assert.Equal(current.Id, Assert.Single(preview.Lines).OrderLineId);
+        await f.Setup.CompleteAsync(setup.Id, new(Guid.NewGuid(), preview.Version, preview.Fingerprint,
+            "Revisión de partida corregida ficticia"), Actor, Ct);
+        var priced = await f.Db.OrderLines.SingleAsync();
+        Assert.Equal(current.Id, priced.Id); Assert.Equal(60, priced.LineAmount);
+    }
+
+    [Fact]
+    public async Task OlderProfileRequest_OmittingInheritanceFlagPreservesAnExplicitNoMachineRelationship()
+    {
+        await using var f = await Fixture.Create();
+        await f.ConfigureExtra(12);
+        var service = new AdminCustomerCatalogService(new EfCustomerRepository(f.Db), new EfProductRepository(f.Db),
+            new EfMachineRepository(f.Db), new EfAuditLogRepository(f.Db), f.Clock);
+        await service.ReplaceFrequentProductsAsync(f.Customer.Id, new([
+            new(f.Habitual.Id, null, 1, true), new(f.Extra.Id, null, 2, true)], false, f.Customer.OrderingProfileVersion), Actor, Ct);
+        f.Db.ChangeTracker.Clear();
+        var rows = await f.Db.CustomerFrequentProducts.ToArrayAsync();
+        Assert.True(rows.Single(x => x.ProductId == f.Habitual.Id).UseCustomerDefaultMachine);
+        Assert.False(rows.Single(x => x.ProductId == f.Extra.Id).UseCustomerDefaultMachine);
+        Assert.Null(rows.Single(x => x.ProductId == f.Extra.Id).PreferredMachineId);
+    }
+
+    [Fact]
     public async Task CompletionAuditFailure_RollsBackInitialPriceAndRequestResolution()
     {
         await using var f = await Fixture.Create();

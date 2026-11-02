@@ -2,6 +2,12 @@
 
 Actualizado: 2 de noviembre de 2026.
 
+## I16 — Validación final en curso (2 de noviembre)
+
+Autorizado registrar y continuar el pedido con productos nuevos para el cliente y precio pendiente. Implementados captura manual compartida, solicitud durable por relación con referencias a pedidos, bandeja administrativa y resolución explícita de precios null por fecha/unidad. Las capturas existentes, I14/I15, historial y cero explícito se conservan. Máquina opcional sin herencia para nuevos requerimientos; producción diaria/reventa/roles completos diferidos.
+
+Build Release y 348 pruebas Domain/Application correctas antes de dos regresiones adicionales en curso; trece E2E nuevos correctos. La primera validación HTTP en SQL Server pasó con cinco casos nuevos más los históricos ajustados a sus migraciones originales. Preparado instalador 13→14 sobre frontend I15/backend I12, con respaldo, entorno/clave estables y esquema/permisos atómicos; regresión ODBC real y ZIP final pendientes. Sin despliegue I16 ni acceso a datos reales.
+
 ## I16 — Implementación autorizada y en curso
 
 El usuario confirma el 2 de noviembre que el pedido se registra y continúa aunque el producto agregado tenga precio pendiente. Se implementa la propuesta de docs/proyecto/INCREMENTO-16.md: catálogo público mínimo, modal «Pedir otro producto» en captura manual cliente/administración, pendiente comercial transaccional/idempotente, bandeja administrativa y resolución auditada inicial de precios. No crea otro producto global, aprueba perfiles o posiciones automáticamente ni bloquea el pedido por precio/máquina faltantes. Producción diaria y clasificación de abastecimiento se mantienen diferidas por instrucción del usuario.

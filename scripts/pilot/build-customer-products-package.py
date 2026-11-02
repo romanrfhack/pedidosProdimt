@@ -110,7 +110,43 @@ def build(backend, frontend, migration, output, source):
     if template.count('REPLACE_SOURCE_COMMIT') != 1 or template.count('REPLACE_PAYLOAD_SHA256') != 1:
         raise ValueError('installer_template_invalid')
     script = template.replace('REPLACE_SOURCE_COMMIT', source).replace('REPLACE_PAYLOAD_SHA256', digest(payload))
-    readme = "PRODIMT I16 — Pedir otro producto y completar configuración\n\nRequiere frontend I15 customer-catalog-afb8f3ad9c33 y backend I12 access-tokens-65560ca3cf98 saludables, trece migraciones.\nConserva I14/I15, clientes, productos consolidados, perfiles, pedidos, precios e historial y todos los tokens actuales.\nMantiene exactamente api.env y su clave de cifrado. No revoca tokens ni crea o cambia claves/contraseñas/Nginx.\n\n1. Verificar SHA256SUMS.txt dentro de la carpeta extraída.\n2. Copiar:\nscp PRODIMT_Instalar_I16.py prodimt-customer-products-payload.zip root@194.238.26.70:/root/\n3. Comprobar sólo lectura:\nssh root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip'\nEsperado: planned/completed, sin cambios. No aplicar si informa discrepancias.\n4. Terminar los borradores abiertos antes de aplicar (el navegador debe actualizarse después):\nssh -t root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip --apply'\nSolicita usuario y contraseña SQL existentes en entrada oculta; son las credenciales SQL, no las web.\nCrea snapshot privado del entorno y configuraciones y COPY_ONLY/CHECKSUM + RESTORE VERIFYONLY.\nDetiene brevemente sólo PRODIMT, migra 13→14 y concede permisos mínimos en la misma transacción.\nVerifica esquema, herencia de máquina, datos/precios/tokens y activa ambos releases.\nNo restaura SQL automáticamente: si falla, recupera los enlaces anteriores con salud y conserva el esquema aditivo.\nSi falló después del commit SQL, repetir el mismo instalador verifica 14 y retoma sin repetir migración.\nSi está activo I16, already_current comprueba archivos/salud/permisos/clave sin reiniciar ni escribir en SQL.\n\nEsperado al aplicar: updated/completed, migrations_after 14, migrated_schema_verified,\nexisting_data_counts_preserved, price_history_append_only_verified, tokens_preserved,\nmachine_inheritance_preserved, setup_permissions_verified, encryption_key_effective_verified,\nhealth_verified y frontend_verified true.\n\n5. Ctrl+F5 en administración y portal. Captura manual → Pedir otro producto → elegir del catálogo y cantidad.\nAgregar sólo modifica el borrador; Confirmar pedido/Guardar pedido registra pedido y pendiente atómicamente.\nEl pedido continúa con precio pendiente; no se convierte en precio cero ni se hereda máquina.\nAdministración → Configurar productos → Configurar producto: agregar a productos del cliente, guardar frecuentes,\ndefinir Precio e historial con fecha de vigencia (incluidas las entregas anteriores pendientes) y motivo.\nRevisar vista previa, indicar motivo, marcar revisión y Completar configuración.\nSólo completa precios null de las partidas vinculadas; conserva precios previos, incluso cero explícito.\nLa máquina es opcional; no aprobar posiciones o abreviaturas sin verificarlas.\nLa asignación diaria de producción, reventa, cobranza y roles completos siguen fuera de este incremento.\n"
+    readme = '''PRODIMT I16 — Pedir otro producto y completar configuración
+
+Requiere frontend I15 customer-catalog-afb8f3ad9c33 y backend I12 access-tokens-65560ca3cf98 saludables, trece migraciones.
+Conserva I14/I15, clientes, productos consolidados, perfiles, pedidos, precios e historial y todos los tokens actuales.
+Mantiene exactamente api.env y su clave de cifrado. No revoca tokens ni crea o cambia claves/contraseñas/Nginx.
+
+1. Verificar SHA256SUMS.txt dentro de la carpeta extraída.
+2. Copiar:
+scp PRODIMT_Instalar_I16.py prodimt-customer-products-payload.zip root@194.238.26.70:/root/
+3. Comprobar sólo lectura:
+ssh root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip'
+Esperado: planned/completed, sin cambios. No aplicar si informa discrepancias.
+4. Terminar los borradores abiertos antes de aplicar (el navegador debe actualizarse después):
+ssh -t root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip --apply'
+Solicita usuario y contraseña SQL existentes en entrada oculta; son las credenciales SQL, no las web.
+Crea snapshot privado del entorno y configuraciones y COPY_ONLY/CHECKSUM + RESTORE VERIFYONLY.
+Detiene brevemente sólo PRODIMT, migra 13→14 y concede permisos mínimos en la misma transacción.
+Verifica esquema, herencia de máquina, datos/precios/tokens y activa ambos releases.
+No restaura SQL automáticamente: si falla, recupera los enlaces anteriores con salud y conserva el esquema aditivo.
+Si falló después del commit SQL, repetir el mismo instalador verifica 14 y retoma sin repetir migración.
+Si está activo I16, already_current comprueba archivos/salud/permisos/clave sin reiniciar ni escribir en SQL.
+
+Esperado al aplicar: updated/completed, migrations_after 14, migrated_schema_verified,
+existing_data_counts_preserved, price_history_append_only_verified, tokens_preserved,
+machine_inheritance_preserved, setup_permissions_verified, encryption_key_effective_verified,
+health_verified y frontend_verified true.
+
+5. Ctrl+F5 en administración y portal. Captura manual → Pedir otro producto → elegir del catálogo y cantidad.
+Agregar sólo modifica el borrador; Confirmar pedido/Guardar pedido registra pedido y pendiente atómicamente.
+El pedido continúa con precio pendiente; no se convierte en precio cero ni se hereda máquina.
+Administración → Configurar productos → Configurar producto: agregar a productos del cliente, guardar frecuentes,
+definir Precio e historial con fecha de vigencia (incluidas las entregas anteriores pendientes) y motivo.
+Revisar vista previa, indicar motivo, marcar revisión y Completar configuración.
+Sólo completa precios null de las partidas vinculadas; conserva precios previos, incluso cero explícito.
+La máquina es opcional; no aprobar posiciones o abreviaturas sin verificarlas.
+La asignación diaria de producción, reventa, cobranza y roles completos siguen fuera de este incremento.
+'''
     bundle = {'PRODIMT_Instalar_I16.py': script.encode(), 'prodimt-customer-products-payload.zip': payload,
               'LEEME.txt': readme.encode()}
     bundle['SHA256SUMS.txt'] = ''.join(f'{digest(raw)}  {name}\n' for name, raw in sorted(bundle.items())).encode()

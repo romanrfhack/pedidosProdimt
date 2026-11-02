@@ -199,6 +199,12 @@ test('revisión incompleta impide cerrar el pendiente y no crea un precio autom�
 
 test('bandeja abre configuración completa y agrega relación sin aprobar posiciones ni heredar máquina', async ({ page }) => {
   const writes: any[] = [];
+  await page.route(`**/api/admin/customers/${customerId}/ordering-profile`, async route => {
+    if (route.request().method() === 'OPTIONS') return respond(route, {});
+    const response = await route.fetch(); const profile = await response.json();
+    return respond(route, { ...profile, items: profile.items.map((x: any) => x.productId === extraId
+      ? { ...x, productName: 'Burrera de prueba', unitCode: 'package', productIsActive: true } : x) });
+  });
   await page.route('**/api/admin/products', async route => {
     if (route.request().method() === 'OPTIONS') return respond(route, {});
     const response = await route.fetch(); const products = await response.json();
