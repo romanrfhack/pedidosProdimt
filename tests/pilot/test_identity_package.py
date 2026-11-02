@@ -1,9 +1,12 @@
 """I18 native delivery guards, batch boundaries and downgrade recovery."""
 import importlib.util
+from contextlib import redirect_stdout
 import io
 import json
 from pathlib import Path
+import stat
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 import zipfile
@@ -50,6 +53,177 @@ def supports():
 
 
 class IdentityPackageTests(unittest.TestCase):
+    @staticmethod
+    def app_token_metadata(visible=False):
+        flag = int(visible)
+        return dict(columns_count=3, protected_column=1, version_column=1, reminder_column=1,
+                    version_default_visible=flag, version_default_valid=flag,
+                    reminder_default_visible=flag, reminder_default_valid=flag,
+                    can_view_definition=flag)
+
+    def test_app_token_metadata_accepts_hidden_defaults_without_claiming_exact_verification(self):
+        data = self.app_token_metadata()
+        self.assertEqual(installer.app_token_schema_mismatches(data), [])
+        instance = self.instance()
+        instance.sql_run = Mock(side_effect=AssertionError('read-only metadata must not write SQL'))
+        instance.runtime.command = Mock(side_effect=AssertionError('read-only metadata must not operate service'))
+        instance.check_app_token_schema(data)
+        self.assertEqual(instance.state['token_schema_checks'], data)
+        self.assertTrue(instance.state['token_schema_defaults_pending_admin'])
+        self.assertFalse(instance.state['token_schema_defaults_verified'])
+        self.assertFalse(instance.state['changes_made'])
+        self.assertFalse(instance.stop_requested)
+        instance.sql_run.assert_not_called()
+        instance.runtime.command.assert_not_called()
+
+    def test_app_token_metadata_accepts_visible_expected_defaults_and_mixed_visibility(self):
+        visible = self.app_token_metadata(True)
+        mixed = self.app_token_metadata() | dict(version_default_visible=1, version_default_valid=1)
+        for data, pending in ((visible, False), (mixed, True)):
+            with self.subTest(data=data):
+                self.assertEqual(installer.app_token_schema_mismatches(data), [])
+                instance = self.instance()
+                instance.check_app_token_schema(data)
+                self.assertEqual(instance.state['token_schema_defaults_pending_admin'], pending)
+                self.assertEqual(instance.state['token_schema_defaults_verified'], not pending)
+
+    def test_app_token_metadata_rejects_structure_wrong_defaults_and_inconsistent_visibility(self):
+        good = self.app_token_metadata()
+        cases = [good | {key: 0} for key in installer.EXPECTED_APP_TOKEN_STRUCTURE]
+        cases += [
+            good | dict(version_default_visible=1, version_default_valid=0),
+            good | dict(reminder_default_visible=1, reminder_default_valid=0),
+            good | dict(version_default_visible=0, version_default_valid=1),
+            good | dict(reminder_default_visible=0, reminder_default_valid=1),
+            good | dict(can_view_definition=1),
+            self.app_token_metadata(True) | dict(version_default_visible=0, version_default_valid=0),
+        ]
+        for data in cases:
+            with self.subTest(data=data):
+                self.assertTrue(installer.app_token_schema_mismatches(data))
+                instance = self.instance()
+                with self.assertRaises(installer.InstallError):
+                    instance.check_app_token_schema(data)
+                self.assertFalse(instance.state['changes_made'])
+                self.assertFalse(instance.stop_requested)
+
+    def test_app_token_metadata_rejects_unknown_fields_and_non_integer_or_boolean_values(self):
+        good = self.app_token_metadata()
+        cases = [None, [], 'unexpected', {}, good | dict(unrecognized=1),
+                 {key: value for key, value in good.items() if key != 'version_default_valid'}]
+        cases += [good | dict(version_column=value) for value in (True, False, None, '1', 1.0, -1, 2)]
+        cases += [good | dict(version_default_visible=value) for value in (True, False, None, '0', 0.0, -1, 2)]
+        for data in cases:
+            with self.subTest(data=data):
+                self.assertTrue(installer.app_token_schema_mismatches(data))
+                instance = self.instance()
+                with self.assertRaises(installer.InstallError):
+                    instance.check_app_token_schema(data)
+                self.assertFalse(instance.state['changes_made'])
+
+    def test_rejected_metadata_diagnostics_never_publish_unknown_fields_or_values(self):
+        secret = 'Synthetic-connection-password-not-for-output'
+        for data in (self.app_token_metadata() | dict(password=secret),
+                     self.app_token_metadata() | dict(version_column=secret)):
+            with self.subTest(data=data):
+                instance = self.instance()
+                output = io.StringIO()
+                with redirect_stdout(output), self.assertRaises(installer.InstallError) as failure:
+                    instance.check_app_token_schema(data)
+                report = json.dumps(instance.state) + output.getvalue() + str(failure.exception)
+                self.assertNotIn(secret, report)
+                self.assertNotIn('"password"', report)
+                self.assertFalse(instance.state['secret_values_printed'])
+
+    def admin_schema_answers(self, instance, token_schema):
+        commercial = load('i18_test_commercial_schema', ROOT / 'scripts/pilot/install-commercial-catalog-update.py')
+        return [
+            [{'MigrationId': value} for value in instance.runtime.MIGRATIONS +
+             ['20261101154618_AddSharedProductsAndCustomerPrices', '20261101190000_AddRecoverableCustomerAccessTokens']],
+            dict(columns_count=1, valid_column=1, checks_count=1, valid_check=1),
+            dict(columns_count=1, valid_column=1, indexes_count=1, valid_index=1),
+            commercial.EXPECTED_SCHEMA,
+            token_schema,
+            dict.fromkeys(installer.EXPECTED_SECURITY_SCHEMA, 0),
+        ]
+
+    def test_privileged_exact_default_check_clears_pending_only_after_a_full_match(self):
+        token = load('i18_test_exact_token_schema', ROOT / 'scripts/pilot/install-access-token-management-update.py')
+        for actual, matches in ((token.EXPECTED_TOKEN_SCHEMA, True),
+                                (token.EXPECTED_TOKEN_SCHEMA | dict(version_column=0), False),
+                                (token.EXPECTED_TOKEN_SCHEMA | dict(reminder_column=0), False)):
+            with self.subTest(actual=actual):
+                instance = self.instance()
+                instance.inspector = type('Inventory', (), {'SQL_MIGRATIONS': 'history'})
+                instance.check_app_token_schema(self.app_token_metadata())
+                instance.sql_json = Mock(side_effect=self.admin_schema_answers(instance, actual))
+                if matches:
+                    self.assertEqual(instance.verify_schema(), 13)
+                else:
+                    with self.assertRaises(installer.InstallError):
+                        instance.verify_schema()
+                self.assertEqual(instance.state['token_schema_defaults_pending_admin'], not matches)
+                self.assertEqual(instance.state['token_schema_defaults_verified'], matches)
+                self.assertFalse(instance.state['changes_made'])
+                self.assertFalse(instance.stop_requested)
+
+    def test_apply_rejects_privileged_wrong_default_before_any_staging_stop_backup_or_sql_write(self):
+        instance = self.instance()
+        instance.inspector = type('Inventory', (), {'SQL_MIGRATIONS': 'history'})
+        instance.preflight = Mock()
+        instance.check_app_token_schema(self.app_token_metadata())
+        sql_user, sql_secret = 'Synthetic-admin-user', 'Synthetic-admin-password-never-printed'
+        instance.runtime.prompt_secret = Mock(side_effect=[sql_user, sql_secret])
+        backup_directory = Mock()
+        backup_directory.lstat.return_value = SimpleNamespace(st_mode=stat.S_IFDIR | 0o700, st_uid=999, st_gid=988)
+        backup_directory.resolve.return_value = backup_directory
+        instance.runtime.SQL_BACKUPS = backup_directory
+        instance.runtime.shutil.disk_usage = Mock(return_value=SimpleNamespace(free=1024 * 1024 * 1024))
+        admin = dict(database_name='ProdimtPedidos', view_definition=1, sysadmin=1, files_mib=1)
+        instance.sql_json = Mock(side_effect=[admin] + self.admin_schema_answers(instance,
+            dict(columns_count=3, protected_column=1, version_column=0, reminder_column=1)))
+        instance.stage = Mock(side_effect=AssertionError('must not stage'))
+        instance.database_backup = Mock(side_effect=AssertionError('must not back up'))
+        instance.sql_run = Mock(side_effect=AssertionError('must not mutate SQL'))
+        instance.runtime.command = Mock(side_effect=AssertionError('must not stop or restart'))
+        output = io.StringIO()
+        with (redirect_stdout(output),
+              patch.object(Path, 'mkdir', side_effect=AssertionError('must not write snapshots')),
+              self.assertRaises(installer.InstallError)):
+            instance.apply()
+        for operation in (instance.stage, instance.database_backup, instance.sql_run, instance.runtime.command):
+            operation.assert_not_called()
+        self.assertFalse(instance.state['changes_made'])
+        self.assertFalse(instance.state['database_migrations_run'])
+        self.assertFalse(instance.stop_requested)
+        self.assertTrue(instance.state['token_schema_defaults_pending_admin'])
+        self.assertFalse(instance.state['token_schema_defaults_verified'])
+        report = output.getvalue() + json.dumps(instance.state)
+        self.assertNotIn(sql_user, report)
+        self.assertNotIn(sql_secret, report)
+
+    def test_already_current_apply_still_checks_pending_defaults_before_returning_without_changes(self):
+        instance = self.instance()
+        instance.preflight = Mock()
+        instance.state['status'] = 'already_current'
+        instance.check_app_token_schema(self.app_token_metadata())
+        events = []
+        def authenticate():
+            events.append('admin-verified')
+            instance.state.update(token_schema_defaults_pending_admin=False, token_schema_defaults_verified=True)
+        instance.authenticate_admin = Mock(side_effect=authenticate)
+        instance.stage = Mock(side_effect=AssertionError('must not stage an installed release'))
+        instance.runtime.command = Mock(side_effect=AssertionError('must not operate an installed release'))
+        with patch.object(Path, 'mkdir', side_effect=AssertionError('must not write snapshots')):
+            instance.apply()
+        self.assertEqual(events, ['admin-verified'])
+        instance.authenticate_admin.assert_called_once()
+        instance.stage.assert_not_called()
+        instance.runtime.command.assert_not_called()
+        self.assertEqual(instance.state['status'], 'already_current')
+        self.assertFalse(instance.state['changes_made'])
+        self.assertTrue(instance.state['token_schema_defaults_verified'])
+
     def test_batch_boundary_preserves_statements_and_one_transaction(self):
         original = migration()
         fixed = builder.migration_sql_for_sqlcmd(original)
@@ -233,8 +407,14 @@ class IdentityPackageTests(unittest.TestCase):
             exec(compile(exported, 'generated_identity_install', 'exec'), generated.__dict__)
             with patch.object(generated, 'regular', return_value=payload):
                 files = generated.load_payload(Path('/synthetic-payload.zip'))
+                exported_instance = generated.make_installer(Path('/synthetic-payload.zip'))
+                exported_instance.check_app_token_schema(self.app_token_metadata())
             self.assertEqual(files['backend/Prodimt.Pedidos.Api.dll'], b'synthetic-backend')
             self.assertIn(b'GO\n\n', files['migrations-i18.sql'])
+            self.assertTrue(exported_instance.state['token_schema_defaults_pending_admin'])
+            self.assertFalse(exported_instance.state['token_schema_defaults_verified'])
+            self.assertFalse(exported_instance.state['changes_made'])
+            self.assertEqual(generated.EXPECTED_PAYLOAD_SHA256, builder.digest(payload))
             with patch.object(generated, 'regular', return_value=payload + b'tampered'):
                 with self.assertRaises(generated.InstallError):
                     generated.load_payload(Path('/synthetic-payload.zip'))

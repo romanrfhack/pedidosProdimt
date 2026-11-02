@@ -37,6 +37,119 @@ def load_module(name, path):
     return result
 
 
+
+def verify_restricted_token_metadata(execute, query, inventory, token_support, installer):
+    """Reproduce the app principal's hidden default definitions in disposable SQL.
+
+    The app is granted only table DML. Exact defaults remain an administrator
+    prerequisite; hidden definitions are never reported as verified defaults.
+    Every malformed-schema variation is enclosed in a rolled-back transaction.
+    """
+    principal = 'i18_fixture_limited_metadata'
+    execute("CREATE USER [" + principal + "] WITHOUT LOGIN;\n"
+            "GRANT SELECT,INSERT,UPDATE,DELETE ON dbo.CustomerAccessTokens TO [" + principal + "];\n")
+
+    def as_user(sql):
+        wrapped = ("EXECUTE AS USER=N'" + principal + "';\nSELECT (" + sql.rstrip().removesuffix(';') +
+                   ') AS ProdimtInspectionJson;\nREVERT;')
+        return inventory.parse_sql_output(execute(wrapped))
+
+    visibility = as_user("""SELECT
+      HAS_PERMS_BY_NAME(DB_NAME(),N'DATABASE',N'VIEW DEFINITION') AS database_view_definition,
+      HAS_PERMS_BY_NAME(N'dbo.CustomerAccessTokens',N'OBJECT',N'VIEW DEFINITION') AS object_view_definition,
+      (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens')
+       AND name IN(N'MetadataVersion',N'IsReminderLink') AND default_object_id<>0) AS bound_defaults,
+      (SELECT COUNT(*) FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.CustomerAccessTokens')
+       AND parent_column_id IN(COLUMNPROPERTY(OBJECT_ID(N'dbo.CustomerAccessTokens'),N'MetadataVersion','ColumnId'),
+                              COLUMNPROPERTY(OBJECT_ID(N'dbo.CustomerAccessTokens'),N'IsReminderLink','ColumnId'))
+       AND definition IS NULL) AS hidden_default_definitions
+      FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;""")
+    require(visibility == {'database_view_definition': 0, 'object_view_definition': 0,
+                           'bound_defaults': 2, 'hidden_default_definitions': 2},
+            'restricted_principal_metadata_visibility_not_reproduced')
+    original = as_user(token_support.TOKEN_SCHEMA)
+    require(original == dict(columns_count=3, protected_column=1, version_column=0, reminder_column=0),
+            'original_token_schema_hidden_default_mismatch_not_reproduced')
+    require(query(token_support.TOKEN_SCHEMA) == token_support.EXPECTED_TOKEN_SCHEMA,
+            'administrator_baseline_defaults_not_exact')
+    application = as_user(installer.APP_TOKEN_SCHEMA)
+    require(not installer.app_token_schema_mismatches(application)
+            and application.get('version_default_visible') == 0
+            and application.get('reminder_default_visible') == 0
+            and application.get('version_default_valid') == 0
+            and application.get('reminder_default_valid') == 0
+            and application.get('can_view_definition') == 0,
+            'valid_hidden_default_structure_not_accepted_for_read_only_plan')
+    admin_application = query(installer.APP_TOKEN_SCHEMA)
+    require(not installer.app_token_schema_mismatches(admin_application)
+            and admin_application.get('version_default_visible') == 1
+            and admin_application.get('reminder_default_visible') == 1
+            and admin_application.get('can_view_definition') == 1,
+            'administrator_visible_default_structure_unexpected')
+
+    def drop_version_default():
+        # The identifier comes only from this freshly-created disposable schema;
+        # QUOTENAME keeps generated SQL scoped to that one constraint.
+        return """DECLARE @fixture_default sysname=(SELECT dc.name FROM sys.default_constraints dc
+          JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+          WHERE dc.parent_object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'MetadataVersion');
+          IF @fixture_default IS NULL THROW 51181,'fixture_default_missing',1;
+          EXEC(N'ALTER TABLE dbo.CustomerAccessTokens DROP CONSTRAINT '+QUOTENAME(@fixture_default));
+        """
+
+    combined = ('SELECT JSON_QUERY((' + installer.APP_TOKEN_SCHEMA.rstrip().removesuffix(';') + ')) AS application,'
+                'JSON_QUERY((' + token_support.TOKEN_SCHEMA.rstrip().removesuffix(';') + ')) AS administrator '
+                'FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;')
+
+    def changed_schema(ddl, *, restricted):
+        # All schema mutations are test-only and rolled back in the SAME session.
+        impersonation = "EXECUTE AS USER=N'" + principal + "';\n" if restricted else ''
+        revert = 'REVERT;\n' if restricted else ''
+        wrapped = ('BEGIN TRANSACTION;\n' + ddl + '\n' + impersonation + 'SELECT (' +
+                   combined.rstrip().removesuffix(';') + ') AS ProdimtInspectionJson;\n' +
+                   revert + 'ROLLBACK TRANSACTION;')
+        result = inventory.parse_sql_output(execute(wrapped))
+        require(query(token_support.TOKEN_SCHEMA) == token_support.EXPECTED_TOKEN_SCHEMA,
+                'test_schema_variation_not_rolled_back')
+        return result
+
+    partial = changed_schema('ALTER TABLE dbo.CustomerAccessTokens DROP COLUMN ProtectedToken;', restricted=True)
+    require(installer.app_token_schema_mismatches(partial['application'])
+            and partial['application']['columns_count'] == 2, 'restricted_partial_schema_not_rejected')
+    missing = changed_schema(drop_version_default(), restricted=True)
+    require(installer.app_token_schema_mismatches(missing['application'])
+            and missing['application']['version_column'] == 0,
+            'restricted_missing_default_binding_not_rejected')
+    wrong_type = changed_schema('ALTER TABLE dbo.CustomerAccessTokens ALTER COLUMN ProtectedToken nvarchar(512) NULL;',
+                                restricted=True)
+    require(installer.app_token_schema_mismatches(wrong_type['application'])
+            and wrong_type['application']['protected_column'] == 0,
+            'restricted_wrong_column_type_not_rejected')
+    wrong_value_ddl = (drop_version_default() +
+                       'ALTER TABLE dbo.CustomerAccessTokens ADD CONSTRAINT DF_I18_FixtureWrongVersion DEFAULT 2 FOR MetadataVersion;')
+    hidden_wrong = changed_schema(wrong_value_ddl, restricted=True)
+    require(not installer.app_token_schema_mismatches(hidden_wrong['application'])
+            and hidden_wrong['application']['version_default_visible'] == 0,
+            'hidden_wrong_default_must_remain_pending_administrator_verification')
+    visible_wrong = changed_schema(wrong_value_ddl, restricted=False)
+    require(installer.app_token_schema_mismatches(visible_wrong['application'])
+            and visible_wrong['application']['version_default_visible'] == 1
+            and visible_wrong['application']['version_default_valid'] == 0,
+            'visible_wrong_default_not_rejected')
+    require(visible_wrong['administrator'] != token_support.EXPECTED_TOKEN_SCHEMA
+            and visible_wrong['administrator']['version_column'] == 0,
+            'administrator_exact_wrong_default_not_rejected')
+    # No VIEW DEFINITION or broader metadata grant was added to make planning pass.
+    require(as_user("SELECT HAS_PERMS_BY_NAME(DB_NAME(),N'DATABASE',N'VIEW DEFINITION') AS database_view_definition,"
+                    "HAS_PERMS_BY_NAME(N'dbo.CustomerAccessTokens',N'OBJECT',N'VIEW DEFINITION') AS object_view_definition "
+                    "FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;") ==
+            {'database_view_definition': 0, 'object_view_definition': 0}, 'metadata_permissions_were_broadened')
+    execute('DROP USER [' + principal + '];')
+    return dict(original_hidden_default_mismatch_reproduced=True,
+                read_only_structure_without_metadata_grant_verified=True,
+                malformed_schema_rejected=True, administrator_exact_defaults_enforced=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline', type=Path, required=True)
@@ -118,6 +231,7 @@ def main():
                        "FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;")
         require(before == {'migrations': 13, 'users_count': 2, 'audits_count': 0, 'tokens_count': 0},
                 'fixture_i12_baseline_unexpected')
+        metadata_checks = verify_restricted_token_metadata(execute, query, inventory, token_support, installer)
         # Inject one failure between the exact DDL and seed batches. SQLcmd's
         # XACT_ABORT/-b connection shutdown must roll back ALL DDL and history.
         prefix, tail = script.split('GO\n\n', 1)
@@ -157,7 +271,7 @@ def main():
                 'repeat_upgrade_duplicated_permissions')
         print(json.dumps({'status': 'passed', 'migration': I18, 'exact_packaged_sql_sha256': hashlib.sha256(script.encode()).hexdigest(),
                           'native_sqlcmd_calls': len(calls), 'ddl_seed_rollback_verified': True,
-                          'existing_credentials_preserved': True, 'repeat_does_not_restore_grants': True}))
+                          'existing_credentials_preserved': True, 'repeat_does_not_restore_grants': True, 'token_metadata_checks': metadata_checks}))
     finally:
         runtime.DATABASE = 'master'
         if created:

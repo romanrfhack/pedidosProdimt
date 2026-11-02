@@ -1,5 +1,14 @@
 # Bitácora de trabajo
 
+## I18 — Preflight detenido sin cambios; revisión 2 en validación
+
+El usuario reporta revisión1: `failed/read-only-preflight`, paso `application-sql-read`, `token_management_schema_unexpected`;13 migraciones, permisos/channels esperados y `database_mismatches=[]`. No hubo migración, reinicio, escrituras, cambios de contraseña/claves o revocación. El fallo original no mostraba el detalle de tokens, por lo que el estado real de esas definiciones aún no está observado.
+
+Se detecta un defecto del preflight: exige `sys.default_constraints.definition` al usuario DML de la aplicación aunque SQL Server puede ocultarlo. Revisión2 valida estructura/bindings y cualquier default visible; los ocultos quedan explícitamente pendientes de verificación SQL administrativa exacta, antes de staging/parada/respaldo/migración. No añade VIEW DEFINITION ni cambia permisos/configuración/BD. El payload original y binarios fuente `c49df453de9d07f5be301fb109dbb813309326d9` se conservan.24 pruebas específicas locales correctas; reproducción SQL con usuario limitado en CI pendiente. Ver `docs/validation/2026-11-02-identity-installer-v2.md`.
+
+No reintentar con `--apply` de revisión1. Se preparará `PRODIMT_Instalar_I18_v2.py`, fijado al payload existente `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`, para leer primero el diagnóstico seguro y luego aplicar sólo tras verificar la base. I18 sigue pendiente de instalación.
+
+
 ## 2026-11-02 — I18: validación completa y entrega instalable
 
 Fuente `c49df453de9d07f5be301fb109dbb813309326d9` y PR#10 en borrador sobre I17. [CI 41477009188](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41477009188) completo: cuatro trabajos correctos, **356 Domain/Application, 72 SQL/criptografía, 163 E2E y 366 Python**, más smoke Production inicial y persistido. SQL ODBC validó la migración13→14, rollback integral del DDL/seed y repetición sin reotorgar roles. El SQL exacto del ZIP coincide con el probado por ODBC: SHA256 `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`. Se conserva la confirmación de instalación I17 integrada desde su rama documental, sin cambios funcionales adicionales.

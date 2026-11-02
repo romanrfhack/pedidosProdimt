@@ -1,5 +1,14 @@
 # Estado del proyecto
 
+## I18 — Preflight detenido sin cambios; revisión 2 en validación
+
+El usuario reporta revisión1: `failed/read-only-preflight`, paso `application-sql-read`, `token_management_schema_unexpected`;13 migraciones, permisos/channels esperados y `database_mismatches=[]`. No hubo migración, reinicio, escrituras, cambios de contraseña/claves o revocación. El fallo original no mostraba el detalle de tokens, por lo que el estado real de esas definiciones aún no está observado.
+
+Se detecta un defecto del preflight: exige `sys.default_constraints.definition` al usuario DML de la aplicación aunque SQL Server puede ocultarlo. Revisión2 valida estructura/bindings y cualquier default visible; los ocultos quedan explícitamente pendientes de verificación SQL administrativa exacta, antes de staging/parada/respaldo/migración. No añade VIEW DEFINITION ni cambia permisos/configuración/BD. El payload original y binarios fuente `c49df453de9d07f5be301fb109dbb813309326d9` se conservan.24 pruebas específicas locales correctas; reproducción SQL con usuario limitado en CI pendiente. Ver `docs/validation/2026-11-02-identity-installer-v2.md`.
+
+No reintentar con `--apply` de revisión1. Se preparará `PRODIMT_Instalar_I18_v2.py`, fijado al payload existente `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`, para leer primero el diagnóstico seguro y luego aplicar sólo tras verificar la base. I18 sigue pendiente de instalación.
+
+
 ## I18 — Usuarios, roles y permisos validados; instalación pendiente
 
 CRUD completo, varios roles por usuario y permisos directos adicionales. Los permisos efectivos son la unión de los roles activos y los directos activos, resueltos en cada petición. Interfaz `/admin/seguridad` con procedencia, búsqueda y editor responsivo; ver `INCREMENTO-18.md`. Fuente de aplicación/paquete `c49df453de9d07f5be301fb109dbb813309326d9`, [PR #10](https://github.com/romanrfhack/pedidosProdimt/pull/10) en borrador sobre I17.
