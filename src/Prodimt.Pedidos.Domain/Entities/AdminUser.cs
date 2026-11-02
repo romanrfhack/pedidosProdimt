@@ -12,6 +12,10 @@ public sealed class AdminUser
 
     public bool IsActive { get; set; } = true;
 
+    public bool IsDeleted { get; set; }
+
+    public Guid SessionRevision { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public static AdminUser Create(

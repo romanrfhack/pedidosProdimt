@@ -13,6 +13,7 @@ using Prodimt.Pedidos.Application.AdminImports;
 using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.Auth;
+using Prodimt.Pedidos.Application.Security;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure;
@@ -59,6 +60,7 @@ builder.Services.AddScoped<AdminImportService>();
 builder.Services.AddScoped<PilotAuthenticationService>();
 builder.Services.AddScoped<CustomerSessionValidator>();
 builder.Services.AddScoped<AdminPasswordService>();
+builder.Services.AddScoped<SecurityService>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -111,8 +113,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var provider = context.HttpContext.RequestServices;
                 var user = await provider.GetRequiredService<IAdminUserRepository>()
                     .GetByIdAsync(userId, context.HttpContext.RequestAborted);
-                if (user is null || !user.IsActive || !AdminSessionStamp.Matches(
-                    provider.GetRequiredService<IConfiguration>(), user.PasswordHash, stamp))
+                if (user is null || !user.IsActive || user.IsDeleted || !AdminSessionStamp.Matches(
+                    provider.GetRequiredService<IConfiguration>(), AdminSessionStamp.Source(user), stamp))
                     context.Fail("La sesión administrativa debe renovarse.");
             }
         };
@@ -212,7 +214,9 @@ app.Use(async (HttpContext context, RequestDelegate next) =>
 });
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AdminPermissionMiddleware>();
 app.UseRateLimiter();
+app.MapSecurityEndpoints();
 app.MapAdminOperationsEndpoints();
 app.MapCommercialCatalogEndpoints();
 app.MapDailyOrderEndpoints();
@@ -1100,57 +1104,30 @@ adminUsers.MapGet("", async (
 })
 .WithName("GetAdminUsers");
 
-adminUsers.MapPost("", async (
-    CreateAdminUserRequest request,
-    ClaimsPrincipal user,
-    AdminUserCatalogService service,
-    CancellationToken cancellationToken) =>
+adminUsers.MapPost("", async (CreateAdminUserRequest request, ClaimsPrincipal user,
+    SecurityService service, CancellationToken cancellationToken) =>
 {
-    try
-    {
-        var response = await service.CreateAsync(request, GetAdminActor(user), cancellationToken);
-        return Results.Created($"/api/admin/users/{response.Id}", response);
-    }
-    catch (ArgumentException ex)
-    {
-        return Results.BadRequest(new { error = ex.Message });
-    }
-})
-.WithName("CreateAdminUser");
+    try { var response = await service.CreateLegacyAsync(request, GetAdminActor(user), cancellationToken);
+        return Results.Created($"/api/admin/users/{response.Id}", response); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { error = ex.Message }, statusCode: 403); }
+}).WithName("CreateAdminUser");
 
-adminUsers.MapPatch("/{userId:guid}/activate", async (
-    Guid userId,
-    ClaimsPrincipal user,
-    AdminUserCatalogService service,
-    CancellationToken cancellationToken) =>
+adminUsers.MapPatch("/{userId:guid}/activate", async (Guid userId, ClaimsPrincipal user,
+    SecurityService service, CancellationToken cancellationToken) =>
 {
-    try
-    {
-        return Results.Ok(await service.ActivateAsync(userId, GetAdminActor(user), cancellationToken));
-    }
-    catch (InvalidOperationException ex)
-    {
-        return Results.NotFound(new { error = ex.Message });
-    }
-})
-.WithName("ActivateAdminUser");
+    try { return Results.Ok(await service.SetLegacyActiveAsync(userId, true, GetAdminActor(user), cancellationToken)); }
+    catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { error = ex.Message }, statusCode: 403); }
+}).WithName("ActivateAdminUser");
 
-adminUsers.MapPatch("/{userId:guid}/deactivate", async (
-    Guid userId,
-    ClaimsPrincipal user,
-    AdminUserCatalogService service,
-    CancellationToken cancellationToken) =>
+adminUsers.MapPatch("/{userId:guid}/deactivate", async (Guid userId, ClaimsPrincipal user,
+    SecurityService service, CancellationToken cancellationToken) =>
 {
-    try
-    {
-        return Results.Ok(await service.DeactivateAsync(userId, GetAdminActor(user), cancellationToken));
-    }
-    catch (InvalidOperationException ex)
-    {
-        return Results.NotFound(new { error = ex.Message });
-    }
-})
-.WithName("DeactivateAdminUser");
+    try { return Results.Ok(await service.SetLegacyActiveAsync(userId, false, GetAdminActor(user), cancellationToken)); }
+    catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
+    catch (UnauthorizedAccessException ex) { return Results.Json(new { error = ex.Message }, statusCode: 403); }
+}).WithName("DeactivateAdminUser");
 
 app.MapPilotWeb();
 app.Run();

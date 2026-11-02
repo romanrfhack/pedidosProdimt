@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize, Observable, of, Subscription, switchMap, throwError } from 'rxjs';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AcknowledgeChangeRequest, AdminOperationsApiService, OperationsChange, OperationsChanges, OperationsOrder, OperationsPlan } from './admin-operations-api.service';
 import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
 
@@ -64,7 +65,7 @@ import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from '.
                   @if (line.beforeNotes !== line.afterNotes) { <small>Nota anterior: {{ line.beforeNotes || 'Sin nota' }} · Nota actual: {{ line.afterNotes || 'Sin nota' }}</small> }
                 </li>
               }</ul>
-              <div class="review-actions no-print"><button class="primary" type="button" (click)="acknowledge(change)" [disabled]="acknowledgingIds.has(change.id) || isLoading || isRefreshing || !!refreshError">{{ acknowledgingIds.has(change.id) ? 'Guardando recepción…' : 'Cambio recibido' }}</button><a routerLink="/admin/pedidos" [queryParams]="{ date: current.date, orderId: change.orderId }">Ver pedido y sus cambios</a></div>
+              <div class="review-actions no-print">@if (access.has('operations.acknowledge')) { <button class="primary" type="button" (click)="acknowledge(change)" [disabled]="acknowledgingIds.has(change.id) || isLoading || isRefreshing || !!refreshError">{{ acknowledgingIds.has(change.id) ? 'Guardando recepción…' : 'Cambio recibido' }}</button> }@if (access.has('orders.read')) { <a routerLink="/admin/pedidos" [queryParams]="{ date: current.date, orderId: change.orderId }">Ver pedido y sus cambios</a> }</div>
             </article>
           }
           @if (receivedChanges.length) {
@@ -139,7 +140,7 @@ import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from '.
             <h3>Pendientes de revisión</h3>
             <p>Estos pedidos todavía no forman parte de la demanda por producir.</p>
             <ul>@for (order of current.pendingReview; track order.orderId) { <li [id]="'pedido-' + order.orderId">{{ order.customerName }} · Pedido #{{ order.sequenceNumber }}</li> }</ul>
-            <a class="no-print" routerLink="/admin/pendientes">Ir a revisión administrativa</a>
+            @if (access.has('orders.review')) { <a class="no-print" routerLink="/admin/pendientes">Ir a revisión administrativa</a> }
           </section>
         }
         <p class="print-footer">Plan de preparación. No es comprobante de entrega ni de pago.</p>
@@ -160,6 +161,7 @@ import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from '.
 })
 export class AdminOperationsComponent {
   private readonly api = inject(AdminOperationsApiService);
+  protected readonly access = inject(EffectivePermissionsService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);

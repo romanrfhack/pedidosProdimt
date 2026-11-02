@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.Security;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Infrastructure.Authentication;
@@ -61,8 +62,12 @@ public static class PilotBootstrapper
         }
         var createdAdmin = administrators.Length == 0;
         if (createdAdmin)
-            db.AdminUsers.Add(AdminUser.Create(options.AdminUserName, options.AdminDisplayName,
-                passwords.HashPassword(options.AdminPassword), DateTimeOffset.UtcNow));
+        {
+            var administrator = AdminUser.Create(options.AdminUserName, options.AdminDisplayName,
+                passwords.HashPassword(options.AdminPassword), DateTimeOffset.UtcNow);
+            db.AdminUsers.Add(administrator);
+            db.SecurityUserRoles.Add(new SecurityUserRole { UserId = administrator.Id, RoleId = SecurityDefaults.AdministratorRoleId });
+        }
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -13,7 +13,7 @@ public sealed class AdminUserCatalogService(
     public async Task<IReadOnlyList<AdminUserCatalogResponse>> GetAllAsync(CancellationToken cancellationToken)
     {
         var users = await adminUsers.GetAllAsync(cancellationToken);
-        return users.Select(MapUser).ToArray();
+        return users.Where(x => !x.IsDeleted).Select(MapUser).ToArray();
     }
 
     public async Task<AdminUserCatalogResponse> CreateAsync(

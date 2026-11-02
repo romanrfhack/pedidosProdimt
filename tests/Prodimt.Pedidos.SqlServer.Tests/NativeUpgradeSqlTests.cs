@@ -105,7 +105,9 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
         Assert.Equal(SqlServerFixture.Now, customer.UpdatedAt);
         Assert.False(customer.IsOrderProfileApproved);
         Assert.Equal(0, customer.OrderingProfileVersion);
-        var admin = Assert.Single(await db.AdminUsers.AsNoTracking().ToArrayAsync());
+        // This assertion intentionally targets the historical twelve-migration schema.
+        var admin = Assert.Single(await db.AdminUsers.AsNoTracking().Select(x => new
+        { x.Id, x.UserName, x.DisplayName, x.PasswordHash, x.IsActive, x.CreatedAt }).ToArrayAsync());
         Assert.Equal(adminId, admin.Id);
         Assert.Equal("synthetic-existing-admin", admin.UserName);
         Assert.Equal("Synthetic existing administrator", admin.DisplayName);

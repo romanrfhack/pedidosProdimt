@@ -90,8 +90,11 @@ public sealed class OrderChangeNoticeSqlTests(SqlServerFixture database)
         const string secondPassword = "Synthetic-notice-operator-2026!";
         await using (var seed = database.CreateDbContext())
         {
-            seed.AdminUsers.Add(AdminUser.Create(secondName, "Synthetic second operator",
-                new PasswordHashService().HashPassword(secondPassword), SqlServerFixture.Now));
+            var secondOperator = AdminUser.Create(secondName, "Synthetic second operator",
+                new PasswordHashService().HashPassword(secondPassword), SqlServerFixture.Now);
+            seed.AdminUsers.Add(secondOperator);
+            seed.SecurityUserRoles.Add(new SecurityUserRole { UserId = secondOperator.Id,
+                RoleId = Prodimt.Pedidos.Application.Security.SecurityDefaults.AdministratorRoleId });
             await seed.SaveChangesAsync();
         }
         using var secondClient = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });

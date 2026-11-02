@@ -1,3 +1,4 @@
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { priceText } from './commercial-catalog-api.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { businessDateToday, unitLabel } from './operational-labels';
@@ -140,6 +141,7 @@ export class AdminTodayComponent {
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly operations = inject(AdminOperationsApiService);
+  protected readonly access = inject(EffectivePermissionsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private queryRequest: Subscription | null = null;
@@ -199,7 +201,7 @@ export class AdminTodayComponent {
     const selectedId = this.selectedDetail?.id;
     this.queryRequest = forkJoin({
       orders: this.data.loadTodayOrders(this.serviceDate),
-      changes: this.operations.getChanges(this.serviceDate, ''),
+      changes: this.access.any(['operations.read','operations.acknowledge']) ? this.operations.getChanges(this.serviceDate, '') : of({ changes: [] }),
       detail: background && selectedId ? this.data.loadOrderDetail(selectedId) : of(null)
     }).subscribe({
       next: ({ orders, changes, detail }) => {
@@ -261,7 +263,7 @@ export class AdminTodayComponent {
   }
 
   protected canCorrect(detail: AdminOrderDetail): boolean {
-    return ['Submitted', 'Accepted', 'PendingAdminReview'].includes(detail.status);
+    return this.access.has('orders.capture') && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(detail.status);
   }
 
   protected reloadDetail(order: AdminOrder): void {
@@ -275,6 +277,7 @@ export class AdminTodayComponent {
     this.reloadDetail(order);
     const generation = this.generation;
     const date = this.serviceDate;
+    if (!this.access.any(['operations.read','operations.acknowledge'])) return;
     this.operations.getChanges(date, '').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: result => { if (generation !== this.generation || date !== this.serviceDate) return; this.changes = result.changes; this.changeDetector.detectChanges(); },
       error: () => { if (generation !== this.generation || date !== this.serviceDate) return; this.refreshError = 'La corrección se guardó, pero no se pudieron consultar sus avisos.'; this.changeDetector.detectChanges(); }

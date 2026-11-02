@@ -305,7 +305,39 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+const securityPermissionKeys = ['orders.read', 'orders.capture', 'orders.review', 'customers.read', 'customers.manage',
+  'products.read', 'products.manage', 'machines.read', 'machines.manage', 'pricing.manage', 'tokens.manage', 'imports.manage',
+  'operations.read', 'operations.acknowledge', 'security.manage'];
+const securityPermissionNames = ['Consultar pedidos', 'Capturar pedidos', 'Revisar pedidos', 'Consultar clientes', 'Administrar clientes',
+  'Consultar productos', 'Administrar productos', 'Consultar máquinas', 'Administrar máquinas', 'Administrar precios',
+  'Administrar accesos', 'Importar datos', 'Consultar operación', 'Reconocer avisos', 'Administrar seguridad'];
+let securityState;
+function resetSecurityState() {
+  const permissions = securityPermissionKeys.map((key, i) => ({ id: `90000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`,
+    key, name: securityPermissionNames[i], module: key.split('.')[0], description: 'Permiso del sistema', isActive: true, isSystem: true }));
+  securityState = { revision: randomUUID(), permissions,
+    roles: [
+      { id: '91000000-0000-0000-0000-000000000001', name: 'Administrador', description: 'Acceso completo protegido', isActive: true, isSystem: true, permissionIds: permissions.map(p => p.id) },
+      { id: '91000000-0000-0000-0000-000000000002', name: 'Capturista', description: 'Captura diaria', isActive: true, isSystem: false, permissionIds: permissions.filter(p => ['orders.read', 'orders.capture'].includes(p.key)).map(p => p.id) },
+      { id: '91000000-0000-0000-0000-000000000003', name: 'Supervisor', description: 'Revisión de pedidos', isActive: true, isSystem: false, permissionIds: permissions.filter(p => ['orders.read', 'orders.review'].includes(p.key)).map(p => p.id) }
+    ], users: [
+      { id: '92000000-0000-0000-0000-000000000001', userName: 'admin', displayName: 'Administrador Demo', isActive: true,
+        roleIds: ['91000000-0000-0000-0000-000000000001'], directPermissionIds: [], createdAt: '2026-11-02T00:00:00Z' },
+      { id: '92000000-0000-0000-0000-000000000002', userName: 'operador.demo', displayName: 'Operador Demo', isActive: true,
+        roleIds: ['91000000-0000-0000-0000-000000000002'], directPermissionIds: [], createdAt: '2026-11-02T00:00:00Z' }
+    ] };
+}
+function securitySnapshot() {
+  return { ...clone(securityState), users: securityState.users.filter(user => !user.isDeleted).map(user => ({ ...clone(user), effectivePermissions: !user.isActive ? [] :
+    securityState.permissions.filter(permission => permission.isActive && (user.directPermissionIds.includes(permission.id) ||
+      securityState.roles.some(role => role.isActive && user.roleIds.includes(role.id) && role.permissionIds.includes(permission.id))))
+      .map(permission => ({ id: permission.id, key: permission.key, name: permission.name, module: permission.module,
+        roleNames: securityState.roles.filter(role => role.isActive && user.roleIds.includes(role.id) && role.permissionIds.includes(permission.id)).map(role => role.name),
+        isDirect: user.directPermissionIds.includes(permission.id) })) })) };
+}
+
 function resetState() {
+  resetSecurityState();
   currentOrder = null;
   pendingOrders = [pendingOrderBase];
   pendingCustomers = [...pendingCustomerBase];
@@ -328,7 +360,7 @@ function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
       'access-control-allow-origin': '*',
       'access-control-allow-headers': 'authorization,content-type',
-      'access-control-allow-methods': 'GET,POST,PUT,PATCH,OPTIONS',
+      'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
       'content-type': 'application/json'
   });
   response.end(JSON.stringify(body));
@@ -493,6 +525,40 @@ const server = http.createServer(async (request, response) => {
     resetState();
     sendJson(response, 200, { status: 'reset' });
     return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/security/me') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { userId: securityState.users[0].id, permissions: securityPermissionKeys }); return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/admin/security') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, securitySnapshot()); return;
+  }
+  const securityMatch = url.pathname.match(/^\/api\/admin\/security\/(users|roles|permissions)(?:\/([^/]+))?$/);
+  if (securityMatch && ['POST', 'PUT', 'DELETE'].includes(request.method)) {
+    if (!requireAdminAccess(request, response)) return;
+    const [, collection, id] = securityMatch;
+    const body = request.method === 'DELETE' ? {} : await readJson(request);
+    const expectedRevision = request.method === 'DELETE' ? url.searchParams.get('expectedRevision') : body.expectedRevision;
+    if (expectedRevision !== securityState.revision) { sendJson(response, 409, { error: 'La configuración cambió. Recarga antes de guardar.' }); return; }
+    const rows = securityState[collection], existing = rows.find(row => row.id === id);
+    if (id && !existing) { sendJson(response, 404, { error: 'Registro no encontrado.' }); return; }
+    if (request.method === 'DELETE') {
+      if (existing.isSystem) { sendJson(response, 409, { error: 'El registro del sistema está protegido.' }); return; }
+      if (collection === 'users') { existing.isActive = false; existing.isDeleted = true; }
+      else {
+        const assigned = collection === 'roles' ? securityState.users.some(user => user.roleIds.includes(id)) :
+          securityState.roles.some(role => role.permissionIds.includes(id)) || securityState.users.some(user => user.directPermissionIds.includes(id));
+        if (assigned) { sendJson(response, 409, { error: 'Quita las asignaciones antes de eliminar.' }); return; }
+        securityState[collection] = rows.filter(row => row.id !== id);
+      }
+    } else {
+      const clean = { ...body }; delete clean.expectedRevision; delete clean.password;
+      if (existing) Object.assign(existing, clean);
+      else rows.push({ id: randomUUID(), ...clean, ...(collection === 'users' ? { createdAt: '2026-11-02T00:00:00Z' } : { isSystem: false }) });
+    }
+    securityState.revision = randomUUID(); sendJson(response, 200, securitySnapshot()); return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/orders/next-delivery-date') {

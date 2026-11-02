@@ -40,7 +40,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
                 EntityId = catalog.CustomerId.ToString(), EventType = "SyntheticBeforeI12",
                 OccurredAt = SqlServerFixture.Now, ActorType = AuditActorType.System, Summary = "Historical audit retained." });
             await before.SaveChangesAsync();
-            await before.Database.MigrateAsync();
+            await before.GetService<IMigrator>().MigrateAsync(I12);
         }
         await using (var upgraded = database.CreateDbContext())
         {
@@ -70,7 +70,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
             Assert.True(await upgraded.AuditLogs.AnyAsync(x => x.Id == historicalAuditId));
             Assert.Single(await upgraded.Customers.ToArrayAsync());
             Assert.Equal(2, await upgraded.Products.CountAsync());
-            Assert.Single(await upgraded.AdminUsers.ToArrayAsync());
+            Assert.Single(await upgraded.AdminUsers.Select(x => x.Id).ToArrayAsync());
             Assert.Empty(await upgraded.Orders.ToArrayAsync());
             Assert.Empty(await upgraded.OrderOperations.ToArrayAsync());
         }
@@ -83,7 +83,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
         {
             later.CustomerAccessTokens.Add(current);
             await later.SaveChangesAsync();
-            await later.Database.MigrateAsync(); // Migration history prevents a second global revocation.
+            await later.GetService<IMigrator>().MigrateAsync(I12); // Migration history prevents a second global revocation.
         }
         var rollbackLegacy = CustomerAccessToken.Create(catalog.CustomerId, "synthetic-rollback-legacy-hash",
             "Legacy application retry", null, SqlServerFixture.Now);
@@ -115,7 +115,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
         try
         {
             await using var attempt = database.CreateDbContext();
-            await Assert.ThrowsAsync<SqlException>(() => attempt.Database.MigrateAsync());
+            await Assert.ThrowsAsync<SqlException>(() => attempt.GetService<IMigrator>().MigrateAsync(I12));
             Assert.Equal(12, (await attempt.Database.GetAppliedMigrationsAsync()).Count());
             Assert.Equal(1, await Scalar<int>("SELECT CASE WHEN COL_LENGTH(N'dbo.CustomerAccessTokens',N'ProtectedToken') IS NULL THEN 1 ELSE 0 END"));
             Assert.Equal(legacy.Count(x => x.IsActive), await Scalar<int>("SELECT COUNT(*) FROM dbo.CustomerAccessTokens WHERE IsActive=1"));
@@ -123,7 +123,7 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
         }
         finally { await Execute("DROP TRIGGER dbo.reject_i12_revocation_audit;"); }
         await using var retry = database.CreateDbContext();
-        await retry.Database.MigrateAsync();
+        await retry.GetService<IMigrator>().MigrateAsync(I12);
         Assert.Equal(13, (await retry.Database.GetAppliedMigrationsAsync()).Count());
         Assert.False(await retry.CustomerAccessTokens.AnyAsync(x => x.IsActive));
         Assert.Equal(legacy.Count(x => x.IsActive), await retry.AuditLogs.CountAsync(x => x.EventType == RevocationEvent));
@@ -132,6 +132,8 @@ public sealed class CustomerAccessTokenManagementSqlTests : IAsyncLifetime
     [Fact]
     public async Task NativeSchemaAndLegacyCatchup_UseExactInstallerSqlAndPreserveProtectedAccesses()
     {
+        // The historical installer deliberately accepts exactly thirteen migrations.
+        await using (var pinned = database.CreateDbContext()) await pinned.GetService<IMigrator>().MigrateAsync(I12);
         var contract = await NativeContract();
         var expected = JsonSerializer.Deserialize<Dictionary<string, int>>(contract.GetProperty("expectedSchema"))!;
         var observed = JsonSerializer.Deserialize<Dictionary<string, int>>(await Scalar<string>(contract.GetProperty("schema").GetString()!))!;

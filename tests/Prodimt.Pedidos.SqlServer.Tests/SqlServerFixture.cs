@@ -71,7 +71,11 @@ public sealed class SqlServerFixture : IAsyncLifetime
         {
             Id = Guid.NewGuid(), Name = "SQL Test admin", Type = SalesChannelType.AdminManualCapture, IsInternal = true
         });
-        db.AdminUsers.Add(AdminUser.Create("sql-test-admin", "SQL Test Admin", new PasswordHashService().HashPassword(AdminPassword), Now));
+        var administrator = AdminUser.Create("sql-test-admin", "SQL Test Admin", new PasswordHashService().HashPassword(AdminPassword), Now);
+        db.AdminUsers.Add(administrator);
+        if (!LegacyCaptureSchema)
+            db.SecurityUserRoles.Add(new SecurityUserRole { UserId = administrator.Id,
+                RoleId = Prodimt.Pedidos.Application.Security.SecurityDefaults.AdministratorRoleId });
         await db.SaveChangesAsync();
     }
 
@@ -166,6 +170,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
                     services.RemoveAll<ICommercialCatalogRepository>();
                     services.AddScoped<ICommercialCatalogRepository, LegacyCommercialCatalogRepository>();
+                    services.RemoveAll<Prodimt.Pedidos.Application.Security.ISecurityStore>();
+                    services.AddScoped<Prodimt.Pedidos.Application.Security.ISecurityStore, LegacySecurityStore>();
                 }
                 services.RemoveAll<IDateTimeProvider>();
                 services.AddSingleton<IDateTimeProvider, FixedClock>();

@@ -3,6 +3,7 @@ import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { environment } from '../environments/environment';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -40,6 +41,7 @@ import { AuthService } from './auth.service';
 })
 export class AdminLoginComponent {
   private readonly auth = inject(AuthService);
+  private readonly access = inject(EffectivePermissionsService);
   private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
@@ -53,7 +55,7 @@ export class AdminLoginComponent {
 
   constructor() {
     if (this.auth.isAdmin()) {
-      void this.router.navigate(['/admin/pedidos'], { replaceUrl: true });
+      void this.openLanding(true);
     }
   }
 
@@ -63,7 +65,7 @@ export class AdminLoginComponent {
 
     this.auth.loginAdmin(this.userName, this.password).subscribe({
       next: () => {
-        void this.router.navigate(['/admin/pedidos']);
+        void this.openLanding();
       },
       error: (error: unknown) => {
         this.errorMessage = this.formatError(error, 'No se pudo iniciar sesion.');
@@ -71,6 +73,11 @@ export class AdminLoginComponent {
         this.changeDetector.detectChanges();
       }
     });
+  }
+
+  private async openLanding(replaceUrl = false): Promise<void> {
+    await this.access.refresh();
+    await this.router.navigateByUrl(this.access.landing(), { replaceUrl });
   }
 
   private formatError(error: unknown, fallback: string): string {

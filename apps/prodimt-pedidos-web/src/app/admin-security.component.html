@@ -1,0 +1,91 @@
+<section class="page stack security-page" data-testid="security-admin" [attr.aria-busy]="loading || saving">
+  <header class="security-heading">
+    <div class="page-title"><p class="eyebrow">Administración de accesos</p><h2>Usuarios, roles y permisos</h2><p>Asigna responsabilidades y consulta qué puede hacer cada persona.</p></div>
+    <button type="button" class="secondary" (click)="reload()" [disabled]="loading || saving || editorOpen || !!deleting">Actualizar</button>
+  </header>
+  @if (snapshot) {
+    <div class="security-metrics" aria-label="Resumen de accesos">
+      <div><strong>{{ countActive(snapshot.users) }}</strong><span>usuarios activos</span></div><div><strong>{{ snapshot.roles.length }}</strong><span>roles disponibles</span></div><div><strong>{{ snapshot.permissions.length }}</strong><span>permisos registrados</span></div>
+      <p>Los permisos de los roles se suman a los permisos directos del usuario.</p>
+    </div>
+  }
+  <div class="security-tabs" role="tablist" aria-label="Administración de accesos">
+    <button type="button" role="tab" id="users-tab" aria-controls="security-content" [attr.aria-selected]="tab === 'users'" [disabled]="saving || editorOpen || !!deleting" (click)="switchTab('users')">Usuarios</button>
+    <button type="button" role="tab" id="roles-tab" aria-controls="security-content" [attr.aria-selected]="tab === 'roles'" [disabled]="saving || editorOpen || !!deleting" (click)="switchTab('roles')">Roles</button>
+    <button type="button" role="tab" id="permissions-tab" aria-controls="security-content" [attr.aria-selected]="tab === 'permissions'" [disabled]="saving || editorOpen || !!deleting" (click)="switchTab('permissions')">Permisos</button>
+  </div>
+  @if (loading) { <p class="notice" role="status">Consultando usuarios y asignaciones…</p> }
+  @if (success) { <p class="alert success" role="status">{{ success }}</p> }
+  @if (error) { <div class="alert error" role="alert">{{ error }}
+    @if (conflict) { <p>Hay cambios que debes revisar antes de continuar. Tu formulario se conserva.</p><button type="button" class="secondary" (click)="discardAndReload()">Recargar y descartar cambios</button> }
+    @else if (!snapshot) { <button type="button" class="secondary" (click)="reload()" [disabled]="loading">Reintentar consulta</button> }
+  </div> }
+  @if (deleting) {
+    <section class="security-delete" aria-label="Confirmar eliminación"><div><h3>Eliminar {{ deleting.name }}</h3><p>{{ deleting.collection === 'users' ? 'Se desactivará el acceso y se conservará su historial. El nombre de usuario quedará reservado.' : 'Solo se puede eliminar un registro propio que no tenga asignaciones. Los registros del sistema se conservan.' }}</p></div>
+      <div class="security-actions"><button type="button" class="danger" [disabled]="saving || conflict" (click)="confirmDelete()">Confirmar eliminación</button><button type="button" class="secondary" [disabled]="saving" (click)="close()">Cancelar</button></div>
+    </section>
+  }
+  @if (snapshot && !loading) {
+    <div id="security-content" role="tabpanel" [attr.aria-labelledby]="tab + '-tab'" class="security-workspace" [class.editing]="editorOpen">
+      <section class="security-list" aria-label="Listado de accesos">
+        <div class="security-list-heading"><h3>{{ tab === 'users' ? 'Usuarios' : tab === 'roles' ? 'Roles' : 'Permisos' }}</h3>
+          @if (!editorOpen && !deleting) {
+            @if (tab === 'users') { <button type="button" class="primary" (click)="editUser(undefined, $event)">Nuevo usuario</button> }
+            @if (tab === 'roles') { <button type="button" class="primary" (click)="editRole(undefined, $event)">Nuevo rol</button> }
+            @if (tab === 'permissions') { <button type="button" class="primary" (click)="editPermission(undefined, $event)">Nuevo permiso</button> }
+          }
+        </div>
+        <div class="security-filters"><label><span>Buscar {{ tab === 'users' ? 'usuario' : tab === 'roles' ? 'rol' : 'permiso' }}</span><input type="search" name="securitySearch" [(ngModel)]="query" placeholder="Nombre, clave o descripción" autocomplete="off"></label>
+          <label><span>Estado</span><select name="securityState" [(ngModel)]="state"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label>
+        </div>
+        @if (tab === 'users') {
+          <p class="security-result" role="status">{{ users.length }} usuarios</p>
+          <div class="security-rows">
+            @for (row of users; track row.id) {
+              <article class="security-row" data-testid="security-user" [class.selected]="user?.id === row.id"><div class="security-person"><span class="security-avatar" aria-hidden="true">{{ row.displayName.slice(0, 1).toUpperCase() }}</span><div><h4>{{ row.displayName }}</h4><p class="security-identifier">{{ row.userName }}</p></div></div>
+                <div class="security-row-detail"><div class="security-badges">@for (name of roleNames(row.roleIds); track name) { <span class="security-chip">{{ name }}</span> } @empty { <span class="security-muted">Sin roles</span> }</div><small>{{ row.effectivePermissions.length }} permisos efectivos · {{ row.directPermissionIds.length }} directos</small></div>
+                <span class="security-state" [class.inactive]="!row.isActive">{{ row.isActive ? 'Activo' : 'Inactivo' }}</span>
+                <div class="security-row-actions"><button type="button" class="secondary" [attr.aria-label]="'Editar usuario ' + row.displayName" [disabled]="saving || editorOpen || !!deleting" (click)="editUser(row, $event)">Editar</button><button type="button" class="security-delete-action" [attr.aria-label]="'Eliminar usuario ' + row.displayName" [disabled]="saving || editorOpen || !!deleting || row.id === access.userId()" (click)="askDelete('users', row.id, row.displayName, $event)">Eliminar</button></div>
+              </article>
+            } @empty { <p class="notice">No hay usuarios que coincidan con la búsqueda.</p> }
+          </div>
+        }
+        @if (tab === 'roles') {
+          <p class="security-result" role="status">{{ roles.length }} roles</p><div class="security-rows">
+            @for (row of roles; track row.id) {
+              <article class="security-row" data-testid="security-role" [class.selected]="role?.id === row.id"><div><h4>{{ row.name }}</h4><p>{{ row.description || 'Sin descripción' }}</p></div><div class="security-row-detail"><span>{{ row.permissionIds.length }} permisos · {{ roleMembers(row.id) }} usuarios</span>@if (row.isSystem) { <small>Rol del sistema · protegido</small> }</div>
+                <span class="security-state" [class.inactive]="!row.isActive">{{ row.isActive ? 'Activo' : 'Inactivo' }}</span><div class="security-row-actions"><button type="button" class="secondary" [attr.aria-label]="'Editar rol ' + row.name" [disabled]="saving || editorOpen || !!deleting" (click)="editRole(row, $event)">Editar</button><button type="button" class="security-delete-action" [attr.aria-label]="'Eliminar rol ' + row.name" [disabled]="row.isSystem || saving || editorOpen || !!deleting" (click)="askDelete('roles', row.id, row.name, $event)">Eliminar</button></div>
+              </article>
+            } @empty { <p class="notice">No hay roles que coincidan con la búsqueda.</p> }
+          </div>
+        }
+        @if (tab === 'permissions') {
+          <p class="security-result" role="status">{{ permissions.length }} permisos</p><p class="security-note">Un permiso personalizado debe estar asociado a una función del sistema para habilitar una acción.</p><div class="security-rows">
+            @for (row of permissions; track row.id) {
+              <article class="security-row" data-testid="security-permission" [class.selected]="permission?.id === row.id"><div><h4>{{ row.name }}</h4><code>{{ row.key }}</code><p>{{ row.description || row.module }}</p></div><div class="security-row-detail"><span class="security-chip">{{ row.module }}</span>@if (row.isSystem) { <small>Clave del sistema · protegida</small> }</div><span class="security-state" [class.inactive]="!row.isActive">{{ row.isActive ? 'Activo' : 'Inactivo' }}</span><div class="security-row-actions"><button type="button" class="secondary" [attr.aria-label]="'Editar permiso ' + row.name" [disabled]="saving || editorOpen || !!deleting" (click)="editPermission(row, $event)">Editar</button><button type="button" class="security-delete-action" [attr.aria-label]="'Eliminar permiso ' + row.name" [disabled]="row.isSystem || saving || editorOpen || !!deleting" (click)="askDelete('permissions', row.id, row.name, $event)">Eliminar</button></div></article>
+            } @empty { <p class="notice">No hay permisos que coincidan con la búsqueda.</p> }
+          </div>
+        }
+      </section>
+      @if (user; as draft) {
+        <section class="security-editor" role="region" aria-label="Editor de usuario"><div class="security-editor-heading"><div><p class="eyebrow">{{ draft.id ? 'Editar acceso' : 'Crear acceso' }}</p><h3 tabindex="-1">{{ draft.id ? draft.displayName || 'Usuario' : 'Nuevo usuario' }}</h3></div><button type="button" class="secondary" [disabled]="saving" (click)="close()">Cancelar</button></div>
+          <form (ngSubmit)="saveUser()"><fieldset [disabled]="saving || conflict"><div class="security-fields"><label><span>Usuario</span><input name="userName" required maxlength="120" autocomplete="off" [(ngModel)]="draft.userName"></label><label><span>Nombre visible</span><input name="displayName" required maxlength="200" [(ngModel)]="draft.displayName"></label><label class="security-wide"><span>{{ draft.id ? 'Nueva contraseña (opcional)' : 'Contraseña inicial' }}</span><input name="password" type="password" autocomplete="new-password" [required]="!draft.id" minlength="16" maxlength="128" [(ngModel)]="draft.password"><small>{{ draft.id ? 'Déjala vacía para conservarla. Cambiarla cierra las sesiones anteriores.' : 'Entre 16 y 128 caracteres. Comparte la contraseña por un canal privado.' }}</small></label><label class="security-check"><input type="checkbox" name="userActive" [(ngModel)]="draft.isActive"><span>Usuario activo</span></label></div>
+          <div class="security-section-heading"><h4>Roles del usuario</h4><span>{{ draft.roleIds.length }} asignados</span></div><div class="security-role-options">
+            @for (item of availableRoles; track item.id) { <label class="security-option" [class.checked]="draft.roleIds.includes(item.id)"><input type="checkbox" [attr.aria-label]="'Rol ' + item.name" [checked]="draft.roleIds.includes(item.id)" [disabled]="!item.isActive && !draft.roleIds.includes(item.id)" (change)="toggle(draft.roleIds, item.id, $any($event.target).checked)"><span><strong>{{ item.name }}</strong><small>{{ item.permissionIds.length }} permisos{{ item.isActive ? '' : ' · inactivo, no concede permisos' }}</small></span></label> }
+          </div><div class="security-section-heading"><h4>Permisos adicionales</h4><span>{{ draft.directPermissionIds.length }} directos</span></div><p class="security-note">Marca solo las concesiones directas. Quitar una marca conserva lo que el usuario recibe de sus roles.</p>
+          <label class="security-permission-search"><span>Filtrar permisos</span><input type="search" name="userPermissionQuery" [(ngModel)]="permissionQuery" placeholder="Nombre, módulo o clave"></label>
+          <div class="security-permission-groups">@for (group of groups; track group.module) { <section class="security-permission-group"><h5>{{ group.module }}</h5>@for (item of group.permissions; track item.id) { <label class="security-option" [attr.data-testid]="effective(item) ? 'effective-permission' : null" [class.checked]="draft.directPermissionIds.includes(item.id)" [class.inherited]="inherited(item).length > 0"><input type="checkbox" [attr.aria-label]="'Permiso directo ' + item.name" [checked]="draft.directPermissionIds.includes(item.id)" [disabled]="!item.isActive && !draft.directPermissionIds.includes(item.id)" (change)="toggle(draft.directPermissionIds, item.id, $any($event.target).checked)"><span><strong>{{ item.name }}</strong><code>{{ item.key }}</code>@if (inherited(item).length) { <small class="security-origin">Heredado de: {{ inherited(item).join(', ') }}</small> }@if (draft.directPermissionIds.includes(item.id)) { <small class="security-direct">Directo</small> }@if (!item.isActive) { <small>Permiso inactivo: no concede acceso</small> }</span>@if (effective(item)) { <span class="security-effective">Efectivo</span> }</label> }</section> } @empty { <p class="notice">No hay permisos que coincidan.</p> }</div>
+          </fieldset><footer class="security-editor-footer"><p role="status"><strong>{{ effectiveCount }} permisos efectivos</strong>{{ draft.isActive ? 'Se aplican al guardar.' : 'El usuario inactivo no tendrá acceso.' }}</p><button type="submit" class="primary" [disabled]="saving || conflict">{{ saving ? 'Guardando…' : 'Guardar usuario' }}</button></footer></form>
+        </section>
+      }
+      @if (role; as draft) {
+        <section class="security-editor" role="region" aria-label="Editor de rol"><div class="security-editor-heading"><div><p class="eyebrow">Asignación por responsabilidad</p><h3 tabindex="-1">{{ draft.id ? draft.name : 'Nuevo rol' }}</h3></div><button type="button" class="secondary" [disabled]="saving" (click)="close()">Cancelar</button></div>@if (draft.isSystem) { <p class="notice">El rol Administrador conserva sus permisos para proteger el acceso de administración. Puedes actualizar su descripción.</p> }
+          <form (ngSubmit)="saveRole()"><fieldset [disabled]="saving || conflict"><div class="security-fields"><label class="security-wide"><span>Nombre del rol</span><input name="roleName" required maxlength="120" [disabled]="draft.isSystem" [(ngModel)]="draft.name"></label><label class="security-wide"><span>Descripción</span><textarea name="roleDescription" maxlength="500" rows="2" [(ngModel)]="draft.description"></textarea></label><label class="security-check"><input type="checkbox" name="roleActive" [disabled]="draft.isSystem" [(ngModel)]="draft.isActive"><span>Rol activo</span></label></div><div class="security-section-heading"><h4>Permisos del rol</h4><span>{{ draft.permissionIds.length }} seleccionados</span></div><label class="security-permission-search"><span>Filtrar permisos</span><input type="search" name="rolePermissionQuery" [(ngModel)]="permissionQuery" placeholder="Nombre, módulo o clave"></label><div class="security-permission-groups">@for (group of groups; track group.module) { <section class="security-permission-group"><h5>{{ group.module }}</h5>@for (item of group.permissions; track item.id) { <label class="security-option" [class.checked]="draft.permissionIds.includes(item.id)"><input type="checkbox" [attr.aria-label]="'Permiso ' + item.name" [checked]="draft.permissionIds.includes(item.id)" [disabled]="draft.isSystem || (!item.isActive && !draft.permissionIds.includes(item.id))" (change)="toggle(draft.permissionIds, item.id, $any($event.target).checked)"><span><strong>{{ item.name }}</strong><code>{{ item.key }}</code>@if (!item.isActive) { <small>Inactivo: no concede acceso</small> }</span></label> }</section> }</div></fieldset><footer class="security-editor-footer"><p>Los cambios se aplican a todos los usuarios con este rol.</p><button type="submit" class="primary" [disabled]="saving || conflict">{{ saving ? 'Guardando…' : 'Guardar rol' }}</button></footer></form>
+        </section>
+      }
+      @if (permission; as draft) {
+        <section class="security-editor" role="region" aria-label="Editor de permiso"><div class="security-editor-heading"><div><p class="eyebrow">Catálogo de capacidades</p><h3 tabindex="-1">{{ draft.id ? draft.name : 'Nuevo permiso' }}</h3></div><button type="button" class="secondary" [disabled]="saving" (click)="close()">Cancelar</button></div><form (ngSubmit)="savePermission()"><fieldset [disabled]="saving || conflict"><div class="security-fields"><label class="security-wide"><span>Clave</span><input name="permissionKey" required maxlength="160" [disabled]="!!draft.id" pattern="[a-z][a-z0-9]*(?:[.][a-z][a-z0-9]*)+" placeholder="modulo.accion" [(ngModel)]="draft.key"><small>Identificador estable utilizado por el sistema.</small></label><label class="security-wide"><span>Nombre del permiso</span><input name="permissionName" required maxlength="200" [(ngModel)]="draft.name"></label><label class="security-wide"><span>Módulo</span><input name="permissionModule" required maxlength="120" [(ngModel)]="draft.module"></label><label class="security-wide"><span>Descripción</span><textarea name="permissionDescription" maxlength="500" rows="3" [(ngModel)]="draft.description"></textarea></label><label class="security-check"><input type="checkbox" name="permissionActive" [disabled]="draft.isSystem" [(ngModel)]="draft.isActive"><span>Permiso activo</span></label></div>@if (draft.isSystem) { <p class="notice">La clave y el estado de los permisos del sistema están protegidos.</p> }@else { <p class="notice">Crear una clave no crea una función nueva. Su uso debe estar vinculado a una acción implementada.</p> }</fieldset><footer class="security-editor-footer"><p>Después puedes asignarlo a roles o directamente a usuarios.</p><button type="submit" class="primary" [disabled]="saving || conflict">{{ saving ? 'Guardando…' : 'Guardar permiso' }}</button></footer></form></section>
+      }
+    </div>
+  }
+</section>

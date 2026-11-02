@@ -9,9 +9,9 @@
 
       @if (!configurationOnly) {
       <div class="tab-bar" aria-label="Catalogos">
-        <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button>
-        <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button>
-        <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button>
+        @if (canReadCustomers) { <button type="button" [class.active]="activeTab === 'customers'" (click)="activeTab = 'customers'">Clientes</button> }
+        @if (canReadProducts) { <button type="button" [class.active]="activeTab === 'products'" (click)="activeTab = 'products'">Productos</button> }
+        @if (canReadMachines) { <button type="button" [class.active]="activeTab === 'machines'" (click)="activeTab = 'machines'">Maquinas</button> }
       </div>
       }
 
@@ -33,7 +33,7 @@
             @if (!configurationOnly) {
               <div class="customer-catalog-heading">
                 <div><h3>Clientes</h3><p>Consulta su estado de hoy y abre su configuración.</p></div>
-                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
+                @if (grants.has('customers.manage')) { <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button> }
               </div>
               <div class="customer-toolbar">
                 <label class="customer-search">
@@ -84,9 +84,9 @@
                     @if (!customer.isActive) { <span>Cliente inactivo</span> }
                   </div>
                   <div class="review-actions">
-                    @if (!configurationOnly) { <button type="button" class="primary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button> }
-                    <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button>
-                    <button type="button" class="secondary compact quiet-action" (click)="toggleCustomer(customer)">{{ customer.isActive ? 'Desactivar' : 'Activar' }}</button>
+                    @if (!configurationOnly && grants.any(['customers.manage','tokens.manage','pricing.manage'])) { <button type="button" class="primary compact" (click)="navigateToCustomerConfig(customer)">Configurar</button> }
+                @if (grants.has('customers.manage')) { <button type="button" class="secondary compact" (click)="editCustomer(customer)">{{ configurationOnly ? 'Editar datos y entrega' : 'Editar' }}</button> }
+                @if (grants.has('customers.manage')) { <button type="button" class="secondary compact quiet-action" (click)="toggleCustomer(customer)">{{ customer.isActive ? 'Desactivar' : 'Activar' }}</button> }
                   </div>
 
                   @if (selectedCustomer?.id === customer.id) {
@@ -103,7 +103,18 @@
                       }
 
                       <fieldset class="config-layout" [disabled]="isConfigLoading || isProfileSaving || isWeekSaving">
-                      <section class="stack config-products" aria-label="Productos frecuentes">
+                      @if (grants.has('pricing.manage') && !grants.has('customers.manage')) {
+                        <section class="stack config-products" aria-label="Precios por producto"><div class="config-section-title"><strong>Precios del cliente</strong></div>
+                          @if (priceError) { <p class="alert error">{{ priceError }}</p> }
+                          @for (row of frequentRows; track row.productId) {
+                            <article class="detail-panel"><strong>{{ productFor(row)?.name || row.productName }}</strong>
+                              <app-customer-product-price [customerId]="selectedCustomer!.id" [productId]="row.productId" [productName]="productFor(row)?.name || row.productName" [unitCode]="productFor(row)?.unitCode || null" [price]="prices.get(row.productId) || null" [loaded]="pricesLoaded" [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices()" />
+                            </article>
+                          } @empty { <p class="notice">El cliente aún no tiene productos configurados para asignar precios.</p> }
+                        </section>
+                      }
+
+                      @if (grants.has('customers.manage')) { <section class="stack config-products" aria-label="Productos frecuentes">
                         <div class="config-section-title"><strong>Productos frecuentes</strong><span>{{ frequentRows.length }} productos</span></div>
                         <p class="notice profile-version">Perfil versión {{ selectedCustomer?.orderingProfileVersion ?? 0 }} · {{ selectedCustomer?.isOrderProfileApproved ? 'Aprobado para interpretar posiciones' : 'Pendiente de aprobación' }}</p>
                         <details class="profile-guide"><summary>Cómo configurar el pedido del cliente</summary><p>Una fila por producto. El orden visual organiza la pantalla; la posición indica a qué producto corresponde cada cantidad de “13 + 7”. Las posiciones comienzan en 1 para cada cliente. La abreviatura es opcional, por ejemplo HN.</p><p>Las cantidades sugeridas no crean ni cambian pedidos. La unidad pertenece al producto del catálogo. Su cambio aplica a futuras capturas; los pedidos existentes conservan su unidad registrada.</p></details>
@@ -118,13 +129,13 @@
                               </div>
                               <div class="profile-product-select">
                                 <div class="product-label-heading">
-                                  <app-customer-product-price [customerId]="selectedCustomer!.id" [productId]="row.productId"
+                                  @if (grants.has('pricing.manage')) { <app-customer-product-price [customerId]="selectedCustomer!.id" [productId]="row.productId"
                                     [productName]="productFor(row)?.name || row.productName" [unitCode]="productFor(row)?.unitCode || null"
                                     [price]="prices.get(row.productId) || null" [loaded]="pricesLoaded"
-                                    [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices()" />
+                                    [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices()" /> }
                                   <div class="profile-unit">
                                     <span><span class="unit-prefix">Unidad de venta: </span><strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
-                                    <button type="button" class="secondary compact" aria-label="Ver producto y unidad en catálogo" title="Ver producto y unidad en catálogo" (click)="editProductUnit(row)">↗</button>
+                                    @if (grants.has('products.manage')) { <button type="button" class="secondary compact" aria-label="Ver producto y unidad en catálogo" title="Ver producto y unidad en catálogo" (click)="editProductUnit(row)">↗</button> }
                                   </div>
                                 </div>
                                 <select aria-label="Producto" [(ngModel)]="row.productId" [name]="'frequentProduct' + i" (ngModelChange)="invalidateProfileApproval()">
@@ -180,8 +191,8 @@
                           <button type="button" class="primary compact" [disabled]="profileValidationErrors.length > 0 || profileConflict" (click)="saveFrequentProducts()">{{ isProfileSaving ? 'Guardando...' : 'Guardar frecuentes' }}</button>
                         </div>
                         </div>
-                      </section>
-                      <section class="stack config-week" aria-label="Calendario semanal" data-testid="customer-working-week">
+                      </section> }
+                      @if (grants.has('customers.manage')) { <section class="stack config-week" aria-label="Calendario semanal" data-testid="customer-working-week">
                         <div class="config-section-title"><strong>Calendario semanal</strong>@if (workingWeekDirty) { <span class="badge warning">Sin guardar</span> }</div>
                         <app-customer-working-week [restDays]="workingRestDays" [disabled]="isWeekSaving || isCustomerSaving" (restDaysChange)="changeWorkingWeek($event)" />
                         <small>En los días de descanso no se espera pedido. Un pedido ya registrado se conserva.</small>
@@ -191,8 +202,8 @@
                           <button type="button" class="secondary compact" [disabled]="isWeekSaving" (click)="reloadWorkingWeek()">Recargar días</button>
                           <button type="button" class="primary compact" [disabled]="!workingWeekDirty || isWeekSaving || isCustomerSaving" (click)="saveWorkingWeek()">{{ isWeekSaving ? 'Guardando…' : 'Guardar días' }}</button>
                         </div>
-                      </section>
-                      <section class="stack config-machines" aria-label="Máquinas del cliente">
+                      </section> }
+                      @if (grants.has('customers.manage')) { <section class="stack config-machines" aria-label="Máquinas del cliente">
                         <div class="config-section-title"><strong>Maquinas asignadas</strong><span>{{ machineAssignmentRows.length }}</span></div>
                         @if (!machineAssignmentRows.length) { <small>Sin máquina predeterminada. Puedes asignar una por producto.</small> }
                         <div class="line-list">
@@ -220,11 +231,11 @@
                           <button type="button" class="secondary compact" (click)="addMachineAssignmentRow()">Agregar maquina</button>
                           <button type="button" class="primary compact" (click)="saveMachineAssignments()">Guardar maquinas</button>
                         </div>
-                      </section>
+                      </section> }
 
-                      <button type="button" class="config-access secondary" aria-haspopup="dialog" (click)="accessTokensOpen = true; access.refresh()">
+                      @if (grants.has('tokens.manage')) { <button type="button" class="config-access secondary" aria-haspopup="dialog" (click)="accessTokensOpen = true; access.refresh()">
                         <strong>Tokens de acceso</strong><span aria-hidden="true">{{ access.tokens.length }}</span>
-                      </button>
+                      </button> }
                       </fieldset>
                     </section>
                   }
@@ -238,16 +249,16 @@
 
         @if (activeTab === 'products') {
           <section class="stack" data-testid="catalog-products">
-            <app-admin-products [products]="products" [busyIds]="pendingProductIds"
+            <app-admin-products [canManage]="grants.has('products.manage')" [products]="products" [busyIds]="pendingProductIds"
               (createRequested)="newProduct()" (editRequested)="editProduct($event)" (toggleRequested)="toggleProduct($event)">
-              <app-product-consolidation [products]="products" (completed)="commercialCatalogChanged()" />
+              @if (grants.has('products.manage')) { <app-product-consolidation [products]="products" (completed)="commercialCatalogChanged()" /> }
             </app-admin-products>
           </section>
         }
 
         @if (activeTab === 'machines') {
           <section class="stack" data-testid="catalog-machines">
-            <form class="detail-panel stack" (ngSubmit)="saveMachine()">
+            @if (grants.has('machines.manage')) { <form class="detail-panel stack" (ngSubmit)="saveMachine()">
               <strong>{{ machineForm.id ? 'Editar maquina' : 'Nueva maquina' }}</strong>
               <label>
                 <span>Numero</span>
@@ -261,7 +272,7 @@
                 <button type="submit" class="primary compact">{{ machineForm.id ? 'Guardar maquina' : 'Crear maquina' }}</button>
                 <button type="button" class="secondary compact" (click)="resetMachineForm()">Limpiar</button>
               </div>
-            </form>
+            </form> }
 
             <div class="admin-list">
               @for (machine of machines; track machine.id) {
@@ -275,12 +286,12 @@
                       {{ machine.isActive ? 'Activa' : 'Inactiva' }}
                     </span>
                   </div>
-                  <div class="review-actions">
+                  @if (grants.has('machines.manage')) { <div class="review-actions">
                     <button type="button" class="secondary compact" (click)="editMachine(machine)">Editar</button>
                     <button type="button" class="secondary compact" (click)="toggleMachine(machine)">
                       {{ machine.isActive ? 'Desactivar' : 'Activar' }}
                     </button>
-                  </div>
+                  </div> }
                 </article>
               }
             </div>

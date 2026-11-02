@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -14,13 +15,14 @@ import { AuthService } from './auth.service';
       <nav aria-label="Navegacion principal">
         <a routerLink="/cliente" routerLinkActive="active">Cliente</a>
         @if (auth.isAdminSession()) {
-          <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a>
-          <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a>
-          <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
-          <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a>
-          <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a>
-          <a routerLink="/admin/importacion" routerLinkActive="active">Importacion</a>
-          <a routerLink="/admin/importar-pedidos" routerLinkActive="active">Importar pedidos</a>
+          @if (access.has('orders.read')) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
+          @if (access.any(['operations.read','operations.acknowledge'])) { <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a> }
+          @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a> }
+          @if (access.has('orders.capture')) { <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a> }
+          @if (access.any(['customers.read','customers.manage','products.read','products.manage','machines.read','machines.manage','tokens.manage','pricing.manage'])) { <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a> }
+          @if (access.has('imports.manage')) { <a routerLink="/admin/importacion" routerLinkActive="active">Importacion</a> }
+          @if (access.has('imports.manage')) { <a routerLink="/admin/importar-pedidos" routerLinkActive="active">Importar pedidos</a> }
+          @if (access.has('security.manage')) { <a routerLink="/admin/seguridad" routerLinkActive="active">Seguridad</a> }
           <a routerLink="/admin/cambiar-contrasena" routerLinkActive="active">Cambiar contraseña</a>
         }
         @if (auth.session()) {
@@ -38,6 +40,7 @@ import { AuthService } from './auth.service';
 })
 export class AppComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly access = inject(EffectivePermissionsService);
   private readonly router = inject(Router);
 
   protected logout(): void {
