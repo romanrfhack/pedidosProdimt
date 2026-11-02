@@ -13,6 +13,14 @@ Fecha: 2 de noviembre de 2026. Datos de pruebas ficticios. Base I15: `71461b78b0
 - Capturas PC/móvil y formulario móvil revisados visualmente. No contienen datos reales y no se publican como entregables.
 - `graphify update .`: no disponible; comando ausente, sin grafo modificado.
 
-## Pendiente
+## CI y paquete final
 
-CI, commit remoto de aplicación, ZIP/hash final y guardado de entrega. Después preflight, instalación y revisión visual por el usuario. No se operó VPS, SQL o datos reales. No presentar las pruebas locales como instalación en producción.
+Aplicación/paquete `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, [PR #8](https://github.com/romanrfhack/pedidosProdimt/pull/8). [CI 41472464468](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41472464468) terminado con `success`, cuatro trabajos correctos: 335 Domain/Application (5+330), 66 SQL/criptografía, 151 E2E (4.3 minutos) y 350 Python más smoke Production inicial/persistido. Se verificaron los resultados en logs de los trabajos; no se cambiaron dependencias o presupuestos.
+
+Fuente local limpia y árbol idéntico al commit remoto antes de compilar/empaquetar. ZIP `PRODIMT_Clientes_Pendientes_I17.zip`, 200296 bytes, SHA256 `6d3ff6d47282852dde32c340d283b53e860e0566efa5530d04e2abf357684f5a`. Payload `8b88052dcff7a0c5668e09f8a8d2106741c1bf56fa03b4dc3ec8f70fc03a1cc7`. Verificados CRC de ambos ZIP, SHA256SUMS, pines de fuente/payload y hashes por archivo; contiene sólo once archivos de la clausura activa del build/licencias, sin mapas, fuente, backend o SQL. Todas las referencias de index/imports resuelven dentro del paquete. El módulo del instalador exportado carga exactamente el payload verificado.
+
+Comprobado en JS compilado el mensaje «Haz tu pedido aquí:», ausencia de las dos leyendas retiradas y conservación del catálogo I15; las secuencias hex Unicode del minificador se decodifican para esta comprobación textual. La lógica de la clase de Pendientes permanece idéntica byte por byte. Entrega descargable guardada después de verificarla. Requiere `customer-catalog-afb8f3ad9c33`/backend I12; activa `pending-customers-cdbfec3071bc`.
+
+## Pendiente remoto
+
+Preflight, instalación y revisión visual por el usuario. No se operó VPS, SQL o datos reales. No presentar las pruebas locales/CI como instalación en producción. Siguiente: lectura `planned/completed`, aplicar, comprobar salud/frontend true y Ctrl+F5 → Pendientes; variar ancho y abrir/cancelar captura sin registrar pedidos de prueba reales. El último despliegue confirmado sigue siendo I15.

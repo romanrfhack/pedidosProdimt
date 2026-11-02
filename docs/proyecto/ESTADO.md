@@ -2,13 +2,15 @@
 
 Actualizado: 2 de noviembre de 2026.
 
-## I17 — Clientes pendientes responsivos; implementación local completa
+## I17 — Clientes pendientes responsivos; validado y listo para instalar
 
 Usuario autoriza aprovechar el ancho para las tarjetas de Pendientes de forma similar a Clientes. Implementado sobre I15 confirmado, rama `codex/i17-responsive-pending-customers`: ancho completo, rejilla automática, metadatos legibles, acciones al pie y contador de clientes visibles. Captura abierta a toda la fila sin recrear formulario al redimensionar; cantidades/notas/foco conservados. Sólo HTML/CSS y pruebas/instalador; lógica y API intactas.
 
-Build correcto; 350 Python correctos, incluidas 15 pruebas del nuevo paquete/rollback. Diseño verificado a siete anchos con 1/1/2/3/4/6/8 columnas, sin desbordamiento. Captura/descansos/diseño: 19 E2E correctas en total; un selector anterior se acota al formulario para distinguir el horario repetido en la tarjeta. Capturas PC/móvil revisadas con datos ficticios. CI y ZIP en preparación; instalación/aceptación pendientes. No se operó VPS/SQL; el último release confirmado sigue siendo I15. I16 continúa separado en su rama de propuesta, sin cambios de aplicación en su checkpoint revisado.
+Aplicación/paquete `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, [PR #8](https://github.com/romanrfhack/pedidosProdimt/pull/8), [CI 41472464468](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41472464468) completo con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 151 E2E y 350 Python más smoke Production. Build/locales correctos y capturas PC/móvil revisadas con datos ficticios. Siete anchos dan 1/1/2/3/4/6/8 columnas sin desbordamiento; borrador/foco/cancelación y flujos existentes comprobados.
 
-Ver `INCREMENTO-17.md` y evidencia `../validation/2026-11-02-pending-customers-layout.md`. Próximo: cerrar CI y paquete verificable sobre frontend I15, preservar I13/productos, I14/mensaje y catálogo I15.
+ZIP verificado y guardado: `PRODIMT_Clientes_Pendientes_I17.zip`, 200296 bytes, SHA256 `6d3ff6d47282852dde32c340d283b53e860e0566efa5530d04e2abf357684f5a`. Payload `8b88052dcff7a0c5668e09f8a8d2106741c1bf56fa03b4dc3ec8f70fc03a1cc7`; once archivos activos/licencias, CRC/hashes/imports y cargador exportado correctos. Requiere frontend I15 y backend I12; activa `pending-customers-cdbfec3071bc`. Instalación/aceptación pendientes; último despliegue confirmado I15. I16 continúa separado en su rama de propuesta. No se operó VPS/SQL ni datos reales.
+
+Ver `INCREMENTO-17.md` y evidencia `../validation/2026-11-02-pending-customers-layout.md`. Próximo: preflight, aplicación y salud/frontend true; Ctrl+F5 → Pendientes, revisar columnas y captura/cancelación al cambiar ancho. Conservar I13/productos, I14/mensaje y catálogo I15.
 
 ## I15 — Instalación confirmada; aceptación visual pendiente
 

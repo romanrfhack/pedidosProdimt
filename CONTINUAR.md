@@ -4,13 +4,17 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I17 — Clientes pendientes responsivos; validado localmente, entrega en preparación
+## I17 — Clientes pendientes responsivos; entrega lista, instalación pendiente
 
 Autorizado por el usuario aplicar el diseño de tarjetas de Clientes a Pendientes/captura administrativa. Rama `codex/i17-responsive-pending-customers` desde I15 `71461b78b07183af215742b399d21f0fa5443146`. Ancho completo, rejilla automática mínimo 280px, acciones al pie, metadatos/nota completos y contador visible. La captura abierta ocupa toda la fila; CSS conserva la misma instancia, cantidades, notas y foco al redimensionar. No cambió la lógica de negocio ni se operó el VPS/SQL. I15 sigue siendo el último despliegue confirmado.
 
 Build Angular correcto, 350 pruebas Python correctas. Siete anchos 320/390/768/1024/1366/1920/2560 dan 1/1/2/3/4/6/8 columnas, sin desbordamiento; borrador manual/foco y cancelación comprobados. Las 19 pruebas E2E de captura/descanso/diseño pasan tras acotar un selector de horario al formulario (la tarjeta ahora muestra el mismo dato por separado). Capturas PC/móvil revisadas con datos ficticios. Ver `docs/proyecto/INCREMENTO-17.md` y `docs/validation/2026-11-02-pending-customers-layout.md`.
 
-Instalador sólo frontend sobre `customer-catalog-afb8f3ad9c33`, conserva backend I12 `access-tokens-65560ca3cf98`; pines, snapshot privado, activación atómica y reversión. Falta cerrar CI, generar/verificar/guardar ZIP y documentar sus hashes; instalación/aceptación remotas pendientes. I16 (`codex/i16-add-customer-products`, checkpoint `74b7926ff2aba09e60fca54b800409b83d05241e`) sólo añade documentación de diseño y no se mezcla con esta entrega. No instalar este paquete encima de otro release nuevo.
+Aplicación/paquete `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, [PR #8](https://github.com/romanrfhack/pedidosProdimt/pull/8). [CI 41472464468](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41472464468) completo: cuatro trabajos correctos, 335 Domain/Application, 66 SQL/criptografía, 151 E2E y 350 Python más smoke Production. Sin fallos en la suite completa de navegador.
+
+Entrega verificada y guardada: `PRODIMT_Clientes_Pendientes_I17.zip`, 200296 bytes, SHA256 `6d3ff6d47282852dde32c340d283b53e860e0566efa5530d04e2abf357684f5a`. Payload `8b88052dcff7a0c5668e09f8a8d2106741c1bf56fa03b4dc3ec8f70fc03a1cc7`, once archivos activos/licencias; CRC, hashes, manifiesto/imports y carga del instalador exportado correctos. Sólo frontend sobre `customer-catalog-afb8f3ad9c33`, conserva backend I12 `access-tokens-65560ca3cf98`; pines, snapshot privado, activación atómica y reversión. Nuevo release `pending-customers-cdbfec3071bc`. Instalación y aceptación remotas pendientes; siguiente: preflight `planned/completed`, aplicar y verificar salud/frontend true; Ctrl+F5 → Pendientes, variar ancho, abrir captura y cancelar sin guardar datos de prueba reales.
+
+I16 (`codex/i16-add-customer-products`, checkpoint `74b7926ff2aba09e60fca54b800409b83d05241e`) sólo añadía documentación de diseño y no se mezcla con esta entrega. No instalar este paquete encima de otro release nuevo; un futuro I16 debe incorporar I17 si parte de una base previa. No se operó VPS/SQL, se enviaron mensajes ni se cambió ningún dato real desde este entorno.
 
 ## I15 — Instalación confirmada; aceptación visual pendiente
 
