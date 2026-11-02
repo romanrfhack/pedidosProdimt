@@ -4,11 +4,11 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I12 — Instalación detenida antes de cambios; diagnóstico de configuración pendiente
+## I12 — Bloqueo identificado: api.env 0640; ajuste puntual pendiente
 
-El usuario verificó el ZIP I12 y ejecutó la revisión `20261101-access-token-management-install1`. El instalador terminó `failed/read-only-preflight`, paso `running-service`, con `environment_file_identity_unexpected`. Todos los indicadores de cambios, migraciones, clave y reinicio permanecen en false. No se aplicó I12 ni la revocación autorizada; I11 sigue siendo el último despliegue confirmado. `health_verified=false` sólo indica que no se alcanzó esa comprobación.
+El usuario verificó el ZIP I12 y ejecutó la revisión `20261101-access-token-management-install1`. El instalador terminó `failed/read-only-preflight`, paso `running-service`, con `environment_file_identity_unexpected`, sin cambios, migraciones, clave o reinicio. El diagnóstico posterior de sólo metadatos confirma archivo regular, root:www-data, enlace único, ruta canónica y modo `0640`. La única condición incompatible de esta guarda es el permiso: I12 exige `0600`, mientras la cadena anterior admitía `0640`.
 
-La guarda de `/etc/prodimt-pedidos/api.env` exige archivo regular, root, un enlace, modo exacto `0600` y ruta canónica. La cadena anterior admitía `0640` para root:www-data; es una incompatibilidad posible, no una causa remota demostrada. Revisión independiente del instalador exportado confirma el orden: falla antes de leer configuración, consultar SQL o generar la clave. Siguiente paso: consultar únicamente lstat/modo y booleans de identidad/ruta, sin contenido. No cambiar permisos, relajar la guarda o repetir --apply hasta identificar la condición real. Paquete original conservado; sin SSH desde este entorno.
+Se indica ajustar únicamente el permiso de `/etc/prodimt-pedidos/api.env` a `0600` y volver a ejecutar el instalador original con el payload ya verificado/subido. El servicio nativo usa EnvironmentFile de systemd; la lectura de configuración por el gestor no requiere acceso del grupo www-data. No cambiar contenido, propietario, clave, unidad o paquete, ni añadir reinicio separado: el instalador conserva preflight, respaldo SQL antes de migrar y verificación de clave efectiva tras su reinicio. Corrección e instalación pendientes del reporte del usuario; no se operó el VPS desde este entorno. I11 continúa siendo el último despliegue confirmado y este intento no revocó tokens. `health_verified=false` del intento detenido significa comprobación no alcanzada.
 
 ## I12 — Gestión de tokens activos validada y empaquetada; aplicación pendiente
 
