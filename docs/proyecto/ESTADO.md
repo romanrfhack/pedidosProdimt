@@ -2,11 +2,13 @@
 
 Actualizado: 2 de noviembre de 2026.
 
-## I15 — Catálogo de clientes responsivo, validación en curso
+## I15 — Catálogo de clientes responsivo validado y empaquetado; instalación pendiente
 
 Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.
 
-Build y quince pruebas del paquete correctos, con revisión visual y pruebas locales de distribución/funcionalidad; cierre E2E/CI y ZIP pendientes en este checkpoint. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL; siguiente paso: terminar validación/paquete y entregar al usuario. Ver `INCREMENTO-15.md` y evidencia I15.
+Aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build/locales correctos y capturas PC/móvil revisadas; columnas 1/1/2/3/4/6/8 a 320/390/768/1024/1366/1920/2560px, sin desbordamiento. La configuración enfocada, productos, precios y accesos se conservan.
+
+Entrega verificada y guardada: `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`, payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`. Once archivos frontend/licencias; pines, CRC/hashes/imports y carga exportada comprobados. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL. Próximo: preflight, aplicación, salud/frontend true, Ctrl+F5 y aceptación de catálogo responsivo. Ver `INCREMENTO-15.md` y evidencia I15.
 
 ## I14 — Instalación confirmada; revisión funcional pendiente
 

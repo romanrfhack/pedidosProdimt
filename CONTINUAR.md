@@ -4,11 +4,13 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I15 — Catálogo de clientes responsivo, validación en curso
+## I15 — Catálogo de clientes responsivo validado y empaquetado; instalación pendiente
 
 El usuario solicita aprovechar el ancho en PC y adaptar número/tamaño de tarjetas. Implementado catálogo con ancho completo/márgenes, rejilla CSS automática de mínimo 280px, controles compactos en PC/apilados en móvil, datos legibles/acciones al pie y contador/limpieza de filtros. Conserva estados, orden, búsqueda, modales, configuración enfocada, Productos I13 y mensaje I14. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`. Sólo frontend sobre I14 confirmado; sin backend, SQL directo, migraciones o reinicio. Ver `docs/proyecto/INCREMENTO-15.md` y evidencia `docs/validation/2026-11-02-customer-catalog-layout.md`.
 
-Build y quince pruebas del actualizador correctos; revisión visual y pruebas locales de rejilla/estados/modales ejecutadas. Última regresión, CI y paquete final pendientes en este checkpoint. No se operó el VPS/SQL ni se instaló I15; la aceptación del mensaje I14 sigue pendiente por separado.
+Aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) completo, cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build y Python locales correctos; capturas PC/móvil revisadas. Columnas verificadas 1/1/2/3/4/6/8 a 320/390/768/1024/1366/1920/2560px, sin desbordamiento ni superposición de cabecera. Configuración enfocada/productos/accesos conservados.
+
+Entrega verificada y guardada: `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`. Payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`, once archivos activos frontend/licencias, sin residuos de builds anteriores. CRC/hashes/manifiesto/imports y carga del instalador exportado correctos. Requiere frontend I14 `reminder-message-768230826a3e`, conserva backend I12. Nuevo frontend `customer-catalog-afb8f3ad9c33`; instalación/aceptación pendientes. Siguiente: preflight `planned/completed`, aplicar, verificar salud/frontend true y Ctrl+F5 → Catálogos → Clientes. No se operó el VPS/SQL ni se instaló I15; la aceptación del mensaje I14 sigue pendiente por separado.
 
 ## I14 — Instalación confirmada; revisión funcional pendiente
 
