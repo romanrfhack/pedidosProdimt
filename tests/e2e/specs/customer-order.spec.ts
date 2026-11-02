@@ -399,7 +399,8 @@ test('producto nuevo no presupone kilos y permite guardar docenas', async ({ pag
   await loginAdmin(page);
   await page.goto('/admin/catalogos');
   await page.getByRole('button', { name: 'Productos', exact: true }).click();
-  const form = page.getByTestId('catalog-products').locator('form');
+  await page.getByRole('button', { name: 'Nuevo producto', exact: true }).click();
+  const form = page.getByRole('dialog').locator('form');
   await expect(form.getByLabel('Unidad de venta')).toHaveValue('0: null');
   await form.getByLabel('Nombre', { exact: true }).fill('Huarache catálogo demo');
   await form.getByLabel('Unidad de venta').selectOption('dozen');

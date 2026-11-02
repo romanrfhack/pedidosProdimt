@@ -1,4 +1,4 @@
-    <section class="page stack" [class.config-page]="configurationOnly" data-testid="admin-catalogs">
+    <section class="page stack" [class.config-page]="configurationOnly" [class.products-page]="!configurationOnly && activeTab === 'products'" data-testid="admin-catalogs">
       <div class="page-title configuration-title">
         <div>
         <p class="eyebrow">Admin</p>
@@ -227,59 +227,10 @@
 
         @if (activeTab === 'products') {
           <section class="stack" data-testid="catalog-products">
-            <app-product-consolidation [products]="products" (completed)="commercialCatalogChanged()" />
-            <form class="detail-panel stack" (ngSubmit)="saveProduct()">
-              <strong>{{ productForm.id ? 'Editar producto' : 'Nuevo producto' }}</strong>
-              <label>
-                <span>Nombre</span>
-                <input name="productName" [(ngModel)]="productForm.name">
-              </label>
-              <label>
-                <span>Descripcion</span>
-                <input name="productDescription" [(ngModel)]="productForm.description">
-              </label>
-              <label>
-                <span>Unidad de venta</span>
-                <select name="productUnit" [(ngModel)]="productForm.unitCode">
-                  <option [ngValue]="null">Por confirmar</option>
-                  <option value="kg">Kilogramos</option>
-                  <option value="piece">Piezas</option>
-                  <option value="dozen">Docenas</option>
-                  <option value="package">Paquetes</option>
-                </select>
-                <small>Confirma la unidad antes de capturar pedidos. Un paquete no se convierte automáticamente a kilos.</small>
-              </label>
-              <div class="review-actions">
-                <button type="submit" class="primary compact">{{ productForm.id ? 'Guardar producto' : 'Crear producto' }}</button>
-                <button type="button" class="secondary compact" (click)="resetProductForm()">Limpiar</button>
-              </div>
-            </form>
-
-            <button type="button" class="secondary compact" [attr.aria-pressed]="showConsolidatedProducts" (click)="showConsolidatedProducts = !showConsolidatedProducts">{{ showConsolidatedProducts ? 'Ocultar productos archivados por consolidación' : 'Mostrar productos archivados por consolidación' }}</button>
-            <div class="admin-list">
-              @for (product of visibleProducts; track product.id) {
-                <article class="admin-row">
-                  <div>
-                    <strong>{{ product.name }}</strong>
-                    <small>{{ product.description || 'Sin descripcion' }}</small>
-                    <small>Unidad: {{ unitLabel(product.unitCode) }}</small>
-                  </div>
-                  <div class="badges">
-                    <span class="badge" [class.neutral]="product.isActive" [class.danger]="!product.isActive">
-                      {{ product.mergedIntoProductId ? 'Consolidado' : product.isActive ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </div>
-                  <div class="review-actions">
-                    @if (!product.mergedIntoProductId) {
-                    <button type="button" class="secondary compact" (click)="editProduct(product)">Editar</button>
-                    <button type="button" class="secondary compact" (click)="toggleProduct(product)">
-                      {{ product.isActive ? 'Desactivar' : 'Activar' }}
-                    </button>
-                    } @else { <small>Conservado para historial y equivalencia de códigos.</small> }
-                  </div>
-                </article>
-              }
-            </div>
+            <app-admin-products [products]="products" [busyIds]="pendingProductIds"
+              (createRequested)="newProduct()" (editRequested)="editProduct($event)" (toggleRequested)="toggleProduct($event)">
+              <app-product-consolidation [products]="products" (completed)="commercialCatalogChanged()" />
+            </app-admin-products>
           </section>
         }
 
@@ -392,4 +343,11 @@
           </section>
         </div>
       </app-admin-access-tokens-dialog>
+    }
+
+    @defer (when productDialogOpen) {
+      @if (productDialogOpen) {
+        <app-admin-product-dialog [initialValue]="productForm" [saving]="isProductSaving" [error]="productDialogError"
+          (saved)="saveProduct($event)" (dismissed)="resetProductForm()" />
+      }
     }

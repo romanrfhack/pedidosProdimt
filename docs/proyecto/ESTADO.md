@@ -2,6 +2,14 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## I13 — Catálogo de productos agrupado y responsivo
+
+El usuario confirma que terminó la consolidación de duplicados y solicita aprovechar el ancho disponible con tarjetas por tipo. Se implementa agrupación visual por nombre explícito: Por número, Harina, Sancochados, Vapor y Otros productos; búsqueda por nombre/descripción/tipo/unidad y filtros de estado. La lista de 17 nombres suministrada da 9/3/2/1/2 productos respectivamente; no se incorporan descripciones o relaciones reales al repositorio.
+
+Nuevo producto y Editar abren un modal centrado, cargado bajo demanda. Mantiene unidad desconocida como null, validación, borrador ante error, foco y bloqueo de cierre durante guardado. Los archivados por consolidación siguen aparte sin editar/reactivar; perfiles, posiciones, precios e historial permanecen intactos. No se accedió a la BD ni al VPS: se revisaron el DTO/método GET de productos y el listado proporcionado.
+
+Rama codex/i13-responsive-products basada en I12 y actualizada a 7ad9bb0 para conservar su corrección de instalador. I13 sólo actualiza frontend; requiere I12 access-tokens-65560ca3cf98 activo y saludable. El último reporte de I12 aún requiere reintento con instalador revisión 2: no instalar I13 sobre I11 ni sustituir el frontend mientras se resuelve ese paso. El instalador I13 lo rechaza antes de cualquier cambio. Sin SQL, cambios de clave o backend, ni reinicio. Pruebas/paquete en preparación; no afirmar despliegue.
+
 ## I12 — Instalador v2 validado para SQL207; reintento remoto pendiente
 
 El usuario aplicó chmod0600 y reintentó la revisión `20261101-access-token-management-install1`. Preflight completado sin discrepancias, respaldo COPY_ONLY/CHECKSUM verificado y clave dedicada creada/snapshot verificado. Falló en `database-backup-key-and-migration` con SQL207. El instalador reporta recuperación de la aplicación anterior con salud comprobada y retención de la clave. No restauró SQL ni cambió contraseñas. `database_migrations_run=true` marca el intento; no demuestra commit de la migración13 o revocación: el estado final de SQL necesita preflight de lectura.

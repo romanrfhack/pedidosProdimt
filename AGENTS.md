@@ -26,6 +26,8 @@ I11, autorizado el 1 de noviembre, consolida productos compartidos y añade prec
 
 I12, autorizado el 1 de noviembre, gestiona sólo accesos activos/no vencidos con copia administrativa, edición versionada conservando enlace y reenvío individual preparado en WhatsApp. El usuario autoriza revocar todos los tokens anteriores al instalar y crear nuevos a demanda. Se conserva hash y añade secreto cifrado recuperable sólo bajo acción explícita, con clave dedicada estable fuera de releases/SQL y auditoría sin secretos. Esto amplía la regla histórica de revelar sólo al crear; nunca publicar secretos o descargarlos con el listado. Ver `docs/proyecto/INCREMENTO-12.md`. Conservar I11/productos/precios y verificar respaldo antes de migrar 12→13.
 
+I13, autorizado el 1 de noviembre tras la consolidación reportada por el usuario, presenta Productos en tarjetas por tipo con búsqueda, filtros y editor modal. Agrupación visual por preparación explícita/número del nombre, sin deducir ingredientes de nombres ambiguos ni cambiar producto, precio, unidad, perfil o posición. Ver `docs/proyecto/INCREMENTO-13.md`. Actualización nativa sólo del frontend sobre I12 saludable; preservar su administración de accesos y corrección SQL del instalador v2. No adelantar I13 a la instalación I12 pendiente.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
