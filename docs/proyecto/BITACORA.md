@@ -19,6 +19,26 @@ Requiere frontend y backend `production-d3a11420b202`; activa sólo frontend `or
 El usuario autoriza el rediseño de Operación y amplía el alcance para definir «No requiere máquina», asignar máquinas desde producción, registrar kilos físicos y asignarlos a pedidos concretos. Se integran las fuentes paralelas I16/I18 conservando I17, sus migraciones y la seguridad por petición. Nueva migración aditiva de flags/lotes/asignaciones y permisos separados para asignar máquina, producir y distribuir. Se validan reintentos, concurrencia de saldo, correcciones compatibles, reversión, avisos y diseño responsive. El cierre de regresiones/SQL del instalador y empaquetado se registrará en evidencia I19. Sin operaciones en el VPS ni datos reales.
 
 Cierre local: Release401/401, Python394/394, tres rutas ODBC228llamadas; regresiones SQL/navegador cerradas con sus focalizadas finales. Paquete verificado de fuente `d3a11420b2025fa0a19f84e1796d5a8b252259a3`; hashes y límites en evidencia I19. Revisión automática rechazó publicar la rama, por considerar necesaria autorización explícita para exportar código a GitHub. No se cambió transporte ni se creó PR; commit local y entrega incremental conservados. Instalación remota y aceptación pendientes.
+## Estado vigente — Seguridad I18 instalada dentro de I19
+
+El reporte de ejecución I19 compartido por el usuario el 2 de noviembre terminó `updated/completed`: migraciones13→16, backend/frontend `production-d3a11420b202`, fuente `d3a11420b2025fa0a19f84e1796d5a8b252259a3`, `health_verified=true`, `frontend_verified=true`, `recovery_pending=false` y verificaciones de esquema/datos/precios/permisos/tokens/clave correctas. Es confirmación por el reporte del usuario; no una inspección SSH independiente desde este trabajo.
+
+El ZIP I19 entregado con SHA256 `c9a862885c79910ce13d62c160eb9bc8a9db862c9c395b4a2a8b70016c744faa` integra explícitamente I16, I17, I18 y producción. Su manifiesto contiene los IDs exactos de configuración de productos, seguridad y producción; el SQL I18 coincide con SHA256 `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`. Frontend comprobado con `/admin/seguridad`, CRUD de usuarios/roles/permisos, multirrol y concesiones directas.
+
+El intento posterior con `PRODIMT_Instalar_I18_v2.py` falló en `directories-and-releases`, `previous_release_not_supported`, sin cambios/migración/reinicio. Ese guard es correcto: el payload I18 antiguo no debe reemplazar el release integrado I19. El `&&` impidió ejecutar la aplicación. No ampliar allowlist, retroceder enlaces, reinstalar I18 ni repetir incrementos anteriores.
+
+Seguridad ya está incluida por I19; resta aceptación funcional en sesión administrativa. Próximo: Ctrl+F5 y `/admin/seguridad`; comprobar Usuarios/Roles/Permisos y permisos efectivos. Si se requiere una verificación adicional del release, ejecutar únicamente el preflight I19 sin `--apply`, esperando `already_current/completed` y16 migraciones exactas. No hace falta para repetir evidencia ya reportada. Se conserva el estado de usuarios/roles/permisos existente.
+
+Las instrucciones I18v2 de las secciones históricas siguientes corresponden a la base anterior y quedan sustituidas por este estado. En esta sesión no se operó VPS/SQL ni se modificó código, instalador o paquete.
+
+
+## I18 — Revisión 2 corregida y validada en SQL; lectura remota pendiente
+
+El preflight revisión1 se detuvo sin cambios con `token_management_schema_unexpected`. Se reprodujo ese falso negativo en SQL Server con usuario DML sin VIEW DEFINITION. Revisión2 valida estructura/bindings y defaults visibles; los ocultos quedan `token_schema_defaults_pending_admin=true` hasta la verificación administrativa exacta anterior a cualquier cambio. No se amplían permisos ni se modifican binarios, migraciones, configuración, claves o tokens para corregirlo.
+
+Fuente de revisión2 `87f8a2764c816219050f50002f3bed2763b5efb0`; [CI 41492453572](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41492453572) acredita 356 Domain/Application,72 SQL/criptografía y 374 Python, más smoke Production y 34 llamadas ODBC con reproducción/solución del caso de metadatos, rechazo de drift y validación exacta del administrador. Los cuatro trabajos CI terminaron correctamente, incluidos 163 E2E; la aplicación no cambió.24 pruebas específicas y 25 en conjunto con el inventario confirman aislamiento/ausencia de efectos secundarios.
+
+Entregado `PRODIMT_Instalar_I18_v2.py`, 37653 bytes, SHA256 `2bc080cb67f51ff0b1b0884e7cf3dbbb86131fe0cb5e2c4a7a9fae07cb92fdcd`. Reutiliza `/root/prodimt-identity-payload.zip` ya copiado, pin `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`, fuente de binarios `c49df453de9d07f5be301fb109dbb813309326d9`. No regenerar ZIP/payload ni usar revisión1 para aplicar. Siguiente: verificar/copiar sólo v2 y ejecutar primero lectura; la nueva salida mostrará contadores seguros. I18 continúa sin instalar; no hubo SSH/SQL operativo desde este entorno.
 
 ## 2026-11-02 — I18: validación completa y entrega instalable
 

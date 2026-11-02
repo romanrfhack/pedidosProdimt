@@ -1,5 +1,10 @@
 # I18 — Usuarios, roles y permisos
 
+## Estado de instalación actualizado
+
+I18 quedó instalado mediante el paquete integrado I19, confirmado por el reporte del usuario: `updated/completed`, migraciones13→16 y backend/frontend `production-d3a11420b202`, salud y frontend verificados. La ejecución posterior del instalador I18v2 se rechazó correctamente por `previous_release_not_supported` sin cambios. No reinstalar el payload I18 ni permitir que sustituya I19. La siguiente acción es validar la pantalla `/admin/seguridad`; la aceptación de negocio sigue pendiente. Ver el estado vigente en CONTINUAR y ESTADO.
+
+
 Autorizado el 2 de noviembre de 2026. El usuario solicita CRUD de usuarios, roles y permisos; asignación de varios roles por usuario y permisos individuales adicionales. La autorización amplía la administración básica histórica de Fase 1. Se desarrolla sobre I17 `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, preservando I12–I15/I17 y sin incorporar la rama paralela I16.
 
 ## Regla de acceso

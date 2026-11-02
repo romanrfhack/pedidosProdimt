@@ -21,7 +21,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261102-identity-administration-install1'
+REVISION = '20261102-identity-administration-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -37,6 +37,59 @@ MIGRATION = '20261102235000_AddSecurityAdministration'
 SECURITY_TABLES = ('SecurityRoles', 'SecurityPermissions', 'SecurityUserRoles',
                    'SecurityRolePermissions', 'SecurityUserPermissions', 'SecurityStates')
 ADMIN_ROLE = '18180000-0000-0000-0000-000000000001'
+
+
+# A DML-only application principal can inspect columns and default bindings,
+# while SQL Server hides sys.default_constraints.definition. Do not expand its
+# permissions to perform an installer check. Exact default values are still
+# required by verify_schema(), using the SQL administrator before any writes.
+APP_TOKEN_SCHEMA = """SELECT
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens')
+  AND name IN (N'ProtectedToken',N'MetadataVersion',N'IsReminderLink')) AS columns_count,
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND name=N'ProtectedToken'
+  AND TYPE_NAME(system_type_id)=N'nvarchar' AND max_length=2048 AND is_nullable=1 AND default_object_id=0) AS protected_column,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  AND d.parent_object_id=c.object_id AND d.parent_column_id=c.column_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'MetadataVersion'
+  AND TYPE_NAME(c.system_type_id)=N'int' AND c.max_length=4 AND c.is_nullable=0) AS version_column,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  AND d.parent_object_id=c.object_id AND d.parent_column_id=c.column_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'IsReminderLink'
+  AND TYPE_NAME(c.system_type_id)=N'bit' AND c.max_length=1 AND c.is_nullable=0) AS reminder_column,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'MetadataVersion'
+  AND d.definition IS NOT NULL) AS version_default_visible,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'MetadataVersion'
+  AND REPLACE(REPLACE(REPLACE(d.definition,N'(',N''),N')',N''),N' ',N'')=N'1') AS version_default_valid,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'IsReminderLink'
+  AND d.definition IS NOT NULL) AS reminder_default_visible,
+ (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
+  WHERE c.object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND c.name=N'IsReminderLink'
+  AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(d.definition,N'(',N''),N')',N''),N' ',N''),N'[',N''),N']',N''))
+   IN (N'0',N'cast0asbit',N'convertbit,0')) AS reminder_default_valid,
+ COALESCE(HAS_PERMS_BY_NAME(N'dbo.CustomerAccessTokens',N'OBJECT',N'VIEW DEFINITION'),0) AS can_view_definition
+ FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
+EXPECTED_APP_TOKEN_STRUCTURE = dict(columns_count=3, protected_column=1, version_column=1, reminder_column=1)
+APP_TOKEN_FLAGS = ('version_default_visible', 'version_default_valid', 'reminder_default_visible',
+                   'reminder_default_valid', 'can_view_definition')
+
+
+def app_token_schema_mismatches(data):
+    keys = set(EXPECTED_APP_TOKEN_STRUCTURE) | set(APP_TOKEN_FLAGS)
+    if not isinstance(data, dict) or set(data) != keys or any(type(value) is not int for value in data.values()):
+        return ['metadata_format_unexpected']
+    issues = [name for name, expected in EXPECTED_APP_TOKEN_STRUCTURE.items() if data[name] != expected]
+    if any(data[name] not in (0, 1) for name in APP_TOKEN_FLAGS):
+        return issues + ['metadata_flags_unexpected']
+    for prefix in ('version', 'reminder'):
+        visible, valid = data[prefix + '_default_visible'], data[prefix + '_default_valid']
+        if valid > visible or (data['can_view_definition'] and not visible):
+            issues.append(prefix + '_default_visibility_inconsistent')
+        elif visible and not valid:
+            issues.append(prefix + '_default_value_unexpected')
+    return issues
 
 
 def security_schema_query():
@@ -215,7 +268,17 @@ def make_installer(package):
                 database_migrations_run=False, migrations_may_have_changed=False, database_automatically_restored=False,
                 password_changed=False, service_restarted=False, health_verified=False, frontend_verified=False,
                 secret_values_printed=False, encryption_key_created=False, encryption_key_rotated=False,
-                tokens_revoked=False)
+                tokens_revoked=False, token_schema_defaults_pending_admin=False, token_schema_defaults_verified=False)
+
+        def check_app_token_schema(self, data):
+            keys = set(EXPECTED_APP_TOKEN_STRUCTURE) | set(APP_TOKEN_FLAGS)
+            self.state['token_schema_checks'] = {key: value for key, value in data.items()
+                if key in keys and type(value) is int} if isinstance(data, dict) else {}
+            mismatches = app_token_schema_mismatches(data)
+            self.state['token_schema_mismatches'] = mismatches
+            require(not mismatches, 'token_management_schema_unexpected')
+            pending = not all(data[prefix + '_default_visible'] for prefix in ('version', 'reminder'))
+            self.state.update(token_schema_defaults_pending_admin=pending, token_schema_defaults_verified=not pending)
 
         def stage(self):
             for part, target in self.new.items():
@@ -271,7 +334,7 @@ def make_installer(package):
             require(self.token_encryption_key is not None, 'existing_token_encryption_key_required')
             inspector = module('reviewed_i18_inventory', files['inspect-native.py'])
             inspector.QUERIES = (commercial.PERMISSION_QUERY, commercial.NEW_SCHEMA, commercial.PRICE_PERMISSIONS,
-                                 token.TOKEN_SCHEMA, token.TOKEN_COUNTS, SECURITY_SCHEMA, SECURITY_DATA, SECURITY_PERMISSIONS)
+                                 APP_TOKEN_SCHEMA, token.TOKEN_SCHEMA, token.TOKEN_COUNTS, SECURITY_SCHEMA, SECURITY_DATA, SECURITY_PERMISSIONS)
             self.inspector = inspector
             self.state['preflight_step'] = 'effective-configuration'
             configuration, source = inspector.configuration(inspector.process_environment(pid), argv, cwd)
@@ -298,8 +361,7 @@ def make_installer(package):
                     'commercial_schema_unexpected')
             require(inspector.query_sql(self.sql_tool, self.fields, commercial.PRICE_PERMISSIONS) == commercial.EXPECTED_PRICE_PERMISSIONS,
                     'price_history_permissions_unexpected')
-            require(inspector.query_sql(self.sql_tool, self.fields, token.TOKEN_SCHEMA) == token.EXPECTED_TOKEN_SCHEMA,
-                    'token_management_schema_unexpected')
+            self.check_app_token_schema(inspector.query_sql(self.sql_tool, self.fields, APP_TOKEN_SCHEMA))
             count = self.app_checks['migrations_count']
             expected = EXPECTED_SECURITY_SCHEMA if count == 14 else dict.fromkeys(EXPECTED_SECURITY_SCHEMA, 0)
             require(inspector.query_sql(self.sql_tool, self.fields, SECURITY_SCHEMA) == expected, 'security_schema_unexpected')
@@ -338,6 +400,7 @@ def make_installer(package):
                     'capture_alias_schema_unexpected')
             require(self.sql_json(commercial.NEW_SCHEMA) == commercial.EXPECTED_SCHEMA, 'commercial_schema_unexpected')
             require(self.sql_json(token.TOKEN_SCHEMA) == token.EXPECTED_TOKEN_SCHEMA, 'token_management_schema_unexpected')
+            self.state.update(token_schema_defaults_pending_admin=False, token_schema_defaults_verified=True)
             expected = EXPECTED_SECURITY_SCHEMA if count == 14 else dict.fromkeys(EXPECTED_SECURITY_SCHEMA, 0)
             require(self.sql_json(SECURITY_SCHEMA) == expected, 'security_schema_unexpected')
             if count == 14:
@@ -405,6 +468,10 @@ def make_installer(package):
         def apply(self):
             self.preflight()
             if self.state['status'] == 'already_current':
+                if self.state['token_schema_defaults_pending_admin']:
+                    self.state['phase'] = 'sql-admin-schema-verification'
+                    self.authenticate_admin()
+                    self.state['phase'] = 'completed'
                 return
             self.state['phase'] = 'sql-admin-authentication'
             self.authenticate_admin()
