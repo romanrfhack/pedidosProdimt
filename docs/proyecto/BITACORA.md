@@ -2,11 +2,21 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I15: instalación confirmada por el usuario
+
+Recibidos SHA256 del ZIP correcto y JSON de lectura/aplicación de `20261102-customer-catalog-install1`. Preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, release `customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporta sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos.
+
+Actualizados continuidad, estado, contrato y evidencia; instalación confirmada por el reporte, aceptación visual pendiente. Sin SSH/SQL real desde este entorno, cambios de aplicación/paquete o nuevas pruebas de binarios; sólo documentación. Siguiente: Ctrl+F5 y revisar columnas, tarjetas/textos, búsqueda/filtros y modales al cambiar ancho de ventana. No repetir instalación/importaciones por este resultado.
+
 ## 2026-11-02 — I15: catálogo de clientes responsivo
 
 El usuario solicita aprovechar ancho de PC y adaptar columnas/tamaño de tarjetas. Se implementa rejilla CSS automática, ancho completo con márgenes, controles compactos en PC y apilados en móvil, datos completos y acciones al pie. Se añaden contador/limpieza de filtros locales; se conservan estados/orden I06 y modales, así como perfil enfocado, Productos I13 y mensaje I14. Sólo frontend, sin contratos/datos nuevos.
 
 Build correcto y quince pruebas del instalador/paquete I15 correctas; pruebas locales de anchos, estados/modales y capturas ficticias. Revisión visual detecta y corrige alineación y superposición por especificidad de CSS encapsulado; las pruebas incluyen geometría de la cabecera y espacio útil. Cierre E2E/CI y ZIP final pendientes en este checkpoint. Actualizador de frontend sobre I14 confirmado, con pines, preflight, snapshot, activación/verificación, rollback e idempotencia. No se operó el VPS/SQL o se instaló I15. Evidencia: `../validation/2026-11-02-customer-catalog-layout.md`.
+
+Cierre I15: fuente de aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) completo, cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build y 335 Python locales correctos; nueve casos I15 locales y capturas PC/móvil revisados. Los siete anchos dan 1/1/2/3/4/6/8 columnas; sin desbordamiento/superposición, filtros conservados al cambiar tamaño, modales y configuración vigentes.
+
+Entrega `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`, payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`. Once archivos frontend/licencias activos; CRC/hashes/manifiesto/imports y carga del instalador exportado comprobados. ZIP guardado. Nuevo frontend `customer-catalog-afb8f3ad9c33`, sólo sobre I14 confirmado y backend I12 conservado. No se operó VPS/SQL, se instaló I15 o se alteraron datos reales. Pendiente aplicación y aceptación del usuario; el mensaje I14 y Productos I13 se conservan.
 
 ## 2026-11-02 — I14: instalación confirmada por el usuario
 
@@ -591,3 +601,12 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Registradas reglas de producción diferidas: Burreras/harina reventa sin máquina; producción interna con asignación diaria humana y preferencia permanente separada. No heredar máquina del cliente a reventa ni inferir abastecimiento por ausencia de máquina.
 - Pendiente funcional a consultar: si una partida nueva continúa el flujo operativo con precio pendiente o espera revisión administrativa; no asumir autorización de producción/entrega sin esa definición.
 - Rama de diseño codex/i16-add-customer-products sobre checkpoint I15 afb8f3a. No aplicación modificada, tests nuevos, migraciones, paquete, SQL o SSH. I15 sigue en validación y no se afirma despliegue.
+
+
+## 2026-11-02 — I16 autorizado: pedido continúa con precio pendiente
+
+- Usuario confirma el flujo recomendado y autoriza implementar. Integrado cierre I15 71461b7 y su instalación reportada, conservando el mensaje I14 y rejillas.
+- Servidor: selector seguro, validación manual ampliada a catálogo activo sin saltar relaciones inactivas, guardado de solicitud/referencias junto al recibo/pedido, bandeja y resolución de snapshots null con vista previa, vigencia, versión y auditoría. Perfil/posiciones no cambian al capturar.
+- UI: selector modal compartido y borrador en ambas capturas, conservación de productos añadidos al refrescar, bloqueo de cambio a modo rápido para no perder líneas, bandeja y revisión enfocada con reintento durable de confirmación.
+- Máquina: nuevos productos sin herencia, relación con flag explícito persistido; versiones antiguas/importaciones omiten el campo sin sobrescribirlo. Preferencia y producción diaria no se equiparan; no se implementa planificación.
+- Dos tablas y columna nuevas, migración20261102152307 13→14 sin aplicar en VPS. Build Angular y 335 pruebas previas correctos. Regresiones nuevas/SQL real/paquete nativo pendientes de cierre; no se declara entrega o despliegue.

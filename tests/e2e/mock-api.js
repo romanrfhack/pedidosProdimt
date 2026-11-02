@@ -1157,6 +1157,15 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups/count') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { pendingCount: 0 }); return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, []); return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/admin/products') {
     if (!requireAdminAccess(request, response)) {
       return;

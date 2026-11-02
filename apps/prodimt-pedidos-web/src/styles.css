@@ -570,3 +570,5 @@ button.compact {
   body:has(.customers-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
   body:has(.customers-page) nav a, body:has(.customers-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }
+
+.app-shell__main:has(.product-setup-page){width:min(100%,1600px);padding:16px clamp(12px,1.5vw,30px)}.setup-nav-count{font-size:.68rem;padding:2px 5px;border-radius:4px;background:#e9bc52;color:#47361a;margin-left:5px}

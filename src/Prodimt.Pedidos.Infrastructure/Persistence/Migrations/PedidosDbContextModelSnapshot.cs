@@ -280,6 +280,11 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
+                    b.Property<bool>("UseCustomerDefaultMachine")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.HasKey("CustomerId", "ProductId");
 
                     b.HasIndex("PreferredMachineId");
@@ -422,6 +427,98 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("CustomerProductPriceRevisions", null, t =>
                         {
                             t.HasCheckConstraint("CK_PriceRevision_Amount", "[UnitPrice] IS NULL OR ([UnitPrice] >= 0 AND [UnitPrice] <= 999999999.9999)");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupOrder", b =>
+                {
+                    b.Property<Guid>("SetupRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ActorId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("SetupRequestId", "OrderId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("CustomerProductSetupOrders", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("LastRequestedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductNameSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ResolvedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ResolvedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("CustomerId", "ProductId")
+                        .IsUnique();
+
+                    b.HasIndex("IsResolved", "LastRequestedAt");
+
+                    b.ToTable("CustomerProductSetupRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductSetup_Version", "[Version] > 0");
                         });
                 });
 
@@ -965,6 +1062,36 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupOrder", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupRequest", null)
+                        .WithMany("Orders")
+                        .HasForeignKey("SetupRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupRequest", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>
                 {
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
@@ -1033,6 +1160,11 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductPriceBook", b =>
                 {
                     b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerProductSetupRequest", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>

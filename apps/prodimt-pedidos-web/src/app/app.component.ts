@@ -1,4 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, effect, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { ProductSetupApiService } from './product-setup-api.service';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
 
@@ -18,6 +20,7 @@ import { AuthService } from './auth.service';
           <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a>
           <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a>
           <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a>
+          <a routerLink="/admin/productos-por-configurar" routerLinkActive="active" aria-label="Productos por configurar">Configurar productos @if (setups.pendingCount(); as count) { <span class="setup-nav-count">{{ count }}</span> }</a>
           <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a>
           <a routerLink="/admin/importacion" routerLinkActive="active">Importacion</a>
           <a routerLink="/admin/importar-pedidos" routerLinkActive="active">Importar pedidos</a>
@@ -39,6 +42,17 @@ import { AuthService } from './auth.service';
 export class AppComponent {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  protected readonly setups = inject(ProductSetupApiService);
+  private readonly document = inject(DOCUMENT);
+  private readonly destroyRef = inject(DestroyRef);
+  constructor() {
+    effect(() => { if (this.auth.isAdminSession()) this.setups.refreshCount(); else this.setups.clearCount(); });
+    const refresh = () => { if (this.auth.isAdminSession() && this.document.visibilityState !== 'hidden') this.setups.refreshCount(); };
+    const timer = setInterval(refresh, 30000);
+    this.document.addEventListener('visibilitychange', refresh);
+    this.destroyRef.onDestroy(() => { clearInterval(timer); this.document.removeEventListener('visibilitychange', refresh); this.setups.clearCount(); });
+  }
 
   protected logout(): void {
     this.auth.logout();

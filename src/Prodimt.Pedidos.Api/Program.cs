@@ -50,6 +50,7 @@ builder.Services.AddScoped<AdminCustomerCatalogService>();
 builder.Services.AddScoped<AdminCustomerDayService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<CustomerProductPricingService>();
+builder.Services.AddScoped<CustomerProductSetupService>();
 builder.Services.AddScoped<ProductConsolidationService>();
 builder.Services.AddScoped<AdminMachineCatalogService>();
 builder.Services.AddScoped<AdminCustomerAccessTokenService>();
@@ -218,6 +219,7 @@ app.MapCommercialCatalogEndpoints();
 app.MapDailyOrderEndpoints();
 app.MapOrderCaptureEndpoints();
 app.MapCustomerOrderCaptureEndpoints();
+app.MapCustomerProductSetupEndpoints();
 app.MapCustomerReminderEndpoints();
 app.MapCustomerAccessTokenManagementEndpoints();
 

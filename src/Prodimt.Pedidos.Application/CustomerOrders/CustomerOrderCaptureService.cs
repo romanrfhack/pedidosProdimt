@@ -12,7 +12,7 @@ namespace Prodimt.Pedidos.Application.CustomerOrders;
 public sealed class CustomerOrderCaptureService(ICustomerRepository customers, IProductRepository products,
     IMachineRepository machines, ISalesChannelRepository channels, IOrderRepository orders,
     IOrderAuditLogRepository audit, IOrderOperationStore operations, IDateTimeProvider clock,
-    ICommercialCatalogRepository? commercial = null)
+    ICommercialCatalogRepository? commercial = null, CustomerProductSetupService? additional = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -80,12 +80,14 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
                         throw new CatalogConflictException("La captura o su configuración cambió. Revisa de nuevo el desglose.");
                     resolved = preview.Lines;
                 }
-                else resolved = ResolveManual(profile, request.Lines!);
+                else resolved = additional is null ? ResolveManual(profile, request.Lines!)
+                    : await additional.ResolveManualAsync(profile, request.Lines!, inner);
 
                 if (await orders.HasActiveCustomerOrderAsync(customerId, date, inner))
                     throw new CustomerOrderConflictException("Ya existe un pedido para esta fecha de entrega. Revísalo y comunícate con PRODIMT si necesitas modificarlo.");
                 var lines = await CreateLinesAsync(customerId, resolved.Select(x => new OrderLineInput(x.ProductId,
-                    x.Quantity, quick ? null : request.Lines!.Single(p => p.ProductId == x.ProductId).Notes)).ToArray(), date, inner);
+                    x.Quantity, quick ? null : request.Lines!.Single(p => p.ProductId == x.ProductId).Notes)).ToArray(), date, inner,
+                    resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet());
                 var channel = await channels.GetRequiredByTypeAsync(SalesChannelType.Customer, inner);
                 var count = await orders.CountCustomerOrdersAsync(customerId, date, inner);
                 var order = Order.CreateSubmitted(customerId, channel.Id, date, received.Now, count + 1,
@@ -103,6 +105,8 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
                 if (order.RequiresAdminReview)
                     await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderRequiresAdminReview, order.SubmittedAt,
                         AuditActorType.System, "Pedido del cliente enviado a revisión administrativa."), inner);
+                if (additional is not null) await additional.RecordAsync(order, profile, AuditActorType.Customer,
+                    customer.Id.ToString(), customer.Name, inner);
                 await orders.SaveChangesAsync(inner);
                 return Map(order);
             }, token), cancellationToken);
@@ -180,9 +184,9 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
         }).ToArray();
     }
 
-    private async Task<OrderLine[]> CreateLinesAsync(Guid customerId, IReadOnlyList<OrderLineInput> lines, DateOnly serviceDate, CancellationToken token)
+    private async Task<OrderLine[]> CreateLinesAsync(Guid customerId, IReadOnlyList<OrderLineInput> lines, DateOnly serviceDate, CancellationToken token, IReadOnlySet<Guid>? unconfiguredProductIds = null)
     {
-        try { return await OrderLineFactory.CreateAsync(customerId, lines, customers, products, machines, token, commercial, serviceDate); }
+        try { return await OrderLineFactory.CreateAsync(customerId, lines, customers, products, machines, token, commercial, serviceDate, unconfiguredProductIds); }
         catch (ArgumentException ex) when (ex.Message.Contains("maquina", StringComparison.OrdinalIgnoreCase))
         { throw new ArgumentException("La configuración de un producto requiere revisión de PRODIMT antes de confirmar el pedido."); }
     }

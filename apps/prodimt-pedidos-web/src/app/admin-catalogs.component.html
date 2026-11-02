@@ -102,6 +102,11 @@
                         <button type="button" class="secondary compact" (click)="reloadProfile()">Recargar perfil y descartar mis cambios</button>
                       }
 
+                      @if (setupRequestId) {
+                        <app-product-setup-review [requestId]="setupRequestId" [customerId]="selectedCustomer!.id"
+                          [allowAdd]="true" [addDisabled]="isConfigLoading || isProfileSaving" [refreshKey]="setupRefreshKey"
+                          (addRequested)="addRequestedProduct($event)" />
+                      }
                       <fieldset class="config-layout" [disabled]="isConfigLoading || isProfileSaving || isWeekSaving">
                       <section class="stack config-products" aria-label="Productos frecuentes">
                         <div class="config-section-title"><strong>Productos frecuentes</strong><span>{{ frequentRows.length }} productos</span></div>
@@ -121,7 +126,7 @@
                                   <app-customer-product-price [customerId]="selectedCustomer!.id" [productId]="row.productId"
                                     [productName]="productFor(row)?.name || row.productName" [unitCode]="productFor(row)?.unitCode || null"
                                     [price]="prices.get(row.productId) || null" [loaded]="pricesLoaded"
-                                    [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices()" />
+                                    [configured]="isProductConfigured(row)" [active]="productFor(row)?.isActive || false" (changed)="reloadPrices(); setupRefreshKey = setupRefreshKey + 1" />
                                   <div class="profile-unit">
                                     <span><span class="unit-prefix">Unidad de venta: </span><strong>{{ unitLabel(productFor(row)?.unitCode) }}</strong></span>
                                     <button type="button" class="secondary compact" aria-label="Ver producto y unidad en catálogo" title="Ver producto y unidad en catálogo" (click)="editProductUnit(row)">↗</button>
@@ -137,8 +142,9 @@
                               <label class="profile-order"><span>Orden</span><input aria-label="Orden visual" type="number" min="1" step="1" [(ngModel)]="row.sortOrder" [name]="'frequentSort' + i" (ngModelChange)="invalidateProfileApproval()"></label>
                               <label class="profile-position"><span>Posición</span><input aria-label="Posición en mensaje" type="number" min="1" step="1" [(ngModel)]="row.interpretationPosition" [name]="'frequentPosition' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Sin confirmar"></label>
                               <label class="profile-alias"><span>Abreviatura</span><input type="text" aria-label="Abreviatura para captura" maxlength="16" [(ngModel)]="row.captureAlias" [name]="'frequentAlias' + i" (ngModelChange)="invalidateProfileApproval()" placeholder="Ej. HN"></label>
-                              <label class="profile-machine"><span>Máquina</span><select aria-label="Máquina para este producto" [(ngModel)]="row.preferredMachineId" [name]="'frequentMachine' + i" (ngModelChange)="invalidateProfileApproval()">
+                              <label class="profile-machine"><span>Máquina</span><select aria-label="Máquina para este producto" [ngModel]="productMachine(row)" [name]="'frequentMachine' + i" (ngModelChange)="changeProductMachine(row, $event)">
                                 <option [ngValue]="null">Usar asignación del cliente</option>
+                                <option value="none">Sin máquina / por asignar</option>
                                 @for (machine of machines; track machine.id) {
                                   <option [value]="machine.id">#{{ machine.number }} {{ machine.name || '' }}{{ machine.isActive ? '' : ' (inactiva)' }}</option>
                                 }

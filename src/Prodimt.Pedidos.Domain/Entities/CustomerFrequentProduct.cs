@@ -11,6 +11,8 @@ public sealed class CustomerFrequentProduct
     public int SortOrder { get; set; }
 
     public Guid? PreferredMachineId { get; set; }
+    // False also covers resale or a production assignment to be decided later.
+    public bool UseCustomerDefaultMachine { get; set; } = true;
 
     // Explicit interpretation position; SortOrder is only a visual preference.
     public int? InterpretationPosition { get; set; }

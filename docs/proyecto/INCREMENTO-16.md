@@ -1,7 +1,7 @@
-# Propuesta I16 — Pedir otro producto y completar su configuración
+# I16 — Pedir otro producto y completar su configuración
 
 Fecha: 2 de noviembre de 2026, America/Mexico_City.
-Estado: análisis y propuesta funcional; no implementado, sin migración, paquete ni instalación. Se espera una definición operativa sobre el tratamiento de las partidas nuevas antes de configurar su precio.
+Estado: implementación autorizada el 2 de noviembre; el pedido se registra y continúa con precio pendiente. Validación y paquete en curso, sin instalación I16 en VPS.
 
 ## Solicitud y alcance
 
@@ -42,9 +42,9 @@ I11 fija precio en cada partida al confirmar. Crear/cambiar después la tarifa d
 - Modelo futuro a definir: procedencia explícita (reventa/producción/por confirmar), asignación diaria, cantidades/estado y auditoría. No introducir ahora planificación, optimización, reparto de lotes o nueva captura de producción.
 - Hoy OrderLineFactory hereda la máquina predeterminada del cliente si no hay preferencia del producto. Antes de admitir nuevos artículos debe evitarse atribuir esa máquina automáticamente a productos de reventa o cuya asignación esté pendiente. No inventar asignaciones para poder guardar.
 
-## Decisión operativa pendiente
+## Decisión operativa confirmada
 
-¿Una partida con un producto nuevo entra al flujo operativo normal mientras el precio está pendiente, o debe esperar revisión del Administrador General? Recomendación para validar: registrar el pedido y continuar con estado comercial «Precio pendiente», conservando el aviso hasta resolverlo, para no detener la captura por una tarifa faltante. Esta recomendación no está aceptada por el usuario todavía y no debe implementarse como autorización automática de producción/entrega. Si se decide retener sólo la partida nueva, los productos habituales del mismo pedido deberían poder continuar; eso exige distinguir el estado de cada partida de la revisión del pedido completo.
+El usuario aprueba registrar y continuar el pedido, con seguimiento comercial hasta completar el precio. La solicitud adicional no añade por sí misma una revisión/bloqueo operativo; se mantienen las reglas existentes de tardíos, segundo pedido y corte de fecha. Una máquina faltante no bloquea este registro ni se inventa por herencia. La planificación de producción sigue diferida.
 
 ## Revisión técnica realizada
 
@@ -61,9 +61,16 @@ No se consultó la BD ni el VPS. Captura aportada se revisó en privado y no se 
 
 ## Fases y validación previstas
 
-1. Cerrar la decisión operativa anterior y concretar contratos/migración aditivos de pendiente/referencias/resolución, preservando operaciones existentes.
+1. Decisión anterior confirmada; concretar contratos/migración aditivos de pendiente/referencias/resolución, preservando operaciones existentes.
 2. Implementar catálogo público mínimo, modal reutilizable y guardado transaccional en ambas capturas, con bandeja administrativa y edición enfocada.
 3. Completar precio/relación y resolución auditada de partidas aún sin precio, con concurrencia, reintentos y conservación de snapshots anteriores.
 4. Probar autorización entre clientes/admin, catálogo/relaciones inactivos, unidades cambiantes, duplicados, cancelación/borrador/cambio de modo, cruce de las18h, operación repetida/respuesta perdida, rollback, precio vigente/sin precio, pendientes concurrentes, revisión y vistas responsivas. Ejecutar SQL Server real para las transacciones y permisos nuevos; migración con respaldo/verificación antes del despliegue.
 
-La nota de producción permanece diferida y no se presenta como código o funcionalidad entregada. No hay cambios de aplicación ni pruebas de ejecución nuevas en esta sesión de diseño.
+La nota de producción permanece diferida. Se implementa sólo el control de herencia de máquina necesario para no inventar una asignación al agregar un producto. I16 cambia aplicación y añade esquema, pero no se declara entregado o desplegado hasta finalizar las verificaciones y empaquetado.
+
+
+## Checkpoint de implementación
+
+Dos tablas nuevas: CustomerProductSetupRequests (único cliente-producto, versión y resolución) y CustomerProductSetupOrders (referencias únicas a pedidos, origen, actor y fecha). Referenciar pedido/producto conserva el seguimiento aunque una corrección sustituya identificadores de partidas. El flag UseCustomerDefaultMachine mantiene true para relaciones anteriores y permite explícitamente «Sin máquina / por asignar»; una petición omitida de clientes anteriores conserva el valor persistido. Consolidación mantiene ese flag y exige resolver pendientes antes de archivar identidades.
+
+Captura y pendiente comparten la transacción del recibo durable. Resolución requiere perfil activo guardado, tarifas por fecha/unidad y vista previa vigente; rellena sólo snapshots null, conserva cero/precios fijados, incrementa versión del pedido y escribe auditoría sin avisos de cambio de demanda. Tarifa y perfil continúan editándose con sus controles existentes. La cuenta administradora del piloto desempeña Administración General mediante AdminAccess; no se concede acceso al cliente ni se implementa una matriz completa de roles.

@@ -2,19 +2,29 @@
 
 Actualizado: 2 de noviembre de 2026.
 
-## I16 — Propuesta de productos adicionales por cliente; definición operativa pendiente
+## I16 — Implementación autorizada y en curso
 
-El usuario solicita «Pedir otro producto» en Captura manual del cliente y administración, eligiendo del catálogo compartido nombre/unidad/cantidad, con bandeja para Administración General que complete precio y demás configuración. No crear otro producto global ni pedir máquina/precio al cliente. Se revisó el código: hoy ambas capturas sólo aceptan productos del perfil; I11 fija el precio al crear la partida y la tarifa posterior no completa por sí sola un pedido sin precio. Se requiere flujo transaccional/idempotente de pedido + pendiente y resolución explícita auditada del precio faltante. No alterar perfiles aprobados ni posiciones automáticamente.
+El usuario confirma el 2 de noviembre que el pedido se registra y continúa aunque el producto agregado tenga precio pendiente. Se implementa la propuesta de docs/proyecto/INCREMENTO-16.md: catálogo público mínimo, modal «Pedir otro producto» en captura manual cliente/administración, pendiente comercial transaccional/idempotente, bandeja administrativa y resolución auditada inicial de precios. No crea otro producto global, aprueba perfiles o posiciones automáticamente ni bloquea el pedido por precio/máquina faltantes. Producción diaria y clasificación de abastecimiento se mantienen diferidas por instrucción del usuario.
 
-Registradas reglas futuras: Burreras y harina son reventa sin máquina propia; la producción interna puede asignarse diariamente por decisión humana del responsable. Esa planificación está expresamente diferida. Tener máquina nula no implica configuración inválida y no debe heredarse la máquina del cliente a un producto de reventa.
+Integrado el cierre I15 71461b7, que incluye su instalación confirmada por el usuario, conservando I14 y las rejillas de clientes/productos. Rama codex/i16-add-customer-products, desde propuesta74b7926. I16 añade dos tablas de solicitudes/referencias a pedidos y un flag de herencia de máquina en la relación cliente-producto; existentes conservan true, nuevos productos solicitados entran sin herencia. Migración 20261102152307_AddCustomerProductSetup prevista 13→14, aún sin aplicar en VPS.
 
-Propuesta y evidencia en docs/proyecto/INCREMENTO-16.md; rama codex/i16-add-customer-products sobre checkpoint I15 afb8f3a, aún en validación. I14 instalado según reporte; no afirmar I15 instalado. Sesión de diseño, sin implementación, migración, paquete, SQL o acceso al VPS. Falta definir si la partida nueva sigue el flujo normal con precio pendiente o espera revisión; se recomienda validar la primera opción para no detener la captura. No está aprobada esa decisión todavía. Siguiente: recoger respuesta, integrar el cierre de I15 y concretar implementación/validación de I16.
+Servidor y UI iniciales implementados; build Angular y 335 pruebas previas de backend correctos. Nuevas regresiones, SQL Server real, pruebas de interfaz y paquete nativo en curso. Este checkpoint no es entrega final ni despliegue. Se preservan operaciones/reintentos, claves, tokens, snapshots históricos y precios ya fijados. No se operó el VPS o consultó su BD. Siguiente: completar validación de I16, empaquetar actualización nativa con respaldo/migración/permisos acotados y entregar pasos al usuario sin repetir I12–I15.
 
-## I15 — Catálogo de clientes responsivo, validación en curso
+## I15 — Instalación confirmada; aceptación visual pendiente
+
+El usuario reporta el 2 de noviembre ZIP con SHA256 correcto y salida de `20261102-customer-catalog-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. El catálogo responsivo queda instalado por esa evidencia; aceptación visual/funcional pendiente. No hubo inspección SSH independiente desde este entorno.
+
+Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, frontend `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporte sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos. La lectura con `frontend_verified=false` era esperada antes de activar; la aplicación terminó con esa comprobación true.
+
+Próximo: Ctrl+F5 → Catálogos → Clientes, revisar ventana maximizada/reducida, tarjetas/columnas/textos y búsqueda/filtros/modales, conservando configuración/productos/accesos. No repetir instaladores/importaciones. Sólo documentación en esta sesión, sin operar VPS/SQL, cambiar código/paquete o ejecutar nuevas pruebas de binarios.
+
+## I15 — Validación y paquete (antecedente)
 
 Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.
 
-Build y quince pruebas del paquete correctos, con revisión visual y pruebas locales de distribución/funcionalidad; cierre E2E/CI y ZIP pendientes en este checkpoint. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL; siguiente paso: terminar validación/paquete y entregar al usuario. Ver `INCREMENTO-15.md` y evidencia I15.
+Aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7). [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Build/locales correctos y capturas PC/móvil revisadas; columnas 1/1/2/3/4/6/8 a 320/390/768/1024/1366/1920/2560px, sin desbordamiento. La configuración enfocada, productos, precios y accesos se conservan.
+
+Entrega verificada y guardada: `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`, payload `b6c7201039790358682e24ddb91c84b9bda0e998e6e3c721fcbe5b0e6e42f103`. Once archivos frontend/licencias; pines, CRC/hashes/imports y carga exportada comprobados. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL. Próximo: preflight, aplicación, salud/frontend true, Ctrl+F5 y aceptación de catálogo responsivo. Ver `INCREMENTO-15.md` y evidencia I15.
 
 ## I14 — Instalación confirmada; revisión funcional pendiente
 

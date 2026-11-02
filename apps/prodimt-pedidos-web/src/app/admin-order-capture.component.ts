@@ -7,9 +7,12 @@ import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from 
 import { AdminOrder, AdminOrderTemplate, OrderDataService } from './order-data.service';
 import { CaptureOrderRequest, CapturePreview, OrderCaptureApiService } from './order-capture-api.service';
 import { unitLabel } from './operational-labels';
+import { AdditionalProduct, ProductSetupApiService } from './product-setup-api.service';
+import { AddOrderProductDialogComponent } from './add-order-product-dialog.component';
+import { OrderProductPicker } from './order-product-picker';
 
 @Component({
-  selector: 'app-admin-order-capture', imports: [FormsModule, RouterLink],
+  selector: 'app-admin-order-capture', imports: [FormsModule, RouterLink, AddOrderProductDialogComponent],
   templateUrl: './admin-order-capture.component.html', styleUrl: './admin-order-capture.component.css'
 })
 export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
@@ -47,13 +50,16 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
   protected deliveryNotes = '';
   protected internalNotes = '';
 
+  protected readonly productPicker = new OrderProductPicker(inject(ProductSetupApiService), () => this.changeDetector.detectChanges());
+  protected additionalIds = new Set<string>();
+
   ngOnInit(): void {
     this.config = { ...this.template, products: this.template.products.map(x => ({ ...x, quantity: 0 })) };
     this.profile = this.initialProfile;
     this.existingOrders = [...this.existingOrders];
     this.deliveryNotes = this.template.deliveryNotes ?? '';
   }
-  ngOnDestroy(): void { this.previewGeneration++; this.previewRequest?.unsubscribe(); this.requests.unsubscribe(); }
+  ngOnDestroy(): void { this.productPicker.close(); this.previewGeneration++; this.previewRequest?.unsubscribe(); this.requests.unsubscribe(); }
   protected get locked(): boolean { return this.saving || this.confirming || this.refreshing || this.uncertain; }
   protected get sequence() {
     return this.profile.items.filter(x => x.isActive && x.productIsActive !== false).slice()
@@ -105,8 +111,26 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
       }
     });
   }
+  protected openProductPicker(): void {
+    if (this.locked) return;
+    this.productPicker.show(this.config.customerId, true, this.config.products.map(x => x.id));
+  }
+  protected addProduct(value: { product: AdditionalProduct; quantity: number }): void {
+    if (this.locked || this.config.products.some(x => x.id === value.product.productId)) return;
+    this.config.products = [...this.config.products, { id: value.product.productId, name: value.product.productName,
+      unitCode: value.product.unitCode, description: null, suggestedQuantity: 0, quantity: value.quantity, notes: null }];
+    this.additionalIds = new Set([...this.additionalIds, value.product.productId]);
+    this.productPicker.close(); this.error = null; this.attempt = null;
+  }
+  protected removeAdditionalProduct(id: string): void {
+    if (this.locked || !this.additionalIds.has(id)) return;
+    this.config.products = this.config.products.filter(x => x.id !== id);
+    this.additionalIds = new Set([...this.additionalIds].filter(x => x !== id)); this.attempt = null;
+  }
+
   protected changeMode(mode: 'quick' | 'manual'): void {
     if (this.locked || mode === this.mode) return;
+    if (mode === 'quick' && this.additionalIds.size) { this.error = 'Conserva la captura manual para pedir los productos agregados, o quítalos antes de cambiar a captura rápida.'; return; }
     const unresolved = this.mode === 'quick' && !!this.text.trim() && !this.preview;
     this.stopPreview(); this.mode = mode; this.error = null; this.attempt = null;
     this.notice = unresolved && mode === 'manual' ? 'Revisa las cantidades manuales. La entrada sin resolver no se aplicó.' : null;
@@ -120,7 +144,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
       approveForInterpretation: true, expectedProfileVersion: preview.profile.orderingProfileVersion,
       items: preview.profile.items.map(x => ({ productId: x.productId, expectedUnitCode: x.unitCode ?? null,
         defaultQuantity: x.defaultQuantity, sortOrder: x.sortOrder, isActive: x.isActive,
-        preferredMachineId: x.preferredMachineId, interpretationPosition: x.interpretationPosition, captureAlias: x.captureAlias ?? '' }))
+        preferredMachineId: x.preferredMachineId, interpretationPosition: x.interpretationPosition, captureAlias: x.captureAlias ?? '', useCustomerDefaultMachine: x.useCustomerDefaultMachine !== false }))
     }).subscribe({
       next: () => { this.confirming = false; this.busy.emit(false); this.stopPreview(); this.interpret(); this.changeDetector.detectChanges(); },
       error: error => { this.confirming = false; this.busy.emit(false); this.error = this.message(error, 'No pudimos confirmar el perfil.'); this.stopPreview(); this.changeDetector.detectChanges(); }
@@ -135,6 +159,9 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
         const old = new Map(this.config.products.map(x => [x.id, x]));
         this.config = { ...result.template, products: result.template.products.map(x => ({ ...x,
           quantity: old.get(x.id)?.unitCode === x.unitCode ? old.get(x.id)?.quantity ?? 0 : 0 })) };
+        const known = new Set(this.config.products.map(x => x.id));
+        this.config.products.push(...[...old.values()].filter(x => this.additionalIds.has(x.id) && !known.has(x.id)));
+        this.additionalIds = new Set([...this.additionalIds].filter(id => !result.template.products.some(x => x.id === id)));
         this.profile = result.profile; this.refreshing = false; this.busy.emit(false);
         this.notice = 'Configuración actualizada. Revisa las cantidades; si cambió una unidad, su cantidad se dejó en cero.';
         if (this.mode === 'quick' && this.text.trim()) this.interpret();

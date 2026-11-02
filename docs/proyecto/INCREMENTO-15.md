@@ -20,3 +20,9 @@ Actualización nativa sólo sobre I14 saludable: frontend `reminder-message-7682
 ## Aceptación
 
 Medir columnas, ancho, controles y ausencia de desbordamiento en 320/390/768/1024/1366/1920/2560px. Verificar nombres/rutas largos, estados, filtros/reacomodo y regreso al listado, modales y configuración. Pruebas con datos ficticios; la aceptación real y la instalación requieren revisión posterior del usuario. Evidencia en `../validation/2026-11-02-customer-catalog-layout.md`.
+
+Código de aplicación/paquete `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, [PR #7](https://github.com/romanrfhack/pedidosProdimt/pull/7), [CI 41466208422](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41466208422) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 143 E2E y 335 Python más smoke Production. Los siete anchos dan 1/1/2/3/4/6/8 columnas; capturas PC/móvil revisadas. ZIP `PRODIMT_Catalogo_Clientes_I15.zip`, 199173 bytes, SHA256 `9cf6850090db8bd21f79675b9cdd5cb5e6a7fde6ac9beb0cbde3bfafeae08905`, verificado y guardado. Instalación/aceptación remotas pendientes.
+
+## Instalación confirmada
+
+El usuario comparte el 2 de noviembre SHA256 correcto, preflight `planned/completed` y aplicación `updated/completed`, salud/frontend verificados. Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, release `customer-catalog-afb8f3ad9c33`; snapshot registrado en evidencia. Sin migraciones/SQL directo, cambios de backend/contraseña, reinicio o secretos impresos según el reporte. No se operó VPS/SQL desde este entorno. Esto sustituye el pendiente de instalación anterior; queda la aceptación visual del catálogo al recargar y variar el ancho. No repetir instalación o importaciones por este resultado.

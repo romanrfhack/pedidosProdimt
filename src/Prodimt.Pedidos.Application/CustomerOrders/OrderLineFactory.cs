@@ -15,7 +15,7 @@ internal static class OrderLineFactory
         IMachineRepository machines,
         CancellationToken cancellationToken,
         ICommercialCatalogRepository? commercial = null,
-        DateOnly? serviceDate = null)
+        DateOnly? serviceDate = null, IReadOnlySet<Guid>? unconfiguredProductIds = null)
     {
         if (requestLines is null || requestLines.Count == 0)
             throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.");
@@ -39,7 +39,9 @@ internal static class OrderLineFactory
         var candidates = positiveLines.Select(line => new
         {
             Input = line,
-            MachineId = preferences.FirstOrDefault(x => x.ProductId == line.ProductId && x.IsActive)?.PreferredMachineId ?? defaultMachine
+            MachineId = unconfiguredProductIds?.Contains(line.ProductId) == true ? null
+                : preferences.FirstOrDefault(x => x.ProductId == line.ProductId && x.IsActive)?.PreferredMachineId
+                  ?? (preferences.FirstOrDefault(x => x.ProductId == line.ProductId && x.IsActive)?.UseCustomerDefaultMachine == false ? null : defaultMachine)
         }).ToArray();
         var machineLookup = (await machines.GetByIdsAsync(candidates.Select(x => x.MachineId).OfType<Guid>(), cancellationToken)).ToDictionary(x => x.Id);
         if (commercial is not null && serviceDate is null) throw new InvalidOperationException("La fecha de servicio es obligatoria para fijar precios.");

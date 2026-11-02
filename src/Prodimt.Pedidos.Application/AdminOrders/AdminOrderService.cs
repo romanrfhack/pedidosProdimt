@@ -107,7 +107,7 @@ public sealed class AdminOrderService(
         AdminSubmitCustomerOrderRequest request,
         AdminActorContext? actor,
         CancellationToken cancellationToken,
-        IDateTimeProvider? receivedClock = null)
+        IDateTimeProvider? receivedClock = null, IReadOnlySet<Guid>? unconfiguredProductIds = null)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -120,7 +120,7 @@ public sealed class AdminOrderService(
         var evaluation = ServiceDatePolicy.Evaluate(serviceDate, submissionClock, hasExistingOrder);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
-            customers, products, machines, cancellationToken, commercial, serviceDate);
+            customers, products, machines, cancellationToken, commercial, serviceDate, unconfiguredProductIds);
 
         var order = Order.CreateSubmitted(
             customer.Id,

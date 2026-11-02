@@ -24,7 +24,7 @@ public sealed record ProductConsolidationResponse(Guid OperationId, Guid TargetP
     int ArchivedProducts, int UpdatedProfiles, int PriceAssignments, bool Replayed = false);
 
 public sealed class ProductConsolidationService(IProductRepository products, ICustomerRepository customers,
-    ICommercialCatalogRepository commercial, IAuditLogRepository audit, IDateTimeProvider clock)
+    ICommercialCatalogRepository commercial, IAuditLogRepository audit, IDateTimeProvider clock, ICustomerProductSetupRepository? setups = null)
 {
     private sealed record Profile(Customer Customer, IReadOnlyList<CustomerFrequentProduct> Items);
     private sealed record Plan(ProductConsolidationPreview Preview, Product[] Products, Profile[] Profiles,
@@ -96,7 +96,8 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
                     {
                         CustomerId = x.CustomerId, ProductId = sourceIds.Contains(x.ProductId) ? request.TargetProductId : x.ProductId,
                         DefaultQuantity = x.DefaultQuantity, SortOrder = x.SortOrder, InterpretationPosition = x.InterpretationPosition,
-                        CaptureAlias = x.CaptureAlias, PreferredMachineId = x.PreferredMachineId, IsActive = x.IsActive
+                        CaptureAlias = x.CaptureAlias, PreferredMachineId = x.PreferredMachineId, IsActive = x.IsActive,
+                        UseCustomerDefaultMachine = x.UseCustomerDefaultMachine
                     }).ToArray();
                     await customers.ReplaceFrequentProductsAsync(profile.Customer.Id, replacement, ct);
                     profile.Customer.RecordOrderingProfileChange(false, clock.Now);
@@ -142,6 +143,8 @@ public sealed class ProductConsolidationService(IProductRepository products, ICu
             selected.Add(await products.GetByIdForUpdateAsync(id, token) ?? throw new ArgumentException("Un producto ya no existe."));
         var target = selected.Single(x => x.Id == request.TargetProductId);
         var errors = new List<string>();
+        if (setups is not null && (await setups.GetOpenAsync(token)).Any(x => ids.Contains(x.ProductId)))
+            errors.Add("Completa primero las configuraciones pendientes de estos productos antes de consolidarlos.");
         if (selected.Any(x => !x.IsActive || x.MergedIntoProductId is not null)) errors.Add("Selecciona solamente productos activos sin consolidar.");
         if (target.UnitCode is null || !ProductUnitCodes.IsSupported(target.UnitCode) || selected.Any(x => x.UnitCode != target.UnitCode))
             errors.Add("Todos los productos deben tener la misma unidad confirmada. No se convierten kilos, piezas o paquetes.");
