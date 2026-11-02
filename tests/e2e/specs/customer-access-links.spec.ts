@@ -61,7 +61,7 @@ test('si falla guardar teléfono no crea token y conserva el borrador', async ({
   expect(created).toBe(0);
 });
 
-test('WhatsApp individual usa teléfono guardado, descripción, enlace y fecha fresca sin enviar', async ({ page }) => {
+test('WhatsApp individual usa descripción, enlace y vencimiento sin leyendas de entrega', async ({ page }) => {
   await openAccess(page);
   await page.getByLabel('Teléfono de WhatsApp').fill('5512345678');
   await page.getByLabel('Descripción', { exact: true }).fill('Recuerda hacer tu pedido de tortillas');
@@ -77,7 +77,11 @@ test('WhatsApp individual usa teléfono guardado, descripción, enlace y fecha f
   await expect.poll(() => page.evaluate(() => (window as any).__whatsAppPreview.location.href)).toContain('https://wa.me/525512345678?text=');
   const url = new URL(await page.evaluate(() => (window as any).__whatsAppPreview.location.href));
   expect(url.searchParams.get('text')).toContain('Recuerda hacer tu pedido de tortillas');
-  expect(url.searchParams.get('text')).toContain('domingo, 1 de noviembre de 2026');
+  expect(url.searchParams.get('text')).toContain('Haz tu pedido aquí:\n');
+  expect(url.searchParams.get('text')).toContain('Enlace disponible hasta el 1 de enero de 2030');
+  expect(url.searchParams.get('text')).toContain('hora de Ciudad de México.');
+  expect(url.searchParams.get('text')).not.toContain('Entrega prevista si lo confirmas ahora:');
+  expect(url.searchParams.get('text')).not.toContain('Los pedidos confirmados desde las 6:00 p. m.');
   expect(url.searchParams.get('text')).toContain('/cliente#token=mock-generated-token');
   await expect(page.getByText('WhatsApp abierto con el mensaje preparado. Confirma el envío desde WhatsApp.')).toBeVisible();
 });

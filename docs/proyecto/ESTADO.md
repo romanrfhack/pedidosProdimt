@@ -2,6 +2,12 @@
 
 Actualizado: 1 de noviembre de 2026.
 
+## I14 — Plantilla simplificada autorizada, validación en curso
+
+El usuario aprueba simplificar el mensaje de acceso: saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Implementado en una plantilla común para vista previa, copia, copia manual y WhatsApp; retiradas sólo del mensaje las dos leyendas de entrega/corte. La fecha y sus validaciones siguen en el portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`. Build Angular y 15 pruebas Python I14 correctas; E2E/CI y paquete final pendientes en este checkpoint.
+
+Actualización sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conservando backend I12 y funcionalidades de catálogo/precios/accesos. No se ha instalado I14 ni operado VPS/SQL o enviado mensajes. Próximo: cerrar pruebas, empaquetar y entregar preflight/aplicación al usuario. Ver `INCREMENTO-14.md` y evidencia I14.
+
 ## I13 — Instalación confirmada; aceptación visual pendiente
 
 El usuario comparte preflight y aplicación del instalador `20261101-product-catalog-install1`. Preflight `planned/completed`, `changes_made=false`, `health_verified=true` y `base_release_verified=true`. Aplicación `updated/completed`, `health_verified=true` y `frontend_verified=true`. Esto confirma por reporte del usuario la activación de I13 y la comprobación del release I12 requerido; sustituye el pendiente de instalación I13 de la entrega anterior. No es una inspección SSH independiente ni acredita por sí solo pruebas funcionales de los tokens de I12.

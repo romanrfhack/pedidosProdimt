@@ -48,6 +48,8 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 | OCT-038 | 2026-10-31 | I09 comparte parser/perfil y alternativa manual de I07 en el portal cliente; sólo datos públicos y sólo su cliente. No crea otro pedido ni sobrescribe uno vigente para la fecha calculada. Reintentos usan la misma referencia durable. El corte de las 18:00 asigna fecha de servicio y no reemplaza el corte de revisión tardía de las 10:00, las fechas administrativas explícitas, la importación o el histórico. |
 | NOV-001 | 2026-11-01 | I12 muestra sólo accesos utilizables y permite copiar, editar sin cambiar enlace y preparar reenvío individual. El usuario autoriza revocar todos los accesos anteriores y crear nuevos a demanda. Se conserva registro/auditoría, hash para autenticar y copia cifrada para recuperación administrativa explícita; sin descarga masiva de secretos o envío automático. Clave dedicada persistente, autorización/estado por solicitud y edición versionada. |
 
+| NOV-002 | 2026-11-01 | I14 simplifica sólo el mensaje de acceso: retirar leyendas de entrega/corte; saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. El usuario acepta conservar el envío normal por WhatsApp, sin hipervínculo con texto oculto/API nueva. Mantener fecha/validación en el portal, mismo token y capacidades I13; actualización sólo frontend, sin migraciones o revocaciones. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

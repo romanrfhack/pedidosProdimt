@@ -88,3 +88,7 @@ Autorizado el 1 de noviembre: consolidación explícita de productos físicos co
 ## I13 — Presentación del catálogo (1 de noviembre)
 
 Tarjetas responsivas agrupadas por tipo/número, búsqueda principal y editor modal. Conserva identidades, equivalencias, unidades, perfiles y precios por cliente; no incorpora nuevas reglas de pedido. Requiere completar y verificar I12 antes de sustituir sólo el frontend. Aceptación: revisar grupos, búsqueda, edición y archivos en teléfono/tableta/laptop; base y backend sin cambios.
+
+## I14 — Simplificación del mensaje (1 de noviembre)
+
+Retirar del recordatorio compartido la entrega prevista y el aviso del corte. Conservar saludo/descripción, «Haz tu pedido aquí:» con URL completa y vencimiento CDMX. Plantilla única para vista previa/copia/WhatsApp y recuperación de accesos existentes, sin cambiar fecha ni validación dentro del portal. Actualización sólo frontend sobre I13, preservando catálogo, perfiles, precios y backend I12; sin integración de mensajería, migraciones o revocaciones. Ver `INCREMENTO-14.md`.

@@ -2,6 +2,12 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-01 — I14: plantilla simplificada del mensaje de acceso
+
+El usuario autoriza la propuesta: retirar entrega prevista/leyenda de corte y conservar envío normal con «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Cambio en la plantilla común de AccessTokenManager para vista previa/copia/copia manual/WhatsApp. No se modifica token, descripción persistida, reglas de entrega o backend. Se conserva I13 como base y se prepara actualización sólo frontend con preflight, snapshot, activación/verificación, rollback e idempotencia.
+
+`npm ci` sin cambios de lockfiles, `npm run build` correcto y 15 pruebas Python del paquete I14 correctas. E2E actualizados para enlazar el mensaje con el mismo acceso y comprobar copia/WhatsApp, sin crear otro token; corrida pendiente en este checkpoint. Chromium del lockfile no pudo descargarse localmente (archivo inválido); no se sustituyen dependencias. graphify no instalado y sin grafo previo. CI, publicación y ZIP final pendientes. No se accedió al VPS/SQL real ni se enviaron mensajes. Evidencia en `../validation/2026-11-01-reminder-message.md`.
+
 ## 2026-10-24 — Análisis y arranque de I01
 
 ### Entrada y decisiones

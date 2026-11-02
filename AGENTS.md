@@ -28,6 +28,8 @@ I12, autorizado el 1 de noviembre, gestiona sólo accesos activos/no vencidos co
 
 I13, autorizado el 1 de noviembre tras la consolidación reportada por el usuario, presenta Productos en tarjetas por tipo con búsqueda, filtros y editor modal. Agrupación visual por preparación explícita/número del nombre, sin deducir ingredientes de nombres ambiguos ni cambiar producto, precio, unidad, perfil o posición. Ver `docs/proyecto/INCREMENTO-13.md`. Actualización nativa sólo del frontend sobre I12 saludable; preservar su administración de accesos y corrección SQL del instalador v2. No adelantar I13 a la instalación I12 pendiente.
 
+I14, autorizado el 1 de noviembre, simplifica exclusivamente el mensaje predeterminado de los accesos: saludo/descripción, «Haz tu pedido aquí:», URL completa con fragmento y vencimiento CDMX. Retira del mensaje la entrega prevista y el aviso del corte; conserva cálculo/validación y fecha en el portal. Vista previa, copiar, copia manual y WhatsApp comparten plantilla. Sin integración API de WhatsApp, envío automático, cambios de tokens/backend/SQL. Actualización nativa sólo frontend sobre I13 saludable, conservando tarjetas/productos/precios y backend I12. Ver `docs/proyecto/INCREMENTO-14.md`.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

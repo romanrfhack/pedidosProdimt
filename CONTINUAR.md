@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I14 — Plantilla simplificada autorizada, validación en curso
+
+El usuario aprueba retirar del mensaje la entrega prevista y la explicación del corte, y usar «Haz tu pedido aquí:» con URL completa al conservar el envío normal por WhatsApp. Implementado en la plantilla común de vista previa/copia/copia manual/WhatsApp; conserva saludo, descripción, token y vencimiento CDMX. No cambia cálculo o confirmación de entrega dentro del portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`. Build Angular y 15 pruebas del instalador/paquete correctas; E2E/CI y ZIP final pendientes en este checkpoint. Ver `docs/proyecto/INCREMENTO-14.md` y `docs/validation/2026-11-01-reminder-message.md`.
+
+Entrega sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conserva backend I12 `access-tokens-65560ca3cf98`. Sin migraciones, claves, contraseñas, revocaciones ni reinicio. No se ha instalado I14 ni operado el VPS desde este entorno. No repetir I12/I13 ni importaciones para este cambio.
+
 ## I13 — Instalación confirmada; aceptación visual pendiente
 
 El usuario comparte preflight y aplicación del instalador `20261101-product-catalog-install1`. Preflight `planned/completed`, `changes_made=false`, `health_verified=true` y `base_release_verified=true`. Aplicación `updated/completed`, `health_verified=true` y `frontend_verified=true`. Esto confirma por reporte del usuario la activación de I13 y la comprobación del release I12 requerido; sustituye el pendiente de instalación I13 de la entrega anterior. No es una inspección SSH independiente ni acredita por sí solo pruebas funcionales de los tokens de I12.
