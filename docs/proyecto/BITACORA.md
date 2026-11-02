@@ -549,3 +549,13 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Paquete PRODIMT_Catalogo_Productos_I13.zip, 271205 bytes, SHA256 26c27c5e1972af27321ac47efab18692e2fc39ab6a8af5e1d9c13eec30b1cd2d. CRC/checksums, manifest, pines y carga del instalador generado verificados; archivo guardado.
 - PR #5 en borrador sobre I12; main492bbe9 y baseI12 7ad9bb0 sin alterar. graphify no disponible. Sin acceso SSH ni consulta a BD real.
 - Pendiente: completar I12 con instalador v2 y confirmar remoto, después preflight/aplicación I13 y aceptación visual real. El paquete no adelanta ni reemplaza I12.
+
+
+## 2026-11-01 — Instalación I13 confirmada por el usuario
+
+- Paquete/hash y archivos internos verificados por WSL; usuario copia el instalador y payload al VPS y comparte las dos salidas.
+- Preflight planned/completed sin cambios, salud y release base verificados. Aplicación updated/completed con frontend_verified y health_verified true.
+- Activo reportado product-catalog-2345c7f4c27f, fuente2345c7f4c27f89b841344c6a8dfb2b3bfb196285; snapshot /var/backups/prodimt-pedidos/product-catalog-20261102T031948Z-1db3b0cdd020.
+- Sin SQL (consultas o migraciones), cambio de backend, reinicio o contraseñas por I13. El preflight verifica el release I12 requerido; no se infieren conteos SQL ni resultados funcionales de tokens que no figuran en esta salida.
+- Se actualiza continuidad/estado/evidencia por el reporte, sin operar SSH o reinstalar. No hay código nuevo ni pruebas adicionales necesarias para este registro documental.
+- Pendiente: Ctrl+F5 y aceptación visual real de grupos, búsqueda, modal y adaptación a distintos anchos.

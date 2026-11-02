@@ -29,12 +29,18 @@ Payload: db6301283505a3156cb2728f1c071dce3bdf560ac494bc006bac96240701bf4f.
 
 CRC de ambos ZIP, tres checksums externos, manifest/pines, carga real del instalador generado y quince archivos frontend verificados. Incluye licencias y no incluye fuentes, mapas, credenciales, datos reales o backend. Archivo verificado y guardado.
 
-Requiere I12 instalado y saludable (access-tokens-65560ca3cf98). El último reporte de I12 aún necesita reintentar su instalador v2 y confirmar resultado; I13 no sustituye ese paso. Preflight sólo lectura antes de aplicar. Instalador sólo frontend, sin SQL/reinicio/claves/contraseñas. No se instaló en VPS desde este entorno.
+Requiere I12 instalado y saludable (access-tokens-65560ca3cf98). Al preparar el paquete ese prerrequisito aún estaba pendiente de confirmar; el reporte de instalación siguiente acredita la comprobación de ese release base. Instalador sólo frontend, sin SQL/reinicio/claves/contraseñas. No se operó el VPS desde este entorno.
 
 ## CI
 
 [CI 41381704462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41381704462), fuente2345c7f. Cuatro trabajos completos correctos: 335 Application/Domain, 66 SQL/criptografía, 133 E2E, 305 Python y smoke Production. La ejecución previa a6b7cec detectó que una prueba de preflight asumía directorios temporales de root; corregido exclusivamente en la prueba para el runner sin privilegios. No hubo cambio de aplicación o permisos requeridos en producción.
 
-## Aceptación pendiente
+## Instalación confirmada por reporte del usuario
 
-Completar I12 con revisión2 y confirmar salud, aplicar I13, Ctrl+F5, revisar grupos y búsqueda con catálogo real y probar edición en laptop/tableta/teléfono. No registrar prueba como pedido real ni repetir importaciones/consolidaciones.
+El usuario comparte preflight planned/completed sin cambios y base_release_verified/health_verified true; posteriormente aplica y obtiene updated/completed con frontend_verified/health_verified true. Fuente2345c7f, frontend product-catalog-2345c7f4c27f y snapshot /var/backups/prodimt-pedidos/product-catalog-20261102T031948Z-1db3b0cdd020. SQL, backend, reinicio y contraseñas figuran sin cambios. La salida de sólo lectura con frontend_verified=false corresponde a la fase previa y queda superada por true en la aplicación.
+
+Evidencia aportada por el usuario, no inspección SSH independiente; no permite deducir conteos de SQL o aceptación funcional de tokens I12. No se ejecutan más pruebas, migraciones o instaladores por este registro.
+
+## Aceptación visual pendiente
+
+Ctrl+F5, revisar grupos y búsqueda con catálogo real y probar los modales en laptop/tableta/teléfono. Instalación I13 confirmada; aceptación visual aún sin reporte. No registrar prueba como pedido real ni repetir importaciones/consolidaciones.

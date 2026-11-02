@@ -4,7 +4,17 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I13 — Catálogo agrupado validado y empaquetado
+## I13 — Instalación confirmada; aceptación visual pendiente
+
+El usuario comparte preflight y aplicación del instalador `20261101-product-catalog-install1`. Preflight `planned/completed`, `changes_made=false`, `health_verified=true` y `base_release_verified=true`. Aplicación `updated/completed`, `health_verified=true` y `frontend_verified=true`. Esto confirma por reporte del usuario la activación de I13 y la comprobación del release I12 requerido; sustituye el pendiente de instalación I13 de la entrega anterior. No es una inspección SSH independiente ni acredita por sí solo pruebas funcionales de los tokens de I12.
+
+Frontend activo reportado: `/var/www/prodimt-pedidos/frontend/releases/product-catalog-2345c7f4c27f`, fuente `2345c7f4c27f89b841344c6a8dfb2b3bfb196285`. Snapshot privado: `/var/backups/prodimt-pedidos/product-catalog-20261102T031948Z-1db3b0cdd020` (2 de noviembre UTC, 1 de noviembre en Ciudad de México).
+
+I13 reporta `database_migrations_run=false`, `database_queries_run=false`, `backend_changed=false`, `service_restarted=false`, `password_changed=false` y `secret_values_printed=false`. No hay que repetir instalación, importación, consolidación o reparaciones por este resultado. La salida de sólo lectura con `frontend_verified=false` era esperada antes de activar; la aplicación terminó con esa comprobación en true.
+
+Siguiente paso: Ctrl+F5 y Catálogos → Productos. Revisar grupos, buscador, distribución según ancho y modales Nuevo producto/Editar con los datos reales. El usuario aún no confirma esa aceptación visual. No se modificó aplicación, paquete ni servidor desde este entorno en esta sesión; sólo se registra la evidencia proporcionada.
+
+## I13 — Validación y paquete (antecedente)
 
 El usuario confirma que terminó la consolidación de duplicados y solicita aprovechar el ancho disponible con tarjetas por tipo. Se implementa agrupación visual por nombre explícito: Por número, Harina, Sancochados, Vapor y Otros productos; búsqueda por nombre/descripción/tipo/unidad y filtros de estado. La lista de 17 nombres suministrada da 9/3/2/1/2 productos respectivamente; no se incorporan descripciones o relaciones reales al repositorio.
 
