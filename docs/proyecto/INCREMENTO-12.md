@@ -33,3 +33,5 @@ El ZIP incluye instalador fijado por SHA y payload de 68 archivos, SQL increment
 ## Incidente de instalación: compilación del SQL idempotente
 
 El primer --apply que superó preflight falló con SQL207 tras respaldo y persistencia de clave; rollback recuperó aplicación anterior y conservó clave. No inferir commit13 de database_migrations_run. Instalador revisión2 conserva payload/binarios65560ca y separa el batch antes de referenciar columnas recién agregadas, manteniendo una transacción por la misma sesión sqlcmd. Revalidar primero sólo lectura; no borrar clave, restaurar SQL automáticamente o aplicar DDL manual. Ver evidencia del incidente y regresión real de sqlcmd en CI.
+
+Corrección validada en CI41379682207, cuatro trabajos correctos, incluida regresión real de sqlcmd del script exacto entregado:207 original, rollback ante fallo de auditoría y migración/repetición correctas. Instaladorv2 fuente b8588ab; aplicación/payload65560ca conservados. Entrega independiente verificada; reintento y aceptación remotos pendientes.
