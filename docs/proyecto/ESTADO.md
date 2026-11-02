@@ -1,13 +1,12 @@
 # Estado del proyecto
 
-## I18 — Preflight detenido sin cambios; revisión 2 en validación
+## I18 — Revisión 2 corregida y validada en SQL; lectura remota pendiente
 
-El usuario reporta revisión1: `failed/read-only-preflight`, paso `application-sql-read`, `token_management_schema_unexpected`;13 migraciones, permisos/channels esperados y `database_mismatches=[]`. No hubo migración, reinicio, escrituras, cambios de contraseña/claves o revocación. El fallo original no mostraba el detalle de tokens, por lo que el estado real de esas definiciones aún no está observado.
+El preflight revisión1 se detuvo sin cambios con `token_management_schema_unexpected`. Se reprodujo ese falso negativo en SQL Server con usuario DML sin VIEW DEFINITION. Revisión2 valida estructura/bindings y defaults visibles; los ocultos quedan `token_schema_defaults_pending_admin=true` hasta la verificación administrativa exacta anterior a cualquier cambio. No se amplían permisos ni se modifican binarios, migraciones, configuración, claves o tokens para corregirlo.
 
-Se detecta un defecto del preflight: exige `sys.default_constraints.definition` al usuario DML de la aplicación aunque SQL Server puede ocultarlo. Revisión2 valida estructura/bindings y cualquier default visible; los ocultos quedan explícitamente pendientes de verificación SQL administrativa exacta, antes de staging/parada/respaldo/migración. No añade VIEW DEFINITION ni cambia permisos/configuración/BD. El payload original y binarios fuente `c49df453de9d07f5be301fb109dbb813309326d9` se conservan.24 pruebas específicas locales correctas; reproducción SQL con usuario limitado en CI pendiente. Ver `docs/validation/2026-11-02-identity-installer-v2.md`.
+Fuente de revisión2 `87f8a2764c816219050f50002f3bed2763b5efb0`; [CI 41492453572](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41492453572) acredita 356 Domain/Application,72 SQL/criptografía y 374 Python, más smoke Production y 34 llamadas ODBC con reproducción/solución del caso de metadatos, rechazo de drift y validación exacta del administrador. Los cuatro trabajos CI terminaron correctamente, incluidos 163 E2E; la aplicación no cambió.24 pruebas específicas y 25 en conjunto con el inventario confirman aislamiento/ausencia de efectos secundarios.
 
-No reintentar con `--apply` de revisión1. Se preparará `PRODIMT_Instalar_I18_v2.py`, fijado al payload existente `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`, para leer primero el diagnóstico seguro y luego aplicar sólo tras verificar la base. I18 sigue pendiente de instalación.
-
+Entregado `PRODIMT_Instalar_I18_v2.py`, 37653 bytes, SHA256 `2bc080cb67f51ff0b1b0884e7cf3dbbb86131fe0cb5e2c4a7a9fae07cb92fdcd`. Reutiliza `/root/prodimt-identity-payload.zip` ya copiado, pin `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`, fuente de binarios `c49df453de9d07f5be301fb109dbb813309326d9`. No regenerar ZIP/payload ni usar revisión1 para aplicar. Siguiente: verificar/copiar sólo v2 y ejecutar primero lectura; la nueva salida mostrará contadores seguros. I18 continúa sin instalar; no hubo SSH/SQL operativo desde este entorno.
 
 ## I18 — Usuarios, roles y permisos validados; instalación pendiente
 

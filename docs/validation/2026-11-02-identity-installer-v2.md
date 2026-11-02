@@ -21,3 +21,14 @@ El verificador ODBC crea un usuario ficticio sin login y sólo DML en una base d
 Se entrega sólo `PRODIMT_Instalar_I18_v2.py`; reutiliza `/root/prodimt-identity-payload.zip` ya copiado y verifica SHA256 `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326` y sourceCommit `c49df453de9d07f5be301fb109dbb813309326d9`. ZIP y payload originales no se regeneran. SHA256 de la revisión2 y resultados CI se registrarán tras validarlos.
 
 Sin acceso independiente al VPS/SQL operativo. I18 no está instalado; la lectura con revisión2 deberá confirmar contadores/salud/base antes de aplicar. Un posible drift real seguirá bloqueando la instalación sin cambios.
+
+## Cierre SQL y entrega
+
+Fuente de instalador/pruebas `87f8a2764c816219050f50002f3bed2763b5efb0`, CI [41492453572](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41492453572). SQL real correcto: 72 pruebas; verificador ODBC 34 llamadas y todas las banderas `original_hidden_default_mismatch_reproduced`, `read_only_structure_without_metadata_grant_verified`, `malformed_schema_rejected`, `administrator_exact_defaults_enforced` en true. El SQL14 sigue teniendo SHA256 `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`, idéntico al payload original. Python 374 y smoke Production correctos; 356 Domain/Application correctas. Navegador 163/163 correcto; los cuatro trabajos CI terminaron en success.
+
+La integración de las pruebas corrigió un mock global de espacio en disco para restaurarlo al salir del caso y la sintaxis del DDL dinámico del fixture desechable. En una sola ejecución,24 pruebas I18 más la de inventario pasan sin contaminar estado entre módulos. Ninguno de esos ajustes modifica el instalador entregado o los datos de aplicación.
+
+Archivo final guardado: `PRODIMT_Instalar_I18_v2.py`, 37653 bytes, SHA256 `2bc080cb67f51ff0b1b0884e7cf3dbbb86131fe0cb5e2c4a7a9fae07cb92fdcd`. El cargador exportado verifica el payload original y la consulta de metadatos ocultos queda pendiente de administrador sin tocar archivos/servicio/SQL. El archivo conserva source/payload pins originales y el ZIP no se reemplazó. Instalar I18 y confirmar el estado real del VPS requiere primero la nueva lectura; un drift real permanecerá bloqueado.
+
+
+CI final completo y correcto sobre la fuente fijada:356 Domain/Application,72 SQL/criptografía,163 E2E,374 Python y smoke Production inicial/persistido. Los fallos intermedios del fixture quedaron corregidos antes de entregar; no se omitieron pruebas. La lectura del usuario con revisión2 y la instalación remota siguen pendientes.
