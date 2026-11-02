@@ -27,8 +27,7 @@ public sealed class PilotAuthenticationService(
         var accessToken = await customerAccessTokens.GetByTokenHashAsync(tokenHash, cancellationToken);
 
         if (accessToken is null ||
-            !accessToken.IsActive ||
-            (accessToken.ExpiresAt is not null && accessToken.ExpiresAt <= dateTimeProvider.Now))
+            !CustomerLinkAccessPolicy.CanIdentify(accessToken, dateTimeProvider.Now))
         {
             throw new AuthenticationFailedException("Token de cliente invalido.");
         }

@@ -42,6 +42,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         if (segments.Length < 3) return "__unmapped__";
         return segments[2] switch
         {
+            "ordering-schedules" => "customers.manage",
             "security" or "users" => "security.manage",
             "operations" => OperationPermission(method, path, segments),
             "product-setups" => get ? "customers.manage" : "pricing.manage",
@@ -49,7 +50,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
             "machines" => get ? "machines.read" : "machines.manage",
             "products" => segments.Contains("consolidation") ? "products.manage" : get ? "products.read" : "products.manage",
             "orders" => path.EndsWith("/next-delivery-date", StringComparison.Ordinal) ? "orders.capture" :
-                path.EndsWith("/review", StringComparison.Ordinal) || path.EndsWith("/pending-review", StringComparison.Ordinal) ? "orders.review" : get ? "orders.read" : "orders.capture",
+                path.EndsWith("/notification", StringComparison.Ordinal) || path.EndsWith("/review", StringComparison.Ordinal) || path.EndsWith("/pending-review", StringComparison.Ordinal) ? "orders.review" : get ? "orders.read" : "orders.capture",
             "customers" => CustomerPermission(segments, get),
             _ => "__unmapped__"
         };

@@ -28,6 +28,7 @@ public static class DependencyInjection
         {
             services.AddSingleton<InMemoryDataStore>();
             services.AddSingleton<ISecurityStore, InMemorySecurityStore>();
+            services.AddSingleton<IOrderingScheduleRepository, InMemoryOrderingScheduleRepository>();
             services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
             services.AddSingleton<IProductRepository, InMemoryProductRepository>();
             services.AddSingleton<ICommercialCatalogRepository, InMemoryCommercialCatalogRepository>();
@@ -52,6 +53,7 @@ public static class DependencyInjection
 
         services.AddDbContext<PedidosDbContext>(options => options.UseSqlServer(connectionString));
         services.AddScoped<ISecurityStore, EfSecurityStore>();
+        services.AddScoped<IOrderingScheduleRepository, EfOrderingScheduleRepository>();
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<IProductRepository, EfProductRepository>();
         services.AddScoped<ICommercialCatalogRepository, EfCommercialCatalogRepository>();

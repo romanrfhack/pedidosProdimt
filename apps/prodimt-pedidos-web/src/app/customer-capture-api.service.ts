@@ -38,6 +38,7 @@ export interface CustomerNextOrder {
     deliveryNotes: string | null;
     lines: CustomerCaptureLine[];
   } | null;
+  orderingWindow?: { automaticConfirmationCutoff: string; cutoffSource: string; requiresConfirmation: boolean; requiresDateAcceptance: boolean; deliveryDate: string; today: string; requestOnly: boolean };
   preferredDeliveryTime: string | null;
   preferredDeliveryWindowStart: string | null;
   preferredDeliveryWindowEnd: string | null;

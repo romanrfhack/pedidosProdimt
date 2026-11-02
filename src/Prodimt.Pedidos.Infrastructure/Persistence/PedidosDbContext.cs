@@ -5,6 +5,8 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence;
 
 public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options) : DbContext(options)
 {
+    public DbSet<RouteOrderSchedule> RouteOrderSchedules => Set<RouteOrderSchedule>();
+
     public DbSet<Customer> Customers => Set<Customer>();
 
     public DbSet<Product> Products => Set<Product>();

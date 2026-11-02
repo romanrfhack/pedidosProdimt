@@ -13,7 +13,7 @@ public sealed class CustomerOrderService(
     IOrderAuditLogRepository auditLogs,
     IDateTimeProvider dateTimeProvider,
     IMachineRepository machines,
-    ICommercialCatalogRepository? commercial = null)
+    ICommercialCatalogRepository? commercial = null, OrderSchedulingService? scheduling = null)
 {
     public async Task<CustomerOrderTodayResponse> GetTodayAsync(Guid customerId, CancellationToken cancellationToken)
     {
@@ -59,7 +59,12 @@ public sealed class CustomerOrderService(
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.Customer, cancellationToken);
         var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
-        var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder);
+        if (DeliveryDatePolicy.GetDate(dateTimeProvider.Now) != dateTimeProvider.Today)
+            throw new CustomerOrderConflictException("La recepción para hoy terminó. Abre Mi próximo pedido y confirma el siguiente día hábil.");
+        var window = scheduling is null ? null : await scheduling.GetAsync(customer, dateTimeProvider.Now, false, cancellationToken);
+        var evaluation = OrderSubmissionPolicy.Evaluate(dateTimeProvider.LocalTimeOfDay, hasExistingOrder, window?.AutomaticConfirmationCutoff);
+        if (window?.RequiresConfirmation == true && !hasExistingOrder)
+            evaluation = new OrderSubmissionEvaluation(true, true, AdminReviewReason.LateSubmission, OrderStatus.PendingAdminReview);
         ArgumentNullException.ThrowIfNull(request);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),

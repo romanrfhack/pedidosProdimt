@@ -16,6 +16,7 @@ export const routes: Routes = [
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'admin/cambiar-contrasena', component: AdminPasswordComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/sin-acceso', component: AdminAccessDeniedComponent, canActivate: [adminAuthGuard] },
+  { path: 'admin/horarios', loadComponent: () => import('./admin-ordering-schedules.component').then(m => m.AdminOrderingSchedulesComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage'] } },
   { path: 'admin/seguridad', loadComponent: () => import('./admin-security.component').then(m => m.AdminSecurityComponent), canActivate: [permissionGuard], data: { permissions: ['security.manage'] } },
   { path: 'admin/pedidos', component: AdminTodayComponent, canActivate: [permissionGuard], data: { permissions: ['orders.read'] } },
   { path: 'admin/pendientes', component: AdminPendingComponent, canActivate: [permissionGuard], data: { permissions: ['orders.review'] } },

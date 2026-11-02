@@ -23,3 +23,5 @@
 }
 
 .manual-product-wrap{min-width:0}.manual-product-wrap.additional{padding:5px;border:1px solid #d2e7dd;border-radius:10px;background:#f5faf7}.remove-additional{border:0;background:transparent;color:#496f68;font-size:.78rem;min-height:36px;padding:6px 10px;text-decoration:underline;text-underline-offset:3px}.additional-product-trigger{justify-self:start;min-height:44px}.additional .product-row,.additional .manual-product{background:white}
+
+.friendly-access{background:#fff7e8;border:1px solid #ead9b9;border-radius:14px;padding:22px;color:#243e40;line-height:1.55}.friendly-access h3,.friendly-access p{margin:0}.friendly-clock{font-size:42px;color:#1a5155}.friendly-access .primary{min-height:46px}

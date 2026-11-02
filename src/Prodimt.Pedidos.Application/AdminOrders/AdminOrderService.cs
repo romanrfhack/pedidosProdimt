@@ -560,7 +560,7 @@ public sealed class AdminOrderService(
             order.RequestedDeliveryWindowStart,
             order.RequestedDeliveryWindowEnd,
             order.DeliveryNotes,
-            order.AdminDecision);
+            order.AdminDecision, order.RouteCode);
     }
 
     private static string GetCustomerName(Order order, IReadOnlyDictionary<Guid, string> customerNames)

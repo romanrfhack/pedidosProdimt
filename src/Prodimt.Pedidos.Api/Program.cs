@@ -39,8 +39,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Add(System.Net.IPAddress.IPv6Loopback);
 });
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<OrderSchedulingService>();
+builder.Services.AddScoped<OrderingScheduleService>();
 builder.Services.AddScoped<CustomerOrderService>();
 builder.Services.AddScoped<CustomerOrderCaptureService>();
+builder.Services.AddScoped<OrderDecisionNotificationService>();
 builder.Services.AddScoped<AdminOrderService>();
 builder.Services.AddScoped<AdminOrderCaptureService>();
 builder.Services.AddScoped<AdminDailyOrderService>();
@@ -100,7 +103,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     var tokenIdClaim = context.Principal.FindFirstValue(ProdimtAuthClaims.CustomerAccessTokenId);
                     if (!Guid.TryParse(customerIdClaim, out var customerId) || !Guid.TryParse(tokenIdClaim, out var tokenId) ||
                         !await context.HttpContext.RequestServices.GetRequiredService<CustomerSessionValidator>()
-                            .IsValidAsync(customerId, tokenId, context.HttpContext.RequestAborted))
+                            .ValidateRequestAsync(customerId, tokenId, context.Request.Method, context.Request.Path.Value ?? "", context.Principal, context.HttpContext.RequestAborted))
                         context.Fail("El enlace de acceso ya no está disponible. Solicita uno nuevo.");
                     return;
                 }
@@ -227,6 +230,7 @@ app.MapOrderCaptureEndpoints();
 app.MapCustomerOrderCaptureEndpoints();
 app.MapCustomerProductSetupEndpoints();
 app.MapCustomerReminderEndpoints();
+app.MapOrderingScheduleEndpoints();
 app.MapCustomerAccessTokenManagementEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))

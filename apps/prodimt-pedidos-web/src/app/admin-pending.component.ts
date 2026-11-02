@@ -1,5 +1,6 @@
+import { environment } from '../environments/environment';
 import { businessDateToday, unitLabel } from './operational-labels';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminDecisionApiValue } from './customer-orders-api.service';
@@ -20,7 +21,7 @@ interface ChangeLineForm {
     <section class="page stack" data-testid="admin-pending">
       <div class="page-title">
         <p class="eyebrow">Admin</p>
-        <h2>Pendientes de revision</h2>
+        <h2>Pedidos por confirmar</h2><p>Estas solicitudes esperan una decisión y todavía no forman parte de la producción ni del reparto.</p>
       </div>
 
       <form class="operations-filters" (ngSubmit)="load()">
@@ -28,6 +29,13 @@ interface ChangeLineForm {
         <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!reviewingOrderId || !!loadingChangesOrderId">Consultar pendientes</button>
       </form>
 
+      @if (notification; as message) {
+        <section class="notice stack" data-testid="decision-whatsapp-draft"><strong>Avisar al cliente</strong><p style="white-space:pre-wrap">{{ message.message }}</p>
+          @if (message.whatsAppUrl) { <a class="primary" [href]="message.whatsAppUrl" target="_blank" rel="noopener noreferrer">Abrir WhatsApp con este mensaje</a> }
+          @else { <p>El cliente no tiene un teléfono válido. Puedes copiar el texto y comunicarte por otro medio.</p> }
+          <small>El mensaje se abre para tu revisión. Abrirlo no confirma que se haya enviado. Proponer otra fecha tampoco registra un pedido nuevo.</small>
+        </section>
+      }
       @if (isLoading) {
         <div class="notice">Cargando pendientes...</div>
       }
@@ -48,9 +56,9 @@ interface ChangeLineForm {
             @for (order of orders; track order.id) {
               <article class="admin-row">
                 <div>
-                  <strong>{{ order.customerName }}</strong>
-                  <small>{{ order.status }} · Servicio {{ order.orderDate }} · Pedido #{{ order.sequenceNumber }}</small>
-                  <small>Razon: {{ order.reviewReason ?? 'Revision manual' }}</small>
+                  <strong>{{ order.customerName }}</strong><small>Ruta {{ order.routeCode || 'sin asignar' }} · Recibido {{ order.submittedAt }}</small>
+                  <small>Pendiente de confirmación · Servicio {{ order.orderDate }} · Pedido #{{ order.sequenceNumber }}</small>
+                  <small>{{ order.reviewReason === 'LateSubmission' ? 'Recibido fuera del horario de confirmación automática' : 'Solicitud que requiere revisión' }}</small>
                   @if (order.isLate) {
                     <small>Pedido tardio</small>
                   }
@@ -75,7 +83,7 @@ interface ChangeLineForm {
                     class="secondary compact"
                     [disabled]="reviewingOrderId === order.id"
                     (click)="startAcceptedWithChanges(order)">
-                    Cambios
+                    Ver detalle / ajustar
                   </button>
                   <button
                     type="button"
@@ -159,6 +167,14 @@ export class AdminPendingComponent {
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
+  private readonly http = inject(HttpClient);
+  protected notification: { message: string; whatsAppUrl: string | null } | null = null;
+  private prepareNotification(id: string): void {
+    this.http.get<{ message: string; whatsAppUrl: string | null }>(environment.apiBaseUrl + '/api/admin/orders/' + id + '/notification').subscribe({
+      next: result => { this.notification = result; this.changeDetector.detectChanges(); },
+      error: e => { this.errorMessage = this.formatError(e, 'Se guardó la decisión, pero no pudimos preparar el aviso.'); this.changeDetector.detectChanges(); }
+    });
+  }
   protected orders: AdminOrder[] = [];
   protected auditEvents: AdminOrderAuditEvent[] = [];
   protected changeDetail: AdminOrderDetail | null = null;
@@ -180,6 +196,7 @@ export class AdminPendingComponent {
   }
 
   protected changeDate(): void {
+    this.notification = null;
     this.orders = [];
     this.auditEvents = [];
     this.selectedAuditOrderId = null;
@@ -197,7 +214,8 @@ export class AdminPendingComponent {
       next: () => {
         this.resultMessage = decision === 'Accepted'
           ? 'Pedido aceptado.'
-          : 'Pedido rechazado.';
+          : 'No fue posible aceptar el pedido para esa fecha.';
+        this.prepareNotification(order.id);
         this.load(false);
       },
       error: (error: unknown) => {
@@ -263,7 +281,7 @@ export class AdminPendingComponent {
       }))
     }).subscribe({
       next: () => {
-        this.resultMessage = 'Pedido aceptado con cambios.';
+        this.resultMessage = 'Pedido aceptado con cambios.'; this.prepareNotification(order.id);
         this.cancelChanges();
         this.load(false);
       },

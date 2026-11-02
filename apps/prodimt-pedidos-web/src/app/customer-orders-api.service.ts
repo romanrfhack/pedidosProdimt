@@ -51,6 +51,7 @@ export interface CustomerOrderApiResponse extends CustomerCurrentOrderSummaryApi
 }
 
 export interface AdminOrderSummaryApiResponse {
+  routeCode?: string | null;
   orderId: string;
   customerId: string | null;
   customerName: string;
