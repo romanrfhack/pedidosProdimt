@@ -37,7 +37,7 @@ El SQL exacto entregado debe probarse mediante sqlcmd con sus separaciones de lo
 
 ## Criterios de aceptación y estado
 
-Implementación local completada; validación SQL Server/CI y entrega final en curso. Application351+Domain5 correctas, Angular build correcto,12 nuevas E2E y38 regresiones correctas,16 pruebas específicas del paquete correctas; EF sin diferencias pendientes de modelo. Ver `../validation/2026-11-02-identity-administration.md`. Este documento no acredita despliegue, migración remota, CI completo o aceptación de negocio.
+Implementación, validación SQL Server/CI y paquete final completados. Application351+Domain5 correctas, Angular build correcto,12 nuevas E2E y38 regresiones correctas,16 pruebas específicas del paquete correctas; EF sin diferencias pendientes de modelo. Ver `../validation/2026-11-02-identity-administration.md`. CI completo:356 Domain/Application,72 SQL/criptografía,163 E2E y366 Python, más smoke Production. Fuente y paquete verificados en la evidencia vinculada. Este documento no acredita despliegue, migración remota o aceptación de negocio.
 
 1. Anónimo obtiene 401; cliente externo y administrativo sin permiso obtienen 403 en recursos protegidos.
 2. Un rol, varios roles y concesión directa habilitan la misma acción; retirar uno de dos orígenes conserva el permiso y retirar el último lo revoca en la siguiente petición.

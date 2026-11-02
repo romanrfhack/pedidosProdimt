@@ -1,20 +1,32 @@
 # Estado del proyecto
 
-## I18 — Seguridad implementada localmente; validación SQL/CI en curso
+## I18 — Usuarios, roles y permisos validados; instalación pendiente
 
-El usuario autoriza usuarios, roles y permisos con CRUD completo, varios roles y concesiones individuales aditivas. Se desarrolla desde I17 `cdbfec3071bc2046f0398fbdad6b62bdca6de748` preservando la rama paralela I16. Resolución de permisos por solicitud, claves de sistema estables, Administrador protegido, anti-bloqueo, concurrencia y auditoría. Interfaz responsive de ancho aprovechado en PC. Ver `INCREMENTO-18.md`.
+CRUD completo, varios roles por usuario y permisos directos adicionales. Los permisos efectivos son la unión de los roles activos y los directos activos, resueltos en cada petición. Interfaz `/admin/seguridad` con procedencia, búsqueda y editor responsivo; ver `INCREMENTO-18.md`. Fuente de aplicación/paquete `c49df453de9d07f5be301fb109dbb813309326d9`, [PR #10](https://github.com/romanrfhack/pedidosProdimt/pull/10) en borrador sobre I17.
 
-Migración prevista13→14 y paquete nativo sobre backend I12 con frontend I15/I17 identificados. Configuración/claves, tokens e historial se conservan. Código local completo:351 Application+5 Domain correctas, build/backend-publicación/Angular correctos, EF sin diferencias de modelo;12 nuevas E2E y38 regresiones de interfaz correctas,16 pruebas específicas del paquete correctas. SQL Server/CI y empaquetado final pendientes; sin despliegue, SQL remoto o aceptación de negocio. Evidencia en `../validation/2026-11-02-identity-administration.md`.
+[CI 41477009188](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41477009188) completo: cuatro trabajos correctos, **356 Domain/Application, 72 SQL/criptografía, 163 E2E y 366 Python**, más smoke Production inicial y persistido. SQL ODBC validó la migración 13→14, rollback integral del DDL/seed y repetición sin reotorgar roles. Modelo EF sin diferencias, builds correctos y diseño revisado en 390/768/1440/1920px. Se integró la documentación I17 de `d2c3a5e12bf7c957da2f1d90678c885319a8b412` sin cambiar código/binarios I18. Evidencia: `../validation/2026-11-02-identity-administration.md`.
 
-Actualizado: 2 de noviembre de 2026.
+Entrega verificada y guardada: `PRODIMT_Usuarios_Roles_Permisos_I18.zip`, 7414079 bytes, SHA256 `06e40518871904a2f9e3c834f03ad441940326974baeb828269c2bc2552b44e4`; payload `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`. CRC exterior/interior, hashes por archivo y cargador exportado correctos; 73 archivos del payload. Instalador sólo sobre backend I12 y frontend I15/I17 identificados, respaldo SQL verificado antes de migrar 13→14, configuración/claves/tokens conservados. Bloquea downgrade a I12 si ya cambió la seguridad; I16/otros releases se rechazan antes de escribir.
 
-## I17 — Clientes pendientes responsivos; implementación local completa
+No se operó VPS/SQL real ni se instaló I18. I17 sigue siendo el último despliegue confirmado por el usuario. Próximo: descargar ZIP, verificar SHA256SUMS, preflight `planned/completed`, aplicar con credenciales SQL existentes mediante TTY y verificar salud/frontend true; Ctrl+F5 → Seguridad y aceptación funcional. No repetir bootstrap, importaciones, revocación ni instaladores anteriores.
+
+## I17 — Instalación confirmada; revisión visual pendiente
+
+Usuario reporta el 2 de noviembre SHA256 correcto y ambas fases de `20261102-pending-customers-install1`: lectura `planned/completed`, sin cambios, base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. I17 queda instalado por esa evidencia, sin inspección SSH independiente desde este entorno. La comprobación de frontend en false durante lectura era esperada y terminó true al aplicar.
+
+Fuente desplegada `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, release `/var/www/prodimt-pedidos/frontend/releases/pending-customers-cdbfec3071bc`; snapshot privado `/var/backups/prodimt-pedidos/pending-customers-20261102T154208Z-06bc1e751d24`. Reporte sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos. Es el último despliegue confirmado y sustituye el pendiente de instalación anterior.
+
+Próximo: Ctrl+F5 → Pendientes, revisar columnas/textos/botones al maximizar/reducir y abrir/cancelar captura para comprobar el borrador. Aceptación visual/funcional pendiente; no repetir instalación/importaciones ni crear pedidos reales sólo para probar diseño. Sólo documentación en esta sesión, sin VPS/SQL, cambios de aplicación/paquete o nuevas pruebas de binarios.
+
+## I17 — Validación y paquete (antecedente)
 
 Usuario autoriza aprovechar el ancho para las tarjetas de Pendientes de forma similar a Clientes. Implementado sobre I15 confirmado, rama `codex/i17-responsive-pending-customers`: ancho completo, rejilla automática, metadatos legibles, acciones al pie y contador de clientes visibles. Captura abierta a toda la fila sin recrear formulario al redimensionar; cantidades/notas/foco conservados. Sólo HTML/CSS y pruebas/instalador; lógica y API intactas.
 
-Build correcto; 350 Python correctos, incluidas 15 pruebas del nuevo paquete/rollback. Diseño verificado a siete anchos con 1/1/2/3/4/6/8 columnas, sin desbordamiento. Captura/descansos/diseño: 19 E2E correctas en total; un selector anterior se acota al formulario para distinguir el horario repetido en la tarjeta. Capturas PC/móvil revisadas con datos ficticios. CI y ZIP en preparación; instalación/aceptación pendientes. No se operó VPS/SQL; el último release confirmado sigue siendo I15. I16 continúa separado en su rama de propuesta, sin cambios de aplicación en su checkpoint revisado.
+Aplicación/paquete `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, [PR #8](https://github.com/romanrfhack/pedidosProdimt/pull/8), [CI 41472464468](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41472464468) completo con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 151 E2E y 350 Python más smoke Production. Build/locales correctos y capturas PC/móvil revisadas con datos ficticios. Siete anchos dan 1/1/2/3/4/6/8 columnas sin desbordamiento; borrador/foco/cancelación y flujos existentes comprobados.
 
-Ver `INCREMENTO-17.md` y evidencia `../validation/2026-11-02-pending-customers-layout.md`. Próximo: cerrar CI y paquete verificable sobre frontend I15, preservar I13/productos, I14/mensaje y catálogo I15.
+ZIP verificado y guardado: `PRODIMT_Clientes_Pendientes_I17.zip`, 200296 bytes, SHA256 `6d3ff6d47282852dde32c340d283b53e860e0566efa5530d04e2abf357684f5a`. Payload `8b88052dcff7a0c5668e09f8a8d2106741c1bf56fa03b4dc3ec8f70fc03a1cc7`; once archivos activos/licencias, CRC/hashes/imports y cargador exportado correctos. Requiere frontend I15 y backend I12; activa `pending-customers-cdbfec3071bc`. Instalación/aceptación pendientes; último despliegue confirmado I15. I16 continúa separado en su rama de propuesta. No se operó VPS/SQL ni datos reales.
+
+Ver `INCREMENTO-17.md` y evidencia `../validation/2026-11-02-pending-customers-layout.md`. Próximo: preflight, aplicación y salud/frontend true; Ctrl+F5 → Pendientes, revisar columnas y captura/cancelación al cambiar ancho. Conservar I13/productos, I14/mensaje y catálogo I15.
 
 ## I15 — Instalación confirmada; aceptación visual pendiente
 

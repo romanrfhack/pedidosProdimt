@@ -32,6 +32,14 @@ python3 tests/pilot/verify_identity_sqlcmd_migration.py --baseline /ruta/baselin
 
 Sólo admite la conexión sintética exacta de CI y una base desechable aleatoria. Reutiliza `sql_run` y opciones ODBC del instalador nativo, transporta los bytes normalizados del mismo constructor del ZIP, inyecta un fallo de seed para comprobar rollback integral, aplica la actualización, verifica cuentas activas/inactivas y contraseñas preservadas, catorce migraciones, esquema/seeds y repetición sin restaurar un rol retirado. El setup desechable conserva la reparación exacta de batch I12 para evitar reproducir SQL207 al crear el baseline. Resultado de ejecución pendiente de CI al escribir este registro.
 
+## Cierre de CI y paquete
+
+Fuente de aplicación/paquete `c49df453de9d07f5be301fb109dbb813309326d9`; [PR #10](https://github.com/romanrfhack/pedidosProdimt/pull/10) en borrador. [CI 41477009188](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41477009188) completo: cuatro trabajos correctos, **356 Domain/Application, 72 SQL/criptografía, 163 E2E y 366 Python**, más smoke Production inicial y persistido. SQL ODBC validó la migración13→14, rollback integral del DDL/seed y repetición sin reotorgar roles.
+
+El transporte ODBC registró16 llamadas nativas, `ddl_seed_rollback_verified=true`, `existing_credentials_preserved=true` y `repeat_does_not_restore_grants=true`. SHA256 de SQL exacto `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`, idéntico a `migrations-i18.sql` dentro del ZIP. Esto sustituye el pendiente de ejecución SQL de las secciones anteriores.
+
+Entrega final `PRODIMT_Usuarios_Roles_Permisos_I18.zip`, 7414079 bytes, SHA256 `06e40518871904a2f9e3c834f03ad441940326974baeb828269c2bc2552b44e4`; payload `617e227bfc1a66becd75db395c5d9a5cf4a0d94e814f00e4a4f7c2bad0c5f326`. Construida desde worktree limpio de la fuente fijada;73 archivos en payload, con frontend emitido a directorio nuevo y licencias incluidas. Verificados CRC exterior/interior, SHA256SUMS, manifiesto/hashes, pines e importación/instanciación del cargador final. ZIP guardado como entrega persistente. Las actualizaciones documentales posteriores conservan el código/binarios de esta fuente.
+
 ## Pendientes
 
-Añadir resultados reales de SQL Server y CI; generar/verificar ZIP final con commit y hashes. Sin acceso al VPS o SQL operativo desde este trabajo. Entrega, instalación y aceptación de negocio se acreditan por separado.
+Instalación I18 y aceptación de negocio. Sin acceso al VPS o SQL operativo desde este trabajo; I17 sigue siendo el último despliegue confirmado por el usuario. No se restauró SQL, modificó configuración real o enviaron mensajes.
