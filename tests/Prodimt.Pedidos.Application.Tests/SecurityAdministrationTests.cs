@@ -223,12 +223,33 @@ public sealed class SecurityAdministrationTests
     }
 
     [Fact]
+    public async Task DriverVanRole_GrantsOnlyItsOwnDeliveryScope()
+    {
+        await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
+        using var manager = await ManagerAsync(factory);
+        var state = await SnapshotAsync(manager);
+        var role = state.Roles.Single(x => x.Id == SecurityDefaults.DriverVanRoleId);
+        Assert.True(role.IsSystem);
+        Assert.Equal("Repartidor - Camioneta", role.Name);
+        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own" },
+            state.Permissions.Where(x => role.PermissionIds.Contains(x.Id)).Select(x => x.Key).OrderBy(x => x));
+        state = await CreateUserAsync(manager, state, "driver-van", [role.Id], []);
+        using var driver = Client(factory);
+        Bearer(driver, await LoginAsync(driver, "driver-van"));
+        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own" }, (await PermissionsAsync(driver)).OrderBy(x => x));
+        Assert.Equal(HttpStatusCode.OK, (await driver.GetAsync("/api/delivery")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.GetAsync("/api/admin/delivery")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.GetAsync("/api/admin/orders/today")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await driver.GetAsync(Root)).StatusCode);
+    }
+
+    [Fact]
     public async Task SystemRecoveryRoleAndPermissionKeys_CannotBeRemovedOrRepurposed()
     {
         await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
         using var manager = await ManagerAsync(factory);
         var state = await SnapshotAsync(manager);
-        var role = state.Roles.Single(x => x.IsSystem);
+        var role = state.Roles.Single(x => x.Id == SecurityDefaults.AdministratorRoleId);
         var permission = state.Permissions.Single(x => x.Key == "security.manage");
         using var roleDelete = await manager.DeleteAsync($"{Root}/roles/{role.Id}?expectedRevision={state.Revision}");
         Assert.Equal(HttpStatusCode.Conflict, roleDelete.StatusCode);

@@ -12,7 +12,7 @@ import { AuthService } from './auth.service';
   template: `
     <section class="page stack" data-testid="admin-login">
       <div class="page-title">
-        <p class="eyebrow">Admin</p>
+        <p class="eyebrow">Personal PRODIMT</p>
         <h2>Entrar</h2>
       </div>
 

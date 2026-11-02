@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { deliveryDraftGuard } from './delivery-draft.guard';
 import { AdminLoginComponent } from './admin-login.component';
 import { AdminPasswordComponent } from './admin-password.component';
 import { AdminImportComponent } from './admin-import.component';
@@ -14,6 +15,8 @@ export const routes: Routes = [
   { path: '', redirectTo: 'cliente', pathMatch: 'full' },
   { path: 'cliente', loadComponent: () => import('./customer-today.component').then(m => m.CustomerTodayComponent) },
   { path: 'admin/login', component: AdminLoginComponent },
+  { path: 'reparto', loadComponent: () => import('./driver-delivery.component').then(m => m.DriverDeliveryComponent), canActivate: [permissionGuard], canDeactivate: [deliveryDraftGuard], data: { permissions: ['delivery.read.own', 'delivery.operate.own'] } },
+  { path: 'admin/reparto', loadComponent: () => import('./admin-delivery.component').then(m => m.AdminDeliveryComponent), canActivate: [permissionGuard], canDeactivate: [deliveryDraftGuard], data: { permissions: ['delivery.manage'], deliveryManagement: true } },
   { path: 'admin/cambiar-contrasena', component: AdminPasswordComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/sin-acceso', component: AdminAccessDeniedComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/seguridad', loadComponent: () => import('./admin-security.component').then(m => m.AdminSecurityComponent), canActivate: [permissionGuard], data: { permissions: ['security.manage'] } },

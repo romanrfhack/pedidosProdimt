@@ -12,11 +12,13 @@ import { AuthService } from './auth.service';
     <header class="app-shell__header">
       <div>
         <p class="eyebrow">PRODIMT</p>
-        <h1>Pedidos</h1>
+        <h1>{{ deliveryOnly ? 'Mi reparto' : 'Pedidos' }}</h1>
       </div>
       <nav aria-label="Navegacion principal">
-        <a routerLink="/cliente" routerLinkActive="active">Cliente</a>
+        @if (!deliveryOnly) { <a routerLink="/cliente" routerLinkActive="active">Cliente</a> }
         @if (auth.isAdminSession()) {
+          @if (access.any(['delivery.read.own','delivery.operate.own'])) { <a routerLink="/reparto" routerLinkActive="active">Mi reparto</a> }
+          @if (access.has('delivery.manage')) { <a routerLink="/admin/reparto" routerLinkActive="active">Reparto</a> }
           @if (access.has('orders.read')) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
           @if (access.any(['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'])) { <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a> }
           @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a> }
@@ -31,7 +33,7 @@ import { AuthService } from './auth.service';
         @if (auth.session()) {
           <button type="button" class="nav-action" (click)="logout()">Salir</button>
         } @else {
-          <a routerLink="/admin/login" routerLinkActive="active">Admin</a>
+          <a routerLink="/admin/login" routerLinkActive="active">Personal</a>
         }
       </nav>
     </header>
@@ -56,6 +58,8 @@ export class AppComponent {
     this.document.addEventListener('visibilitychange', refresh);
     this.destroyRef.onDestroy(() => { clearInterval(timer); this.document.removeEventListener('visibilitychange', refresh); this.setups.clearCount(); });
   }
+
+  protected get deliveryOnly(): boolean { return this.access.any(['delivery.read.own','delivery.operate.own']) && !this.access.has('delivery.manage') && !this.access.any(['orders.read','orders.capture','operations.read','security.manage']); }
 
   protected logout(): void {
     this.auth.logout();

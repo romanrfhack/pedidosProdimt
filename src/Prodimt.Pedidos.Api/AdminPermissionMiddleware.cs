@@ -42,6 +42,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         if (segments.Length < 3) return "__unmapped__";
         return segments[2] switch
         {
+            "delivery" => "delivery.manage",
             "security" or "users" => "security.manage",
             "operations" => OperationPermission(method, path, segments),
             "product-setups" => get ? "customers.manage" : "pricing.manage",

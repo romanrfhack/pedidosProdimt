@@ -1,5 +1,14 @@
 # Continuar PRODIMT
 
+## I22 — Mi reparto implementado; validación SQL/navegador pendiente
+
+Autorizado el 2 de noviembre tras aprobar el diseño del repartidor en camioneta. Implementación sobre I21 recuperado496eb70 con I16/I18/I19 y arreglos posteriores I18 integrados. Rutas/vueltas/asignaciones por partida, reservas, conteo, carga, entregas parciales, custodia, devoluciones, transferencias, correcciones e instrucciones/Maps; rol/permisos propios y gestión. El pedido original se conserva. Ejemplo ficticio50/25/20:30 pendientes al cliente,25 sin asignar y5 en custodia. El pedido compuesto no se completa por surtir sólo una partida.
+
+Validación local:436 .NET correctas(5+431),34 casos nuevos del ledger más autorización HTTP del rol,19 pruebas del paquete correctas, build Angular correcto y EF sin diferencias. Proyecto SQL compila; tres pruebas SQL/HTTP y once Playwright están preparadas pero no ejecutadas: no hay SQLServer/Docker y Chromium local no inicia. Python completo conserva únicamente los tres fallos I19 por UID1000 reproducidos en la base. Ver `docs/validation/2026-11-02-driver-van-deliveries.md` y contrato I22.
+
+Entrega como COMPILACIÓN DE VALIDACIÓN, con código autosuficiente y paquete fijado. Antes de aplicar: SQL Server aislado, SQL empaquetado vía sqlcmd y navegador/recuperación. Sin VPS, datos reales ni publicación GitHub; se conserva el antecedente de publicación pendiente de I19 y no se elude. I19 sigue siendo el backend instalado confirmado; I21 e I22 no se declaran desplegados por compilar. Próximo: completar esas validaciones y después configurar cuentas/rutas piloto.
+
+
 ## I21 — Pedidos responsivos con filtros y colores; validado y listo para instalar
 
 El usuario solicita que Pedidos aproveche pantalla y tenga filtros/colores como Clientes. Implementado en rama local `codex/i21-responsive-orders`, desde I19 recuperado exactamente de `PRODIMT_Produccion_I19_Cambios.zip`: checkpoint `77457633f5a510aca48855b5a9078adf0a66d271`, aplicación instalada `d3a11420b2025fa0a19f84e1796d5a8b252259a3`. La continuidad del proyecto confirma I19 aplicado por el usuario el 2 de noviembre, migraciones 13→16 y backend/frontend `production-d3a11420b202` saludables, con respaldo verificado y datos/permisos/tokens/claves conservados. Esta evidencia posterior sustituye el pendiente de instalación en los antecedentes; no es inspección SSH desde esta sesión.

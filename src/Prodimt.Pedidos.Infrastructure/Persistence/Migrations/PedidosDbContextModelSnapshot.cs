@@ -258,6 +258,28 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("CustomerAccessTokens");
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerDeliveryLocation", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("MapsUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("CustomerId");
+
+                    b.ToTable("CustomerDeliveryLocations", (string)null);
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerFrequentProduct", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -530,6 +552,287 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("CustomerProductSetupRequests", null, t =>
                         {
                             t.HasCheckConstraint("CK_ProductSetup_Version", "[Version] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AcknowledgedOrderVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("AssignedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("CountedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("DeliveredQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("DeliveryNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool?>("HasStoreKey")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("HasUnresolvedIncident")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("InternalDeliveryInstructions")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal?>("LoadedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("MapsUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PaymentTermCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<decimal>("ReleasedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<TimeOnly?>("RequestedDeliveryTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("RequestedDeliveryWindowEnd")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("RequestedDeliveryWindowStart")
+                        .HasColumnType("time");
+
+                    b.Property<decimal>("RequestedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("ReturnedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("RouteStopOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SequenceNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TransferredInQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("TransferredOutQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UnitCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("TripId");
+
+                    b.HasIndex("OrderId", "OrderLineId");
+
+                    b.ToTable("DeliveryAssignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DeliveryAssignments_Commitment", "[AssignedQuantity] - [ReleasedQuantity] >= COALESCE([LoadedQuantity], 0) + [TransferredInQuantity] - [ReturnedQuantity] - [TransferredOutQuantity]");
+
+                            t.HasCheckConstraint("CK_DeliveryAssignments_Custody", "COALESCE([LoadedQuantity], 0) + [TransferredInQuantity] - [DeliveredQuantity] - [ReturnedQuantity] - [TransferredOutQuantity] >= 0");
+
+                            t.HasCheckConstraint("CK_DeliveryAssignments_Quantities", "[AssignedQuantity] > 0 AND [ReleasedQuantity] >= 0 AND [ReleasedQuantity] <= [AssignedQuantity] AND ([CountedQuantity] IS NULL OR [CountedQuantity] >= 0) AND ([LoadedQuantity] IS NULL OR [LoadedQuantity] >= 0) AND [DeliveredQuantity] >= 0 AND [ReturnedQuantity] >= 0 AND [TransferredOutQuantity] >= 0 AND [TransferredInQuantity] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActorId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<Guid?>("AssignmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("PreviousQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.HasIndex("TripId", "OccurredAt");
+
+                    b.ToTable("DeliveryEvents", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryRoute", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid?>("DefaultDriverUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("DefaultDriverUserId");
+
+                    b.ToTable("DeliveryRoutes", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DriverName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<Guid>("DriverUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RouteCode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("RouteName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("TripNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RouteCode");
+
+                    b.HasIndex("DriverUserId", "Date");
+
+                    b.HasIndex("Date", "RouteCode", "TripNumber")
+                        .IsUnique();
+
+                    b.ToTable("DeliveryTrips", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DeliveryTrips_Number", "[TripNumber] >= 1 AND [TripNumber] <= 999");
+
+                            t.HasCheckConstraint("CK_DeliveryTrips_Status", "[Status] IN ('Open', 'Closed')");
                         });
                 });
 
@@ -1268,6 +1571,15 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerDeliveryLocation", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.CustomerFrequentProduct", b =>
                 {
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
@@ -1353,6 +1665,64 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryAssignment", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryEvent", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.DeliveryAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryRoute", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("DefaultDriverUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.DeliveryRoute", null)
+                        .WithMany()
+                        .HasForeignKey("RouteCode")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -34,6 +34,12 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public DbSet<ProductionBatch> ProductionBatches => Set<ProductionBatch>();
     public DbSet<ProductionAllocation> ProductionAllocations => Set<ProductionAllocation>();
 
+    public DbSet<DeliveryRoute> DeliveryRoutes => Set<DeliveryRoute>();
+    public DbSet<CustomerDeliveryLocation> CustomerDeliveryLocations => Set<CustomerDeliveryLocation>();
+    public DbSet<DeliveryTrip> DeliveryTrips => Set<DeliveryTrip>();
+    public DbSet<DeliveryAssignment> DeliveryAssignments => Set<DeliveryAssignment>();
+    public DbSet<DeliveryEvent> DeliveryEvents => Set<DeliveryEvent>();
+
     public DbSet<OrderAuditLog> OrderAuditLogs => Set<OrderAuditLog>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -57,6 +63,8 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ChangeTracker.DetectChanges();
+        if (ChangeTracker.Entries<DeliveryEvent>().Any(x => x.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Los movimientos de reparto conservan su historial inmutable.");
         var guarded = Model.FindEntityType(typeof(ProductionAllocation)) is not null &&
             (ChangeTracker.Entries<OrderLine>().Any(x => x.State is EntityState.Modified or EntityState.Deleted) ||
              ChangeTracker.Entries<Order>().Any(x => x.State is EntityState.Modified or EntityState.Deleted));
@@ -77,6 +85,7 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     private async Task ValidateProductionLinksAsync(CancellationToken cancellationToken)
     {
+        await ValidateDeliveryLinksAsync(cancellationToken);
         if (Model.FindEntityType(typeof(ProductionAllocation)) is null) return;
         ChangeTracker.DetectChanges();
         foreach (var entry in ChangeTracker.Entries<OrderLine>().Where(x => x.State is EntityState.Modified or EntityState.Deleted))
@@ -99,4 +108,30 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
                     "El pedido tiene producción asignada. Revierte explícitamente sus asignaciones antes de cambiar su fecha o cancelar.");
         }
     }
+    private async Task ValidateDeliveryLinksAsync(CancellationToken cancellationToken)
+    {
+        if (Model.FindEntityType(typeof(DeliveryAssignment)) is null) return;
+        foreach (var entry in ChangeTracker.Entries<OrderLine>().Where(x => x.State is EntityState.Modified or EntityState.Deleted))
+        {
+            var linked = await DeliveryAssignments.AsNoTracking().Where(x => x.OrderLineId == entry.Entity.Id).ToArrayAsync(cancellationToken);
+            var commitment = linked.Sum(x => x.AssignedQuantity - x.ReleasedQuantity);
+            if (commitment <= 0) continue;
+            var changedIdentity = new[] { nameof(OrderLine.ProductId), nameof(OrderLine.UnitCode), nameof(OrderLine.OrderId) }
+                .Any(name => entry.Property(name).IsModified);
+            if (entry.State == EntityState.Deleted || changedIdentity || entry.Entity.Quantity < commitment)
+                throw new Prodimt.Pedidos.Application.CustomerOrders.CustomerOrderConflictException(
+                    "La partida tiene reparto reservado, cargado o entregado. Resuelve las reservas y conserva las partidas con entrega antes de corregirla.");
+        }
+        foreach (var entry in ChangeTracker.Entries<Order>().Where(x => x.State is EntityState.Modified or EntityState.Deleted))
+        {
+            var protectedChange = entry.State == EntityState.Deleted || entry.Property(x => x.OrderDate).IsModified ||
+                (entry.Property(x => x.Status).IsModified && entry.Entity.Status is not (Prodimt.Pedidos.Domain.Enums.OrderStatus.Submitted or Prodimt.Pedidos.Domain.Enums.OrderStatus.Accepted));
+            if (!protectedChange) continue;
+            var linked = await DeliveryAssignments.AsNoTracking().Where(x => x.OrderId == entry.Entity.Id).ToArrayAsync(cancellationToken);
+            if (linked.Any(x => x.AssignedQuantity > x.ReleasedQuantity))
+                throw new Prodimt.Pedidos.Application.CustomerOrders.CustomerOrderConflictException(
+                    "El pedido tiene reparto reservado, cargado o entregado. No se puede cancelar o cambiar su fecha sin resolverlo.");
+        }
+    }
+
 }

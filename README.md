@@ -1,5 +1,11 @@
 # PRODIMT — Pedidos y operación
 
+## Mi reparto I22 — Compilación de validación
+
+`/reparto` permite al Repartidor - Camioneta operar sólo sus rutas/vueltas y registrar conteo, carga, entregas parciales y observaciones. `/admin/reparto` administra asignaciones, saldos, ubicaciones, transferencias, devoluciones y correcciones auditadas, sin modificar el pedido original. [Contrato y configuración](docs/proyecto/INCREMENTO-22.md), [validación ejecutada y pendientes](docs/validation/2026-11-02-driver-van-deliveries.md).
+
+Código/builds y436 pruebas .NET correctos. Ejecución SQL Server real y Playwright pendientes antes de instalación; no está desplegado. Conserva la base integrada I16/I18/I19/I21.
+
 ## Producción I19
 
 `/admin/operacion` incorpora resumen por máquina, filtros combinables, asignación diaria de máquina, registro de lotes físicos en kg y asignación de su saldo a pedidos concretos. La configuración distingue «No requiere máquina» de pendiente; los primeros quedan fuera de producción. Se integran I16/I18 sin encadenar sus paquetes históricos, preservando productos adicionales, permisos y diseño I17. Alcance, saldos, instalación y validación: [`docs/proyecto/INCREMENTO-19.md`](docs/proyecto/INCREMENTO-19.md). Instalación remota pendiente; las pruebas locales no acreditan despliegue.

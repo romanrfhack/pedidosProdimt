@@ -108,3 +108,7 @@ Preparar gestión de acceso granular antes de incorporar nuevas áreas internas:
 ## I21 — Pedidos responsivos, filtros y colores (2 de noviembre)
 
 Autorizado adaptar la pestaña Pedidos al catálogo de Clientes: aprovechar PC, columnas automáticas, búsqueda y filtros por estados reales, colores/etiquetas y actualización conservada. Detalle/corrección a toda la fila y borrador intacto al cambiar ancho. Sólo frontend sobre I19 instalado; preservar producción, seguridad y productos adicionales integrados. Validar siete anchos, estados/fechas/CDMX, refresco, avisos, permisos y correcciones; después entregar actualizador verificable sin migrar ni reiniciar backend. Instalación y aceptación separadas del código validado. Ver `INCREMENTO-21.md`.
+
+## I22 — Mi reparto autorizado e implementado
+
+Conectar pedidos I21 con rutas, repartidores, vueltas y registro físico de conteo/carga/entrega. El incremento usa reservas por partida y custodia para salidas parciales, segundas vueltas, devolución/transferencia y seguimiento del saldo global. Rol propio de camioneta, gestión administrativa, instrucciones y Maps. No registra cobros ni modifica producción física I19. Código local completo y verificaciones descritas en INCREMENTO-22/evidencia. Antes de instalar quedan SQLServer real, transporte sqlcmd/recuperación y navegador; paquete rotulado compilación de validación. Piloto y aceptación operativa posteriores.

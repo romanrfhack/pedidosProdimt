@@ -1,0 +1,325 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { DeliveryApiService, DeliveryAssignment, DeliveryDashboard, DeliveryInstructions, DeliveryLine, DeliveryOrder,
+  DeliveryPendingCommand, DeliveryRoute, DeliveryTrip, safeDeliveryMapsUrl } from './delivery-api.service';
+import { AuthService } from './auth.service';
+import { EffectivePermissionsService } from './effective-permissions.service';
+import { paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
+
+type EditorKind = 'count' | 'load' | 'deliver' | 'return' | 'route' | 'trip' | 'assign' | 'location' | 'close' | 'transfer' | 'adjust' | 'release' | 'instructions';
+interface DeliveryEditor {
+  kind: EditorKind; title: string; operationId: string; assignment: DeliveryAssignment | null;
+  order: DeliveryOrder | null; line: DeliveryLine | null; route: DeliveryRoute | null;
+  quantity: number | null; reason: string; notes: string; remainderDisposition: string;
+  routeCode: string; routeName: string; driverUserId: string; tripNumber: number | null;
+  targetTripId: string; mapsUrl: string; address: string; adjustStage: string;
+  acknowledgeOrderChange: boolean; isActive: boolean; error: string | null; conflict: boolean;
+  locked: boolean; command: DeliveryPendingCommand | null;
+}
+interface DeliveryStop { orderId: string; customerName: string; position: number | null; assignments: DeliveryAssignment[]; }
+
+@Component({
+  selector: 'app-delivery-workspace', imports: [FormsModule],
+  templateUrl: './delivery-workspace.component.html',
+  styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css']
+})
+export class DeliveryWorkspaceComponent {
+  private readonly api = inject(DeliveryApiService);
+  private readonly auth = inject(AuthService);
+  protected readonly access = inject(EffectivePermissionsService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly detector = inject(ChangeDetectorRef);
+  private readonly destroy = inject(DestroyRef);
+  @ViewChild('deliveryDialog') private dialog?: ElementRef<HTMLDialogElement>;
+  protected readonly management = this.route.snapshot.data['deliveryManagement'] === true;
+  protected readonly unitLabel = unitLabel;
+  protected readonly storeKeyLabel = storeKeyLabel;
+  protected readonly paymentTermLabel = paymentTermLabel;
+  protected readonly mapsUrl = safeDeliveryMapsUrl;
+  protected date = this.route.snapshot.queryParamMap.get('date') || '';
+  protected dashboard: DeliveryDashboard | null = null;
+  protected selectedTripId = '';
+  protected selectedStopId: string | null = null;
+  protected showHistory = false;
+  protected loading = false;
+  protected saving = false;
+  protected error: string | null = null;
+  protected success: string | null = null;
+  protected editor: DeliveryEditor | null = null;
+  protected recovery: DeliveryPendingCommand | null = null;
+  private read: Subscription | null = null;
+  private write: Subscription | null = null;
+  private readonly beforeUnload = (event: BeforeUnloadEvent) => {
+    if (this.editor || this.recovery || this.saving) { event.preventDefault(); event.returnValue = ''; }
+  };
+
+  constructor() {
+    const user = this.access.userId();
+    if (user) this.recovery = this.api.pending(user);
+    this.load();
+    window.addEventListener('beforeunload', this.beforeUnload);
+    this.destroy.onDestroy(() => { this.read?.unsubscribe(); this.write?.unsubscribe(); window.removeEventListener('beforeunload', this.beforeUnload); });
+  }
+
+  canLeave(): boolean {
+    if (!this.auth.isAdmin()) return true;
+    if (this.saving) return false;
+    if (this.recovery || this.editor?.locked) return window.confirm('Hay una operación de reparto sin confirmación. Se conservará para reintentar con la misma referencia cuando regreses. ¿Salir de esta vista?');
+    return !this.editor || window.confirm('Hay una captura de reparto sin guardar. ¿Descartar el borrador y salir?');
+  }
+
+  protected load(preserveStop = false): void {
+    if (this.loading || this.saving) return;
+    this.loading = true; this.error = null;
+    this.read?.unsubscribe();
+    this.read = this.api.getDashboard(this.date || null, this.management).subscribe({
+      next: value => {
+        this.dashboard = value; this.date = value.date;
+        if (!value.trips.some(trip => trip.id === this.selectedTripId)) this.selectedTripId = value.trips[0]?.id ?? '';
+        if (!preserveStop) this.selectedStopId = null;
+        this.loading = false; this.detector.detectChanges();
+      },
+      error: error => { this.error = this.errorMessage(error, 'No se pudo consultar el reparto. Reintenta cuando tengas conexión.'); this.loading = false; this.detector.detectChanges(); }
+    });
+  }
+
+  protected today(): void { if (this.editor || this.recovery || this.loading) return; this.date = ''; this.load(); }
+
+  protected get trip(): DeliveryTrip | null { return this.dashboard?.trips.find(trip => trip.id === this.selectedTripId) ?? null; }
+  protected get stops(): DeliveryStop[] {
+    const grouped = new Map<string, DeliveryStop>();
+    for (const assignment of this.trip?.assignments ?? []) {
+      const stop = grouped.get(assignment.orderId) ?? { orderId: assignment.orderId, customerName: assignment.customerName, position: assignment.routeStopOrder, assignments: [] };
+      stop.assignments.push(assignment); grouped.set(stop.orderId, stop);
+    }
+    return [...grouped.values()].sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) || a.customerName.localeCompare(b.customerName, 'es'));
+  }
+  protected get selectedStop(): DeliveryStop | null { return this.stops.find(stop => stop.orderId === this.selectedStopId) ?? null; }
+  protected get visibleStops(): DeliveryStop[] { return this.selectedStop ? [this.selectedStop] : this.stops; }
+  protected get pendingOrders(): DeliveryOrder[] { return (this.dashboard?.orders ?? []).filter(order => order.lines.some(line => line.availableQuantity > 0)); }
+  protected get routeCodes(): string[] { return [...new Set([...(this.dashboard?.routes.map(route => route.code) ?? []), ...(this.dashboard?.orders.map(order => order.routeCode).filter((code): code is string => !!code) ?? [])])].sort(); }
+  protected get closed(): boolean { return !!this.trip?.closedAt || this.trip?.status.toLowerCase() === 'closed'; }
+  protected get canOperate(): boolean { return (this.management ? this.access.has('delivery.manage') : this.access.has('delivery.operate.own')) && !this.closed && !this.recovery; }
+  protected get eventList() { return [...(this.trip?.events ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)); }
+  protected get completedStops(): number { return this.stops.filter(stop => stop.assignments[0]?.orderIsComplete === true).length; }
+  protected selectTrip(): void { this.selectedStopId = null; this.showHistory = false; }
+  protected quantity(value: number | null): string { return value === null ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 }).format(value); }
+  protected time(value: string | null): string { return value?.slice(0, 5) || ''; }
+  protected schedule(value: DeliveryInstructions): string {
+    if (value.requestedDeliveryWindowStart && value.requestedDeliveryWindowEnd) return `${this.time(value.requestedDeliveryWindowStart)} – ${this.time(value.requestedDeliveryWindowEnd)}`;
+    return value.requestedDeliveryTime ? `Entrega ${this.time(value.requestedDeliveryTime)}` : 'Horario por confirmar';
+  }
+  protected timestamp(value: string): string { return new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
+  protected status(assignment: DeliveryAssignment): string {
+    if (assignment.status === 'Released') return assignment.transferredOutQuantity > 0 ? 'Carga transferida' : 'Reserva liberada';
+    if (assignment.status === 'Released') return 'Reserva liberada';
+    if (assignment.deliveredQuantity === 0 && this.hasFailedAttempt(assignment)) return assignment.status === 'Incident' ? 'No entregado · incidencia' : 'No entregado';
+    if (assignment.status === 'Incident') return 'Incidencia por aclarar';
+    if (assignment.pendingQuantity <= 0) return 'Partida completa';
+    if (assignment.deliveredQuantity > 0) return 'Entregado parcial';
+    if (assignment.custodyQuantity > 0) return 'En camioneta';
+    if (assignment.loadedQuantity !== null) return assignment.loadedQuantity === 0 ? 'Sin carga' : 'Carga resuelta';
+    if (assignment.countedQuantity !== null) return 'Contado';
+    if (assignment.releasedQuantity >= assignment.assignedQuantity) return 'Reserva liberada';
+    return 'Por contar';
+  }
+  protected hasFailedAttempt(assignment: DeliveryAssignment): boolean {
+    return this.eventList.some(event => event.assignmentId === assignment.id && (event.type === 'Delivered' || event.type === 'deliver') && event.quantity === 0);
+  }
+  protected orderForStop(stop: DeliveryStop): DeliveryOrder | null { return this.dashboard?.orders.find(order => order.orderId === stop.orderId) ?? null; }
+  protected hasOtherPendingLines(stop: DeliveryStop): boolean {
+    return this.orderForStop(stop)?.lines.some(line => line.requestedQuantity > line.deliveredQuantity && !stop.assignments.some(assignment => assignment.orderLineId === line.orderLineId)) ?? false;
+  }
+  protected stopStatus(stop: DeliveryStop): string {
+    if (stop.assignments.every(line => line.deliveredQuantity === 0 && this.hasFailedAttempt(line))) return 'No entregado';
+    if (stop.assignments.some(line => line.status === 'Incident')) return 'Incidencia por aclarar';
+    if (stop.assignments[0]?.orderIsComplete === true) return 'Entregado completo';
+    if (stop.assignments.every(line => line.status === 'Released')) return stop.assignments.some(line => line.transferredOutQuantity > 0) ? 'Carga transferida' : 'Reserva liberada';
+    if (stop.assignments.some(line => line.deliveredQuantity > 0) && stop.assignments.every(line => line.deliveredQuantity >= line.assignedQuantity - line.releasedQuantity)) return 'Mi parte entregada; pedido con pendientes';
+    if (stop.assignments.some(line => line.deliveredQuantity > 0)) return 'Entrega parcial';
+    if (stop.assignments.some(line => line.custodyQuantity > 0)) return 'En camioneta';
+    return 'En preparación';
+  }
+  protected eventLabel(type: string): string {
+    return ({ Counted: 'Conteo registrado', Loaded: 'Carga registrada', Delivered: 'Entrega registrada', Returned: 'Devolución registrada',
+      count: 'Conteo registrado', load: 'Carga registrada', deliver: 'Entrega registrada', return: 'Devolución registrada',
+      Assigned: 'Asignación a vuelta', Released: 'Reserva liberada', TransferredOut: 'Transferencia de salida', TransferredIn: 'Transferencia recibida',
+      Adjusted: 'Corrección registrada', DeliveredAdjusted: 'Entrega acumulada corregida', InstructionsUpdated: 'Indicaciones de entrega actualizadas', CountAdjusted: 'Conteo corregido', LoadAdjusted: 'Carga corregida',
+      ReservationReleased: 'Reserva liberada', UnloadedReservationReleased: 'Reserva sin cargar liberada',
+      RemainsInVehicle: 'Producto permanece en camioneta', IncidentUnresolved: 'Incidencia por aclarar', OrderChangeAcknowledged: 'Cambio del pedido revisado',
+      Closed: 'Vuelta cerrada', TripClosed: 'Vuelta cerrada', TripCreated: 'Vuelta creada', RouteSaved: 'Ruta actualizada' } as Record<string, string>)[type] || type;
+  }
+  protected get targetTrips(): DeliveryTrip[] {
+    const editor = this.editor;
+    return (this.dashboard?.trips ?? []).filter(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed'
+      && (editor?.kind !== 'transfer' || trip.id !== this.trip?.id && trip.driverUserId !== this.trip?.driverUserId && trip.routeCode.toUpperCase() === this.trip?.routeCode.toUpperCase())
+      && (!editor?.order?.routeCode || trip.routeCode.toUpperCase() === editor.order.routeCode.toUpperCase()));
+  }
+  protected get activeRoutes(): DeliveryRoute[] { return (this.dashboard?.routes ?? []).filter(route => route.isActive); }
+  protected get quantityLimit(): number {
+    const assignment = this.editor?.assignment;
+    if (this.editor?.kind === 'load' && assignment) return Math.min(assignment.countedQuantity ?? 0, Math.max(0, assignment.assignedQuantity - assignment.releasedQuantity));
+    if (this.editor?.kind === 'deliver' && assignment) return Math.min(assignment.custodyQuantity, assignment.pendingQuantity);
+    return this.expectedQuantity;
+  }
+  protected get expectedQuantity(): number {
+    const assignment = this.editor?.assignment;
+    if (!assignment) return this.editor?.line?.availableQuantity ?? 0;
+    switch (this.editor?.kind) {
+      case 'count': return Math.max(0, assignment.assignedQuantity - assignment.releasedQuantity);
+      case 'load': return assignment.countedQuantity ?? 0;
+      case 'deliver': case 'return': case 'transfer': return assignment.custodyQuantity;
+      case 'adjust': return this.editor.adjustStage === 'count' ? assignment.countedQuantity ?? 0 : this.editor.adjustStage === 'deliver' ? assignment.deliveredQuantity : assignment.loadedQuantity ?? 0;
+      default: return 0;
+    }
+  }
+  protected get hasDifference(): boolean { return !!this.editor && ['count', 'load', 'deliver'].includes(this.editor.kind) && this.editor.quantity !== null && this.editor.quantity !== this.expectedQuantity; }
+  protected get deliveryRemainder(): number { return this.editor?.kind === 'deliver' && this.editor.quantity !== null ? Math.max(0, this.expectedQuantity - this.editor.quantity) : 0; }
+  protected get reasonRequired(): boolean { return this.hasDifference || !!this.editor && ['return', 'adjust', 'transfer', 'release', 'instructions'].includes(this.editor.kind); }
+  protected get quantityRequired(): boolean { return !!this.editor && ['count', 'load', 'deliver', 'return', 'assign', 'transfer', 'adjust'].includes(this.editor.kind); }
+  protected get quantityUnit(): string { return unitLabel(this.editor?.assignment?.unitCode ?? this.editor?.line?.unitCode); }
+  protected get submitLabel(): string {
+    return ({ count: 'Guardar conteo', load: 'Confirmar carga', deliver: 'Guardar entrega', return: 'Guardar devolución', route: 'Guardar ruta', trip: 'Crear vuelta',
+      assign: 'Confirmar asignación', location: 'Guardar ubicación', close: 'Cerrar vuelta', transfer: 'Confirmar transferencia', adjust: 'Guardar corrección', release: 'Liberar reserva', instructions: 'Actualizar indicaciones' } as Record<string, string>)[this.editor?.kind || ''] || 'Guardar';
+  }
+
+  protected open(kind: EditorKind, assignment: DeliveryAssignment | null = null, order: DeliveryOrder | null = null, line: DeliveryLine | null = null, route: DeliveryRoute | null = null): void {
+    if (this.saving || this.editor || this.recovery || this.loading) return;
+    const titles: Record<EditorKind, string> = { count: 'Registrar conteo', load: 'Confirmar carga', deliver: 'Registrar entrega', return: 'Registrar devolución', route: route ? 'Editar ruta' : 'Nueva ruta', trip: 'Nueva vuelta', assign: 'Asignar a vuelta', location: 'Ubicación del cliente', close: 'Cerrar vuelta', transfer: 'Transferir carga', adjust: 'Corregir un registro de reparto', release: 'Liberar reserva', instructions: 'Actualizar indicaciones de entrega' };
+    this.editor = { kind, title: titles[kind], operationId: crypto.randomUUID(), assignment, order, line, route, quantity: null,
+      reason: '', notes: '', remainderDisposition: '', routeCode: route?.code ?? this.routeCodes[0] ?? '', routeName: route?.name ?? '',
+      driverUserId: route?.defaultDriverUserId ?? '', tripNumber: 1, targetTripId: '', mapsUrl: order?.mapsUrl ?? '', address: order?.address ?? '',
+      adjustStage: assignment && assignment.transferredInQuantity > 0 ? 'deliver' : assignment?.loadedQuantity === null ? 'count' : 'load', acknowledgeOrderChange: false, isActive: route?.isActive ?? true, error: null, conflict: false, locked: false, command: null };
+    if (this.quantityRequired) this.editor.quantity = Math.min(this.expectedQuantity, this.quantityLimit);
+    this.editor.targetTripId = this.targetTrips.find(trip => trip.id === this.selectedTripId)?.id ?? this.targetTrips[0]?.id ?? '';
+    if (kind === 'trip') { this.editor.routeCode = this.activeRoutes[0]?.code ?? ''; this.routeChanged(); }
+    this.detector.detectChanges(); this.dialog?.nativeElement.showModal();
+  }
+  protected adjustStageChanged(): void { if (this.editor) this.editor.quantity = this.expectedQuantity; }
+  protected routeChanged(): void {
+    const editor = this.editor;
+    if (!editor || editor.kind !== 'trip') return;
+    editor.driverUserId = this.dashboard?.routes.find(route => route.code === editor.routeCode)?.defaultDriverUserId ?? '';
+    editor.tripNumber = Math.max(0, ...(this.dashboard?.trips.filter(trip => trip.routeCode === editor.routeCode).map(trip => trip.tripNumber) ?? [])) + 1;
+  }
+  protected closeEditor(event?: Event): void {
+    if (this.saving || this.editor?.locked) { event?.preventDefault(); return; }
+    this.dialog?.nativeElement.close(); this.editor = null;
+  }
+
+  protected save(): void {
+    const editor = this.editor;
+    if (!editor || this.saving || editor.conflict) return;
+    if (!editor.command) {
+      const command = this.command(editor);
+      if (!command) return;
+      editor.command = command;
+    }
+    this.execute(editor.command);
+  }
+
+  private command(editor: DeliveryEditor): DeliveryPendingCommand | null {
+    editor.error = null;
+    if (this.quantityRequired && (editor.quantity === null || !Number.isFinite(editor.quantity) || editor.quantity < 0)) { editor.error = 'Captura una cantidad válida, igual o mayor que cero.'; return null; }
+    if (this.quantityRequired && !['adjust'].includes(editor.kind) && editor.quantity! > this.quantityLimit) { editor.error = 'La cantidad supera lo disponible para esta operación. Actualiza los datos o registra una corrección con el responsable.'; return null; }
+    if (editor.kind === 'return' && editor.quantity === 0) { editor.error = 'La devolución requiere una cantidad mayor que cero.'; return null; }
+    if (this.reasonRequired && !editor.reason.trim()) { editor.error = 'Captura el motivo de la diferencia.'; return null; }
+    if (this.deliveryRemainder > 0 && !editor.remainderDisposition) { editor.error = 'Indica dónde quedó el producto cargado que no se entregó.'; return null; }
+    if (editor.assignment?.hasOrderChanges && ['count', 'load', 'deliver', 'return'].includes(editor.kind) && !editor.acknowledgeOrderChange) { editor.error = 'Revisa y reconoce los cambios del pedido antes de continuar.'; return null; }
+    const trip = this.trip;
+    let path = '', method: 'POST' | 'PUT' = 'POST', fields: Record<string, unknown> = {};
+    const assignment = editor.assignment;
+    if (['count', 'load', 'deliver', 'return'].includes(editor.kind) && assignment) {
+      path = `${this.management ? '/api/admin/delivery' : '/api/delivery'}/assignments/${assignment.id}/${editor.kind}`;
+      fields = { expectedVersion: assignment.version, expectedOrderVersion: assignment.currentOrderVersion, quantity: editor.quantity,
+        reason: editor.reason.trim() || null, notes: editor.notes.trim() || null, remainderDisposition: editor.remainderDisposition || null, acknowledgeOrderChange: editor.acknowledgeOrderChange };
+    } else if (editor.kind === 'route') {
+      if (!editor.routeCode.trim() || !editor.routeName.trim()) { editor.error = 'Indica el código y el nombre de la ruta.'; return null; }
+      path = '/api/admin/delivery/routes'; fields = { code: editor.routeCode.trim(), name: editor.routeName.trim(), defaultDriverUserId: editor.driverUserId || null, expectedVersion: editor.route?.version ?? null, isActive: editor.isActive };
+    } else if (editor.kind === 'trip') {
+      if (!editor.routeCode || !Number.isInteger(editor.tripNumber) || editor.tripNumber! < 1) { editor.error = 'Selecciona una ruta y un número de vuelta válido.'; return null; }
+      path = '/api/admin/delivery/trips'; fields = { date: this.dashboard?.date ?? this.date, routeCode: editor.routeCode, tripNumber: editor.tripNumber, driverUserId: editor.driverUserId || null, reason: editor.reason.trim() || null };
+    } else if (editor.kind === 'assign' && editor.order && editor.line) {
+      const target = this.dashboard?.trips.find(item => item.id === editor.targetTripId);
+      if (!target || editor.quantity! <= 0) { editor.error = 'Selecciona una vuelta abierta y una cantidad mayor que cero.'; return null; }
+      path = `/api/admin/delivery/trips/${target.id}/assignments`; fields = { orderId: editor.order.orderId, orderLineId: editor.line.orderLineId, quantity: editor.quantity, expectedTripVersion: target.version, expectedOrderVersion: editor.order.orderVersion };
+    } else if (editor.kind === 'location' && editor.order) {
+      if (editor.mapsUrl.trim() && !safeDeliveryMapsUrl(editor.mapsUrl.trim())) { editor.error = 'Usa un enlace HTTPS de Google Maps válido.'; return null; }
+      method = 'PUT'; path = `/api/admin/delivery/customers/${editor.order.customerId}/location`;
+      fields = { mapsUrl: editor.mapsUrl.trim() || null, address: editor.address.trim() || null, expectedVersion: editor.order.locationVersion };
+    } else if (editor.kind === 'close' && trip) {
+      path = `${this.management ? '/api/admin/delivery' : '/api/delivery'}/trips/${trip.id}/close`; fields = { expectedVersion: trip.version, notes: editor.notes.trim() || null };
+    } else if (editor.kind === 'transfer' && assignment) {
+      const target = this.dashboard?.trips.find(item => item.id === editor.targetTripId);
+      if (!target || editor.quantity! <= 0) { editor.error = 'Selecciona otra vuelta abierta y una cantidad mayor que cero.'; return null; }
+      path = `/api/admin/delivery/assignments/${assignment.id}/transfer`; fields = { expectedVersion: assignment.version, targetTripId: target.id, expectedTargetTripVersion: target.version, quantity: editor.quantity, reason: editor.reason.trim() };
+    } else if (editor.kind === 'adjust' && assignment) {
+      path = `/api/admin/delivery/assignments/${assignment.id}/adjust`; fields = { expectedVersion: assignment.version, stage: editor.adjustStage, quantity: editor.quantity, reason: editor.reason.trim() };
+    } else if (editor.kind === 'instructions' && assignment) {
+      path = `/api/admin/delivery/assignments/${assignment.id}/instructions`; fields = { expectedVersion: assignment.version, reason: editor.reason.trim() };
+    } else if (editor.kind === 'release' && assignment) {
+      path = `/api/admin/delivery/assignments/${assignment.id}/release`; fields = { expectedVersion: assignment.version, reason: editor.reason.trim() };
+    } else { editor.error = 'No se pudo preparar la operación. Actualiza el reparto.'; return null; }
+    return { operationId: editor.operationId, path, method, body: { operationId: editor.operationId, ...fields }, title: editor.title,
+      management: this.management, tripId: trip?.id ?? null, summary: [this.dashboard?.date, trip ? `${trip.routeName} · Vuelta ${trip.tripNumber}` : null, assignment?.customerName ?? editor.order?.customerName ?? editor.routeName, assignment?.productName ?? editor.line?.productName, this.quantityRequired ? `${this.quantity(editor.quantity)} ${this.quantityUnit}` : ''].filter(Boolean).join(' · ') };
+  }
+
+  private execute(command: DeliveryPendingCommand): void {
+    const user = this.access.userId();
+    if (!user || this.saving) return;
+    try { this.api.remember(user, command); }
+    catch { if (this.editor) this.editor.error = 'No se pudo conservar la referencia de esta operación en el navegador. Libera espacio antes de guardar.'; return; }
+    this.saving = true; this.error = null;
+    if (this.editor) { this.editor.locked = true; this.editor.error = null; }
+    this.write = this.api.execute(command).subscribe({
+      next: result => {
+        this.api.clear(user); this.recovery = null; this.saving = false;
+        this.dialog?.nativeElement.close(); this.editor = null;
+        this.success = result.replayed ? 'Operación recuperada sin duplicar registros.' : 'Registro guardado. La hora y el responsable quedaron en la bitácora.';
+        this.load(true); this.detector.detectChanges();
+      },
+      error: error => {
+        this.saving = false;
+        const confirmedRejection = error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500;
+        const message = confirmedRejection ? this.errorMessage(error, 'No se pudo guardar el registro.')
+          : 'No se recibió confirmación del servidor. Conservamos la captura y su referencia; reintenta la misma operación para comprobar el resultado.';
+        if (confirmedRejection) {
+          this.api.clear(user); this.recovery = null;
+          if (this.editor) { this.editor.locked = false; this.editor.command = null; this.editor.operationId = crypto.randomUUID(); this.editor.conflict = error.status === 409; }
+        } else this.recovery = command;
+        if (this.editor) this.editor.error = message; else this.error = message;
+        this.detector.detectChanges();
+      }
+    });
+  }
+  protected retryRecovery(): void { if (this.recovery && !this.saving) this.execute(this.recovery); }
+  protected reviewConflict(): void {
+    const editor = this.editor;
+    if (!editor?.conflict || this.loading) return;
+    this.loading = true;
+    this.read = this.api.getDashboard(this.dashboard?.date ?? this.date, this.management).subscribe({
+      next: value => {
+        this.dashboard = value; this.loading = false;
+        if (editor.assignment) {
+          const assignment = value.trips.flatMap(trip => trip.assignments).find(item => item.id === editor.assignment?.id);
+          if (!assignment) { editor.error = 'La asignación ya no está disponible. Conservamos tu captura para revisarla con el responsable.'; this.detector.detectChanges(); return; }
+          editor.assignment = assignment;
+        }
+        if (editor.order) {
+          const order = value.orders.find(item => item.orderId === editor.order?.orderId);
+          if (!order) { editor.error = 'El pedido ya no está disponible para esta operación. Revisa con el responsable.'; this.detector.detectChanges(); return; }
+          editor.order = order; editor.line = order.lines.find(line => line.orderLineId === editor.line?.orderLineId) ?? null;
+        }
+        if (editor.route) editor.route = value.routes.find(route => route.code === editor.route?.code) ?? editor.route;
+        editor.conflict = false; editor.acknowledgeOrderChange = false;
+        editor.error = 'Datos actuales consultados. Revisa las cantidades y vuelve a confirmar; tu borrador se conservó.'; this.detector.detectChanges();
+      }, error: error => { this.loading = false; editor.error = this.errorMessage(error, 'No se pudieron consultar los datos actuales.'); this.detector.detectChanges(); }
+    });
+  }
+  private errorMessage(error: unknown, fallback: string): string {
+    return error instanceof HttpErrorResponse && typeof error.error?.error === 'string' ? error.error.error : fallback;
+  }
+}

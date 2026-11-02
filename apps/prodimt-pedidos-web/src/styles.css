@@ -603,3 +603,7 @@ button.compact {
   .orders-page [data-testid="correction-line"] { grid-template-columns:minmax(160px,1fr) 140px minmax(180px,1.4fr) auto; }
   .orders-page [data-testid="correction-line"]>button { grid-column:4; grid-row:1; }
 }
+
+/* I22 keeps delivery within its own responsive workspace. */
+.app-shell__main:has(.delivery-page){width:min(100%,1920px);padding:16px clamp(12px,1.5vw,30px)}
+@media(min-width:1000px){body:has(.delivery-page) .app-shell__header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px clamp(16px,1.6vw,32px)}body:has(.delivery-page) .app-shell__header h1{font-size:1.2rem}body:has(.delivery-page) nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}body:has(.delivery-page) nav a,body:has(.delivery-page) nav button{min-height:34px;padding:6px 9px;font-size:.75rem}}

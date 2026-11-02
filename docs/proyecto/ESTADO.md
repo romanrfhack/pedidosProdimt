@@ -1,5 +1,14 @@
 # Estado del proyecto
 
+## I22 — Mi reparto implementado; validación SQL/navegador pendiente
+
+Autorizado el 2 de noviembre tras aprobar el diseño del repartidor en camioneta. Implementación sobre I21 recuperado496eb70 con I16/I18/I19 y arreglos posteriores I18 integrados. Rutas/vueltas/asignaciones por partida, reservas, conteo, carga, entregas parciales, custodia, devoluciones, transferencias, correcciones e instrucciones/Maps; rol/permisos propios y gestión. El pedido original se conserva. Ejemplo ficticio50/25/20:30 pendientes al cliente,25 sin asignar y5 en custodia. El pedido compuesto no se completa por surtir sólo una partida.
+
+Validación local:436 .NET correctas(5+431),34 casos nuevos del ledger más autorización HTTP del rol,19 pruebas del paquete correctas, build Angular correcto y EF sin diferencias. Proyecto SQL compila; tres pruebas SQL/HTTP y once Playwright están preparadas pero no ejecutadas: no hay SQLServer/Docker y Chromium local no inicia. Python completo conserva únicamente los tres fallos I19 por UID1000 reproducidos en la base. Ver `docs/validation/2026-11-02-driver-van-deliveries.md` y contrato I22.
+
+Entrega como COMPILACIÓN DE VALIDACIÓN, con código autosuficiente y paquete fijado. Antes de aplicar: SQL Server aislado, SQL empaquetado vía sqlcmd y navegador/recuperación. Sin VPS, datos reales ni publicación GitHub; se conserva el antecedente de publicación pendiente de I19 y no se elude. I19 sigue siendo el backend instalado confirmado; I21 e I22 no se declaran desplegados por compilar. Próximo: completar esas validaciones y después configurar cuentas/rutas piloto.
+
+
 ## I21 — Pedidos como catálogo responsivo; validado y listo para instalar
 
 Autorizada presentación similar a Clientes: ancho completo, tarjetas automáticas, búsqueda cliente/número, filtros con contadores, fecha/Hoy CDMX y colores por estado real con etiqueta. Refresco visible cada 15 s conserva filtros y datos previos ante fallo; detalle/corrección a toda la fila sin perder borrador al redimensionar. Filtros pausados durante corrección. Lógica de carga, permisos, historial y guardado conservada; sin API, backend, SQL o migraciones.

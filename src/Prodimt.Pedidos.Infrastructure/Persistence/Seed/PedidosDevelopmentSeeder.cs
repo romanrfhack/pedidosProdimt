@@ -257,7 +257,12 @@ public static class PedidosDevelopmentSeeder
             dbContext.SecurityStates.Add(new SecurityState { Id = 1, Revision = SecurityDefaults.InitialRevision });
             dbContext.SecurityRoles.Add(new SecurityRole { Id = SecurityDefaults.AdministratorRoleId,
                 Name = "Administrador", Description = "Administración completa y recuperación", IsActive = true, IsSystem = true });
+            dbContext.SecurityRoles.Add(new SecurityRole { Id = SecurityDefaults.DriverVanRoleId,
+                Name = "Repartidor - Camioneta", Description = "Consulta y operación de sus vueltas asignadas", IsActive = true, IsSystem = true });
             dbContext.SecurityPermissions.AddRange(SecurityDefaults.Permissions);
+            dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions
+                .Where(x => x.Key is "delivery.read.own" or "delivery.operate.own")
+                .Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.DriverVanRoleId, PermissionId = x.Id }));
             dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions.Select(x =>
                 new SecurityRolePermission { RoleId = SecurityDefaults.AdministratorRoleId, PermissionId = x.Id }));
         }

@@ -5,6 +5,7 @@ namespace Prodimt.Pedidos.Application.Security;
 public static class SecurityDefaults
 {
     public static readonly Guid AdministratorRoleId = Guid.Parse("18180000-0000-0000-0000-000000000001");
+    public static readonly Guid DriverVanRoleId = Guid.Parse("22220000-0000-0000-0000-000000000001");
     public static readonly Guid InitialRevision = Guid.Parse("18180000-0000-0000-0000-000000000002");
     public static IReadOnlyList<SecurityPermission> Permissions => Definitions.Select((x, i) => new SecurityPermission
     {
@@ -30,6 +31,9 @@ public static class SecurityDefaults
         ("security.manage", "Administrar usuarios, roles y permisos", "Seguridad"),
         ("operations.assign", "Asignar máquinas a pedidos", "Operación"),
         ("operations.produce", "Registrar kilos producidos", "Operación"),
-        ("operations.allocate", "Asignar y revertir kilos de pedidos", "Operación")
+        ("operations.allocate", "Asignar y revertir kilos de pedidos", "Operación"),
+        ("delivery.read.own", "Consultar mi reparto", "Reparto"),
+        ("delivery.operate.own", "Registrar mi conteo, carga y entregas", "Reparto"),
+        ("delivery.manage", "Administrar rutas y reparto", "Reparto")
     ];
 }

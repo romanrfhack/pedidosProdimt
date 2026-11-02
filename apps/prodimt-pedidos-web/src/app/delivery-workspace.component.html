@@ -1,0 +1,116 @@
+<section class="delivery-page stack" data-testid="delivery-page">
+  <header class="delivery-heading">
+    <div class="page-title"><p class="eyebrow">{{ management ? 'Coordinación de reparto' : 'Repartidor · Camioneta' }}</p><h2>{{ management ? 'Rutas y vueltas' : 'Mi reparto' }}</h2><p class="delivery-muted">Cantidades por partida y vuelta · Horarios de Ciudad de México</p></div>
+    <form class="delivery-filters" (ngSubmit)="load()">
+      <label>Fecha de reparto<input type="date" name="deliveryDate" [(ngModel)]="date" [disabled]="loading || !!editor || !!recovery"></label>
+      <button type="button" class="secondary" (click)="today()" [disabled]="loading || !!editor || !!recovery">Hoy</button><button type="submit" class="primary" [disabled]="loading || !!editor || !!recovery">{{ loading ? 'Consultando…' : 'Consultar reparto' }}</button>
+    </form>
+  </header>
+
+  @if (error) { <div class="alert error" role="alert">{{ error }}</div> }
+  @if (success) { <div class="alert success" role="status">{{ success }}</div> }
+  @if (recovery && !editor) {
+    <section class="delivery-notice" aria-label="Operación sin confirmación"><strong>{{ recovery.title }} · Confirmación pendiente</strong><p>{{ recovery.summary }}</p><p>La referencia está conservada. Reintenta para consultar o completar el mismo registro, sin duplicarlo.</p><button type="button" class="primary" (click)="retryRecovery()" [disabled]="saving">{{ saving ? 'Comprobando…' : 'Reintentar operación' }}</button></section>
+  }
+  @if (dashboard; as board) {
+    @if (management) {
+      <section class="delivery-management stack" aria-label="Administrar rutas">
+        <div class="delivery-toolbar"><h3>Rutas</h3><div class="delivery-actions"><button type="button" class="secondary" (click)="open('route')" [disabled]="loading || !!recovery">Nueva ruta</button><button type="button" class="primary" (click)="open('trip')" [disabled]="loading || !!recovery || !activeRoutes.length">Nueva vuelta</button></div></div>
+        @if (!board.routes.length) { <p class="delivery-muted">Configura una ruta con el código que ya utilizan los clientes y asígnale un repartidor habitual. El chofer necesita el permiso de operar su reparto.</p> }
+        <div class="delivery-route-grid">@for (route of board.routes; track route.code) { <article class="delivery-route"><div><strong>{{ route.name }}</strong><small>{{ route.code }} · {{ route.isActive ? 'Activa' : 'Inactiva' }}</small></div><button type="button" class="secondary" (click)="open('route', null, null, null, route)" [disabled]="!!recovery">Editar ruta</button></article> }</div>
+      </section>
+      <section class="stack" aria-label="Pedidos pendientes de asignar">
+        <div class="delivery-toolbar"><h3>Pendientes de asignar</h3><span class="delivery-muted">{{ pendingOrders.length }} pedidos con saldo disponible</span></div>
+        <p class="delivery-muted">La cantidad disponible excluye entregas y reservas de otras vueltas. La carga que lleva otro chofer conserva su custodia.</p>
+        <div class="delivery-order-grid">
+          @for (order of pendingOrders; track order.orderId) {
+            <article class="delivery-stop" data-testid="delivery-pending-order"><div class="delivery-toolbar"><div><h4>{{ order.customerName }}</h4><small>Ruta {{ order.routeCode || 'por confirmar' }} · Pedido #{{ order.sequenceNumber }}</small></div><button type="button" class="secondary" (click)="open('location', null, order)" [disabled]="!!recovery">Ubicación</button></div>
+              @for (line of order.lines; track line.orderLineId) { <div class="delivery-pending-line"><div><strong>{{ line.productName }}</strong><small>Pedido {{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }} · Entregado {{ quantity(line.deliveredQuantity) }} · Reservado {{ quantity(line.reservedQuantity) }}</small><span>Disponible: {{ quantity(line.availableQuantity) }} {{ unitLabel(line.unitCode) }}</span></div>@if (line.availableQuantity > 0) { <button type="button" class="primary" [attr.aria-label]="'Asignar a vuelta ' + order.customerName + ' ' + line.productName" (click)="open('assign', null, order, line)" [disabled]="loading || !!recovery || !board.trips.length || !line.unitCode">Asignar a vuelta</button> }</div> }
+            </article>
+          } @empty { <div class="delivery-empty">No hay cantidades pendientes de asignar para esta fecha.</div> }
+        </div>
+      </section>
+    }
+
+    <section class="delivery-trip-area stack" data-testid="delivery-trip">
+      <div class="delivery-toolbar"><h3>{{ management ? 'Recorridos del día' : 'Mi ruta' }}</h3>@if (board.trips.length > 1) { <label class="delivery-trip-picker">Ruta y vuelta<select [(ngModel)]="selectedTripId" (ngModelChange)="selectTrip()" [disabled]="!!editor || !!recovery" aria-label="Ruta y vuelta">@for (item of board.trips; track item.id) { <option [value]="item.id">{{ item.routeName }} · Vuelta {{ item.tripNumber }} · {{ item.driverName }}</option> }</select></label> }</div>
+      @if (trip; as current) {
+        <div class="delivery-trip-summary"><div><strong>{{ current.routeName }} · Vuelta {{ current.tripNumber }}</strong><span>{{ current.driverName }} · {{ closed ? 'Cerrada' : 'Abierta' }}</span></div><div><strong>{{ completedStops }} / {{ stops.length }}</strong><span>pedidos completos</span></div></div>
+        <div class="delivery-toolbar"><div class="delivery-actions"><button type="button" class="secondary" [class.selected]="!showHistory" (click)="showHistory = false" [attr.aria-pressed]="!showHistory">Paradas</button><button type="button" class="secondary" [class.selected]="showHistory" (click)="showHistory = true" [attr.aria-pressed]="showHistory">Bitácora</button></div>@if (canOperate) { <button type="button" class="secondary" (click)="open('close')">Cerrar vuelta</button> }</div>
+        @if (showHistory) {
+          <section class="delivery-history stack" aria-label="Bitácora de la vuelta">@for (event of eventList; track event.id) { <article class="delivery-event"><div class="delivery-toolbar"><strong>{{ eventLabel(event.type) }} @if (event.quantity !== null) { · {{ quantity(event.quantity) }} }</strong><time [attr.datetime]="event.occurredAt">{{ timestamp(event.occurredAt) }}</time></div>@if (event.previousQuantity !== null) { <p>Valor anterior: {{ quantity(event.previousQuantity) }}</p> }@if (event.reason) { <p>{{ event.reason }}</p> }@if (event.notes) { <p>{{ event.notes }}</p> }<small>{{ event.actorName || 'Usuario registrado' }}</small></article> } @empty { <p class="delivery-empty">Aún no hay movimientos registrados.</p> }</section>
+        } @else {
+          @if (selectedStopId) { <div><button type="button" class="secondary" (click)="selectedStopId = null">Todas las paradas</button></div> }
+          <div class="delivery-order-grid">
+            @for (stop of visibleStops; track stop.orderId) {
+              <article class="delivery-stop" data-testid="delivery-stop" [class.delivery-complete]="stopStatus(stop) === 'Entregado completo'" [class.delivery-partial]="stopStatus(stop) === 'Entrega parcial' || stopStatus(stop) === 'Incidencia por aclarar' || stopStatus(stop) === 'No entregado' || stopStatus(stop) === 'Mi parte entregada; pedido con pendientes'">
+                <div class="delivery-toolbar"><div class="delivery-stop-name"><span class="delivery-position">{{ stop.position ?? '·' }}</span><div><h4>{{ stop.customerName }}</h4><small>Pedido #{{ stop.assignments[0].sequenceNumber }}</small></div></div><span class="delivery-state">{{ stopStatus(stop) }}</span></div>
+                <div class="delivery-toolbar">@if (management) { @if (orderForStop(stop); as order) { <button type="button" class="secondary" (click)="open('location', null, order)" [disabled]="!!recovery">Actualizar ubicación para próximas vueltas</button> } }<span class="delivery-schedule">{{ schedule(stop.assignments[0]) }}</span>@if (mapsUrl(stop.assignments[0].mapsUrl); as url) { <a class="delivery-map" [href]="url" target="_blank" rel="noopener noreferrer">Abrir Google Maps</a> } @else { <span class="delivery-muted">Ubicación por completar</span> }</div>
+                @if (stop.assignments[0].address) { <p>{{ stop.assignments[0].address }}</p> }
+                <details class="delivery-instructions"><summary>Instrucciones de entrega</summary><div class="stack"><p>{{ storeKeyLabel(stop.assignments[0].hasStoreKey) }}</p><p>{{ paymentTermLabel(stop.assignments[0].paymentTermCode) }}</p>@if (stop.assignments[0].internalDeliveryInstructions) { <p>{{ stop.assignments[0].internalDeliveryInstructions }}</p> }@if (stop.assignments[0].deliveryNotes) { <p>{{ stop.assignments[0].deliveryNotes }}</p> }<small>Estas instrucciones pertenecen al cliente. Las observaciones del recorrido se guardan en la bitácora.</small></div></details>
+                @if (orderForStop(stop); as original) { <section class="delivery-original" aria-label="Pedido del cliente y avance global"><h5>Pedido del cliente · Avance general</h5>@for (originalLine of original.lines; track originalLine.orderLineId) { <div><strong>{{ originalLine.productName }}</strong><span>Pedido {{ quantity(originalLine.requestedQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Entregado {{ quantity(originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Pendiente {{ quantity(originalLine.requestedQuantity - originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }}</span></div> }</section> }
+                @if (hasOtherPendingLines(stop)) { <div class="delivery-notice">El pedido conserva otras partidas pendientes fuera de esta vuelta.</div> }
+                @for (line of stop.assignments; track line.id) {
+                  <section class="delivery-line" data-testid="delivery-line"><div class="delivery-toolbar"><strong>{{ line.productName }}</strong><span class="delivery-state">{{ status(line) }}</span></div>
+                    @if (line.hasOrderChanges) { <div class="delivery-notice">El pedido cambió después de la asignación. Revisa la cantidad vigente antes de continuar.</div> }
+                    <dl class="delivery-quantities"><div><dt>Pedido vigente</dt><dd>{{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Asignado a esta vuelta</dt><dd>{{ quantity(line.assignedQuantity - line.releasedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Contado</dt><dd>{{ quantity(line.countedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Cargado</dt><dd>{{ quantity(line.loadedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Entregado en esta vuelta</dt><dd>{{ quantity(line.deliveredQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Pendiente del pedido</dt><dd>{{ quantity(line.pendingQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div></dl>
+                    @if (line.custodyQuantity > 0) { <div class="delivery-custody">Bajo custodia: <strong>{{ quantity(line.custodyQuantity) }} {{ unitLabel(line.unitCode) }}</strong></div> }
+                    @if (line.returnedQuantity > 0 || line.transferredOutQuantity > 0 || line.transferredInQuantity > 0) { <small>Devuelto {{ quantity(line.returnedQuantity) }} · Transferido a otra vuelta {{ quantity(line.transferredOutQuantity) }} · Recibido {{ quantity(line.transferredInQuantity) }} {{ unitLabel(line.unitCode) }}</small> }
+                    <div class="delivery-actions">
+                      @if (canOperate) {
+                        @if (line.countedQuantity === null && line.transferredInQuantity === 0 && line.status !== 'Released' && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="primary" [attr.aria-label]="'Registrar conteo ' + line.customerName + ' ' + line.productName" (click)="open('count', line)">Registrar conteo</button> }
+                        @if (line.countedQuantity !== null && line.loadedQuantity === null && line.transferredInQuantity === 0 && line.status !== 'Released' && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="primary" [attr.aria-label]="'Confirmar carga ' + line.customerName + ' ' + line.productName" (click)="open('load', line)">Confirmar carga</button> }
+                        @if (line.custodyQuantity > 0) { <button type="button" class="primary" [attr.aria-label]="'Registrar entrega ' + line.customerName + ' ' + line.productName" (click)="open('deliver', line)">Registrar entrega</button><button type="button" class="secondary" [attr.aria-label]="'Registrar devolución ' + line.customerName + ' ' + line.productName" (click)="open('return', line)">Registrar devolución</button> }
+                      }
+                      @if (management && !closed && !recovery) { <button type="button" class="secondary" (click)="open('instructions', line)">Actualizar indicaciones</button>
+                        @if (line.custodyQuantity > 0) { <button type="button" class="secondary" (click)="open('transfer', line)">Transferir carga</button> }
+                        @if ((line.countedQuantity !== null || line.loadedQuantity !== null || line.transferredInQuantity > 0) && line.status !== 'Released') { <button type="button" class="secondary" (click)="open('adjust', line)">Corregir registro</button> }
+                        @if (line.loadedQuantity === null && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="secondary" (click)="open('release', line)">Liberar reserva</button> }
+                      }
+                    </div>
+                  </section>
+                }
+              </article>
+            } @empty { <p class="delivery-empty">Esta vuelta todavía no tiene pedidos asignados.</p> }
+          </div>
+        }
+      } @else { <div class="delivery-empty">{{ management ? 'Crea una vuelta para asignar pedidos y cantidades.' : 'Todavía no tienes una ruta asignada para esta fecha. Consulta con el responsable de reparto.' }}</div> }
+    </section>
+  }
+</section>
+
+<dialog #deliveryDialog class="delivery-dialog" aria-labelledby="delivery-dialog-title" (cancel)="closeEditor($event)">
+  @if (editor; as edit) {
+    <div class="delivery-dialog-header"><h2 id="delivery-dialog-title">{{ edit.title }}</h2><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || edit.locked">Cerrar</button></div>
+    <form class="delivery-form" (ngSubmit)="save()" novalidate>
+      @if (edit.assignment) { <p><strong>{{ edit.assignment.customerName }} · {{ edit.assignment.productName }}</strong></p><div class="delivery-reference">Pedido vigente {{ quantity(edit.assignment.requestedQuantity) }} {{ quantityUnit }} · Disponible para esta etapa {{ quantity(quantityLimit) }} {{ quantityUnit }}</div> }
+      @if (edit.order) { <p><strong>{{ edit.order.customerName }} @if (edit.line) { · {{ edit.line.productName }} }</strong></p> }
+      <fieldset [disabled]="saving || edit.locked || edit.conflict">
+        @if (edit.kind === 'route') {
+          <label>Código de ruta<input name="routeCode" list="delivery-route-codes" [(ngModel)]="edit.routeCode" maxlength="80" [disabled]="!!edit.route"></label><datalist id="delivery-route-codes">@for (code of routeCodes; track code) { <option [value]="code"></option> }</datalist>
+          <label>Nombre de la ruta<input name="routeName" [(ngModel)]="edit.routeName" maxlength="120"></label><label>Repartidor habitual<select name="defaultDriver" [(ngModel)]="edit.driverUserId"><option value="">Sin asignar</option>@for (driver of dashboard?.drivers || []; track driver.id) { <option [value]="driver.id">{{ driver.displayName }} · {{ driver.userName }}</option> }</select></label><label class="delivery-check"><input name="activeRoute" type="checkbox" [(ngModel)]="edit.isActive">Ruta activa</label>
+        }
+        @if (edit.kind === 'trip') {
+          <label>Ruta de la vuelta<select name="tripRoute" [(ngModel)]="edit.routeCode" (ngModelChange)="routeChanged()">@for (item of dashboard?.routes || []; track item.code) { @if (item.isActive) { <option [value]="item.code">{{ item.name }} · {{ item.code }}</option> } }</select></label><label>Número de vuelta<input name="tripNumber" type="number" min="1" step="1" [(ngModel)]="edit.tripNumber"></label><label>Repartidor de esta vuelta<select name="tripDriver" [(ngModel)]="edit.driverUserId"><option value="">Usar repartidor habitual</option>@for (driver of dashboard?.drivers || []; track driver.id) { <option [value]="driver.id">{{ driver.displayName }} · {{ driver.userName }}</option> }</select></label><label>Motivo de la asignación (opcional)<input name="tripReason" [(ngModel)]="edit.reason" maxlength="500"></label>
+        }
+        @if (edit.kind === 'assign' || edit.kind === 'transfer') { <label>Vuelta de destino<select name="targetTrip" [(ngModel)]="edit.targetTripId"><option value="">Selecciona una vuelta</option>@for (item of targetTrips; track item.id) { <option [value]="item.id">{{ item.routeName }} · Vuelta {{ item.tripNumber }} · {{ item.driverName }}</option> }</select></label> }
+        @if (edit.kind === 'assign' && edit.order && !mapsUrl(edit.order.mapsUrl)) { <div class="delivery-notice">Este cliente todavía no tiene una ubicación confirmada. Completa su ubicación y actualiza las indicaciones de la asignación antes de salir.</div> }
+        @if (edit.kind === 'assign' && edit.line) { <div class="delivery-reference">Disponible sin reservar: {{ quantity(edit.line.availableQuantity) }} {{ quantityUnit }}</div> }
+        @if (edit.kind === 'adjust') { <label>Etapa a corregir<select name="adjustStage" [(ngModel)]="edit.adjustStage" (ngModelChange)="adjustStageChanged()"><option value="count" [disabled]="!!edit.assignment && (edit.assignment.transferredInQuantity > 0 || edit.assignment.loadedQuantity !== null)">Conteo</option><option value="load" [disabled]="!!edit.assignment && (edit.assignment.transferredInQuantity > 0 || edit.assignment.loadedQuantity === null)">Carga</option><option value="deliver">Cantidad entregada registrada</option></select></label><p class="delivery-muted">La corrección agrega un registro con el valor anterior y el motivo; conserva los eventos históricos. @if (edit.adjustStage === 'deliver') { Captura el total entregado corregido de esta asignación, no una entrega adicional. }</p> }
+        @if (quantityRequired) { <label>{{ edit.kind === 'assign' ? 'Cantidad a asignar' : 'Cantidad' }} ({{ quantityUnit }})<input [name]="'deliveryQuantity'" type="number" inputmode="decimal" min="0" step="0.001" [(ngModel)]="edit.quantity"></label> }
+        @if (hasDifference) { <div class="delivery-notice">Se registrará una diferencia respecto a {{ quantity(expectedQuantity) }} {{ quantityUnit }}. @if (deliveryRemainder > 0) { Quedan {{ quantity(deliveryRemainder) }} {{ quantityUnit }} de esta carga sin entregar. }</div> }
+        @if (reasonRequired) { <label>Motivo de la diferencia<input name="deliveryReason" [(ngModel)]="edit.reason" maxlength="500" required></label> }
+        @if (deliveryRemainder > 0) { <label>Producto cargado que no se entregó<select name="remainderDisposition" [(ngModel)]="edit.remainderDisposition"><option value="">Indica dónde quedó</option><option value="in-vehicle">Permanece en mi camioneta</option><option value="unresolved">Diferencia por aclarar con el responsable</option></select></label> }
+        @if (edit.assignment?.hasOrderChanges && ['count','load','deliver','return'].includes(edit.kind)) { <label class="delivery-check"><input type="checkbox" name="acknowledgeOrder" [(ngModel)]="edit.acknowledgeOrderChange">Revisé los cambios y las cantidades vigentes del pedido.</label> }
+        @if (edit.kind === 'location') { <label>Enlace de Google Maps<input name="locationMaps" type="url" [(ngModel)]="edit.mapsUrl" maxlength="2048" placeholder="https://maps.app.goo.gl/…"></label><label>Dirección o referencia<textarea name="locationAddress" [(ngModel)]="edit.address" maxlength="500" rows="2"></textarea></label><p class="delivery-muted">Guarda únicamente el punto confirmado para entregar. Las vueltas ya creadas conservan su ficha histórica.</p> }
+        @if (edit.kind === 'instructions') { <div class="delivery-notice">Esta acción copia la ubicación y las indicaciones actuales del cliente a esta asignación abierta. La ficha anterior y el motivo quedan en el historial.</div> }
+        @if (edit.kind === 'close') { <div class="delivery-notice">El pedido puede quedar parcialmente surtido para otra vuelta. Antes de cerrar deben quedar resueltas la carga bajo custodia y las reservas de esta vuelta.</div> }
+        @if (!['route','trip','location','assign','transfer','adjust','release','instructions'].includes(edit.kind)) { <label>Observaciones<textarea name="deliveryNotes" [(ngModel)]="edit.notes" maxlength="500" rows="3" placeholder="Ej.: no pagó; se dejó una caja; recibió la tienda de al lado."></textarea></label> }
+      </fieldset>
+      @if (edit.error) { <div class="alert error" role="alert">{{ edit.error }}</div> }
+      @if (edit.conflict) { <button type="button" class="secondary" (click)="reviewConflict()" [disabled]="loading">{{ loading ? 'Consultando…' : 'Revisar datos actuales' }}</button> }
+      <div class="delivery-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || edit.locked">Cancelar</button><button type="submit" class="primary" [disabled]="saving || edit.conflict">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : submitLabel }}</button></div>
+      <p class="delivery-muted">La hora y el responsable se registran en el servidor al guardar.</p>
+    </form>
+  }
+</dialog>

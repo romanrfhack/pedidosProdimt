@@ -54,10 +54,12 @@ export class EffectivePermissionsService {
   }
 
   landing(): string {
+    // Internal staff use the same session contract; permissions decide their home.
+    if (this.any(['delivery.read.own', 'delivery.operate.own']) && !this.has('delivery.manage')) return '/reparto';
     const routes: [string[], string][] = [
       [['orders.read'], '/admin/pedidos'], [['orders.capture'], '/admin/clientes-pendientes'],
       [['orders.review'], '/admin/pendientes'], [['customers.read', 'products.read', 'machines.read', 'customers.manage', 'products.manage', 'machines.manage','tokens.manage','pricing.manage'], '/admin/catalogos'],
-      [['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'], '/admin/operacion'], [['security.manage'], '/admin/seguridad'], [['imports.manage'], '/admin/importacion']
+      [['delivery.manage'], '/admin/reparto'], [['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'], '/admin/operacion'], [['security.manage'], '/admin/seguridad'], [['imports.manage'], '/admin/importacion']
     ];
     return routes.find(([keys]) => this.any(keys))?.[1] ?? '/admin/sin-acceso';
   }
