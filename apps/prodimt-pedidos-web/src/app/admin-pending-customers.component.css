@@ -1,0 +1,33 @@
+:host { display:block; min-width:0; }
+.pending-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px; }
+.pending-count { margin:0; color:#526b77; font-size:.85rem; }
+.pending-filters { grid-template-columns:minmax(0,1fr); padding:14px; border:1px solid #e1e8eb; border-radius:10px; background:#f7f9fa; gap:12px 18px; }
+.pending-filters label { min-width:0; }
+.pending-filters .check-row,.check-row { display:flex; align-items:flex-start; gap:.6rem; }
+.check-row input { width:18px; min-height:20px; flex:none; }
+.check-row span,.alert a { min-width:0; overflow-wrap:anywhere; }
+.pending-rest { padding:10px 12px; border:1px solid #e1e8eb; border-radius:8px; }
+.pending-rest small { display:block; margin-top:4px; color:#657c88; }
+.pending-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:14px; min-width:0; align-items:stretch; }
+.pending-card { display:flex; flex-direction:column; align-items:stretch; min-width:0; gap:14px; padding:16px 14px 14px; border-radius:10px; }
+.pending-card-body { display:grid; gap:12px; min-width:0; }
+.pending-card-heading { display:grid; gap:8px; justify-items:start; min-width:0; }
+.pending-name { display:block; font-size:1rem; line-height:1.35; color:#173b3f; overflow-wrap:anywhere; }
+.pending-card .badge { white-space:normal; overflow-wrap:anywhere; }
+.pending-details { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 14px; margin:0; font-size:.82rem; }
+.pending-details>div:first-child { grid-column:1 / -1; }
+.pending-details dt { margin:0 0 3px; color:#657c88; font-size:.75rem; }
+.pending-details dd { margin:0; color:#304b58; overflow-wrap:anywhere; }
+.pending-notes { margin:0; font-size:.8rem; line-height:1.45; color:#526b77; overflow-wrap:anywhere; }
+.pending-notes span { font-weight:700; }
+.pending-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:auto; }
+.pending-actions button { min-width:0; min-height:44px; padding:8px; font-size:.82rem; line-height:1.25; overflow-wrap:anywhere; }
+.pending-card.capture-open { grid-column:1 / -1; border-color:#6e969c; background:#f4f9f9; }
+@media(min-width:700px) {
+  .pending-filters { grid-template-columns:minmax(160px,220px) minmax(0,1fr) auto; }
+  .pending-filters .check-row { align-self:center; max-width:440px; }
+  .pending-card.capture-open { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,340px); align-items:start; }
+  .capture-open .pending-actions { margin-top:0; }
+  .capture-open .pending-details { grid-template-columns:repeat(3,minmax(0,1fr)); max-width:720px; }
+  .capture-open .pending-details>div:first-child { grid-column:auto; }
+}
