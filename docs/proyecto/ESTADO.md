@@ -2,11 +2,11 @@
 
 Actualizado: 1 de noviembre de 2026.
 
-## I12 — Bloqueo identificado: api.env 0640; ajuste puntual pendiente
+## I12 — SQL207 tras respaldo y clave; aplicación anterior recuperada
 
-El usuario verificó el ZIP I12 y ejecutó la revisión `20261101-access-token-management-install1`. El instalador terminó `failed/read-only-preflight`, paso `running-service`, con `environment_file_identity_unexpected`, sin cambios, migraciones, clave o reinicio. El diagnóstico posterior de sólo metadatos confirma archivo regular, root:www-data, enlace único, ruta canónica y modo `0640`. La única condición incompatible de esta guarda es el permiso: I12 exige `0600`, mientras la cadena anterior admitía `0640`.
+El usuario aplicó chmod0600 y reintentó la revisión `20261101-access-token-management-install1`. Preflight completado sin discrepancias, respaldo COPY_ONLY/CHECKSUM verificado y clave dedicada creada/snapshot verificado. Falló en `database-backup-key-and-migration` con SQL207. El instalador reporta recuperación de la aplicación anterior con salud comprobada y retención de la clave. No restauró SQL ni cambió contraseñas. `database_migrations_run=true` marca el intento; no demuestra commit de la migración13 o revocación: el estado final de SQL necesita preflight de lectura.
 
-Se indica ajustar únicamente el permiso de `/etc/prodimt-pedidos/api.env` a `0600` y volver a ejecutar el instalador original con el payload ya verificado/subido. El servicio nativo usa EnvironmentFile de systemd; la lectura de configuración por el gestor no requiere acceso del grupo www-data. No cambiar contenido, propietario, clave, unidad o paquete, ni añadir reinicio separado: el instalador conserva preflight, respaldo SQL antes de migrar y verificación de clave efectiva tras su reinicio. Corrección e instalación pendientes del reporte del usuario; no se operó el VPS desde este entorno. I11 continúa siendo el último despliegue confirmado y este intento no revocó tokens. `health_verified=false` del intento detenido significa comprobación no alcanzada.
+Se identifica defecto del script idempotente exportado: tres ALTER ADD y el UPDATE que usa las columnas nuevas comparten un único batch. Las pruebas previas con MigrateAsync no ejercitaban este transporte sqlcmd. Corrección acotada del instalador: separar el batch antes del bloque de revocación con GO, conservando la única transacción, respaldo, pines y clave existente. Payload/binarios fuente65560ca intactos. Nueva regresión prevista contra SQL Server real con el SQL exacto del ZIP: reproducir207, verificar rollback y probar corrección/repetición/fallo de auditoría. Entrega v2 y validación en curso; no repetir el instalador original. I11 sigue siendo la aplicación activa reportada, sin aceptación de I12 ni acceso SSH desde este entorno.
 
 ## I12 — Gestión de tokens activos validada y empaquetada; aplicación pendiente
 

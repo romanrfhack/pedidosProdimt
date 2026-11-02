@@ -48,12 +48,7 @@ class AccessTokenManagementPackageTests(unittest.TestCase):
         (self.frontend / 'main.js').write_text('apiBaseUrl:""; /access-tokens /reveal expectedVersion /prices')
         (self.frontend / '3rdpartylicenses.txt').write_text('Synthetic fixture license notice')
         self.migration = self.root / 'migration.sql'
-        self.migration.write_text("""-- ProtectedToken MetadataVersion IsReminderLink
-UPDATE dbo.CustomerAccessTokens
- SET IsActive=0,MetadataVersion=MetadataVersion+1 OUTPUT inserted.Id INTO @revoked(Id)
- WHERE IsActive=1 AND ProtectedToken IS NULL;
-INSERT INTO dbo.AuditLogs SELECT N'CustomerAccessTokenRevokedForRecoveryUpgrade';
-INSERT INTO [__EFMigrationsHistory] VALUES (N'""" + B.MIGRATION + "', N'10.0.8');\n")
+        self.migration.write_bytes((ROOT / 'tests/pilot/fixtures/i12-original-migration.sql').read_bytes())
         self.bundle, self.payload = self.root / 'bundle.zip', self.root / 'payload.zip'
         self.addCleanup(patch.stopall)
         patch.object(B, 'validate_source').start()
@@ -238,7 +233,7 @@ INSERT INTO [__EFMigrationsHistory] VALUES (N'""" + B.MIGRATION + "', N'10.0.8')
             if sql == I.CLEANUP_LEGACY_SQL:
                 events.append('legacy-cleanup')
                 return json.dumps(dict(revoked=0 if before == 12 else revoked, transaction_committed=1))
-            self.assertEqual(result.files['migrations-i12.sql'].decode('utf-8-sig'), sql)
+            self.assertEqual(I.migration_sql_for_sqlcmd(result.files['migrations-i12.sql'].decode('utf-8-sig')), sql)
             events.append('migration')
             return ''
         result.sql_run = execute
@@ -291,6 +286,33 @@ INSERT INTO [__EFMigrationsHistory] VALUES (N'""" + B.MIGRATION + "', N'10.0.8')
         self.assertIn('CustomerAccessTokenRevokedForRecoveryUpgrade', I.CLEANUP_LEGACY_SQL)
         self.assertNotIn('UPDATE dbo.AdminUsers', I.CLEANUP_LEGACY_SQL)
         self.assertNotIn('TokenHash', I.CLEANUP_LEGACY_SQL)
+
+    def test_native_migration_separates_compilation_after_ddl_and_changes_only_one_go(self):
+        original = self.migration.read_text(encoding='utf-8-sig')
+        declaration = original.index('    DECLARE @revoked TABLE')
+        boundary = original.rfind('IF NOT EXISTS (', 0, declaration)
+        fixed = I.migration_sql_for_sqlcmd(original)
+        self.assertEqual(original[:boundary] + 'GO\n\n' + original[boundary:], fixed)
+        self.assertEqual(1, fixed.count('BEGIN TRANSACTION;'))
+        self.assertEqual(1, fixed.count('COMMIT;'))
+        batches = fixed.split('\nGO\n')
+        self.assertEqual(3, batches[0].count('ALTER TABLE [CustomerAccessTokens]'))
+        self.assertNotIn('UPDATE dbo.CustomerAccessTokens', batches[0])
+        self.assertIn('UPDATE dbo.CustomerAccessTokens', batches[1])
+        self.assertIn('INSERT INTO [__EFMigrationsHistory]', batches[1])
+        self.assertIn('COMMIT;', batches[1])
+        self.assertEqual(fixed, I.migration_sql_for_sqlcmd(fixed))
+
+    def test_native_migration_rejects_ambiguous_or_unrecognized_batch_layout(self):
+        original = self.migration.read_text(encoding='utf-8-sig')
+        variants = (original.replace('ADD [ProtectedToken]', 'ADD [UnexpectedToken]'),
+                    original.replace('    DECLARE @revoked TABLE', '    DECLARE @revoked TABLE\n    DECLARE @revoked TABLE'),
+                    original.replace('\nCOMMIT;\n', '\nGO\nCOMMIT;\n'),
+                    original.replace('BEGIN TRANSACTION;\n', ''),
+                    original.replace("', N'10.0.8');", "', N'10.0.9');"))
+        for sql in variants:
+            with self.subTest(sql=sql[:40]), self.assertRaisesRegex(I.InstallError, '^migration_batch_layout_unexpected$'):
+                I.migration_sql_for_sqlcmd(sql)
 
     def test_real_readonly_preflight_composes_exact_query_allowlist_key_checks_and_already_current(self):
         # Only process files and transport are fictional. Keep the original

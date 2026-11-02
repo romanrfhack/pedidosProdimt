@@ -23,7 +23,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261101-access-token-management-install1'
+REVISION = '20261101-access-token-management-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -202,6 +202,41 @@ def validate_environment_file(path):
 
 def valid_counts(data, keys):
     return isinstance(data, dict) and set(data) == set(keys) and all(type(value) is int and value >= 0 for value in data.values())
+
+
+def migration_sql_for_sqlcmd(sql):
+    """Split only the reviewed I12 DDL/DML boundary, keeping its one transaction.
+
+    SQL Server compiles the original script's UPDATE before its ALTERs execute.
+    sqlcmd's GO submits a second batch on the same connection/transaction, after
+    the new columns exist. Reject unfamiliar layouts rather than splitting SQL
+    generally or changing any statement from the verified payload.
+    """
+    require(isinstance(sql, str), 'migration_batch_layout_unexpected')
+    guard = ("IF NOT EXISTS (\n    SELECT * FROM [__EFMigrationsHistory]\n"
+             "    WHERE [MigrationId] = N'" + MIGRATION + "'\n)\nBEGIN\n")
+    additions = (
+        'ALTER TABLE [CustomerAccessTokens] ADD [IsReminderLink] bit NOT NULL DEFAULT CAST(0 AS bit);',
+        'ALTER TABLE [CustomerAccessTokens] ADD [MetadataVersion] int NOT NULL DEFAULT 1;',
+        'ALTER TABLE [CustomerAccessTokens] ADD [ProtectedToken] nvarchar(1024) NULL;',
+    )
+    prefix = 'BEGIN TRANSACTION;\n' + '\n'.join(guard + '    ' + statement + '\nEND;\n' for statement in additions) + '\n'
+    require(sql.startswith(prefix), 'migration_batch_layout_unexpected')
+    tail = sql[len(prefix):]
+    already_split = tail.startswith('GO\n\n')
+    if already_split:
+        tail = tail[len('GO\n\n'):]
+    original = prefix + tail
+    history_tail = (guard + '    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])\n'
+                    "    VALUES (N'" + MIGRATION + "', N'10.0.8');\nEND;\n\nCOMMIT;\nGO\n\n")
+    require(tail.startswith(guard + '    DECLARE @revoked TABLE (Id uniqueidentifier NOT NULL);\n')
+            and original.count(guard) == 5 and original.count('DECLARE @revoked TABLE') == 1
+            and original.count('UPDATE dbo.CustomerAccessTokens') == 1
+            and original.count('INSERT INTO dbo.AuditLogs') == 1
+            and original.count('BEGIN TRANSACTION;') == original.count('COMMIT;') == 1
+            and re.findall(r'(?mi)^GO[^\r\n]*$', original) == ['GO']
+            and original.endswith('\n' + history_tail), 'migration_batch_layout_unexpected')
+    return sql if already_split else prefix + 'GO\n\n' + tail
 
 
 def make_installer(package):
@@ -439,11 +474,12 @@ def make_installer(package):
             require(valid_counts(tokens, token_fields), 'token_counts_unrecognized')
             require(before == 12 or tokens['invalid_metadata'] == 0, 'token_management_data_unexpected')
             revoked = tokens['active_tokens'] if before == 12 else tokens['active_legacy_tokens']
+            migration_sql = migration_sql_for_sqlcmd(files['migrations-i12.sql'].decode('utf-8-sig')) if before == 12 else None
             self.database_backup()
             self.prepare_encryption_key()
             if before == 12:
                 self.state.update(database_migrations_run=True, migrations_may_have_changed=True)
-                self.sql_run(files['migrations-i12.sql'].decode('utf-8-sig'), timeout=180)
+                self.sql_run(migration_sql, timeout=180)
             require(self.verify_schema() == 13, 'migrated_schema_unexpected')
             result = self.inspector.parse_sql_output(self.sql_run(CLEANUP_LEGACY_SQL))
             require(valid_counts(result, ('revoked', 'transaction_committed')) and result['transaction_committed'] == 1,

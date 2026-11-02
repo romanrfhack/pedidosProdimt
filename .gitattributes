@@ -1,0 +1,2 @@
+# Preserve this delivered SQL fixture byte for byte, including EF's final blank line.
+tests/pilot/fixtures/i12-original-migration.sql -text whitespace=-blank-at-eof
