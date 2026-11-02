@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I12 — Instalación detenida antes de cambios; diagnóstico de configuración pendiente
+
+El usuario verificó el ZIP I12 y ejecutó la revisión `20261101-access-token-management-install1`. El instalador terminó `failed/read-only-preflight`, paso `running-service`, con `environment_file_identity_unexpected`. Todos los indicadores de cambios, migraciones, clave y reinicio permanecen en false. No se aplicó I12 ni la revocación autorizada; I11 sigue siendo el último despliegue confirmado. `health_verified=false` sólo indica que no se alcanzó esa comprobación.
+
+La guarda de `/etc/prodimt-pedidos/api.env` exige archivo regular, root, un enlace, modo exacto `0600` y ruta canónica. La cadena anterior admitía `0640` para root:www-data; es una incompatibilidad posible, no una causa remota demostrada. Revisión independiente del instalador exportado confirma el orden: falla antes de leer configuración, consultar SQL o generar la clave. Siguiente paso: consultar únicamente lstat/modo y booleans de identidad/ruta, sin contenido. No cambiar permisos, relajar la guarda o repetir --apply hasta identificar la condición real. Paquete original conservado; sin SSH desde este entorno.
+
 ## I12 — Gestión de tokens activos validada y empaquetada; aplicación pendiente
 
 El usuario autoriza revocar todos los tokens anteriores y crear los nuevos a demanda. Se implementa listado de accesos habilitados/no vencidos, copia del token o enlace por fila, edición precargada de descripción/vigencia conservando el enlace y apertura individual de WhatsApp para reenvío. El teléfono sigue siendo del cliente. No mostrar historial ni eliminar auditoría.
