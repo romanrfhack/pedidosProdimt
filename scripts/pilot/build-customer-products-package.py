@@ -122,6 +122,7 @@ scp PRODIMT_Instalar_I16.py prodimt-customer-products-payload.zip root@194.238.2
 3. Comprobar sólo lectura:
 ssh root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip'
 Esperado: planned/completed, sin cambios. No aplicar si informa discrepancias.
+La lectura usa metadatos visibles para la aplicación; al aplicar, el administrador SQL verifica las definiciones completas antes de cambiar archivos/datos. No concede VIEW DEFINITION a la aplicación.
 4. Terminar los borradores abiertos antes de aplicar (el navegador debe actualizarse después):
 ssh -t root@194.238.26.70 'python3 /root/PRODIMT_Instalar_I16.py --package /root/prodimt-customer-products-payload.zip --apply'
 Solicita usuario y contraseña SQL existentes en entrada oculta; son las credenciales SQL, no las web.

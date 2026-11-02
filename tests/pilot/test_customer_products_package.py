@@ -138,6 +138,13 @@ class CustomerProductsPackageTests(unittest.TestCase):
         for raw in (ENV+ENV, ENV.replace(KEY.encode(),b'wrong-key')):
             with self.assertRaises(I.InstallError): I.environment_key(raw)
 
+    def test_application_shape_checks_do_not_require_definition_visibility_but_admin_checks_remain_strict(self):
+        for sql in (I.TOKEN_SHAPE,I.SETUP_SHAPE):
+            self.assertNotIn('d.definition',sql); self.assertNotIn('LOWER(definition)',sql)
+        self.assertIn('d.definition',I.TOKEN_SCHEMA)
+        self.assertIn('d.definition',I.SETUP_SCHEMA); self.assertIn('LOWER(definition)',I.SETUP_SCHEMA)
+        self.assertNotIn('VIEW DEFINITION',I.SETUP_GRANTS)
+
     def test_migrate_only_after_verified_backup_preserves_every_count_and_key(self):
         instance, events = self.migration_fixture()
         instance.backup_and_migrate()
@@ -199,8 +206,8 @@ class CustomerProductsPackageTests(unittest.TestCase):
                     inventory=module('i16_expected_query_inventory','inspect-native.py')
                     history=instance.runtime.MIGRATIONS+[I.PRICE_MIGRATION,I.TOKEN_MIGRATION,I.MIGRATION]
                     allowed={C.PERMISSION_QUERY:dict(C.EXPECTED_PERMISSIONS,migrations_count=count),C.NEW_SCHEMA:C.EXPECTED_SCHEMA,
-                        C.PRICE_PERMISSIONS:C.EXPECTED_PRICE_PERMISSIONS,I.TOKEN_SCHEMA:I.EXPECTED_TOKEN_SCHEMA,
-                        I.SETUP_SCHEMA:I.EXPECTED_SETUP_SCHEMA if count==14 else dict.fromkeys(I.EXPECTED_SETUP_SCHEMA,0),
+                        C.PRICE_PERMISSIONS:C.EXPECTED_PRICE_PERMISSIONS,I.TOKEN_SHAPE:I.EXPECTED_TOKEN_SCHEMA,
+                        I.SETUP_SHAPE:I.EXPECTED_SETUP_SCHEMA if count==14 else dict.fromkeys(I.EXPECTED_SETUP_SCHEMA,0),
                         I.SETUP_PERMISSIONS:I.EXPECTED_SETUP_PERMISSIONS,inventory.SQL_MIGRATIONS:[{'MigrationId':m} for m in history[:count]]}
                     def proc_path(value):
                         return types.SimpleNamespace(resolve=lambda strict=True:old['backend']) if str(value)==f'/proc/{pid}/cwd' else Path(value)

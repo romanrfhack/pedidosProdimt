@@ -56,6 +56,20 @@ TOKEN_SCHEMA = """SELECT
    IN (N'0',N'cast0asbit',N'convertbit,0')) AS reminder_column
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
 EXPECTED_TOKEN_SCHEMA = dict(columns_count=3, protected_column=1, version_column=1, reminder_column=1)
+# SELECT permits structural metadata; SQL Server may hide default/check SQL
+# definitions without VIEW DEFINITION. The application never needs that right.
+# Verify literal expressions later with the existing SQL administrator, before
+# changing files or data, and keep read-only/already-current checks least-privilege.
+TOKEN_SHAPE = """SELECT
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens')
+  AND name IN (N'ProtectedToken',N'MetadataVersion',N'IsReminderLink')) AS columns_count,
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND name=N'ProtectedToken'
+  AND TYPE_NAME(system_type_id)=N'nvarchar' AND max_length=2048 AND is_nullable=1 AND default_object_id=0) AS protected_column,
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND name=N'MetadataVersion'
+  AND TYPE_NAME(system_type_id)=N'int' AND max_length=4 AND is_nullable=0 AND default_object_id<>0) AS version_column,
+ (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerAccessTokens') AND name=N'IsReminderLink'
+  AND TYPE_NAME(system_type_id)=N'bit' AND max_length=1 AND is_nullable=0 AND default_object_id<>0) AS reminder_column
+ FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
 TOKEN_COUNTS = """SELECT
  (SELECT COUNT_BIG(*) FROM dbo.CustomerAccessTokens) AS tokens,
  (SELECT COUNT_BIG(*) FROM dbo.CustomerAccessTokens WHERE IsActive=1) AS active_tokens,
@@ -69,7 +83,7 @@ TOKEN_COUNTS = """SELECT
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
 
 
-def setup_schema_query():
+def setup_schema_query(definitions=True):
     columns = [
         ('CustomerFrequentProducts','UseCustomerDefaultMachine','bit',1,0),
         ('CustomerProductSetupRequests','Id','uniqueidentifier',16,0),
@@ -91,6 +105,9 @@ def setup_schema_query():
         ('CustomerProductSetupOrders','ActorId','nvarchar',400,1),
         ('CustomerProductSetupOrders','ActorDisplayName','nvarchar',400,1)]
     values = ','.join("(N'%s',N'%s',N'%s',%d,%d)" % row for row in columns)
+    default_definition = """ AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(d.definition,N'(',N''),N')',N''),N' ',N''),N'[',N''),N']',N''))
+    IN (N'1',N'cast1asbit',N'convertbit,1')""" if definitions else ''
+    check_definition = """ AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(definition),N' ',N''),N'(',N''),N')',N''),N'\n',N'')=N'[version]>0'""" if definitions else ''
     return """SELECT
  (SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN (N'CustomerProductSetupRequests',N'CustomerProductSetupOrders')) AS tables_count,
  (SELECT COUNT(*) FROM sys.columns WHERE object_id=OBJECT_ID(N'dbo.CustomerProductSetupRequests')) AS request_columns,
@@ -101,8 +118,7 @@ def setup_schema_query():
     AND (e.k<>N'datetimeoffset' OR c.scale=7)) AS valid_columns,
  (SELECT COUNT(*) FROM sys.columns c JOIN sys.default_constraints d ON d.object_id=c.default_object_id
   WHERE c.object_id=OBJECT_ID(N'dbo.CustomerFrequentProducts') AND c.name=N'UseCustomerDefaultMachine'
-   AND LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(d.definition,N'(',N''),N')',N''),N' ',N''),N'[',N''),N']',N''))
-    IN (N'1',N'cast1asbit',N'convertbit,1')) AS inherit_default,
+   """ + default_definition + """) AS inherit_default,
  (SELECT COUNT(*) FROM sys.indexes i WHERE i.object_id=OBJECT_ID(N'dbo.CustomerProductSetupRequests')
    AND i.name=N'IX_CustomerProductSetupRequests_CustomerId_ProductId' AND i.is_unique=1 AND i.is_disabled=0 AND i.has_filter=0
    AND (SELECT COUNT(*) FROM sys.index_columns k WHERE k.object_id=i.object_id AND k.index_id=i.index_id)=2
@@ -115,7 +131,7 @@ def setup_schema_query():
      AND ((k.key_ordinal=1 AND c.name=N'SetupRequestId') OR (k.key_ordinal=2 AND c.name=N'OrderId'))) AS link_key_columns,
  (SELECT COUNT(*) FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID(N'dbo.CustomerProductSetupRequests')
    AND name=N'CK_ProductSetup_Version' AND is_disabled=0 AND is_not_trusted=0
-   AND REPLACE(REPLACE(REPLACE(REPLACE(LOWER(definition),N' ',N''),N'(',N''),N')',N''),N'\n',N'')=N'[version]>0') AS trusted_check,
+   """ + check_definition + """) AS trusted_check,
  (SELECT COUNT(*) FROM sys.foreign_keys WHERE is_disabled=0 AND is_not_trusted=0 AND delete_referential_action=0
    AND name IN (N'FK_CustomerProductSetupRequests_Customers_CustomerId',N'FK_CustomerProductSetupRequests_Products_ProductId',
      N'FK_CustomerProductSetupOrders_CustomerProductSetupRequests_SetupRequestId',N'FK_CustomerProductSetupOrders_Orders_OrderId')) AS trusted_foreign_keys
@@ -123,6 +139,7 @@ def setup_schema_query():
 
 
 SETUP_SCHEMA = setup_schema_query()
+SETUP_SHAPE = setup_schema_query(definitions=False)
 EXPECTED_SETUP_SCHEMA = dict(tables_count=2, request_columns=12, link_columns=6, valid_columns=19,
     inherit_default=1, pair_index=1, link_key_columns=2, trusted_check=1, trusted_foreign_keys=4)
 SETUP_PERMISSIONS = """SELECT
@@ -354,7 +371,7 @@ def make_installer(package):
             inspector = types.ModuleType('reviewed_i16_inventory')
             exec(compile(files['inspect-native.py'], 'inspect-native.py', 'exec'), inspector.__dict__)
             inspector.QUERIES = (commercial.PERMISSION_QUERY, commercial.NEW_SCHEMA, commercial.PRICE_PERMISSIONS,
-                                 TOKEN_SCHEMA, TOKEN_COUNTS, SETUP_SCHEMA, SETUP_PERMISSIONS, DATA_FINGERPRINT, inspector.SQL_MIGRATIONS)
+                                 TOKEN_SHAPE, TOKEN_COUNTS, SETUP_SHAPE, SETUP_PERMISSIONS, DATA_FINGERPRINT, inspector.SQL_MIGRATIONS)
             self.inspector = inspector
             self.state['preflight_step'] = 'effective-configuration'
             configuration, source = inspector.configuration(inspector.process_environment(pid), argv, cwd)
@@ -385,9 +402,9 @@ def make_installer(package):
             count = self.app_checks['migrations_count']
             rows = inspector.query_sql(self.sql_tool, self.fields, inspector.SQL_MIGRATIONS)
             require(rows == [{'MigrationId': value} for value in migrations[:count]], 'migration_history_unexpected')
-            require(inspector.query_sql(self.sql_tool, self.fields, TOKEN_SCHEMA) == EXPECTED_TOKEN_SCHEMA,
+            require(inspector.query_sql(self.sql_tool, self.fields, TOKEN_SHAPE) == EXPECTED_TOKEN_SCHEMA,
                     'token_management_schema_unexpected')
-            require(inspector.query_sql(self.sql_tool, self.fields, SETUP_SCHEMA) ==
+            require(inspector.query_sql(self.sql_tool, self.fields, SETUP_SHAPE) ==
                     (EXPECTED_SETUP_SCHEMA if count == 14 else dict.fromkeys(EXPECTED_SETUP_SCHEMA, 0)), 'product_setup_schema_unexpected')
             if count == 14:
                 require(inspector.query_sql(self.sql_tool, self.fields, SETUP_PERMISSIONS) == EXPECTED_SETUP_PERMISSIONS,
@@ -403,7 +420,8 @@ def make_installer(package):
             code, body = self.http('/health/db')
             require(code == 200 and json.loads(body).get('database') == 'reachable', 'previous_health_failed')
             require(self.http('/admin/catalogos') == (200, regular(self.old['frontend'] / 'index.html')), 'previous_frontend_not_served')
-            self.state.update(env_preserved=True, encryption_key_present=self.token_encryption_key is not None)
+            self.state.update(env_preserved=True, encryption_key_present=self.token_encryption_key is not None,
+                              schema_shape_verified=True)
             if own:
                 self.state['preflight_step'] = 'installed-files-and-effective-key'
                 self.verify_stage('backend')

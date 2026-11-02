@@ -19,7 +19,7 @@ Nuevo flag de herencia de máquina conserva true en relaciones existentes; el ad
 
 CI de checkpoint `a95bcf40084e14724619dd8a97eb02fa0aee7dac` comprobó cinco casos HTTP nuevos sobre SQL Server además de los históricos. Los ensayos históricos I12 y reparaciones I07 se fijan expresamente a sus migraciones originales; no se debilitan guardas de los instaladores.
 
-Candidato `a1b035f40af440cb626f2bc3fe884f1e16253633`: build/tests .NET y smoke Production correctos; HTTP SQL Server correcto con prueba adicional de rollback al fallar auditoría. Regresión ODBC nativa verifica rollback DDL/historial cuando falta el principal de aplicación. Después detectó permiso SELECT anterior ausente en el principal ficticio: se reproduce ese permiso previo, sin ampliar los grants de I16. Cierre CI completo y hashes del paquete final pendientes en este checkpoint.
+Candidato `a1b035f40af440cb626f2bc3fe884f1e16253633`: build/tests .NET y smoke Production correctos; HTTP SQL Server correcto con prueba adicional de rollback al fallar auditoría. Regresión ODBC nativa verifica rollback DDL/historial cuando falta el principal de aplicación. Después detectó permiso SELECT anterior ausente en el principal ficticio: se reproduce ese permiso previo, sin ampliar los grants de I16. El ensayo confirmó además que SELECT no expone todas las definiciones de defaults/checks: se separa la comprobación estructural limitada de la validación estricta administrativa, sin conceder VIEW DEFINITION. La administración verifica las expresiones antes de cualquier cambio. Ambas variantes se prueban con el mismo usuario limitado y sin debilitar las guardas de esquema. Cierre CI completo y hashes finales pendientes en este checkpoint.
 
 ## Instalación prevista
 

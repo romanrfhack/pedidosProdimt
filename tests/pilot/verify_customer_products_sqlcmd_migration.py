@@ -113,12 +113,21 @@ INSERT INTO dbo.CustomerAccessTokens(Id,CustomerId,TokenHash,DisplayName,IsActiv
         # that pre-existing permission so sys.columns exposes its new flag to
         # the same limited principal; I16 must not grant unrelated base rights.
         execute('CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n'
-            'GRANT SELECT ON dbo.CustomerFrequentProducts TO [prodimt_pedidos_app];\n'+commercial.PRICE_GRANTS)
+            'GRANT SELECT ON dbo.CustomerFrequentProducts TO [prodimt_pedidos_app];\n'
+            'GRANT SELECT ON dbo.CustomerAccessTokens TO [prodimt_pedidos_app];\n'+commercial.PRICE_GRANTS)
         price_permissions=as_app(commercial.PRICE_PERMISSIONS)
         execute(sql)
         require(len(query(inventory.SQL_MIGRATIONS))==14,'migration_history_not_fourteen')
         require(query(installer.SETUP_SCHEMA)==installer.EXPECTED_SETUP_SCHEMA,'native_setup_schema_invalid')
-        require(as_app(installer.SETUP_SCHEMA)==installer.EXPECTED_SETUP_SCHEMA,'application_cannot_verify_native_schema')
+        visible=as_app(installer.SETUP_SHAPE)
+        if visible!=installer.EXPECTED_SETUP_SCHEMA:
+            print('I16 application structural metadata: '+json.dumps(visible,sort_keys=True))
+        require(visible==installer.EXPECTED_SETUP_SCHEMA,'application_cannot_verify_native_shape')
+        require(as_app(installer.TOKEN_SHAPE)==installer.EXPECTED_TOKEN_SCHEMA,'application_cannot_verify_token_shape')
+        require(as_app(installer.SETUP_SCHEMA)!=installer.EXPECTED_SETUP_SCHEMA,
+            'fixture_did_not_reproduce_hidden_definition_metadata')
+        require(as_app("SELECT HAS_PERMS_BY_NAME(DB_NAME(),N'DATABASE',N'VIEW DEFINITION') AS view_definition FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;")
+            ==dict(view_definition=0),'fixture_application_has_definition_privilege')
         require(as_app(installer.SETUP_PERMISSIONS)==installer.EXPECTED_SETUP_PERMISSIONS,'application_permissions_not_minimal')
         require(as_app(commercial.PRICE_PERMISSIONS)==price_permissions==commercial.EXPECTED_PRICE_PERMISSIONS,'price_history_permissions_changed')
         require(query(installer.SETUP_COUNTS)==dict(requests=0,links=0,open_requests=0,inherit_default=1,independent=0),'legacy_machine_inheritance_changed')
