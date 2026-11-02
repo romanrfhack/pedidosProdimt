@@ -1,12 +1,16 @@
 # Estado del proyecto
 
-## I21 — Pedidos como catálogo responsivo; validado localmente, paquete en preparación
+## I21 — Pedidos como catálogo responsivo; validado y listo para instalar
 
 Autorizada presentación similar a Clientes: ancho completo, tarjetas automáticas, búsqueda cliente/número, filtros con contadores, fecha/Hoy CDMX y colores por estado real con etiqueta. Refresco visible cada 15 s conserva filtros y datos previos ante fallo; detalle/corrección a toda la fila sin perder borrador al redimensionar. Filtros pausados durante corrección. Lógica de carga, permisos, historial y guardado conservada; sin API, backend, SQL o migraciones.
 
 Base I19 recuperada de bundle verificado, rama local `codex/i21-responsive-orders` desde `77457633f5a510aca48855b5a9078adf0a66d271`, aplicación instalada `d3a11420b2025fa0a19f84e1796d5a8b252259a3`. Continuidad del proyecto confirma posterior instalación I19 por el usuario (migraciones 13→16, backend/frontend saludables, respaldo verificado, configuración/permisos/tokens/claves conservados). I19 es el último despliegue confirmado, sustituyendo el pendiente histórico; sin inspección SSH en esta sesión.
 
-Build correcto y15 pruebas específicas del paquete correctas. Verificación responsive/filtros correcta; suite completa de navegador: 204/205 correctas; el fallo de altura en Configuración se reproduce en I19 sin cambios (782px frente a 769px). Las 14 pruebas nuevas de Pedidos pasan en una ejecución final de 15.8s; paquete final en preparación. Los tres fallos de fixtures I19 en la suite Python ampliada corresponden a propietario UID 0 no disponible aquí; no se cambian guardas ni se afirma suite completa correcta. Ver `INCREMENTO-21.md` y evidencia. Instalación/aceptación I21 pendientes. Publicación remota pendiente por el rechazo automático previo de la base I19; se conserva entrega incremental sin eludirlo.
+Build correcto y15 pruebas específicas del paquete correctas. Verificación responsive/filtros correcta; suite completa de navegador: 204/205 correctas; el fallo de altura en Configuración se reproduce en I19 sin cambios (782px frente a 769px). Las 14 pruebas nuevas de Pedidos pasan en una ejecución final de 15.8s; paquete final generado/verificado. Los tres fallos de fixtures I19 en la suite Python ampliada corresponden a propietario UID 0 no disponible aquí; no se cambian guardas ni se afirma suite completa correcta. Ver `INCREMENTO-21.md` y evidencia. Instalación/aceptación I21 pendientes. Publicación remota pendiente por el rechazo automático previo de la base I19; se conserva entrega incremental sin eludirlo.
+
+Entrega I21 generada y verificada: `PRODIMT_Pedidos_I21.zip`, 246583 bytes, SHA256 `0ad53450486e8db91b3687453e9a23cb7df8ec0a1d509b88576ff6c2ddf8f625`. Aplicación/payload `867df56de3bb2ec3c0b7a28fe24a275d48c6a894`; payload SHA256 `2513b853ed9a9fe96db26fa579ad2623a676126092041a488f437dc389ad4c77`. Veintisiete archivos frontend/licencias de la clausura activa, CRC/hashes/manifiesto/imports y cargador exportado correctos; sin residuos, fuente, backend o SQL dentro del payload. Compilado desde árbol limpio y fijado a ese commit. Preservados I14/mensaje, I16/productos adicionales, I18/seguridad e I19/producción.
+
+Requiere frontend y backend `production-d3a11420b202`; activa sólo frontend `orders-catalog-867df56de3bb`. Fuentes revisables en `PRODIMT_Pedidos_I21_Cambios.zip`, bundle/parche incremental; publicación GitHub pendiente por el rechazo previo de I19, sin PR/CI remoto nuevo. Instalación/aceptación I21 pendientes: preflight, aplicar, verificar salud/frontend true y Ctrl+F5 → Pedidos. No se operó VPS/SQL real.
 
 ## I19 — Producción por máquina y distribución a pedidos (antecedente)
 

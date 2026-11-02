@@ -28,6 +28,12 @@ Ejecución final de las 14 E2E nuevas de Pedidos: 14/14 correctas, 15.8s, despu�
 
 La suite completa anterior conserva 204/205 correctas; el único fallo es la altura de Configuración a 1366px, reproducido exactamente en una copia limpia de I19 (782px frente a 769px). No se relaja el test ni se modifica ese módulo.
 
-## Pendiente
+## Entrega verificada
 
-Fijar commit limpio, generar/verificar ZIP y fuentes incrementales y guardar entrega. Instalación/aceptación I21 pendientes.
+Entrega I21 generada y verificada: `PRODIMT_Pedidos_I21.zip`, 246583 bytes, SHA256 `0ad53450486e8db91b3687453e9a23cb7df8ec0a1d509b88576ff6c2ddf8f625`. Aplicación/payload `867df56de3bb2ec3c0b7a28fe24a275d48c6a894`; payload SHA256 `2513b853ed9a9fe96db26fa579ad2623a676126092041a488f437dc389ad4c77`. Veintisiete archivos frontend/licencias de la clausura activa, CRC/hashes/manifiesto/imports y cargador exportado correctos; sin residuos, fuente, backend o SQL dentro del payload. Compilado desde árbol limpio y fijado a ese commit. Preservados I14/mensaje, I16/productos adicionales, I18/seguridad e I19/producción.
+
+Requiere frontend y backend `production-d3a11420b202`; activa sólo frontend `orders-catalog-867df56de3bb`. Fuentes revisables en `PRODIMT_Pedidos_I21_Cambios.zip`, bundle/parche incremental; publicación GitHub pendiente por el rechazo previo de I19, sin PR/CI remoto nuevo. Instalación/aceptación I21 pendientes: preflight, aplicar, verificar salud/frontend true y Ctrl+F5 → Pedidos. No se operó VPS/SQL real.
+
+## Pendiente remoto
+
+Instalación y aceptación visual/funcional I21. La entrega no acredita despliegue; no se operó VPS/SQL desde este entorno.
