@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const customerId = '11111111-1111-1111-1111-111111111111';
 const metadataUrl = '**/api/admin/orders/next-delivery-date';
+const tokenListUrl = new RegExp(`/api/admin/customers/${customerId}/access-tokens(?:\\?.*)?$`);
 
 async function openAccess(page: Page, missingPhone = false) {
   await page.route(metadataUrl, route => route.fulfill({ json: { deliveryDate: '2026-10-31', serverNow: '2026-10-31T09:00:00-06:00' } }));
@@ -20,7 +21,7 @@ async function openAccess(page: Page, missingPhone = false) {
   const dialog = page.getByRole('dialog', { name: 'Tokens de acceso', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Descripción', { exact: true })).toHaveValue('Recuerda hacer tu próximo pedido');
-  await dialog.getByLabel('Disponible hasta').fill('2026-11-01T18:00');
+  await dialog.getByLabel('Disponible hasta').fill('2030-01-01T18:00');
   return dialog;
 }
 
@@ -42,7 +43,7 @@ test('sin teléfono exige guardarlo antes de crear enlace y conserva la zona CDM
   expect(writes).toEqual([
     { path: `/api/admin/customers/${customerId}/phone`, body: { phoneNumber: '+525512345678' } },
     { path: `/api/admin/customers/${customerId}/access-tokens`, body: {
-      description: 'Recuerda hacer tu próximo pedido', expiresAt: '2026-11-02T00:00:00.000Z', reminderLink: true
+      description: 'Recuerda hacer tu próximo pedido', expiresAt: '2030-01-02T00:00:00.000Z', reminderLink: true
     } }
   ]);
 });
@@ -72,7 +73,7 @@ test('WhatsApp individual usa teléfono guardado, descripción, enlace y fecha f
     (window as any).__whatsAppPreview = fixture;
     window.open = (() => fixture) as any;
   });
-  await page.getByRole('button', { name: 'Abrir WhatsApp' }).click();
+  await page.getByRole('button', { name: 'Abrir WhatsApp', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as any).__whatsAppPreview.location.href)).toContain('https://wa.me/525512345678?text=');
   const url = new URL(await page.evaluate(() => (window as any).__whatsAppPreview.location.href));
   expect(url.searchParams.get('text')).toContain('Recuerda hacer tu pedido de tortillas');
@@ -138,14 +139,16 @@ test('crear un enlace pendiente bloquea cierre, Escape y fondo hasta terminar', 
   let release!: () => void;
   const gate = new Promise<void>(resolve => release = resolve);
   let created = 0;
-  await page.route(`**/api/admin/customers/${customerId}/access-tokens`, async route => {
+  let createdToken: any = null;
+  await page.route(tokenListUrl, async route => {
+    if (route.request().method() === 'GET' && createdToken) { await route.fulfill({ json: [createdToken] }); return; }
     if (route.request().method() !== 'POST') { await route.fallback(); return; }
     created++;
     const body = route.request().postDataJSON();
     await gate;
-    await route.fulfill({ status: 201, json: { tokenId: 'busy-create-demo', customerId,
-      description: body.description, expiresAt: body.expiresAt, isActive: true, createdAt: '2026-10-31T09:00:00-06:00',
-      lastUsedAt: null, plainToken: 'busy-token-demo' } });
+    createdToken = { tokenId: 'busy-create-demo', customerId, description: body.description, expiresAt: body.expiresAt,
+      isActive: true, isUsable: true, canReveal: true, version: 1, reminderLink: true, createdAt: '2026-10-31T09:00:00-06:00', lastUsedAt: null };
+    await route.fulfill({ status: 201, json: { ...createdToken, plainToken: 'busy-token-demo' } });
   });
   try {
     const dialog = await openAccess(page);
@@ -207,8 +210,8 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     const history = Array.from({ length: 35 }, (_, index) => ({ tokenId: `history-token-${index}`, customerId,
       description: `Recordatorio ${index + 1}: ${'Descripción extensa para comprobar ajuste de texto y acciones. '.repeat(3)}`,
-      isActive: index % 2 === 0, expiresAt: '2030-01-01T00:00:00Z', createdAt: '2026-10-31T09:00:00-06:00', lastUsedAt: null }));
-    await page.route(`**/api/admin/customers/${customerId}/access-tokens`, async route => {
+      isActive: true, version: 1, canReveal: true, isUsable: true, reminderLink: true, expiresAt: '2030-01-01T00:00:00Z', createdAt: '2026-10-31T09:00:00-06:00', lastUsedAt: null }));
+    await page.route(tokenListUrl, async route => {
       if (route.request().method() === 'GET') await route.fulfill({ json: history });
       else if (route.request().method() === 'POST') {
         const response = await route.fetch();
@@ -239,7 +242,7 @@ for (const viewport of [
     await expect(dialog.getByRole('button', { name: 'Cerrar tokens de acceso', exact: true })).toBeInViewport();
     await expect(dialog.getByRole('button', { name: 'Cerrar', exact: true })).toBeInViewport();
     await page.screenshot({ path: test.info().outputPath(`tokens-modal-initial-${viewport.width}.png`), fullPage: false });
-    await dialog.getByRole('heading', { name: 'Tokens creados', exact: true }).scrollIntoViewIfNeeded();
+    await dialog.getByRole('heading', { name: 'Tokens activos', exact: true }).scrollIntoViewIfNeeded();
     await expect(dialog.getByText(history[34].description, { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Revocar', exact: true }).last().scrollIntoViewIfNeeded();
     await expect(dialog.getByRole('button', { name: 'Revocar', exact: true }).last()).toBeInViewport();

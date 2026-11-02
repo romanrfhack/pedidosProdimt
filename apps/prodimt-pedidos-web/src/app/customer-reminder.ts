@@ -38,3 +38,11 @@ export function formatReminderDate(value: string): string {
 export function formatReminderExpiration(value: string): string {
   return new Intl.DateTimeFormat('es-MX', { timeZone, dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
 }
+
+export function reminderDateTimeInput(value: string | null): string | null {
+  if (!value || !Number.isFinite(Date.parse(value))) return null;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date(value)).map(part => [part.type, part.value]));
+  return `${parts['year']}-${parts['month']}-${parts['day']}T${parts['hour']}:${parts['minute']}`;
+}

@@ -101,9 +101,15 @@ public sealed record AdminCustomerAccessTokenResponse(
     DateTimeOffset? ExpiresAt,
     bool IsActive,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? LastUsedAt);
+    DateTimeOffset? LastUsedAt,
+    int Version = 1,
+    bool IsUsable = false,
+    bool CanReveal = false,
+    bool ReminderLink = false);
 
 public sealed record CreateCustomerAccessTokenRequest(string? Description, DateTimeOffset? ExpiresAt, bool ReminderLink = false);
+
+public sealed record UpdateCustomerAccessTokenRequest(int ExpectedVersion, string? Description, DateTimeOffset? ExpiresAt);
 
 public sealed record UpdateCustomerPhoneRequest(string PhoneNumber);
 
@@ -113,7 +119,9 @@ public sealed record CreatedCustomerAccessTokenResponse(
     string PlainToken,
     string Description,
     DateTimeOffset? ExpiresAt,
-    bool IsActive);
+    bool IsActive,
+    int Version = 1,
+    bool ReminderLink = false);
 
 public sealed record AdminUserCatalogResponse(
     Guid Id,

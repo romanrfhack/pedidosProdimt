@@ -21,6 +21,16 @@ public sealed class CustomerAccessTokenConfiguration : IEntityTypeConfiguration<
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(x => x.ProtectedToken)
+            .HasMaxLength(1024);
+
+        builder.Property(x => x.MetadataVersion)
+            .HasDefaultValue(1)
+            .IsConcurrencyToken();
+
+        builder.Property(x => x.IsReminderLink)
+            .HasDefaultValue(false);
+
         builder.HasOne<Customer>()
             .WithMany()
             .HasForeignKey(x => x.CustomerId)

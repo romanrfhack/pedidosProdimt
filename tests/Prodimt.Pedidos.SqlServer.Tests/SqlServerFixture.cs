@@ -152,6 +152,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                 ["ConnectionStrings:Pedidos"] = _connectionString,
                 ["DevelopmentSeed:Enabled"] = "false",
                 ["Authentication:Jwt:SigningKey"] = JwtSettings.DevelopmentSigningKey,
+                // Fictional test-only encryption key; production requires its own persisted secret.
+                ["CustomerAccessTokens:EncryptionKey"] = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
                 ["Logging:LogLevel:Default"] = "Warning",
                 ["Logging:LogLevel:Microsoft.EntityFrameworkCore.Database.Command"] = "Warning"
             }));

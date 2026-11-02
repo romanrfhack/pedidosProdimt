@@ -16,6 +16,9 @@ public static class DependencyInjection
 
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<ICustomerAccessTokenHasher, CustomerAccessTokenHasher>();
+        // Key validation is deliberately performed when an operation needs the
+        // protector, so health and legacy authentication do not depend on it.
+        services.AddSingleton<ICustomerAccessTokenProtector, AesGcmCustomerAccessTokenProtector>();
         services.AddSingleton<IPasswordHashService, PasswordHashService>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
 

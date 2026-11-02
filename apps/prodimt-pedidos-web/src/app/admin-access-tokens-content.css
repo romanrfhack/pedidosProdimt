@@ -21,6 +21,11 @@
 .access-token-row { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border:1px solid #dce6eb; border-radius:8px; padding:12px; }
 .access-token-row > div { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
 .access-token-row > button { flex-shrink:0; }
+.access-editor-actions { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; }
+.access-editor-actions > button { flex:1 1 170px; }
+.access-token-row > .access-token-row-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; width:min(100%,440px); flex-shrink:0; }
+.access-token-row-actions > button { flex:1 1 120px; }
+.access-editor-notice { grid-column:1/-1; }
 @media(max-width:850px) { .access-token-columns { grid-template-columns:minmax(0,1fr); } }
 @media(max-width:600px) {
   .access-token-panel { padding:12px; }

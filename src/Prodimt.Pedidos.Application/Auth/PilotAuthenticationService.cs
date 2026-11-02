@@ -1,4 +1,5 @@
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 
 namespace Prodimt.Pedidos.Application.Auth;
 
@@ -40,7 +41,12 @@ public sealed class PilotAuthenticationService(
         }
 
         accessToken.LastUsedAt = dateTimeProvider.Now;
-        await customerAccessTokens.SaveChangesAsync(cancellationToken);
+        try { await customerAccessTokens.SaveChangesAsync(cancellationToken); }
+        catch (CatalogConflictException)
+        {
+            // A metadata edit or revocation raced with this login. Never issue a session from stale metadata.
+            throw new AuthenticationFailedException("El acceso cambió. Vuelve a abrir el enlace para ingresar.");
+        }
 
         var jwt = jwtTokenService.CreateCustomerToken(customer, accessToken);
 

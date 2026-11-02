@@ -675,7 +675,8 @@ public sealed class AdminCatalogServiceTests
                 customerAccessTokenRepository,
                 customerAccessTokenHasher,
                 auditLogRepository,
-                dateTimeProvider);
+                dateTimeProvider,
+                new AesGcmCustomerAccessTokenProtector(configuration));
             var adminUsers = new AdminUserCatalogService(
                 adminUserRepository,
                 passwordHashService,
@@ -735,7 +736,8 @@ public sealed class AdminCatalogServiceTests
                     ["Authentication:Jwt:SigningKey"] = JwtSettings.DevelopmentSigningKey,
                     ["Authentication:Jwt:Issuer"] = "Prodimt.Pedidos.Tests",
                     ["Authentication:Jwt:Audience"] = "Prodimt.Pedidos.Tests",
-                    ["Authentication:Jwt:AccessTokenMinutes"] = "60"
+                    ["Authentication:Jwt:AccessTokenMinutes"] = "60",
+                    ["CustomerAccessTokens:EncryptionKey"] = "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=" // Fictional test key only.
                 })
                 .Build();
         }

@@ -25,6 +25,11 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         line.Ignore(x => x.PriceRevisionId); line.Ignore(x => x.PriceEffectiveFrom);
         builder.Ignore<CustomerProductPriceRevision>(); builder.Ignore<CustomerProductPriceBook>();
         builder.Ignore<ProductConsolidationOperation>();
+        // I12 token storage did not exist in the pinned eleven-migration repair target.
+        var access = builder.Entity<CustomerAccessToken>();
+        access.Ignore(x => x.ProtectedToken);
+        access.Ignore(x => x.MetadataVersion);
+        access.Ignore(x => x.IsReminderLink);
     }
 }
 

@@ -189,7 +189,9 @@ if (builder.Configuration.GetValue("Hosting:UseHttpsRedirection", true)) app.Use
 if (app.Environment.IsDevelopment()) app.UseCors("ProdimtWeb");
 app.Use(async (HttpContext context, RequestDelegate next) =>
 {
-    if (context.Request.Path == "/cliente" || context.Request.Path.StartsWithSegments("/api/auth"))
+    if (context.Request.Path == "/cliente" || context.Request.Path.StartsWithSegments("/api/auth") ||
+        (context.Request.Path.StartsWithSegments("/api/admin/customers") &&
+            context.Request.Path.Value?.Contains("/access-tokens", StringComparison.OrdinalIgnoreCase) == true))
     {
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         context.Response.Headers.CacheControl = "no-store";
@@ -217,6 +219,7 @@ app.MapDailyOrderEndpoints();
 app.MapOrderCaptureEndpoints();
 app.MapCustomerOrderCaptureEndpoints();
 app.MapCustomerReminderEndpoints();
+app.MapCustomerAccessTokenManagementEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("Health");
@@ -699,12 +702,13 @@ adminCustomers.MapPut("/{customerId:guid}/machine-assignments", async (
 
 adminCustomers.MapGet("/{customerId:guid}/access-tokens", async (
     Guid customerId,
+    bool? activeOnly,
     AdminCustomerAccessTokenService service,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        return Results.Ok(await service.GetByCustomerAsync(customerId, cancellationToken));
+        return Results.Ok(await service.GetByCustomerAsync(customerId, cancellationToken, activeOnly ?? false));
     }
     catch (InvalidOperationException ex)
     {
@@ -724,6 +728,10 @@ adminCustomers.MapPost("/{customerId:guid}/access-tokens", async (
     {
         var response = await service.CreateAsync(customerId, request, GetAdminActor(user), cancellationToken);
         return Results.Created($"/api/admin/customers/{customerId}/access-tokens/{response.TokenId}", response);
+    }
+    catch (CustomerAccessTokenProtectionException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 503);
     }
     catch (ArgumentException ex)
     {

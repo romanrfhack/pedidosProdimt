@@ -19,6 +19,8 @@ internal static class CatalogAuditEventTypes
     public const string CustomerMachineAssignmentsUpdated = nameof(CustomerMachineAssignmentsUpdated);
     public const string CustomerAccessTokenCreated = nameof(CustomerAccessTokenCreated);
     public const string CustomerAccessTokenRevoked = nameof(CustomerAccessTokenRevoked);
+    public const string CustomerAccessTokenUpdated = nameof(CustomerAccessTokenUpdated);
+    public const string CustomerAccessTokenRevealed = nameof(CustomerAccessTokenRevealed);
     public const string AdminUserCreated = nameof(AdminUserCreated);
     public const string AdminUserActivated = nameof(AdminUserActivated);
     public const string AdminUserDeactivated = nameof(AdminUserDeactivated);

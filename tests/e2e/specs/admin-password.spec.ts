@@ -8,7 +8,10 @@ test('cambiar contraseña valida confirmación, envía sólo credenciales propia
   await expect(page.getByTestId('admin-today')).toBeVisible();
   await page.getByRole('link', { name: 'Cambiar contraseña' }).click();
   const screen = page.getByTestId('admin-password');
-  await screen.getByLabel('Contraseña actual', { exact: true }).fill('Fictional-current-password');
+  const currentPassword = screen.getByLabel('Contraseña actual', { exact: true });
+  // Visibility precedes template-driven control registration; wait before filling the first field.
+  await expect(currentPassword).toHaveClass(/ng-invalid/);
+  await currentPassword.fill('Fictional-current-password');
   await screen.getByLabel('Nueva contraseña', { exact: true }).fill('Fictional-new-password-2026!');
   await screen.getByLabel('Confirmar nueva contraseña').fill('Does not match');
   let writes = 0;
@@ -21,8 +24,10 @@ test('cambiar contraseña valida confirmación, envía sólo credenciales propia
   });
   await screen.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(screen.getByRole('alert')).toContainText('no coinciden');
+  await expect(currentPassword).toHaveValue('Fictional-current-password');
   expect(writes).toBe(0);
   await screen.getByLabel('Confirmar nueva contraseña').fill('Fictional-new-password-2026!');
+  await expect(currentPassword).toHaveValue('Fictional-current-password');
   await screen.getByRole('button', { name: 'Guardar contraseña' }).click();
   await expect(page).toHaveURL(/admin\/login\?passwordChanged=1/);
   await expect(page.getByRole('status')).toContainText('Contraseña actualizada');
