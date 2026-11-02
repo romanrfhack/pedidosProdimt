@@ -581,3 +581,13 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Sin SQL (consultas o migraciones), cambio de backend, reinicio o contraseñas por I13. El preflight verifica el release I12 requerido; no se infieren conteos SQL ni resultados funcionales de tokens que no figuran en esta salida.
 - Se actualiza continuidad/estado/evidencia por el reporte, sin operar SSH o reinstalar. No hay código nuevo ni pruebas adicionales necesarias para este registro documental.
 - Pendiente: Ctrl+F5 y aceptación visual real de grupos, búsqueda, modal y adaptación a distintos anchos.
+
+
+## 2026-11-02 — Propuesta I16, pedir otro producto del catálogo
+
+- Usuario solicita en captura manual cliente/administración un modal mínimo de producto del catálogo y cantidad, con pendiente de revisión/configuración para Administración General; no duplicar producto global.
+- Revisada captura privada adjunta y contratos/código vigentes de captura, snapshots de precios, configuración de relación y autorización. Ambas capturas rechazan productos fuera del perfil; precio se fija al confirmar y un cambio posterior de tarifa no resuelve por sí solo una partida sin precio.
+- Preparada propuesta docs/proyecto/INCREMENTO-16.md: borrador y modal, catálogo público mínimo, guardado de pedido/pendiente en transacción y reintentos durables, bandeja separada, configuración enfocada y resolución auditada inicial del precio.
+- Registradas reglas de producción diferidas: Burreras/harina reventa sin máquina; producción interna con asignación diaria humana y preferencia permanente separada. No heredar máquina del cliente a reventa ni inferir abastecimiento por ausencia de máquina.
+- Pendiente funcional a consultar: si una partida nueva continúa el flujo operativo con precio pendiente o espera revisión administrativa; no asumir autorización de producción/entrega sin esa definición.
+- Rama de diseño codex/i16-add-customer-products sobre checkpoint I15 afb8f3a. No aplicación modificada, tests nuevos, migraciones, paquete, SQL o SSH. I15 sigue en validación y no se afirma despliegue.

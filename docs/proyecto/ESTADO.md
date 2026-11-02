@@ -2,6 +2,14 @@
 
 Actualizado: 2 de noviembre de 2026.
 
+## I16 — Propuesta de productos adicionales por cliente; definición operativa pendiente
+
+El usuario solicita «Pedir otro producto» en Captura manual del cliente y administración, eligiendo del catálogo compartido nombre/unidad/cantidad, con bandeja para Administración General que complete precio y demás configuración. No crear otro producto global ni pedir máquina/precio al cliente. Se revisó el código: hoy ambas capturas sólo aceptan productos del perfil; I11 fija el precio al crear la partida y la tarifa posterior no completa por sí sola un pedido sin precio. Se requiere flujo transaccional/idempotente de pedido + pendiente y resolución explícita auditada del precio faltante. No alterar perfiles aprobados ni posiciones automáticamente.
+
+Registradas reglas futuras: Burreras y harina son reventa sin máquina propia; la producción interna puede asignarse diariamente por decisión humana del responsable. Esa planificación está expresamente diferida. Tener máquina nula no implica configuración inválida y no debe heredarse la máquina del cliente a un producto de reventa.
+
+Propuesta y evidencia en docs/proyecto/INCREMENTO-16.md; rama codex/i16-add-customer-products sobre checkpoint I15 afb8f3a, aún en validación. I14 instalado según reporte; no afirmar I15 instalado. Sesión de diseño, sin implementación, migración, paquete, SQL o acceso al VPS. Falta definir si la partida nueva sigue el flujo normal con precio pendiente o espera revisión; se recomienda validar la primera opción para no detener la captura. No está aprobada esa decisión todavía. Siguiente: recoger respuesta, integrar el cierre de I15 y concretar implementación/validación de I16.
+
 ## I15 — Catálogo de clientes responsivo, validación en curso
 
 Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.

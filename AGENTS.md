@@ -32,6 +32,8 @@ I14, autorizado el 1 de noviembre, simplifica exclusivamente el mensaje predeter
 
 I15, autorizado el 2 de noviembre, aprovecha el ancho del catálogo de clientes con rejilla automática, tarjetas legibles/acciones al pie y controles responsivos. Sólo `.customers-page`; conserva estados/orden I06, búsqueda, modales, configuración enfocada, productos/precios y mensaje I14. Ver `docs/proyecto/INCREMENTO-15.md`. Actualización nativa sólo frontend sobre I14 confirmado, sin migraciones, SQL directo, reinicio o cambios de datos/credenciales. Verificar medidas y desbordamiento en móvil/tablet/PC/ultrawide antes de entregar.
 
+I16, solicitado el 2 de noviembre, está en propuesta funcional: selección de producto compartido adicional en captura manual cliente/administración, pendiente comercial y bandeja de configuración. Ver `docs/proyecto/INCREMENTO-16.md`. Falta definir si las partidas nuevas continúan con precio pendiente o esperan revisión; no asumir autorización operativa. Registrar ahora las reglas de reventa sin máquina y asignación diaria humana; su implementación de producción se difiere expresamente. No duplicar productos ni alterar snapshots/precios históricos o posiciones aprobadas para habilitar la captura.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
