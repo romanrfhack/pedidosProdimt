@@ -4,7 +4,15 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I17 — Clientes pendientes responsivos; entrega lista, instalación pendiente
+## I17 — Instalación confirmada; revisión visual pendiente
+
+El 2 de noviembre el usuario comparte SHA256 correcto del ZIP y ejecución de `20261102-pending-customers-install1`: preflight `planned/completed`, sin cambios, base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. Confirma la instalación por evidencia proporcionada; no es inspección SSH independiente ni aceptación visual. El `frontend_verified=false` de lectura era esperado antes de activar.
+
+Fuente desplegada `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, frontend `/var/www/prodimt-pedidos/frontend/releases/pending-customers-cdbfec3071bc`; snapshot privado `/var/backups/prodimt-pedidos/pending-customers-20261102T154208Z-06bc1e751d24`. El reporte indica sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos. I17 sustituye a I15 como último despliegue confirmado por el usuario.
+
+Siguiente: Ctrl+F5 → Pendientes. Maximizar/reducir ventana y comprobar columnas, textos y acciones; abrir captura, cambiar ancho y cancelar para revisar conservación del borrador sin guardar pedidos de prueba reales. Queda aceptación visual/funcional del usuario. No repetir instalación o importaciones por este resultado. Esta sesión sólo registra documentación, sin operar VPS/SQL ni cambiar aplicación/paquete.
+
+## I17 — Validación y paquete (antecedente)
 
 Autorizado por el usuario aplicar el diseño de tarjetas de Clientes a Pendientes/captura administrativa. Rama `codex/i17-responsive-pending-customers` desde I15 `71461b78b07183af215742b399d21f0fa5443146`. Ancho completo, rejilla automática mínimo 280px, acciones al pie, metadatos/nota completos y contador visible. La captura abierta ocupa toda la fila; CSS conserva la misma instancia, cantidades, notas y foco al redimensionar. No cambió la lógica de negocio ni se operó el VPS/SQL. I15 sigue siendo el último despliegue confirmado.
 

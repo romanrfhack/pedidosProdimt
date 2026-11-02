@@ -2,7 +2,15 @@
 
 Actualizado: 2 de noviembre de 2026.
 
-## I17 — Clientes pendientes responsivos; validado y listo para instalar
+## I17 — Instalación confirmada; revisión visual pendiente
+
+Usuario reporta el 2 de noviembre SHA256 correcto y ambas fases de `20261102-pending-customers-install1`: lectura `planned/completed`, sin cambios, base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. I17 queda instalado por esa evidencia, sin inspección SSH independiente desde este entorno. La comprobación de frontend en false durante lectura era esperada y terminó true al aplicar.
+
+Fuente desplegada `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, release `/var/www/prodimt-pedidos/frontend/releases/pending-customers-cdbfec3071bc`; snapshot privado `/var/backups/prodimt-pedidos/pending-customers-20261102T154208Z-06bc1e751d24`. Reporte sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos. Es el último despliegue confirmado y sustituye el pendiente de instalación anterior.
+
+Próximo: Ctrl+F5 → Pendientes, revisar columnas/textos/botones al maximizar/reducir y abrir/cancelar captura para comprobar el borrador. Aceptación visual/funcional pendiente; no repetir instalación/importaciones ni crear pedidos reales sólo para probar diseño. Sólo documentación en esta sesión, sin VPS/SQL, cambios de aplicación/paquete o nuevas pruebas de binarios.
+
+## I17 — Validación y paquete (antecedente)
 
 Usuario autoriza aprovechar el ancho para las tarjetas de Pendientes de forma similar a Clientes. Implementado sobre I15 confirmado, rama `codex/i17-responsive-pending-customers`: ancho completo, rejilla automática, metadatos legibles, acciones al pie y contador de clientes visibles. Captura abierta a toda la fila sin recrear formulario al redimensionar; cantidades/notas/foco conservados. Sólo HTML/CSS y pruebas/instalador; lógica y API intactas.
 

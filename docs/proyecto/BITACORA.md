@@ -2,6 +2,12 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I17: instalación confirmada por el usuario
+
+Recibido SHA256 del ZIP correcto y salida de lectura/aplicación de `20261102-pending-customers-install1`. Preflight `planned/completed`, sin cambios, base/salud verificadas; aplicación `updated/completed`, salud/frontend verificados. Fuente `cdbfec3071bc2046f0398fbdad6b62bdca6de748`, release `pending-customers-cdbfec3071bc`; snapshot `/var/backups/prodimt-pedidos/pending-customers-20261102T154208Z-06bc1e751d24`. Sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos según el reporte. `frontend_verified=false` en lectura era esperado antes de activar; true al aplicar.
+
+Actualizados continuidad, estado, contrato y evidencia I17; instalación confirmada por el reporte, revisión visual/funcional pendiente. No se operó VPS/SQL desde este entorno, se modificaron aplicación/paquete ni se ejecutaron nuevas pruebas de binarios. Cambio documental: no requiere repetir los checks del código ya validado. Siguiente: Ctrl+F5 → Pendientes, variar ancho, revisar tarjetas/acciones y abrir/cancelar captura sin registrar pedidos de prueba reales. No repetir instaladores/importaciones por este resultado.
+
 ## 2026-11-02 — I17: tarjetas responsivas en Clientes pendientes
 
 Usuario autoriza rediseñar Pendientes para aprovechar PC y adaptar columnas/tamaño. Se trabaja desde I15 instalado y se reserva I17 para no colisionar con la propuesta I16 en otra rama. Comparado checkpoint I16 `74b7926ff2aba09e60fca54b800409b83d05241e`: sólo documentación, sin frontend/backend nuevo que incorporar. No se modifica esa rama.

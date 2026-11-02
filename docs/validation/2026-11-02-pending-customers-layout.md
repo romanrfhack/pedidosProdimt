@@ -21,6 +21,17 @@ Fuente local limpia y árbol idéntico al commit remoto antes de compilar/empaqu
 
 Comprobado en JS compilado el mensaje «Haz tu pedido aquí:», ausencia de las dos leyendas retiradas y conservación del catálogo I15; las secuencias hex Unicode del minificador se decodifican para esta comprobación textual. La lógica de la clase de Pendientes permanece idéntica byte por byte. Entrega descargable guardada después de verificarla. Requiere `customer-catalog-afb8f3ad9c33`/backend I12; activa `pending-customers-cdbfec3071bc`.
 
-## Pendiente remoto
+## Instalación confirmada por el usuario
 
-Preflight, instalación y revisión visual por el usuario. No se operó VPS, SQL o datos reales. No presentar las pruebas locales/CI como instalación en producción. Siguiente: lectura `planned/completed`, aplicar, comprobar salud/frontend true y Ctrl+F5 → Pendientes; variar ancho y abrir/cancelar captura sin registrar pedidos de prueba reales. El último despliegue confirmado sigue siendo I15.
+El 2 de noviembre el usuario aporta verificación SHA256 correcta del ZIP y salida de `20261102-pending-customers-install1`:
+
+- Lectura: `planned/completed`, `changes_made=false`, `base_release_verified=true`, `health_verified=true`. `frontend_verified=false` es esperado antes de aplicar.
+- Aplicación: `updated/completed`, `changes_made=true`, `base_release_verified=true`, `health_verified=true`, `frontend_verified=true`.
+- Fuente: `cdbfec3071bc2046f0398fbdad6b62bdca6de748`.
+- Frontend: `/var/www/prodimt-pedidos/frontend/releases/pending-customers-cdbfec3071bc`.
+- Snapshot privado: `/var/backups/prodimt-pedidos/pending-customers-20261102T154208Z-06bc1e751d24`.
+- En ambas fases: `database_migrations_run=false`, `database_queries_run=false`, `backend_changed=false`, `service_restarted=false`, `password_changed=false`, `secret_values_printed=false`.
+
+Confirma el despliegue por evidencia proporcionada y sustituye el pendiente de instalación anterior. No se operó VPS/SQL desde este entorno ni se realizó inspección SSH independiente. Esta sesión sólo actualiza documentación; no cambia aplicación/paquete ni repite pruebas de binarios ya validados.
+
+Queda revisión visual/funcional: Ctrl+F5 → Pendientes, variar ancho, comprobar columnas/textos/acciones y abrir/cancelar captura conservando el borrador sin registrar pedidos de prueba reales. No repetir instalación o importaciones por este resultado.
