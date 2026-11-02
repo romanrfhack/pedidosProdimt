@@ -60,7 +60,8 @@ public sealed class AdminPasswordApiTests
         Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Unauthorized, (await first.GetAsync("/api/admin/users")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await second.GetAsync("/api/admin/users")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await other.GetAsync("/api/admin/users")).StatusCode);
+        // Legacy creation no longer grants administration implicitly. Its session remains valid.
+        Assert.Equal(HttpStatusCode.OK, (await other.GetAsync("/api/admin/security/me")).StatusCode);
         first.DefaultRequestHeaders.Authorization = null;
         Assert.Equal(HttpStatusCode.Unauthorized, (await first.PostAsJsonAsync("/api/auth/admin/login", new { userName = "admin", password = old })).StatusCode);
         first.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await LoginAsync(first, NewPassword));

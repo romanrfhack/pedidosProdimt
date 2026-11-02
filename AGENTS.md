@@ -34,6 +34,8 @@ I15, autorizado el 2 de noviembre, aprovecha el ancho del catálogo de clientes 
 
 I17, autorizado el 2 de noviembre tras instalar I15, aplica ancho completo y rejilla responsiva a Clientes pendientes. La tarjeta en captura ocupa toda la fila conservando la instancia y el borrador al redimensionar; las acciones quedan al pie. Ver `docs/proyecto/INCREMENTO-17.md`. Sólo presentación/frontend sobre I15 confirmado, sin modificar fecha/corte, descansos, captura, guardado o reintentos. Conservar I13/I14/I15 y rechazar un release diferente para no reemplazar trabajo paralelo de I16, que permanece en su rama de diseño.
 
+I18, autorizado el 2 de noviembre, implementa CRUD usuarios/roles/permisos, asignación multirrol y permisos directos aditivos, sin Deny. Amplía expresamente la restricción histórica de administración avanzada. Ver `docs/proyecto/INCREMENTO-18.md`. Resolver autorización efectiva en servidor por petición, proteger Administrador/último administrador/autobloqueo, claves del sistema, concurrencia y auditoría sin secretos. Migración aditiva13→14 conserva acceso de cuentas existentes, contraseñas/tokens/configuración. Paquete nativo sólo sobre backend I12 con frontend I15/I17 identificados; rechazar otros releases, incluido I16 instalado. No afirmar despliegue o aceptación por completar código/pruebas.
+
 ## Que es
 
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.

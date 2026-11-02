@@ -1,5 +1,9 @@
 # PRODIMT — Pedidos y operación
 
+## Administración de seguridad I18
+
+El incremento autorizado I18 añade gestión de usuarios, roles, permisos, asignación multirrol y concesiones directas aditivas. Los permisos efectivos se verifican en servidor por petición; retirar un origen conserva permisos recibidos por otro. Ruta prevista `/admin/seguridad`, con interfaz responsive y control de gestión `security.manage`. Contrato, compatibilidad, actualización nativa y estado de validación: [`docs/proyecto/INCREMENTO-18.md`](docs/proyecto/INCREMENTO-18.md). Implementación local completa; validación SQL/CI y entrega en curso, sin despliegue remoto.
+
 > **Continuidad actual (octubre de 2026):** empezar en [CONTINUAR.md](CONTINUAR.md), consultar [estado](docs/proyecto/ESTADO.md), [plan integral](docs/proyecto/PLAN.md) y [decisiones](docs/proyecto/DECISIONES.md). El contenido de mayo que sigue es antecedente y no describe por sí solo el alcance vigente.
 
 Fecha: 2026-05-27  

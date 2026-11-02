@@ -599,3 +599,18 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Sin SQL (consultas o migraciones), cambio de backend, reinicio o contraseñas por I13. El preflight verifica el release I12 requerido; no se infieren conteos SQL ni resultados funcionales de tokens que no figuran en esta salida.
 - Se actualiza continuidad/estado/evidencia por el reporte, sin operar SSH o reinstalar. No hay código nuevo ni pruebas adicionales necesarias para este registro documental.
 - Pendiente: Ctrl+F5 y aceptación visual real de grupos, búsqueda, modal y adaptación a distintos anchos.
+
+## 2026-11-02 — I18 autorizado: usuarios, roles y permisos
+
+- Usuario solicita diseñar e implementar CRUD usuarios/roles/permisos, multirrol y permisos individuales adicionales; referencia Pineda revisada sólo para patrones reutilizables.
+- Base recuperada: I17 `cdbfec3071bc2046f0398fbdad6b62bdca6de748`; preserva I12–I15/I17. No integra I16 paralelo.
+- Regla aditiva explícita: unión de roles activos y concesiones directas activas; sin Deny. Se prepara resolución vigente por petición, gestión `security.manage`, Administrador protegido, concurrencia, anti-bloqueo y auditoría.
+- Documentado contrato I18 y preparación nativa13→14 con respaldo verificado; sin generación/rotación de claves ni revocación de tokens I12.
+- Implementación y validación en curso. No se operó VPS/SQL remoto ni se acredita despliegue/aceptación.
+
+### Validación local I18 y protección frente a downgrade
+
+-351 Application+5 Domain correctas, backend/publicación/Angular correctos, EF sin cambios de modelo pendientes.12 pruebas E2E nuevas de seguridad+38 regresiones correctas.16 pruebas específicas de paquete/rollback correctas; suite Python completa devolvió0 pero su resumen local se truncó, conteo completo pendiente de CI.
+- Instalador/constructor nuevos fijan fuente/payload/archivos, aceptan sólo backendI12+frontendI15/I17 y requieren respaldo verificado antes de13→14. SQL EF se separa en DDL/seed porGO sin cambiar statements ni cerrar transacción.
+- Revisión identifica downgrade inseguro: I12 da administración total a usuarios internos activos. Rollback inmediato exige detener API antes de consultar y verificar revisión inicial/grafo puro; cambios o incertidumbre bloquean I12 y requieren recuperación manual. Regresiones del orden y de stopfallido correctas.
+- Preparado transporte ODBC real del SQL exacto del constructor con base aleatoria/credenciales sintéticas de CI: rollback por fallo de seed, preservación de cuentas/contraseñas y repetición sin restaurar roles retirados. Ejecución real pendiente de CI. Sin VPS/SQL operativo, publicación o aceptación de negocio.

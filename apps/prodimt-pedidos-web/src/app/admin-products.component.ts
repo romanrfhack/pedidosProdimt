@@ -12,6 +12,7 @@ import { PRODUCT_CATEGORIES, ProductCategory, ProductStateFilter, compareCatalog
 })
 export class AdminProductsComponent {
   @Input({ required: true }) products: AdminProductCatalogApiResponse[] = [];
+  @Input() canManage = true;
   @Input() busyIds: ReadonlySet<string> = new Set();
   @Output() createRequested = new EventEmitter<void>();
   @Output() editRequested = new EventEmitter<AdminProductCatalogApiResponse>();

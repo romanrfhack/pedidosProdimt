@@ -1,7 +1,7 @@
 <div class="catalog-heading">
   <div><p class="catalog-eyebrow">CATÁLOGO DE PRODUCTOS</p><h3>Encuentra el producto que necesitas</h3>
     <p class="catalog-summary">{{ current.length }} productos <span aria-hidden="true">·</span> {{ activeCount }} activos</p></div>
-  <button type="button" class="primary new-product" (click)="createRequested.emit()"><span aria-hidden="true">+</span> Nuevo producto</button>
+  @if (canManage) { <button type="button" class="primary new-product" (click)="createRequested.emit()"><span aria-hidden="true">+</span> Nuevo producto</button> }
 </div>
 <div class="catalog-search">
   <label class="search-field"><span>Buscar producto</span><div class="search-input">
@@ -35,8 +35,8 @@
               <span class="product-state" [class.active]="product.isActive">{{ product.isActive ? 'Activo' : 'Inactivo' }}</span></div>
             <span class="product-unit" [class.unconfirmed]="!product.unitCode">Unidad: {{ unitLabel(product.unitCode) }}</span>
             @if (product.description) { <p class="product-description">{{ product.description }}</p> }
-            <div class="product-actions"><button type="button" class="secondary" [disabled]="busyIds.has(product.id)" (click)="editRequested.emit(product)">Editar</button>
-              <button type="button" class="state-action" [disabled]="busyIds.has(product.id)" (click)="toggleRequested.emit(product)">{{ busyIds.has(product.id) ? 'Actualizando…' : product.isActive ? 'Desactivar' : 'Activar' }}</button></div>
+            @if (canManage) { <div class="product-actions"><button type="button" class="secondary" [disabled]="busyIds.has(product.id)" (click)="editRequested.emit(product)">Editar</button>
+              <button type="button" class="state-action" [disabled]="busyIds.has(product.id)" (click)="toggleRequested.emit(product)">{{ busyIds.has(product.id) ? 'Actualizando…' : product.isActive ? 'Desactivar' : 'Activar' }}</button></div> }
           </article>
         }
       </div>

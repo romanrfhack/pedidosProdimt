@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.Security;
+using Prodimt.Pedidos.Infrastructure.Persistence.Security;
 using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
 using Prodimt.Pedidos.Infrastructure.Repositories;
@@ -25,6 +27,7 @@ public static class DependencyInjection
         if (string.Equals(persistenceProvider, "InMemory", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<InMemoryDataStore>();
+            services.AddSingleton<ISecurityStore, InMemorySecurityStore>();
             services.AddSingleton<ICustomerRepository, InMemoryCustomerRepository>();
             services.AddSingleton<IProductRepository, InMemoryProductRepository>();
             services.AddSingleton<ICommercialCatalogRepository, InMemoryCommercialCatalogRepository>();
@@ -46,6 +49,7 @@ public static class DependencyInjection
             ?? "Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCAL_ONLY;TrustServerCertificate=True";
 
         services.AddDbContext<PedidosDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddScoped<ISecurityStore, EfSecurityStore>();
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<IProductRepository, EfProductRepository>();
         services.AddScoped<ICommercialCatalogRepository, EfCommercialCatalogRepository>();

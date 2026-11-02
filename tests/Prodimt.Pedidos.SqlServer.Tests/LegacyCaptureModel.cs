@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Infrastructure.Persistence;
 
 namespace Prodimt.Pedidos.SqlServer.Tests;
 
@@ -30,6 +31,11 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         access.Ignore(x => x.ProtectedToken);
         access.Ignore(x => x.MetadataVersion);
         access.Ignore(x => x.IsReminderLink);
+        builder.Entity<AdminUser>().Ignore(x => x.IsDeleted);
+        builder.Entity<AdminUser>().Ignore(x => x.SessionRevision);
+        builder.Ignore<SecurityRole>(); builder.Ignore<SecurityPermission>();
+        builder.Ignore<SecurityUserRole>(); builder.Ignore<SecurityRolePermission>();
+        builder.Ignore<SecurityUserPermission>(); builder.Ignore<SecurityState>();
     }
 }
 
@@ -48,4 +54,19 @@ public sealed class LegacyCommercialCatalogRepository : ICommercialCatalogReposi
     public Task<ProductConsolidationOperation?> GetConsolidationAsync(Guid id, CancellationToken token) => Task.FromResult<ProductConsolidationOperation?>(null);
     public Task AddConsolidationAsync(ProductConsolidationOperation operation, CancellationToken token) => throw new NotSupportedException();
     public Task SaveChangesAsync(CancellationToken token) => Task.CompletedTask;
+}
+
+// Test-only authorization adapter for the deliberately pinned eleven-migration
+// repair fixture. Never registered by the product or by current-schema tests.
+public sealed class LegacySecurityStore(PedidosDbContext db) : Prodimt.Pedidos.Application.Security.ISecurityStore
+{
+    public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        if (!await db.AdminUsers.AsNoTracking().AnyAsync(x => x.Id == userId && x.IsActive, cancellationToken)) return [];
+        return Prodimt.Pedidos.Application.Security.SecurityDefaults.Permissions.Select(x => x.Key).ToArray();
+    }
+    public Task<Prodimt.Pedidos.Application.Security.SecurityData> ReadAsync(CancellationToken cancellationToken)
+        => throw new NotSupportedException("Historical repair fixture has no I18 administration.");
+    public Task<T> ExecuteAsync<T>(Guid expectedRevision, Func<Prodimt.Pedidos.Application.Security.SecurityData, T> mutation, CancellationToken cancellationToken)
+        => throw new NotSupportedException("Historical repair fixture has no I18 administration.");
 }

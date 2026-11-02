@@ -1,5 +1,11 @@
 # Continuar PRODIMT
 
+## I18 — Seguridad implementada localmente; SQL/CI y entrega en curso
+
+Autorizado el 2 de noviembre: CRUD usuarios/roles/permisos, multirrol y permisos directos adicionales, sin Deny. Base I17 `cdbfec3071bc2046f0398fbdad6b62bdca6de748`; I16 paralelo no incorporado. Permisos efectivos resueltos por petición en servidor, unión de roles activos y concesiones directas activas. Administrador del sistema protegido; migración de cuentas existentes conserva acceso. Revisión de concurrencia, autobloqueo/último administrador y auditoría sin secretos forman parte del alcance. Ver `docs/proyecto/INCREMENTO-18.md`.
+
+Backend/Angular implementados. Validación local:351 Application+5 Domain,12 nuevas E2E+38 regresiones,16 pruebas específicas del paquete correctas; build/API-publicación/Angular correctos, EF sin cambios de modelo pendientes. SQL Server/CI y paquete final en curso. Ver `docs/validation/2026-11-02-identity-administration.md`. Objetivo de instalación: backend I12 y frontend I15 o I17, respaldo SQL verificado y migración aditiva13→14, claves/configuración conservadas. Rechazar otros releases. No se ha operado VPS, migrado SQL remoto ni declarado CI/aceptación. I15 continúa como última instalación confirmada en la documentación heredada; el paquete I17 recuperado acredita la entrega, no su instalación.
+
 Última sesión: 2 de noviembre de 2026. Zona operativa: `America/Mexico_City`.
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.

@@ -1,5 +1,11 @@
 # Estado del proyecto
 
+## I18 — Seguridad implementada localmente; validación SQL/CI en curso
+
+El usuario autoriza usuarios, roles y permisos con CRUD completo, varios roles y concesiones individuales aditivas. Se desarrolla desde I17 `cdbfec3071bc2046f0398fbdad6b62bdca6de748` preservando la rama paralela I16. Resolución de permisos por solicitud, claves de sistema estables, Administrador protegido, anti-bloqueo, concurrencia y auditoría. Interfaz responsive de ancho aprovechado en PC. Ver `INCREMENTO-18.md`.
+
+Migración prevista13→14 y paquete nativo sobre backend I12 con frontend I15/I17 identificados. Configuración/claves, tokens e historial se conservan. Código local completo:351 Application+5 Domain correctas, build/backend-publicación/Angular correctos, EF sin diferencias de modelo;12 nuevas E2E y38 regresiones de interfaz correctas,16 pruebas específicas del paquete correctas. SQL Server/CI y empaquetado final pendientes; sin despliegue, SQL remoto o aceptación de negocio. Evidencia en `../validation/2026-11-02-identity-administration.md`.
+
 Actualizado: 2 de noviembre de 2026.
 
 ## I17 — Clientes pendientes responsivos; implementación local completa

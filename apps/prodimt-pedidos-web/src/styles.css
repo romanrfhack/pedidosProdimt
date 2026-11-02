@@ -570,3 +570,12 @@ button.compact {
   body:has(.customers-page, .pending-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
   body:has(.customers-page, .pending-page) nav a, body:has(.customers-page, .pending-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
 }
+
+/* Identity administration uses the available desktop width. */
+.app-shell__main:has(.security-page) { width:100%; padding:16px clamp(12px,1.5vw,30px); }
+@media (min-width:1200px) {
+  body:has(.security-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.security-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.security-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+  body:has(.security-page) nav a, body:has(.security-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
+}

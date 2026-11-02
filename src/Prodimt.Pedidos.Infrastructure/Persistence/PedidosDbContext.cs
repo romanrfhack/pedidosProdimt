@@ -35,6 +35,13 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
 
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
 
+    public DbSet<SecurityRole> SecurityRoles => Set<SecurityRole>();
+    public DbSet<SecurityPermission> SecurityPermissions => Set<SecurityPermission>();
+    public DbSet<SecurityUserRole> SecurityUserRoles => Set<SecurityUserRole>();
+    public DbSet<SecurityRolePermission> SecurityRolePermissions => Set<SecurityRolePermission>();
+    public DbSet<SecurityUserPermission> SecurityUserPermissions => Set<SecurityUserPermission>();
+    public DbSet<SecurityState> SecurityStates => Set<SecurityState>();
+
     public DbSet<CustomerAccessToken> CustomerAccessTokens => Set<CustomerAccessToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

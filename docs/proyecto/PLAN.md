@@ -100,3 +100,7 @@ Aprovechar ancho disponible en PC con rejilla de tarjetas cuyo tamaño/número d
 ## I17 — Clientes pendientes responsivos (2 de noviembre)
 
 Autorizado aprovechar PC y adaptar tarjetas como el catálogo I15. Sólo presentación: ancho completo, rejilla automática y captura seleccionada a toda la fila, con borrador/foco conservados al redimensionar. Mantener fecha/corte, descansos y captura/guardado actuales. Entrega nativa sólo frontend sobre I15 confirmado; no incluye la propuesta paralela I16. Aceptación técnica en siete anchos y flujos existentes; después instalación/verificación y revisión visual por el usuario. Ver `INCREMENTO-17.md`.
+
+## I18 — Administración de usuarios, roles y permisos (2 de noviembre)
+
+Preparar gestión de acceso granular antes de incorporar nuevas áreas internas: usuarios multirrol, permisos por rol y concesiones directas aditivas, evaluación vigente por solicitud, auditoría y guardas contra pérdida de administración. La UI debe aprovechar PC y adaptarse a móvil. Entrega nativa con migración aditiva respaldada, conservando I12–I17 y rechazando releases paralelos no integrados. Validación técnica y aceptación/despliegue remotos permanecen hitos separados. Ver `INCREMENTO-18.md`.

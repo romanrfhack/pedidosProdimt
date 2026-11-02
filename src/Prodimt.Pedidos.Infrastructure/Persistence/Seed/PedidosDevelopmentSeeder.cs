@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.Security;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Infrastructure.Authentication;
@@ -249,6 +250,17 @@ public static class PedidosDevelopmentSeeder
         CancellationToken cancellationToken)
     {
         var authSeed = DevelopmentAuthSeedValues.FromConfiguration(configuration);
+        // EnsureCreated SQLite development/tests do not run migration seed batches.
+        // The singleton marks a new security graph: never refill grants on later starts.
+        if (!await dbContext.SecurityStates.AnyAsync(cancellationToken))
+        {
+            dbContext.SecurityStates.Add(new SecurityState { Id = 1, Revision = SecurityDefaults.InitialRevision });
+            dbContext.SecurityRoles.Add(new SecurityRole { Id = SecurityDefaults.AdministratorRoleId,
+                Name = "Administrador", Description = "Administración completa y recuperación", IsActive = true, IsSystem = true });
+            dbContext.SecurityPermissions.AddRange(SecurityDefaults.Permissions);
+            dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions.Select(x =>
+                new SecurityRolePermission { RoleId = SecurityDefaults.AdministratorRoleId, PermissionId = x.Id }));
+        }
 
         if (!await dbContext.AdminUsers.AnyAsync(x => x.Id == DevelopmentSeedIds.AdminUserId, cancellationToken))
         {
@@ -261,6 +273,9 @@ public static class PedidosDevelopmentSeeder
                 IsActive = true,
                 CreatedAt = SeedTimestamp
             });
+            // Only the explicitly created development administrator receives initial privileges.
+            dbContext.SecurityUserRoles.Add(new SecurityUserRole
+            { UserId = DevelopmentSeedIds.AdminUserId, RoleId = SecurityDefaults.AdministratorRoleId });
         }
 
         if (!await dbContext.CustomerAccessTokens.AnyAsync(x => x.Id == DevelopmentSeedIds.GranTakitoAccessTokenId, cancellationToken))

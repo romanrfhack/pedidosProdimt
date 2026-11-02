@@ -1,3 +1,4 @@
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AdminCustomerDialogComponent } from './admin-customer-dialog.component';
@@ -44,6 +45,10 @@ interface MachineForm {
 })
 export class AdminCatalogsComponent {
   private readonly api = inject(AdminCatalogApiService);
+  protected readonly grants = inject(EffectivePermissionsService);
+  protected get canReadCustomers() { return this.grants.any(['customers.read', 'customers.manage', 'tokens.manage', 'pricing.manage']); }
+  protected get canReadProducts() { return this.grants.any(['products.read', 'products.manage', 'customers.manage', 'pricing.manage']); }
+  protected get canReadMachines() { return this.grants.any(['machines.read', 'machines.manage', 'customers.manage']); }
   private readonly commercial = inject(CommercialCatalogApiService);
   protected prices = new Map<string, CustomerProductPrice>();
   protected pricesLoaded = false;
@@ -105,6 +110,7 @@ export class AdminCatalogsComponent {
   protected readonly paymentTermLabel = paymentTermLabel;
 
   constructor() {
+    if (!this.canReadCustomers) this.activeTab = this.canReadProducts ? 'products' : 'machines';
     this.loadCatalogs();
     this.refreshDayStatus();
     const refresh = () => {
@@ -158,7 +164,7 @@ export class AdminCatalogsComponent {
   }
 
   protected refreshDayStatus(): void {
-    if (this.isDayLoading) return;
+    if (this.isDayLoading || !this.canReadCustomers) return;
     this.isDayLoading = true;
     this.api.getCustomerDayStatus().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: response => {
@@ -332,7 +338,7 @@ export class AdminCatalogsComponent {
     this.reloadPrices();
     this.setWorkingWeek(customer.restDays ?? []);
     this.profileApproval.setValue(false);
-    this.access.reset();
+    this.access.reset(this.grants.has('tokens.manage'));
     this.resultMessage = null;
     this.errorMessage = null;
     this.isConfigLoading = true;
@@ -344,8 +350,8 @@ export class AdminCatalogsComponent {
     this.profileError = null;
 
     forkJoin({
-      profile: this.api.getOrderingProfile(customer.id),
-      assignments: this.api.getMachineAssignments(customer.id)
+      profile: this.grants.any(['customers.manage','pricing.manage']) ? this.api.getOrderingProfile(customer.id) : of({ orderingProfileVersion: customer.orderingProfileVersion ?? 0, isOrderProfileApproved: customer.isOrderProfileApproved ?? false, items: [] }),
+      assignments: this.grants.has('customers.manage') ? this.api.getMachineAssignments(customer.id) : of([])
     }).subscribe({
       next: ({ profile, assignments }) => {
         if (sequence !== this.profileReadSequence || this.selectedCustomer?.id !== customer.id) return;
@@ -382,7 +388,7 @@ export class AdminCatalogsComponent {
 
   protected reloadPrices(): void {
     const customerId = this.selectedCustomer?.id;
-    if (!customerId) return;
+    if (!customerId || !this.grants.has('pricing.manage')) return;
     const sequence = ++this.priceReadSequence;
     this.pricesLoaded = false; this.priceError = null;
     this.commercial.getPrices(customerId).subscribe({
@@ -803,9 +809,9 @@ export class AdminCatalogsComponent {
     }
 
     forkJoin({
-      customers: this.api.getCustomers(),
-      products: this.api.getProducts(),
-      machines: this.api.getMachines()
+      customers: this.canReadCustomers ? this.api.getCustomers() : of([]),
+      products: this.canReadProducts ? this.api.getProducts() : of([]),
+      machines: this.canReadMachines ? this.api.getMachines() : of([])
     }).subscribe({
       next: ({ customers, products, machines }) => {
         this.customers = customers;

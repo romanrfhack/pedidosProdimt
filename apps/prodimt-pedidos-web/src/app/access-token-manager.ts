@@ -65,12 +65,12 @@ export class AccessTokenManager {
       this.draftExpiry(), this.link || '{enlace de acceso}');
   }
 
-  reset(): void {
+  reset(load = true): void {
     this.popup?.close(); this.popup = null;
     this.epoch++; this.action++; this.read++; this.rows = []; this.serverNow = null; this.deliveryDate = null;
     this.saving = this.sharing = this.revoking = this.loading = false;
     this.newDraft();
-    void this.refresh();
+    if (load) void this.refresh();
   }
 
   newDraft(): void {
