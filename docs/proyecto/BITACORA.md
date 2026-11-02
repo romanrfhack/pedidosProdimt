@@ -2,6 +2,12 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I15: instalación confirmada por el usuario
+
+Recibidos SHA256 del ZIP correcto y JSON de lectura/aplicación de `20261102-customer-catalog-install1`. Preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, release `customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporta sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos.
+
+Actualizados continuidad, estado, contrato y evidencia; instalación confirmada por el reporte, aceptación visual pendiente. Sin SSH/SQL real desde este entorno, cambios de aplicación/paquete o nuevas pruebas de binarios; sólo documentación. Siguiente: Ctrl+F5 y revisar columnas, tarjetas/textos, búsqueda/filtros y modales al cambiar ancho de ventana. No repetir instalación/importaciones por este resultado.
+
 ## 2026-11-02 — I15: catálogo de clientes responsivo
 
 El usuario solicita aprovechar ancho de PC y adaptar columnas/tamaño de tarjetas. Se implementa rejilla CSS automática, ancho completo con márgenes, controles compactos en PC y apilados en móvil, datos completos y acciones al pie. Se añaden contador/limpieza de filtros locales; se conservan estados/orden I06 y modales, así como perfil enfocado, Productos I13 y mensaje I14. Sólo frontend, sin contratos/datos nuevos.

@@ -2,7 +2,15 @@
 
 Actualizado: 2 de noviembre de 2026.
 
-## I15 — Catálogo de clientes responsivo validado y empaquetado; instalación pendiente
+## I15 — Instalación confirmada; aceptación visual pendiente
+
+El usuario reporta el 2 de noviembre ZIP con SHA256 correcto y salida de `20261102-customer-catalog-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true`, `health_verified=true`. El catálogo responsivo queda instalado por esa evidencia; aceptación visual/funcional pendiente. No hubo inspección SSH independiente desde este entorno.
+
+Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, frontend `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporte sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos. La lectura con `frontend_verified=false` era esperada antes de activar; la aplicación terminó con esa comprobación true.
+
+Próximo: Ctrl+F5 → Catálogos → Clientes, revisar ventana maximizada/reducida, tarjetas/columnas/textos y búsqueda/filtros/modales, conservando configuración/productos/accesos. No repetir instaladores/importaciones. Sólo documentación en esta sesión, sin operar VPS/SQL, cambiar código/paquete o ejecutar nuevas pruebas de binarios.
+
+## I15 — Validación y paquete (antecedente)
 
 Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.
 

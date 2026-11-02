@@ -4,7 +4,15 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
-## I15 — Catálogo de clientes responsivo validado y empaquetado; instalación pendiente
+## I15 — Instalación confirmada; aceptación visual pendiente
+
+El 2 de noviembre el usuario comparte SHA256 correcto del ZIP, preflight `planned/completed` sin cambios y aplicación `updated/completed` de `20261102-customer-catalog-install1`. Base y salud verificadas en lectura; `frontend_verified=true` y `health_verified=true` en la aplicación. Confirma por reporte del usuario el despliegue de I15 y sustituye el pendiente de instalación anterior. No es inspección SSH independiente ni aceptación visual del catálogo.
+
+Fuente desplegada `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`; frontend `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`. Snapshot privado `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. El instalador reporta sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos. El `frontend_verified=false` de lectura era esperado; terminó true al aplicar.
+
+Siguiente: Ctrl+F5 → Catálogos → Clientes. Maximizar y reducir la ventana para revisar columnas, tamaño/textos de tarjetas y ausencia de desplazamiento horizontal; comprobar búsqueda/filtros y alta/edición con cancelación. La aceptación visual del usuario sigue pendiente. No repetir instalación o importaciones por este resultado. En esta sesión sólo se registra la evidencia en documentación; sin operar VPS/SQL o modificar aplicación/paquete.
+
+## I15 — Validación y paquete (antecedente)
 
 El usuario solicita aprovechar el ancho en PC y adaptar número/tamaño de tarjetas. Implementado catálogo con ancho completo/márgenes, rejilla CSS automática de mínimo 280px, controles compactos en PC/apilados en móvil, datos legibles/acciones al pie y contador/limpieza de filtros. Conserva estados, orden, búsqueda, modales, configuración enfocada, Productos I13 y mensaje I14. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`. Sólo frontend sobre I14 confirmado; sin backend, SQL directo, migraciones o reinicio. Ver `docs/proyecto/INCREMENTO-15.md` y evidencia `docs/validation/2026-11-02-customer-catalog-layout.md`.
 

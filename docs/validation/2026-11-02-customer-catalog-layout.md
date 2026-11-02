@@ -29,3 +29,16 @@ Once archivos activos frontend/licencias. Se preparó staging con la clausura de
 Frontend requerido `reminder-message-768230826a3e`, backend conservado `access-tokens-65560ca3cf98`. Nuevo frontend `customer-catalog-{source12}`. Preflight de lectura debe dar `planned/completed`; después aplicar y comprobar `updated/completed`, salud/frontend true, sin reinicio o SQL directo. Tras éxito: Ctrl+F5 → Catálogos → Clientes, probar anchos/búsqueda/filtros/modales y revisar configuración, Productos y Tokens I14.
 
 Release esperado `customer-catalog-afb8f3ad9c33`. No se operó VPS/SQL, se instaló I15 o se confirmó aceptación funcional remota desde este entorno. La instalación I14 reportada por el usuario sigue siendo la base vigente hasta recibir la aplicación I15 correcta.
+
+## Instalación confirmada — 2 de noviembre de 2026
+
+El usuario proporciona SHA256 del ZIP correcto y JSON de `20261102-customer-catalog-install1`:
+
+- Lectura: `planned/completed`, `changes_made=false`, `base_release_verified=true`, `health_verified=true`; `frontend_verified=false` corresponde a esa fase anterior a activar.
+- Aplicación: `updated/completed`, `changes_made=true`, `base_release_verified=true`, `frontend_verified=true` y `health_verified=true`.
+- `database_migrations_run`, `database_queries_run`, `backend_changed`, `service_restarted`, `password_changed` y `secret_values_printed` en false.
+- `source_commit`: `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`.
+- `new_frontend`: `/var/www/prodimt-pedidos/frontend/releases/customer-catalog-afb8f3ad9c33`.
+- `private_snapshot`: `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`.
+
+I15 queda instalado por evidencia suministrada y sustituye el estado de instalación prevista y frontend activo I14 anteriores. No es inspección SSH independiente o aceptación visual de la rejilla con datos reales. Próximo: Ctrl+F5 → Catálogos → Clientes, revisar columnas/tamaño/textos al maximizar/reducir ventana, búsqueda/filtros y modales; confirmar que configuración, Productos y acceso I14 se conservan. No repetir instaladores o importaciones. Sólo se actualizó documentación en esta sesión, sin operar VPS/SQL, cambiar el paquete o repetir pruebas de binarios.
