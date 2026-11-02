@@ -2,6 +2,22 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I14: instalación confirmada por el usuario
+
+El usuario comparte SHA256 del ZIP correcto, carga de instalador/payload y JSON de lectura/aplicación. Revisión `20261101-reminder-message-install1`: preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `768230826a3eff9d02cea0620acd814cb0047359`, frontend `reminder-message-768230826a3e`; snapshot `/var/backups/prodimt-pedidos/reminder-message-20261102T142214Z-0a20c3900c52`. Reporta sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos.
+
+Se actualizan CONTINUAR, ESTADO, contrato y evidencia I14; la instalación deja de estar pendiente. No se accedió por SSH al VPS, se ejecutaron comprobaciones contra la base real, se modificó aplicación/paquete o se enviaron mensajes desde este entorno. Cambio documental; no requiere repetir pruebas de binarios ya validados. Próximo: Ctrl+F5, revisar mensaje simplificado con un acceso vigente y confirmar aceptación funcional; no repetir instalaciones/importaciones ni generar otro token por este resultado.
+
+## 2026-11-01 — I14: plantilla simplificada del mensaje de acceso
+
+El usuario autoriza la propuesta: retirar entrega prevista/leyenda de corte y conservar envío normal con «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Cambio en la plantilla común de AccessTokenManager para vista previa/copia/copia manual/WhatsApp. No se modifica token, descripción persistida, reglas de entrega o backend. Se conserva I13 como base y se prepara actualización sólo frontend con preflight, snapshot, activación/verificación, rollback e idempotencia.
+
+`npm ci` sin cambios de lockfiles, `npm run build` correcto y 15 pruebas Python del paquete I14 correctas. E2E actualizados para enlazar el mensaje con el mismo acceso y comprobar copia/WhatsApp, sin crear otro token; corrida pendiente en este checkpoint. Chromium del lockfile no pudo descargarse localmente (archivo inválido); no se sustituyen dependencias. graphify no instalado y sin grafo previo. CI, publicación y ZIP final pendientes. No se accedió al VPS/SQL real ni se enviaron mensajes. Evidencia en `../validation/2026-11-01-reminder-message.md`.
+
+Cierre: código y fuente del paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6), rama `codex/i14-reminder-message-template`. [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) completo con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Las 320 Python también pasan localmente. La prueba de plantilla comprueba igualdad de vista previa/copia/WhatsApp/fallback, mismo enlace/vencimiento y cero creación/edición de tokens.
+
+ZIP final `PRODIMT_Plantilla_Mensaje_I14.zip` verificado y guardado, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Payload `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`, once archivos frontend/licencias; CRC/hashes/manifiesto, imports y carga del instalador exportado correctos. Sólo compilación/validación local y CI con datos ficticios. No se operó el VPS o la BD real ni se enviaron mensajes. Pendiente aplicación del paquete sobre I13 y aceptación por el usuario; no repetir instaladores o importaciones anteriores.
+
 ## 2026-10-24 — Análisis y arranque de I01
 
 ### Entrada y decisiones

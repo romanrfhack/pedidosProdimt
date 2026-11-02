@@ -158,9 +158,50 @@ test('Guardar y abrir WhatsApp reserva ventana, guarda y usa el mismo token con 
   await expect.poll(() => page.evaluate(() => (window as any).__accessPopup.location.href)).toContain('https://wa.me/525512345678?text=');
   const url = new URL(await page.evaluate(() => (window as any).__accessPopup.location.href));
   expect(url.searchParams.get('text')).toContain('Mensaje editado antes de compartir');
-  expect(url.searchParams.get('text')).toContain('lunes, 2 de noviembre de 2026');
+  expect(url.searchParams.get('text')).toContain('Haz tu pedido aquí:\n');
+  expect(url.searchParams.get('text')).toContain('Enlace disponible hasta el 1 de enero de 2030');
+  expect(url.searchParams.get('text')).not.toContain('Entrega prevista si lo confirmas ahora:');
+  expect(url.searchParams.get('text')).not.toContain('Los pedidos confirmados desde las 6:00 p. m.');
   expect(url.searchParams.get('text')).toContain(`/cliente#token=${plainToken}`);
   expect(state.updates).toHaveLength(1); expect(state.reveals).toHaveLength(1); expect(state.creates).toBe(0);
+});
+
+test('vista previa, copia, WhatsApp y copia manual comparten plantilla sin cambiar el acceso', async ({ page }) => {
+  const state = await managerFixture(page); const dialog = await openManager(page);
+  await dialog.getByRole('button', { name: 'Editar', exact: true }).click();
+  const preview = dialog.getByLabel('Vista previa del recordatorio');
+  await expect(preview).toHaveValue(/Haz tu pedido aquí:\n\{enlace de acceso\}/);
+  await dialog.getByRole('button', { name: 'Copiar enlace', exact: true }).click();
+  await expect(dialog.getByLabel('Enlace de acceso', { exact: true })).toHaveValue(new RegExp(`#token=${plainToken}$`));
+  await dialog.getByRole('button', { name: 'Copiar mensaje', exact: true }).click();
+  await expect(dialog.getByText('Mensaje copiado.', { exact: true })).toBeVisible();
+  const copied = await page.evaluate(() => (window as any).__copiedAccess.at(-1)) as string;
+  expect(copied).toContain('Hola, Gran Takito. Acceso protegido vigente');
+  const link = `${new URL(page.url()).origin}/cliente#token=${plainToken}`;
+  expect(copied).toContain(`\n\nHaz tu pedido aquí:\n${link}\n\nEnlace disponible hasta el `);
+  expect(copied).toContain('1 de enero de 2030');
+  expect(copied).toMatch(/hora de Ciudad de México\.$/);
+  expect(copied).not.toContain('Entrega prevista si lo confirmas ahora:');
+  expect(copied).not.toContain('Los pedidos confirmados desde las 6:00 p. m.');
+  await expect(preview).toHaveValue(copied);
+  state.deliveryDate = '2026-11-02'; state.serverNow = '2026-11-01T19:00:00-06:00';
+  await page.evaluate(() => {
+    const popup = { opener: null, location: { href: '' }, close() {} };
+    (window as any).__accessPopup = popup; window.open = (() => popup) as any;
+  });
+  await dialog.getByRole('button', { name: 'Abrir WhatsApp', exact: true }).first().click();
+  await expect.poll(() => page.evaluate(() => (window as any).__accessPopup.location.href)).toContain('https://wa.me/525512345678?text=');
+  const url = new URL(await page.evaluate(() => (window as any).__accessPopup.location.href));
+  expect(url.searchParams.get('text')).toBe(copied);
+  expect(new URL(link).search).toBe('');
+  expect(new URL(link).hash).toBe(`#token=${plainToken}`);
+  await expect(preview).toHaveValue(copied);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('Denied'); } } });
+  });
+  await dialog.getByRole('button', { name: 'Copiar mensaje', exact: true }).click();
+  await expect(dialog.getByLabel('Contenido para copiar manualmente')).toHaveValue(copied);
+  expect(state.creates).toBe(0); expect(state.updates).toHaveLength(0);
 });
 
 test('fallo de clipboard ofrece selección manual y un reveal revocado nunca prepara WhatsApp', async ({ page }) => {

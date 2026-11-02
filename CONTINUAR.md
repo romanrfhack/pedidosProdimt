@@ -1,8 +1,24 @@
 # Continuar PRODIMT
 
-Última sesión: 1 de noviembre de 2026. Zona operativa: `America/Mexico_City`.
+Última sesión: 2 de noviembre de 2026. Zona operativa: `America/Mexico_City`.
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
+
+## I14 — Instalación confirmada; revisión funcional pendiente
+
+El 2 de noviembre el usuario comparte verificación SHA256 del ZIP, preflight y aplicación de `20261101-reminder-message-install1`. Lectura `planned/completed`, `changes_made=false`, `base_release_verified=true`, `health_verified=true`; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. Confirma la instalación de I14 por reporte del usuario y sustituye el pendiente de instalación de la entrega anterior. No es una inspección SSH independiente ni aceptación visual del mensaje.
+
+Fuente desplegada `768230826a3eff9d02cea0620acd814cb0047359`, frontend `/var/www/prodimt-pedidos/frontend/releases/reminder-message-768230826a3e`. Snapshot privado reportado `/var/backups/prodimt-pedidos/reminder-message-20261102T142214Z-0a20c3900c52`. El instalador reporta sin migraciones/consultas SQL directas, cambios de backend, reinicio, cambio de contraseña o valores secretos impresos. El `frontend_verified=false` de la lectura es esperado antes de activar; terminó true en la aplicación.
+
+Siguiente: Ctrl+F5 → Configuración de cliente → Tokens de acceso. Revisar un acceso vigente: saludo/descripción, «Haz tu pedido aquí:», URL y vencimiento; las dos leyendas retiradas deben estar ausentes de vista previa/copia/WhatsApp. Conservar el mismo enlace y comprobar fecha dentro del portal. No repetir instalación, importaciones o generación de tokens por este resultado. La revisión funcional/aceptación del usuario sigue pendiente; en esta sesión sólo se actualiza documentación, sin operar VPS/SQL, enviar mensajes o modificar el paquete.
+
+## I14 — Validación y paquete (antecedente)
+
+El usuario aprueba retirar del mensaje la entrega prevista y la explicación del corte, y usar «Haz tu pedido aquí:» con URL completa al conservar el envío normal por WhatsApp. Implementado en la plantilla común de vista previa/copia/copia manual/WhatsApp; conserva saludo, descripción, token y vencimiento CDMX. No cambia cálculo o confirmación de entrega dentro del portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`; fuente de aplicación y paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6). [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) con cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Build Angular local correcto; no cambiaron dependencias. Ver `docs/proyecto/INCREMENTO-14.md` y `docs/validation/2026-11-01-reminder-message.md`.
+
+Entrega sólo frontend sobre I13 `product-catalog-2345c7f4c27f`, conserva backend I12 `access-tokens-65560ca3cf98`. Sin migraciones, claves, contraseñas, revocaciones ni reinicio. No se ha instalado I14 ni operado el VPS desde este entorno. No repetir I12/I13 ni importaciones para este cambio.
+
+Entrega verificada y guardada: `PRODIMT_Plantilla_Mensaje_I14.zip`, 198059 bytes, SHA256 `c8b51437fa71e0fe61164cafabee7902e46a8aa69d4b630c5a55e67db957e39b`. Payload `34c1b9d6cc6c6df93e3af8759fbbb30480a76960dc132f292dae9789296537db`, once archivos frontend/licencias y carga del instalador exportado correctos. Siguiente: preflight `planned/completed`, aplicar y comprobar `updated/completed`, `frontend_verified` y `health_verified` true. Ctrl+F5 y revisar Tokens de acceso/mensaje simplificado, mismo enlace, vencimiento y fecha del portal; conservar I13. Instalación y aceptación remotas pendientes.
 
 ## I13 — Instalación confirmada; aceptación visual pendiente
 

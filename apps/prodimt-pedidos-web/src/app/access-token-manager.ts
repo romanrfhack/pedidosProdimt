@@ -287,7 +287,7 @@ export class AccessTokenManager {
   }
   private linkFor(plainToken: string): string { return `${this.document.location.origin}/cliente#token=${encodeURIComponent(plainToken)}`; }
   private messageFor(description: string, expiresAt: string | null, link: string): string {
-    return `Hola, ${this.customer()?.name ?? 'cliente'}. ${description}\n\nEntrega prevista si lo confirmas ahora: ${this.deliveryDate ? formatReminderDate(this.deliveryDate) : 'se calculará al guardar el enlace'}.\n\n${link}\n\nLos pedidos confirmados desde las 6:00 p. m. se entregan al día siguiente. Revisa la fecha antes de confirmar.\n\n${expiresAt ? `Enlace disponible hasta el ${formatReminderExpiration(expiresAt)}, hora de Ciudad de México.` : 'Configura la fecha y hora de vencimiento.'}`;
+    return `Hola, ${this.customer()?.name ?? 'cliente'}. ${description}\n\nHaz tu pedido aquí:\n${link}\n\n${expiresAt ? `Enlace disponible hasta el ${formatReminderExpiration(expiresAt)}, hora de Ciudad de México.` : 'Configura la fecha y hora de vencimiento.'}`;
   }
   private whatsAppUrl(phone: string, token: RevealedCustomerAccessTokenApiResponse): string {
     return `https://wa.me/${phone.slice(1)}?text=${encodeURIComponent(this.messageFor(token.description, token.expiresAt, this.linkFor(token.plainToken)))}`;
