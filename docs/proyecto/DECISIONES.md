@@ -50,6 +50,8 @@ Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen la
 
 | NOV-002 | 2026-11-01 | I14 simplifica sólo el mensaje de acceso: retirar leyendas de entrega/corte; saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. El usuario acepta conservar el envío normal por WhatsApp, sin hipervínculo con texto oculto/API nueva. Mantener fecha/validación en el portal, mismo token y capacidades I13; actualización sólo frontend, sin migraciones o revocaciones. |
 
+| NOV-003 | 2026-11-02 | I15: catálogo de clientes con ancho completo/márgenes, tarjetas en rejilla automática según espacio y controles responsivos. Conservar estados/orden, búsqueda/filtros, modales, configuración enfocada y contratos; sólo frontend sobre I14 instalado, sin migraciones o cambios de datos. |
+
 ## Pendientes de negocio
 
 1. La ruta ya fue confirmada en el XLSX privado; falta confirmar orden de visita. No equiparar códigos históricos automáticamente.

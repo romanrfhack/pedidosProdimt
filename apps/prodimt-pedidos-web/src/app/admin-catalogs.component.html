@@ -1,4 +1,4 @@
-    <section class="page stack" [class.config-page]="configurationOnly" [class.products-page]="!configurationOnly && activeTab === 'products'" data-testid="admin-catalogs">
+    <section class="page stack" [class.config-page]="configurationOnly" [class.customers-page]="!configurationOnly && activeTab === 'customers'" [class.products-page]="!configurationOnly && activeTab === 'products'" data-testid="admin-catalogs">
       <div class="page-title configuration-title">
         <div>
         <p class="eyebrow">Admin</p>
@@ -31,12 +31,19 @@
         @if (activeTab === 'customers') {
           <section class="stack" data-testid="catalog-customers">
             @if (!configurationOnly) {
+              <div class="customer-catalog-heading">
+                <div><h3>Clientes</h3><p>Consulta su estado de hoy y abre su configuración.</p></div>
+                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
+              </div>
               <div class="customer-toolbar">
                 <label class="customer-search">
                   <span>Buscar cliente</span>
-                  <input name="customerSearch" type="search" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono o ruta" autocomplete="off">
+                  <span class="customer-search-input">
+                    <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /></svg>
+                    <input name="customerSearch" type="search" aria-label="Buscar cliente" [(ngModel)]="customerSearch" placeholder="Nombre, teléfono, ruta o código" autocomplete="off">
+                    @if (customerSearch) { <button type="button" class="clear-customer-search" aria-label="Limpiar búsqueda de clientes" (click)="customerSearch = ''">×</button> }
+                  </span>
                 </label>
-                <button type="button" class="primary compact new-customer" (click)="newCustomer()"><span aria-hidden="true">+</span> Nuevo cliente</button>
               </div>
               <div class="customer-day-heading">
                 <span>{{ dailyDate ? (dayStatusError ? 'Última consulta · ' : 'Hoy · ') + dailyDate.split('-').reverse().join('/') : 'Estado de hoy' }} · {{ customers.length }} clientes</span>
@@ -47,6 +54,10 @@
                 <button type="button" [attr.aria-pressed]="customerDayFilter === 'AwaitingOrder'" (click)="customerDayFilter = 'AwaitingOrder'">Por confirmar <strong>{{ countDayState('AwaitingOrder') }}</strong></button>
                 <button type="button" [attr.aria-pressed]="customerDayFilter === 'HasOrder'" (click)="customerDayFilter = 'HasOrder'">Con pedido <strong>{{ countDayState('HasOrder') }}</strong></button>
                 <button type="button" [attr.aria-pressed]="customerDayFilter === 'off'" (click)="customerDayFilter = 'off'">Sin pedido hoy <strong>{{ countDayState('NoOrderConfirmed') + countDayState('ScheduledRest') }}</strong></button>
+              </div>
+              <div class="customer-result-line">
+                <p aria-live="polite" aria-atomic="true">Mostrando {{ visibleCustomers.length }} de {{ customers.length }} clientes</p>
+                @if (customerSearch || customerDayFilter !== 'all') { <button type="button" class="customer-clear-filters" (click)="customerSearch = ''; customerDayFilter = 'all'">Limpiar filtros de clientes</button> }
               </div>
             }
             @if (dayStatusError) {

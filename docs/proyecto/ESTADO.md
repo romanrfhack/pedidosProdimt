@@ -2,6 +2,12 @@
 
 Actualizado: 2 de noviembre de 2026.
 
+## I15 — Catálogo de clientes responsivo, validación en curso
+
+Autorizado el rediseño para aprovechar ancho de PC y adaptar columnas/tarjetas. Implementado sólo en catálogo: ancho completo con márgenes, rejilla automática de mínimo 280px, cabecera compacta y controles responsivos, acciones al pie, textos completos y limpieza/contador de filtros. Estados/orden I06, modales y contratos conservados; perfil enfocado, productos/precios y mensaje I14 siguen vigentes. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`.
+
+Build y quince pruebas del paquete correctos, con revisión visual y pruebas locales de distribución/funcionalidad; cierre E2E/CI y ZIP pendientes en este checkpoint. Actualizador sólo frontend sobre I14 confirmado, sin SQL directo, migraciones, claves o reinicios. No se instaló I15 ni se operó VPS/SQL; siguiente paso: terminar validación/paquete y entregar al usuario. Ver `INCREMENTO-15.md` y evidencia I15.
+
 ## I14 — Instalación confirmada; revisión funcional pendiente
 
 El usuario reporta el 2 de noviembre SHA256 del ZIP correcto y ambas fases de `20261101-reminder-message-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. I14 queda instalado por evidencia proporcionada; no se realizó inspección SSH desde este entorno ni se recibió todavía aceptación visual del mensaje.

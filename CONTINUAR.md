@@ -4,6 +4,12 @@
 
 Este archivo es el punto de entrada para retomar el proyecto en otro chat o equipo. El repositorio conserva código, decisiones y verificaciones; los datos reales del piloto se mantienen privados.
 
+## I15 — Catálogo de clientes responsivo, validación en curso
+
+El usuario solicita aprovechar el ancho en PC y adaptar número/tamaño de tarjetas. Implementado catálogo con ancho completo/márgenes, rejilla CSS automática de mínimo 280px, controles compactos en PC/apilados en móvil, datos legibles/acciones al pie y contador/limpieza de filtros. Conserva estados, orden, búsqueda, modales, configuración enfocada, Productos I13 y mensaje I14. Rama `codex/i15-responsive-customers` desde `59a03197fdff7b9425afc9b2f31b53e82bdd8dc3`. Sólo frontend sobre I14 confirmado; sin backend, SQL directo, migraciones o reinicio. Ver `docs/proyecto/INCREMENTO-15.md` y evidencia `docs/validation/2026-11-02-customer-catalog-layout.md`.
+
+Build y quince pruebas del actualizador correctos; revisión visual y pruebas locales de rejilla/estados/modales ejecutadas. Última regresión, CI y paquete final pendientes en este checkpoint. No se operó el VPS/SQL ni se instaló I15; la aceptación del mensaje I14 sigue pendiente por separado.
+
 ## I14 — Instalación confirmada; revisión funcional pendiente
 
 El 2 de noviembre el usuario comparte verificación SHA256 del ZIP, preflight y aplicación de `20261101-reminder-message-install1`. Lectura `planned/completed`, `changes_made=false`, `base_release_verified=true`, `health_verified=true`; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. Confirma la instalación de I14 por reporte del usuario y sustituye el pendiente de instalación de la entrega anterior. No es una inspección SSH independiente ni aceptación visual del mensaje.

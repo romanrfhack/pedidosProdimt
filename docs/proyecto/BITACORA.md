@@ -2,6 +2,12 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I15: catálogo de clientes responsivo
+
+El usuario solicita aprovechar ancho de PC y adaptar columnas/tamaño de tarjetas. Se implementa rejilla CSS automática, ancho completo con márgenes, controles compactos en PC y apilados en móvil, datos completos y acciones al pie. Se añaden contador/limpieza de filtros locales; se conservan estados/orden I06 y modales, así como perfil enfocado, Productos I13 y mensaje I14. Sólo frontend, sin contratos/datos nuevos.
+
+Build correcto y quince pruebas del instalador/paquete I15 correctas; pruebas locales de anchos, estados/modales y capturas ficticias. Revisión visual detecta y corrige alineación y superposición por especificidad de CSS encapsulado; las pruebas incluyen geometría de la cabecera y espacio útil. Cierre E2E/CI y ZIP final pendientes en este checkpoint. Actualizador de frontend sobre I14 confirmado, con pines, preflight, snapshot, activación/verificación, rollback e idempotencia. No se operó el VPS/SQL o se instaló I15. Evidencia: `../validation/2026-11-02-customer-catalog-layout.md`.
+
 ## 2026-11-02 — I14: instalación confirmada por el usuario
 
 El usuario comparte SHA256 del ZIP correcto, carga de instalador/payload y JSON de lectura/aplicación. Revisión `20261101-reminder-message-install1`: preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `768230826a3eff9d02cea0620acd814cb0047359`, frontend `reminder-message-768230826a3e`; snapshot `/var/backups/prodimt-pedidos/reminder-message-20261102T142214Z-0a20c3900c52`. Reporta sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos.

@@ -559,6 +559,14 @@ button.compact {
 .config-access > span { color:#627787; font-size:.8rem; font-weight:400; }
 
 /* Product catalog: use the available width while preserving page margins. */
-.app-shell__main:has(.products-page) { width:min(100%,1920px); padding:16px clamp(12px,1.5vw,30px); }
-.products-page { min-width:0; padding:clamp(14px,1.6vw,26px); }
-.products-page > .tab-bar { max-width:640px; }
+.app-shell__main:has(.products-page, .customers-page) { width:min(100%,1920px); padding:16px clamp(12px,1.5vw,30px); }
+.app-shell__main:has(.customers-page) { width:100%; }
+.products-page, .customers-page { min-width:0; padding:clamp(14px,1.6vw,26px); }
+.products-page > .tab-bar, .customers-page > .tab-bar { max-width:640px; }
+
+@media (min-width:1200px) {
+  body:has(.customers-page) .app-shell__header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px clamp(16px,1.6vw,32px); }
+  body:has(.customers-page) .app-shell__header h1 { font-size:1.2rem; }
+  body:has(.customers-page) nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; }
+  body:has(.customers-page) nav a, body:has(.customers-page) nav button { min-height:34px; padding:6px 9px; font-size:.75rem; }
+}
