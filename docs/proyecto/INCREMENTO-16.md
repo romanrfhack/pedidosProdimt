@@ -1,17 +1,17 @@
 # I16 — Pedir otro producto y completar su configuración
 
 Fecha: 2 de noviembre de 2026, America/Mexico_City.
-Estado: implementación autorizada el 2 de noviembre; el pedido se registra y continúa con precio pendiente. Validación y paquete en curso, sin instalación I16 en VPS.
+Estado: implementado, validado y empaquetado. Fuente `b68982a14d1b2be4789de0e410993b1d9985f98d`; instalación/aceptación I16 pendientes en VPS. El pedido se registra y continúa con precio pendiente.
 
 ## Solicitud y alcance
 
 En Captura manual del cliente y en captura administrativa, permitir seleccionar un producto del catálogo compartido que aún no está configurado para ese cliente y registrar su cantidad. Crear una bandeja para Administración General, que complete precio y los demás datos habituales de la relación cliente-producto. El cliente no necesita conocer máquina, precio interno, posición de interpretación o abreviatura. No crear productos globales desde la captura.
 
-Se propone el botón «Pedir otro producto» y modal «Agregar producto al pedido»: buscador/selector, nombre, unidad informativa del catálogo y cantidad. Por ejemplo, un producto en paquetes solicita cantidad de paquetes; no convertir a kilos. Sólo catálogo activo, sin equivalencias archivadas y con unidad confirmada. El cliente no elige otra unidad ni ve descripciones internas, precios ajenos, asignaciones o datos de otros clientes. Una restricción/inactivación explícita de la relación cliente-producto debe respetarse; no habilitarla por el simple hecho de aparecer en el catálogo global.
+Se implementa el botón «Pedir otro producto» y modal «Agregar producto al pedido»: buscador/selector, nombre, unidad informativa del catálogo y cantidad. Por ejemplo, un producto en paquetes solicita cantidad de paquetes; no convertir a kilos. Sólo catálogo activo, sin equivalencias archivadas y con unidad confirmada. El cliente no elige otra unidad ni ve descripciones internas, precios ajenos, asignaciones o datos de otros clientes. Una restricción/inactivación explícita de la relación cliente-producto debe respetarse; no habilitarla por el simple hecho de aparecer en el catálogo global.
 
 Agregar al modal modifica sólo el borrador. No crear pendientes, relaciones permanentes ni pedidos hasta Confirmar pedido/Guardar pedido. Evitar repetir un producto en el borrador; editar su cantidad en la misma línea. Cancelar no persiste nada. Borradores con producto extra no pueden volver a captura rápida perdiendo esa línea en silencio; conservarla o exigir una resolución explícita antes de cambiar modo.
 
-## Guardado propuesto
+## Guardado transaccional
 
 El servidor obtiene nombre/unidad/estado desde catálogo y determina si falta la configuración; no confía en esos atributos enviados por el cliente. Conserva pertenencia al CustomerId autenticado, versión del perfil, validación de fecha de entrega/corte, unidades vigentes, cantidades y control de pedido existente. Si hay un pedido de esa entrega, conservar el flujo actual de corrección, sin crear otro automáticamente.
 
@@ -21,11 +21,11 @@ No agregar posiciones ni aprobar perfiles de captura rápida automáticamente. R
 
 ## Bandeja administrativa
 
-Nombre propuesto: «Productos por configurar», con contador visible. Mostrar cliente, producto, unidad/cantidad solicitada, fecha de entrega, pedido(s), origen cliente/administración, fecha/autor del registro, datos faltantes y estado. Distinguir esta bandeja de pedidos tardíos/adicionales, clientes sin pedido y avisos de edición de demanda.
+Nombre: «Productos por configurar», con contador visible. Mostrar cliente, producto, unidad/cantidad solicitada, fecha de entrega, pedido(s), origen cliente/administración, fecha/autor del registro, datos faltantes y estado. Distinguir esta bandeja de pedidos tardíos/adicionales, clientes sin pedido y avisos de edición de demanda.
 
 Abrir la configuración existente del cliente, enfocada al producto solicitado, con acceso a precio e historial, cantidad sugerida, orden visual, posición del mensaje, abreviatura, estado activo y preferencia de máquina si corresponde. Validar versiones para no sobrescribir cambios concurrentes ni aprobar el perfil por completar sólo el precio. Registrar quién revisó/resolvió, cuándo y qué cambió; completar el pendiente sólo después de comprobar en servidor los datos requeridos.
 
-La audiencia funcional pedida es Administrador General. Hoy la aplicación sólo distingue AdminAccess y CustomerAccess; no existe un rol granular de Administrador General. La implementación debe definir su política compatible con la cuenta administradora del piloto, sin dar al cliente acceso al catálogo administrativo, precios o bandeja. No implementar toda la matriz futura de roles por este cambio.
+La audiencia funcional pedida es Administrador General. Hoy la aplicación sólo distingue AdminAccess y CustomerAccess; no existe un rol granular de Administrador General. La cuenta administradora del piloto atiende esta bandeja con AdminAccess; el cliente conserva CustomerAccess y carece de acceso al catálogo administrativo, precios o bandeja. No implementar toda la matriz futura de roles por este cambio.
 
 ## Precio y trazabilidad
 
@@ -46,7 +46,7 @@ I11 fija precio en cada partida al confirmar. Crear/cambiar después la tarifa d
 
 El usuario aprueba registrar y continuar el pedido, con seguimiento comercial hasta completar el precio. La solicitud adicional no añade por sí misma una revisión/bloqueo operativo; se mantienen las reglas existentes de tardíos, segundo pedido y corte de fecha. Una máquina faltante no bloquea este registro ni se inventa por herencia. La planificación de producción sigue diferida.
 
-## Revisión técnica realizada
+## Revisión técnica inicial (antecedente)
 
 Base de diseño: rama codex/i15-responsive-customers, checkpoint afb8f3ad9c33a8960d3874c14d462bb8dd0c646d. I15 estaba en validación; antes de implementar integrar su cierre para conservar I14/mensaje e I15/rejilla de clientes. No afirmar I15 instalado por su existencia en código.
 
@@ -59,7 +59,7 @@ Base de diseño: rama codex/i15-responsive-customers, checkpoint afb8f3ad9c33a89
 
 No se consultó la BD ni el VPS. Captura aportada se revisó en privado y no se incorpora al repositorio.
 
-## Fases y validación previstas
+## Fases de implementación y validación (antecedente)
 
 1. Decisión anterior confirmada; concretar contratos/migración aditivos de pendiente/referencias/resolución, preservando operaciones existentes.
 2. Implementar catálogo público mínimo, modal reutilizable y guardado transaccional en ambas capturas, con bandeja administrativa y edición enfocada.
@@ -69,8 +69,15 @@ No se consultó la BD ni el VPS. Captura aportada se revisó en privado y no se 
 La nota de producción permanece diferida. Se implementa sólo el control de herencia de máquina necesario para no inventar una asignación al agregar un producto. I16 cambia aplicación y añade esquema, pero no se declara entregado o desplegado hasta finalizar las verificaciones y empaquetado.
 
 
-## Checkpoint de implementación
+## Implementación final
 
 Dos tablas nuevas: CustomerProductSetupRequests (único cliente-producto, versión y resolución) y CustomerProductSetupOrders (referencias únicas a pedidos, origen, actor y fecha). Referenciar pedido/producto conserva el seguimiento aunque una corrección sustituya identificadores de partidas. El flag UseCustomerDefaultMachine mantiene true para relaciones anteriores y permite explícitamente «Sin máquina / por asignar»; una petición omitida de clientes anteriores conserva el valor persistido. Consolidación mantiene ese flag y exige resolver pendientes antes de archivar identidades.
 
 Captura y pendiente comparten la transacción del recibo durable. Resolución requiere perfil activo guardado, tarifas por fecha/unidad y vista previa vigente; rellena sólo snapshots null, conserva cero/precios fijados, incrementa versión del pedido y escribe auditoría sin avisos de cambio de demanda. Tarifa y perfil continúan editándose con sus controles existentes. La cuenta administradora del piloto desempeña Administración General mediante AdminAccess; no se concede acceso al cliente ni se implementa una matriz completa de roles.
+
+
+## Entrega y verificación
+
+Fuente `b68982a14d1b2be4789de0e410993b1d9985f98d`, [PR #9](https://github.com/romanrfhack/pedidosProdimt/pull/9) y [CI 41480769432](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41480769432) completos: cuatro trabajos correctos (350 Domain/Application,72 SQL/criptografía,156 E2E,349 Python y smoke Production). Validación del paquete/SQL nativo, pruebas y pasos: [evidencia I16](../validation/2026-11-02-additional-customer-products.md).
+
+Paquete `PRODIMT_Productos_Adicionales_I16.zip`, SHA256 `342e617624a9a1bfb8f130a7c96fe3efad5edc62bec7b9dad9e22aa858184812`. Instalador requiere frontend I15/backend I12 confirmado, conserva entorno/clave/accesos y datos; respalda/verifica antes de migrar13→14. Los defaults/checks se verifican estrictamente bajo el administrador SQL; la lectura limitada comprueba estructura sin requerir VIEW DEFINITION. No se instaló I16 o consultó la BD real desde este entorno.
