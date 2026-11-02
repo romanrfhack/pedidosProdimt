@@ -109,7 +109,11 @@ INSERT INTO dbo.CustomerAccessTokens(Id,CustomerId,TokenHash,DisplayName,IsActiv
         require(len(query(inventory.SQL_MIGRATIONS))==13 and query(installer.SETUP_SCHEMA)==dict.fromkeys(installer.EXPECTED_SETUP_SCHEMA,0),
             'grant_failure_left_partial_schema_or_history')
         require(query(runtime.COUNTS_QUERY)==counts and query(installer.DATA_FINGERPRINT)==fingerprint,'grant_failure_changed_existing_data')
-        execute('CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n'+commercial.PRICE_GRANTS)
+        # The deployed application already reads frequent products. Reproduce
+        # that pre-existing permission so sys.columns exposes its new flag to
+        # the same limited principal; I16 must not grant unrelated base rights.
+        execute('CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n'
+            'GRANT SELECT ON dbo.CustomerFrequentProducts TO [prodimt_pedidos_app];\n'+commercial.PRICE_GRANTS)
         price_permissions=as_app(commercial.PRICE_PERMISSIONS)
         execute(sql)
         require(len(query(inventory.SQL_MIGRATIONS))==14,'migration_history_not_fourteen')

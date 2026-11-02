@@ -42,7 +42,10 @@ public sealed class CustomerProductSetupSqlTests(SqlServerFixture database)
         var preview = (await admin.GetFromJsonAsync<ProductSetupResolutionPreview>(SetupUrl(request.Id) + "/resolution-preview"))!;
         var body = new CompleteProductSetupRequest(Guid.NewGuid(), preview.Version, preview.Fingerprint, "Auditoría ficticia");
         await using var db = database.CreateDbContext();
-        await db.Database.ExecuteSqlRawAsync("ALTER TABLE dbo.AuditLogs ADD CONSTRAINT CK_I16_TestAudit CHECK (EventType<>N'CustomerProductSetupCompleted');");
+        // Other tests share this disposable database and may already have a
+        // completed setup. Reject only this test's generated request identity.
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE dbo.AuditLogs ADD CONSTRAINT CK_I16_TestAudit CHECK " +
+            "(EventType<>N'CustomerProductSetupCompleted' OR EntityId<>N'" + request.Id.ToString() + "');");
         try
         {
             HttpResponseMessage? failure = null; Exception? exception = null;
