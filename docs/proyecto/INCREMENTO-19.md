@@ -40,4 +40,4 @@ Persistencia aditiva: indicadores explícitos de necesidad de máquina, lotes y 
 
 Builds .NET/Angular, modelo EF alineado, regresiones de I16/I18, pruebas SQL Server de atomicidad/concurrencia/saldos/compatibilidad, autorización y navegador en móvil/tablet/PC. Verificar paquete y SQL exacto antes de entregarlo. Instalación real y aceptación operativa se registran por separado; completar código o pruebas aisladas no acredita despliegue.
 
-Estado: implementación y validación local completas; paquete fijado en preparación. Evidencia: `../validation/2026-11-02-production-allocation.md`. Sin operaciones en el VPS ni datos reales.
+Estado: implementación y validación local completas; paquete generado y verificado. Aplicación `d3a11420b2025fa0a19f84e1796d5a8b252259a3`, ZIP `PRODIMT_Produccion_I19.zip` (7,510,549 bytes). Evidencia y hashes: `../validation/2026-11-02-production-allocation.md`. Publicación de la rama/PR bloqueada por revisión automática, pendiente de autorización explícita. Sin operaciones en el VPS ni datos reales.

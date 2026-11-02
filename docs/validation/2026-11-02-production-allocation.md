@@ -28,6 +28,10 @@ La prueba corrigió la diferencia canónica ASCII/Unicode del CHECK de unidad si
 
 El instalador fija commit/payload/hashes, verifica respaldo SQL antes de DDL y conserva configuración, claves, contraseñas y tokens. Recuperación con marcador privado avanza exclusivamente hacia I19 después de cambios de esquema; no restaura SQL ni vuelve a binarios que perderían restricciones de seguridad o integridad de producción. La lectura es el comportamiento predeterminado; aplicar requiere `--apply` y las credenciales SQL existentes en entrada oculta.
 
+Paquete generado y verificado: `PRODIMT_Produccion_I19.zip`, 7,510,549 bytes, SHA256 `c9a862885c79910ce13d62c160eb9bc8a9db862c9c395b4a2a8b70016c744faa`. Aplicación/payload fijados a `d3a11420b2025fa0a19f84e1796d5a8b252259a3`; SHA256 payload `c523381d6953afd68764f31d24c9f7170cd2c495b8c96382cd28723814baa3e5`. Noventa archivos, veintisiete frontend/licencias, una sola entrada main y su grafo activo; sin residuos de builds anteriores, PDB, mapas ni configuración privada. AssemblyInformationalVersion contiene el commit correcto. CRC exterior/interior, hashes individuales, `SHA256SUMS.txt`, `load_payload` y creación del instalador exportado comprobados sin ejecutar preflight ni cambios remotos.
+
+La revisión automática rechazó `git push` de la rama porque considera que falta autorización explícita para publicar código en GitHub. No se intenta eludir el rechazo con otro transporte o API. No se creó PR ni se ejecutó CI remoto; se conservan el commit local y una entrega de cambios con bundle incremental, parche y descripción de PR para revisión. La publicación queda pendiente de autorización del usuario.
+
 Graphify no está instalado; `graphify update .` no pudo ejecutarse. No se afirma actualización del grafo.
 
 ## Despliegue

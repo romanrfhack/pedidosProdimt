@@ -6,6 +6,8 @@ Implementación completa en `codex/i19-production-allocation`: panel amplio/resp
 
 Unión de I16 y I18 con migraciones históricas intactas más `20261103010000_AddProductionAllocation` (16 migraciones en total). No encadenar paquetes I16/I18. Validación local completa: Release 401/401, Python 394/394, tres rutas ODBC con 228 llamadas, SQL/navegador completos más regresiones finales focalizadas. Evidencia y límites en `../validation/2026-11-02-production-allocation.md`; paquete fijado en preparación y sin despliegue remoto. I17 continúa como último despliegue confirmado. Ver `INCREMENTO-19.md` para cantidades, alcance, seguridad y criterios.
 
+Entrega generada/verificada: `PRODIMT_Produccion_I19.zip`, 7,510,549 bytes, SHA256 `c9a862885c79910ce13d62c160eb9bc8a9db862c9c395b4a2a8b70016c744faa`; fuente de aplicación `d3a11420b2025fa0a19f84e1796d5a8b252259a3`. Publicación de rama/PR y CI remoto pendientes: revisión automática rechazó el push por falta de autorización explícita. Commit y fuentes incrementales conservados; sin cambios en el VPS/BD real.
+
 ## I18 — Usuarios, roles y permisos validados; instalación pendiente
 
 CRUD completo, varios roles por usuario y permisos directos adicionales. Los permisos efectivos son la unión de los roles activos y los directos activos, resueltos en cada petición. Interfaz `/admin/seguridad` con procedencia, búsqueda y editor responsivo; ver `INCREMENTO-18.md`. Fuente de aplicación/paquete `c49df453de9d07f5be301fb109dbb813309326d9`, [PR #10](https://github.com/romanrfhack/pedidosProdimt/pull/10) en borrador sobre I17.
