@@ -2,6 +2,12 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I14: instalación confirmada por el usuario
+
+El usuario comparte SHA256 del ZIP correcto, carga de instalador/payload y JSON de lectura/aplicación. Revisión `20261101-reminder-message-install1`: preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `768230826a3eff9d02cea0620acd814cb0047359`, frontend `reminder-message-768230826a3e`; snapshot `/var/backups/prodimt-pedidos/reminder-message-20261102T142214Z-0a20c3900c52`. Reporta sin migraciones/consultas SQL directas, cambio de backend, reinicio, cambio de contraseña o secretos impresos.
+
+Se actualizan CONTINUAR, ESTADO, contrato y evidencia I14; la instalación deja de estar pendiente. No se accedió por SSH al VPS, se ejecutaron comprobaciones contra la base real, se modificó aplicación/paquete o se enviaron mensajes desde este entorno. Cambio documental; no requiere repetir pruebas de binarios ya validados. Próximo: Ctrl+F5, revisar mensaje simplificado con un acceso vigente y confirmar aceptación funcional; no repetir instalaciones/importaciones ni generar otro token por este resultado.
+
 ## 2026-11-01 — I14: plantilla simplificada del mensaje de acceso
 
 El usuario autoriza la propuesta: retirar entrega prevista/leyenda de corte y conservar envío normal con «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Cambio en la plantilla común de AccessTokenManager para vista previa/copia/copia manual/WhatsApp. No se modifica token, descripción persistida, reglas de entrega o backend. Se conserva I13 como base y se prepara actualización sólo frontend con preflight, snapshot, activación/verificación, rollback e idempotencia.

@@ -1,8 +1,16 @@
 # Estado del proyecto
 
-Actualizado: 1 de noviembre de 2026.
+Actualizado: 2 de noviembre de 2026.
 
-## I14 — Plantilla simplificada validada y empaquetada; instalación pendiente
+## I14 — Instalación confirmada; revisión funcional pendiente
+
+El usuario reporta el 2 de noviembre SHA256 del ZIP correcto y ambas fases de `20261101-reminder-message-install1`: lectura `planned/completed`, sin cambios y base/salud verificadas; aplicación `updated/completed`, `frontend_verified=true` y `health_verified=true`. I14 queda instalado por evidencia proporcionada; no se realizó inspección SSH desde este entorno ni se recibió todavía aceptación visual del mensaje.
+
+Fuente desplegada `768230826a3eff9d02cea0620acd814cb0047359`; frontend `/var/www/prodimt-pedidos/frontend/releases/reminder-message-768230826a3e`. Snapshot privado `/var/backups/prodimt-pedidos/reminder-message-20261102T142214Z-0a20c3900c52`. El reporte conserva backend y muestra migraciones/consultas SQL directas, reinicio, cambio de contraseña y secretos impresos en false. La lectura con `frontend_verified=false` era esperada; la aplicación verificó el frontend servido.
+
+Próximo: Ctrl+F5 y revisar la plantilla en Tokens de acceso con un enlace vigente, vencimiento y fecha en el portal. Confirmar «Haz tu pedido aquí:» y ausencia de las dos leyendas de entrega/corte en el mensaje. No repetir instaladores/importaciones ni regenerar accesos por esta instalación. Sólo documentación en esta sesión; código, paquete y servidor intactos desde este entorno. Ver `INCREMENTO-14.md` y evidencia I14.
+
+## I14 — Validación y paquete (antecedente)
 
 El usuario aprueba simplificar el mensaje de acceso: saludo/descripción, «Haz tu pedido aquí:», URL completa y vencimiento CDMX. Implementado en una plantilla común para vista previa, copia, copia manual y WhatsApp; retiradas sólo del mensaje las dos leyendas de entrega/corte. La fecha y sus validaciones siguen en el portal. Rama `codex/i14-reminder-message-template` desde I13 `7c950822795d9a367043958618f4ed2d53668e2b`; aplicación/paquete `768230826a3eff9d02cea0620acd814cb0047359`, [PR #6](https://github.com/romanrfhack/pedidosProdimt/pull/6). [CI 41383717018](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41383717018) completo, cuatro trabajos correctos: 335 Domain/Application, 66 SQL/criptografía, 134 E2E y 320 Python más smoke Production. Build Angular y dependencias de lockfiles correctos, sin cambios de dependencias.
 
