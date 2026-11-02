@@ -178,7 +178,6 @@ class IdentityPackageTests(unittest.TestCase):
         backup_directory.lstat.return_value = SimpleNamespace(st_mode=stat.S_IFDIR | 0o700, st_uid=999, st_gid=988)
         backup_directory.resolve.return_value = backup_directory
         instance.runtime.SQL_BACKUPS = backup_directory
-        instance.runtime.shutil.disk_usage = Mock(return_value=SimpleNamespace(free=1024 * 1024 * 1024))
         admin = dict(database_name='ProdimtPedidos', view_definition=1, sysadmin=1, files_mib=1)
         instance.sql_json = Mock(side_effect=[admin] + self.admin_schema_answers(instance,
             dict(columns_count=3, protected_column=1, version_column=0, reminder_column=1)))
@@ -188,6 +187,7 @@ class IdentityPackageTests(unittest.TestCase):
         instance.runtime.command = Mock(side_effect=AssertionError('must not stop or restart'))
         output = io.StringIO()
         with (redirect_stdout(output),
+              patch.object(instance.runtime.shutil, 'disk_usage', return_value=SimpleNamespace(free=1024 * 1024 * 1024)),
               patch.object(Path, 'mkdir', side_effect=AssertionError('must not write snapshots')),
               self.assertRaises(installer.InstallError)):
             instance.apply()
