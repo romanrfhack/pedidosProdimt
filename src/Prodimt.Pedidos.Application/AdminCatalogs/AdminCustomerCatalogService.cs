@@ -187,7 +187,7 @@ public sealed class AdminCustomerCatalogService(
         return new(snapshot.CustomerId, snapshot.OrderingProfileVersion, snapshot.IsOrderProfileApproved,
             snapshot.Items.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId, item.ProductName,
                 item.DefaultQuantity, item.SortOrder, item.IsActive, item.PreferredMachineId,
-                item.InterpretationPosition, item.UnitCode, item.ProductIsActive, item.CaptureAlias)).ToArray());
+                item.InterpretationPosition, item.UnitCode, item.ProductIsActive, item.CaptureAlias, item.UseCustomerDefaultMachine)).ToArray());
     }
 
     public Task<IReadOnlyList<AdminCustomerFrequentProductResponse>> ReplaceFrequentProductsAsync(
@@ -256,7 +256,8 @@ public sealed class AdminCustomerCatalogService(
             IsActive = item.IsActive,
             PreferredMachineId = item.PreferredMachineId,
             InterpretationPosition = item.InterpretationPosition,
-            CaptureAlias = aliases[item.ProductId]
+            CaptureAlias = aliases[item.ProductId],
+            UseCustomerDefaultMachine = item.UseCustomerDefaultMachine ?? previous.GetValueOrDefault(item.ProductId)?.UseCustomerDefaultMachine ?? true
         }).OrderBy(x => x.SortOrder).ToArray();
 
         var now = dateTimeProvider.Now;
@@ -275,6 +276,7 @@ public sealed class AdminCustomerCatalogService(
                 activeCount = replacement.Count(x => x.IsActive),
                 productIds = replacement.Select(x => x.ProductId).ToArray(),
                 captureAliases = replacement.Select(x => new { x.ProductId, x.CaptureAlias }).ToArray(),
+                machineInheritance = replacement.Select(x => new { x.ProductId, x.UseCustomerDefaultMachine }).ToArray(),
                 customer.OrderingProfileVersion,
                 customer.IsOrderProfileApproved
             }), cancellationToken);
@@ -283,7 +285,7 @@ public sealed class AdminCustomerCatalogService(
         return replacement.Select(item => new AdminCustomerFrequentProductResponse(item.ProductId,
             productLookup[item.ProductId].Name, item.DefaultQuantity, item.SortOrder, item.IsActive,
             item.PreferredMachineId, item.InterpretationPosition, productLookup[item.ProductId].UnitCode,
-            productLookup[item.ProductId].IsActive, item.CaptureAlias)).ToArray();
+            productLookup[item.ProductId].IsActive, item.CaptureAlias, item.UseCustomerDefaultMachine)).ToArray();
     }
 
     public async Task<IReadOnlyList<AdminCustomerMachineAssignmentResponse>> GetMachineAssignmentsAsync(

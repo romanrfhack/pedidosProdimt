@@ -30,7 +30,22 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         access.Ignore(x => x.ProtectedToken);
         access.Ignore(x => x.MetadataVersion);
         access.Ignore(x => x.IsReminderLink);
+        builder.Entity<CustomerFrequentProduct>().Ignore(x => x.UseCustomerDefaultMachine);
+        builder.Ignore<CustomerProductSetupRequest>(); builder.Ignore<CustomerProductSetupOrder>();
     }
+}
+
+// Historical repair fixtures have no I16 tables. New-product writes stay disabled
+// instead of weakening their eleven-migration guard or shipping this adapter.
+public sealed class LegacyCustomerProductSetupRepository : ICustomerProductSetupRepository
+{
+    public Task<int> CountOpenAsync(CancellationToken token) => Task.FromResult(0);
+    public Task<IReadOnlyList<CustomerProductSetupRequest>> GetOpenAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<CustomerProductSetupRequest>>([]);
+    public Task<CustomerProductSetupRequest?> GetAsync(Guid id, CancellationToken token) => Task.FromResult<CustomerProductSetupRequest?>(null);
+    public Task<CustomerProductSetupRequest?> GetByPairAsync(Guid customerId, Guid productId, CancellationToken token) => Task.FromResult<CustomerProductSetupRequest?>(null);
+    public Task<IReadOnlyList<Order>> GetOrdersAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken token) => Task.FromResult<IReadOnlyList<Order>>([]);
+    public Task AddAsync(CustomerProductSetupRequest request, CancellationToken token) => throw new NotSupportedException();
+    public Task SaveChangesAsync(CancellationToken token) => Task.CompletedTask;
 }
 
 // The historical portal/capture has no pricing dependency. Never published with the API.

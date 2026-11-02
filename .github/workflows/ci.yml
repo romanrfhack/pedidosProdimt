@@ -111,6 +111,13 @@ jobs:
           set -euo pipefail
           dotnet tool run dotnet-ef migrations script 0 20261101154618_AddSharedProductsAndCustomerPrices --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i11-baseline.sql"
           python3 tests/pilot/verify_access_token_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-i11-baseline.sql"
+      - name: Verify I16 native migration and atomic minimal grants with ODBC sqlcmd
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet tool run dotnet-ef migrations script 0 20261101190000_AddRecoverableCustomerAccessTokens --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i12-baseline.sql"
+          dotnet tool run dotnet-ef migrations script 20261101190000_AddRecoverableCustomerAccessTokens 20261102152307_AddCustomerProductSetup --idempotent --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --configuration Release --no-build --output "$RUNNER_TEMP/native-cli-i16.sql"
+          python3 tests/pilot/verify_customer_products_sqlcmd_migration.py --baseline "$RUNNER_TEMP/native-cli-i12-baseline.sql" --migration "$RUNNER_TEMP/native-cli-i16.sql"
       - name: Remove disposable SQL Server
         if: always()
         run: docker rm --force prodimt-i02-sqlserver || true

@@ -314,6 +314,13 @@ function resetState() {
   catalogProducts = clone(catalogProductsBase);
   catalogMachines = clone(catalogMachinesBase);
   frequentProductsByCustomer = clone(frequentProductsBase);
+  for (const items of Object.values(frequentProductsByCustomer)) {
+    for (const item of items) {
+      item.interpretationPosition ??= null;
+      item.captureAlias ??= null;
+      item.useCustomerDefaultMachine ??= true;
+    }
+  }
   machineAssignmentsByCustomer = clone(machineAssignmentsBase);
   accessTokensByCustomer = clone(accessTokensBase);
   accessTokenSecrets = new Map();
@@ -1068,7 +1075,8 @@ const server = http.createServer(async (request, response) => {
           defaultQuantity: item.defaultQuantity ?? null,
           sortOrder: item.sortOrder,
           isActive: item.isActive,
-          preferredMachineId: item.preferredMachineId ?? null, interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null, captureAlias: item.captureAlias?.trim().toUpperCase() || null
+          preferredMachineId: item.preferredMachineId ?? null, useCustomerDefaultMachine: item.useCustomerDefaultMachine ?? true,
+          interpretationPosition: item.interpretationPosition ?? null, unitCode: product?.unitCode ?? null, captureAlias: item.captureAlias?.trim().toUpperCase() || null
         };
       });
     }
@@ -1155,6 +1163,15 @@ const server = http.createServer(async (request, response) => {
     if (!requireAdminAccess(request, response)) return;
     sendJson(response, 200, []);
     return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups/count') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, { pendingCount: 0 }); return;
+  }
+  if (request.method === 'GET' && url.pathname === '/api/admin/product-setups') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, []); return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/admin/products') {

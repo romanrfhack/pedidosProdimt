@@ -22,7 +22,7 @@ public sealed record SubmitOrderCaptureRequest(Guid OperationId, int ExpectedPro
 public sealed record SubmitOrderCaptureResponse(AdminOrderSummaryResponse Order, bool Replayed);
 
 public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrderRepository orders,
-    IOrderAuditLogRepository audit, IOrderOperationStore operations, IDateTimeProvider clock, AdminOrderService orderService)
+    IOrderAuditLogRepository audit, IOrderOperationStore operations, IDateTimeProvider clock, AdminOrderService orderService, CustomerProductSetupService? additional = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -83,6 +83,8 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                         throw new CatalogConflictException("La captura o la configuración cambió desde la vista previa. Revisa de nuevo el desglose.");
                     resolved = preview.Lines;
                 }
+                else if (additional is not null)
+                    resolved = await additional.ResolveManualAsync(profile, request.Lines!, inner);
                 else
                 {
                     var lines = request.Lines!;
@@ -107,7 +109,8 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                     resolved.Select(x => new AdminSubmitCustomerOrderLineRequest(x.ProductId, x.Quantity,
                         quick ? null : request.Lines!.Single(line => line.ProductId == x.ProductId).Notes)).ToArray(),
                     null, null, null, request.DeliveryNotes, request.InternalNotes, date), actor, inner,
-                    receivedClock: request.AutoDeliveryDate ? received : null);
+                    receivedClock: request.AutoDeliveryDate ? received : null,
+                    unconfiguredProductIds: resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet());
                 var order = await orders.GetByIdAsync(result.OrderId, inner)
                     ?? throw new InvalidOperationException("No se pudo verificar el pedido guardado.");
                 await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.AdminOrderCaptureResolved,
@@ -118,7 +121,9 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                         request.OperationId, serviceDate = date, profile.OrderingProfileVersion,
                         fingerprint = quick ? request.PreviewFingerprint : null, lines = resolved
                     }, JsonOptions)), inner);
-                // The operation receipt, order, both audit records and profile read share one transaction.
+                if (additional is not null) await additional.RecordAsync(order, profile, AuditActorType.Admin,
+                    actor?.ActorId, actor?.ActorDisplayName, inner);
+                // The receipt, order, follow-up and audit share one transaction.
                 return result;
             }, token), cancellationToken);
         return new(receipt.Result, receipt.Replayed);
@@ -138,7 +143,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
         var lines = OrderCaptureParser.Parse(text, profile);
         var dto = new AdminCustomerOrderingProfileResponse(profile.CustomerId, profile.OrderingProfileVersion, profile.IsOrderProfileApproved,
             profile.Items.Select(x => new AdminCustomerFrequentProductResponse(x.ProductId, x.ProductName, x.DefaultQuantity,
-                x.SortOrder, x.IsActive, x.PreferredMachineId, x.InterpretationPosition, x.UnitCode, x.ProductIsActive, x.CaptureAlias)).ToArray());
+                x.SortOrder, x.IsActive, x.PreferredMachineId, x.InterpretationPosition, x.UnitCode, x.ProductIsActive, x.CaptureAlias, x.UseCustomerDefaultMachine)).ToArray());
         var fingerprint = Hash(new { date, text = text.Trim(), profile = dto,
             customer.PreferredDeliveryTime, customer.PreferredDeliveryWindowStart, customer.PreferredDeliveryWindowEnd, customer.DeliveryNotes });
         return new(customer.Id, date, text.Trim(), fingerprint, dto, lines,

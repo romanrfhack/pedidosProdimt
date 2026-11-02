@@ -1,0 +1,35 @@
+<section class="setup-review stack" data-testid="product-setup-review" aria-labelledby="setup-review-title">
+  <div class="review-heading"><div><p>ADMINISTRACIÓN GENERAL</p><h3 id="setup-review-title">Revisar configuración del producto</h3></div>
+    <button type="button" class="secondary" [disabled]="locked || loading" (click)="load()">Actualizar revisión</button></div>
+  @if (loading) { <p class="notice" role="status">Consultando perfil, tarifas y pedidos…</p> }
+  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
+  @if (message) { <p class="alert success" role="status">{{ message }}</p> }
+  @if (setup; as item) {
+    <div class="setup-identity"><strong>{{ item.customerName }}</strong><span>{{ item.productName }} · {{ unitLabel(item.unitCode) }}</span></div>
+    @if (!item.isResolved && !message) {
+      <p class="review-help">El pedido continúa. Completa el producto en el perfil del cliente y su tarifa por fecha de entrega; después revisa los precios iniciales que se aplicarán.</p>
+      @if (allowAdd && !item.isConfigured) {
+        <button type="button" class="secondary" [disabled]="locked || addDisabled" (click)="addRequested.emit(item)">Agregar a productos del cliente</button>
+        <small>Después guarda el perfil y define el precio en «Precio e historial». La máquina y las posiciones de captura no se asignan automáticamente.</small>
+      }
+      @if (!allowAdd) { <a [routerLink]="['/admin/clientes', item.customerId, 'configuracion']" [queryParams]="{ setupRequestId: item.id }">Abrir configuración completa del cliente</a> }
+      @if (preview; as value) {
+        @if (value.blockers.length) { <div class="alert warning"><strong>Falta completar</strong><ul>@for (blocker of value.blockers; track $index) { <li>{{ blocker }}</li> }</ul></div> }
+        <div class="price-preview" aria-label="Vista previa de precios pendientes">
+          @for (line of value.lines; track line.orderId) {
+            <article><div><strong>{{ date(line.serviceDate) }}</strong><span>{{ line.quantity ?? '—' }} {{ unitLabel(line.unitCode) }}</span></div>
+              @if (!line.isActive) { <span>Sin partida activa; no se modifica.</span> }
+              @else if (line.currentPrice !== null) { <span>Conserva {{ price(line.currentPrice) }} por {{ unitLabel(line.unitCode) }}</span> }
+              @else if (line.applyPrice) { <span class="proposed-price">Precio inicial: {{ price(line.proposedPrice) }} por {{ unitLabel(line.unitCode) }}</span> }
+              @else { <span class="missing-price">Precio pendiente</span> }
+            </article>
+          }
+        </div>
+        <label><span>Motivo de la revisión</span><textarea name="setupReason" maxlength="300" rows="2" [(ngModel)]="reason" [disabled]="locked" placeholder="Configuración y tarifa revisadas"></textarea></label>
+        <label class="review-confirm"><input type="checkbox" name="setupConfirmed" [(ngModel)]="confirmed" [disabled]="locked || !value.canComplete"><span>He revisado las tarifas y los pedidos incluidos.</span></label>
+        <button type="button" class="primary complete-setup" [disabled]="locked || !value.canComplete || !confirmed || !reason.trim()" (click)="complete()">{{ saving ? 'Completando…' : 'Completar configuración' }}</button>
+      }
+    } @else if (!message) { <p class="notice" role="status">Esta configuración ya fue completada.</p> }
+  }
+  @if (uncertain) { <div class="alert warning"><p>La referencia del intento se conserva. Recupera el resultado antes de iniciar otra confirmación.</p><button type="button" class="primary" [disabled]="saving" (click)="retry()">{{ saving ? 'Verificando…' : 'Reintentar confirmación' }}</button></div> }
+</section>

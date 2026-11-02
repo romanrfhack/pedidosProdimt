@@ -14,6 +14,8 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public DbSet<ProductConsolidationOperation> ProductConsolidationOperations => Set<ProductConsolidationOperation>();
 
     public DbSet<CustomerFrequentProduct> CustomerFrequentProducts => Set<CustomerFrequentProduct>();
+    public DbSet<CustomerProductSetupRequest> CustomerProductSetupRequests => Set<CustomerProductSetupRequest>();
+    public DbSet<CustomerProductSetupOrder> CustomerProductSetupOrders => Set<CustomerProductSetupOrder>();
 
     public DbSet<Machine> Machines => Set<Machine>();
 

@@ -9,6 +9,8 @@ import { ProductConsolidationComponent } from './product-consolidation.component
 import { AdminProductsComponent } from './admin-products.component';
 import { AdminProductDialogComponent } from './admin-product-dialog.component';
 import { ProductEditorValue } from './product-editor.model';
+import { ProductSetup } from './product-setup-api.service';
+import { ProductSetupReviewComponent } from './product-setup-review.component';
 import { CommercialCatalogApiService, CustomerProductPrice } from './commercial-catalog-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
@@ -38,7 +40,7 @@ interface MachineForm {
 
 @Component({
   selector: 'app-admin-catalogs',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, AdminAccessTokensDialogComponent, CustomerWorkingWeekComponent, CustomerProductPriceComponent, ProductConsolidationComponent, AdminProductsComponent, AdminProductDialogComponent],
+  imports: [FormsModule, ReactiveFormsModule, RouterLink, AdminCustomerDialogComponent, AdminAccessTokensDialogComponent, CustomerWorkingWeekComponent, CustomerProductPriceComponent, ProductConsolidationComponent, AdminProductsComponent, AdminProductDialogComponent, ProductSetupReviewComponent],
   styleUrls: ['./admin-customer-cards.css', './admin-customer-configuration.css', './admin-access-tokens-content.css'],
   templateUrl: './admin-catalogs.component.html'
 })
@@ -58,6 +60,8 @@ export class AdminCatalogsComponent {
   private readonly router = inject(Router);
   private readonly focusedCustomerId = this.route.snapshot.paramMap.get('customerId');
   protected readonly configurationOnly = this.focusedCustomerId !== null;
+  protected readonly setupRequestId = this.configurationOnly ? this.route.snapshot.queryParamMap.get('setupRequestId') : null;
+  protected setupRefreshKey = 0;
   private readonly destroyRef = inject(DestroyRef);
   private readonly document = inject(DOCUMENT);
   protected customerDialogOpen = false;
@@ -225,7 +229,7 @@ export class AdminCatalogsComponent {
     const warnings: string[] = [];
     if (this.frequentRows.some(row => row.isActive && !this.productFor(row)?.unitCode)) warnings.push('Hay productos sin unidad. Puedes guardar el borrador, pero no capturar cantidades de esos productos ni aprobar el perfil.');
     if (this.frequentRows.some(row => row.isActive && row.interpretationPosition === null)) warnings.push('Hay posiciones sin confirmar. No son necesarias para capturar pedidos indicando producto y cantidad.');
-    if (this.frequentRows.some(row => row.isActive && !row.preferredMachineId) && !this.machineAssignmentRows.some(row => row.isActive && row.isDefault)) warnings.push('Hay productos sin máquina propia y no existe una máquina predeterminada del cliente. Su demanda quedará sin asignar.');
+    if (this.frequentRows.some(row => row.isActive && !row.preferredMachineId && row.useCustomerDefaultMachine !== false) && !this.machineAssignmentRows.some(row => row.isActive && row.isDefault)) warnings.push('Hay productos sin máquina propia y no existe una máquina predeterminada del cliente. Su demanda quedará sin asignar.');
     return warnings;
   }
 
@@ -357,6 +361,7 @@ export class AdminCatalogsComponent {
         }]));
         this.frequentRows = profile.items.slice().sort((a, b) => a.sortOrder - b.sortOrder);
         this.machineAssignmentRows = assignments;
+        this.setupRefreshKey++;
         this.isConfigLoading = false;
         this.changeDetector.detectChanges();
       },
@@ -495,6 +500,30 @@ export class AdminCatalogsComponent {
     return JSON.stringify([...new Set(first)].sort()) === JSON.stringify([...new Set(second)].sort());
   }
 
+  protected addRequestedProduct(request: ProductSetup): void {
+    if (!this.selectedCustomer || this.selectedCustomer.id !== request.customerId || this.isConfigLoading || this.isProfileSaving) return;
+    if (this.frequentRows.some(x => x.productId === request.productId)) {
+      this.profileMessage = 'El producto ya está en el borrador. Guarda el perfil para continuar con su precio.'; return;
+    }
+    const product = this.products.find(x => x.id === request.productId && x.isActive && !x.mergedIntoProductId);
+    if (!product || !product.unitCode) { this.profileError = 'Revisa primero el producto y su unidad en el catálogo.'; return; }
+    this.invalidateProfileApproval();
+    this.frequentRows = [...this.frequentRows, { productId: product.id, productName: product.name,
+      unitCode: product.unitCode, productIsActive: true, defaultQuantity: null,
+      sortOrder: Math.max(0, ...this.frequentRows.map(x => x.sortOrder)) + 1, isActive: true,
+      preferredMachineId: null, useCustomerDefaultMachine: false, interpretationPosition: null, captureAlias: '' }];
+    this.profileMessage = 'Producto agregado al borrador, sin máquina ni posición automática. Guarda el perfil y define su precio.';
+  }
+
+  protected productMachine(row: AdminCustomerFrequentProductApiResponse): string | null {
+    return row.preferredMachineId ?? (row.useCustomerDefaultMachine === false ? 'none' : null);
+  }
+  protected changeProductMachine(row: AdminCustomerFrequentProductApiResponse, value: string | null): void {
+    row.preferredMachineId = value === 'none' ? null : value;
+    row.useCustomerDefaultMachine = value === null;
+    this.invalidateProfileApproval();
+  }
+
   protected addFrequentRow(): void {
     this.invalidateProfileApproval();
     const used = new Set(this.frequentRows.map((row) => row.productId));
@@ -574,7 +603,8 @@ export class AdminCatalogsComponent {
         isActive: row.isActive,
         preferredMachineId: row.preferredMachineId ?? null,
         interpretationPosition: row.interpretationPosition ?? null,
-        captureAlias: row.captureAlias?.trim().toUpperCase() ?? ''
+        captureAlias: row.captureAlias?.trim().toUpperCase() ?? '',
+        useCustomerDefaultMachine: row.useCustomerDefaultMachine !== false
       }))
     }).subscribe({
       next: () => {

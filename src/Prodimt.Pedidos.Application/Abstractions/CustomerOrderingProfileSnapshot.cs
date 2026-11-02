@@ -10,4 +10,4 @@ public sealed record CustomerOrderingProfileSnapshot(
 public sealed record CustomerOrderingProfileItem(
     Guid ProductId, string ProductName, decimal? DefaultQuantity, int SortOrder, bool IsActive,
     Guid? PreferredMachineId, int? InterpretationPosition, string? UnitCode, bool ProductIsActive,
-    string? CaptureAlias = null);
+    string? CaptureAlias = null, bool UseCustomerDefaultMachine = true);

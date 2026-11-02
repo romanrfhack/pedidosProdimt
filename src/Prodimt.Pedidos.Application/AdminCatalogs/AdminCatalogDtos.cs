@@ -54,7 +54,8 @@ public sealed record AdminCustomerFrequentProductResponse(
     int? InterpretationPosition = null,
     string? UnitCode = null,
     bool ProductIsActive = true,
-    string? CaptureAlias = null);
+    string? CaptureAlias = null,
+    bool UseCustomerDefaultMachine = true);
 
 public sealed record UpdateCustomerFrequentProductsRequest(
     IReadOnlyList<UpdateCustomerFrequentProductItemRequest> Items,
@@ -75,7 +76,8 @@ public sealed record UpdateCustomerFrequentProductItemRequest(
     Guid? PreferredMachineId = null,
     int? InterpretationPosition = null,
     string? ExpectedUnitCode = null,
-    string? CaptureAlias = null);
+    string? CaptureAlias = null,
+    bool? UseCustomerDefaultMachine = null);
 
 public sealed record AdminCustomerMachineAssignmentResponse(
     Guid MachineId,
