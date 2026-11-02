@@ -2,6 +2,10 @@
 
 Cada entrada distingue hechos verificados, decisiones, pendientes y siguiente paso. Los resultados sólo se marcan como exitosos después de ejecutar la comprobación correspondiente.
 
+## 2026-11-02 — I16: captura y seguimiento transaccional en validación
+
+Implementados selector compartido de catálogo en captura manual cliente/administración, pedido con precio null sin heredar máquina, pendiente por relación con referencias durables a pedidos, bandeja y resolución comercial explícita/auditada. Mantiene I14/I15, contratos previos y precios fijados (incluido cero). Modelo y migración aditiva 13→14 generados con EF. Trece regresiones nuevas de Application pasan, además de 335 previas; Angular dentro del límite inicial y build Release correcto. Nuevos HTTP SQL/E2E en curso. Ajustados fixtures históricos al esquema que prueban, conservando guardas de mantenimiento anteriores. Instalador nativo con respaldo, clave estable y permisos mínimos en preparación; no hay paquete final ni despliegue I16.
+
 ## 2026-11-02 — I15: instalación confirmada por el usuario
 
 Recibidos SHA256 del ZIP correcto y JSON de lectura/aplicación de `20261102-customer-catalog-install1`. Preflight `planned/completed`, sin cambios, base y salud verificadas; aplicación `updated/completed`, frontend y salud verificados. Fuente `afb8f3ad9c33a8960d3874c14d462bb8dd0c646d`, release `customer-catalog-afb8f3ad9c33`; snapshot `/var/backups/prodimt-pedidos/customer-catalog-20261102T150222Z-c8d59ed390ba`. Reporta sin migraciones/SQL directo, cambio de backend/contraseña, reinicio o secretos impresos.

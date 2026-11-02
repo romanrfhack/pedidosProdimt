@@ -166,6 +166,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                         .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
                     services.RemoveAll<ICommercialCatalogRepository>();
                     services.AddScoped<ICommercialCatalogRepository, LegacyCommercialCatalogRepository>();
+                    services.RemoveAll<ICustomerProductSetupRepository>();
+                    services.AddScoped<ICustomerProductSetupRepository, LegacyCustomerProductSetupRepository>();
                 }
                 services.RemoveAll<IDateTimeProvider>();
                 services.AddSingleton<IDateTimeProvider, FixedClock>();
