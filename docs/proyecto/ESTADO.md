@@ -2,7 +2,15 @@
 
 Actualizado: 1 de noviembre de 2026.
 
-## I12 — Instalador v2 validado para SQL207; reintento remoto pendiente
+## I12 instalado — 1 de noviembre de 2026
+
+El usuario verificó el SHA256 del instalador v2 y compartió lectura `planned/completed` seguida de aplicación `updated/completed`. El preflight confirmó esquema12 completo tras el fallo anterior, sin discrepancias y con la clave ya presente. La aplicación migró12→13 y verificó esquema, conteos existentes, historial de precios anexable, salud de API/frontend y clave efectiva en el proceso. Revocó y auditó los siete accesos anteriores. Se reutilizó la clave existente: `encryption_key_created=false` y `encryption_key_rotated=false`. Contraseñas sin cambio y sin restauración automática de SQL; reinició sólo PRODIMT.
+
+Aplicación desplegada `65560ca3cf98f3a1cc44e7f3ef50d4276e1f3df8`; backend/frontend activos `access-tokens-65560ca3cf98`. Actualizador `20261101-access-token-management-install2`, corrección fuente `b8588ab0afb6be059bb8f29091d1586c35185069`. Snapshot reportado `/var/backups/prodimt-pedidos/access-token-management-update-20261102T031747Z-d0dd73f95dc8`; respaldo SQL verificado `/var/opt/mssql/backup/prodimt-i12-20261102T031747Z-d0dd73f95dc8/ProdimtPedidos-copy-only.bak`. Conservar la configuración/clave privadas junto con el respaldo. Evidencia aportada por el usuario; no se operó el VPS desde este entorno.
+
+`database_checks.migrations_count=12` corresponde al preflight; `migrations_after=13`, `migrated_schema_verified`, `legacy_tokens_verified`, `encryption_key_effective_verified`, `health_verified` y `frontend_verified` confirman el resultado final. Los accesos revocados conservan filas/hashes/auditoría, aunque no aparecen en el listado activo. La instalación está confirmada; falta aceptación funcional en navegador. Ctrl+F5, crear un acceso nuevo, recargar y comprobar copia del token/enlace, editar descripción/vigencia conservando el enlace y revisar destinatario/mensaje con Abrir WhatsApp. No se acredita envío real ni guardado de pedidos por las comprobaciones técnicas. No repetir instaladores o regenerar clave.
+
+## I12 — Instalador v2 validado para SQL207 (antecedente)
 
 El usuario aplicó chmod0600 y reintentó la revisión `20261101-access-token-management-install1`. Preflight completado sin discrepancias, respaldo COPY_ONLY/CHECKSUM verificado y clave dedicada creada/snapshot verificado. Falló en `database-backup-key-and-migration` con SQL207. El instalador reporta recuperación de la aplicación anterior con salud comprobada y retención de la clave. No restauró SQL ni cambió contraseñas. `database_migrations_run=true` marca el intento; no demuestra commit de la migración13 o revocación: el estado final de SQL necesita preflight de lectura.
 
@@ -12,7 +20,7 @@ Corrección validada: instalador revisión `20261101-access-token-management-ins
 
 Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 bytes, SHA256 `a289e0615dfa7480db31cca55d721a187889390648df5e80ed4991e00b627a12`. Reutiliza el payload original ya subido, SHA256 `6ba05d78c0a4dfe33cebb18413c879ce0822bf4a683f9a9b3b6222a68a148f26`, y binarios fuente65560ca. Ejecutar v2 primero sólo lectura y continuar --apply únicamente si termina correctamente; ambos recorridos conservan y verifican la clave existente. El preflight determina el esquema remoto12/13 y rechaza estados parciales. No repetir v1, regenerar clave, aplicar DDL manual o restaurar SQL por este incidente. No se operó el VPS desde este entorno; instalación I12, revocación efectiva y aceptación siguen pendientes del reporte del usuario.
 
-## I12 — Gestión de tokens activos validada y empaquetada; aplicación pendiente
+## I12 — Entrega inicial de gestión de tokens (antecedente)
 
 El usuario autoriza revocar todos los tokens anteriores y crear los nuevos a demanda. Se implementa listado de accesos habilitados/no vencidos, copia del token o enlace por fila, edición precargada de descripción/vigencia conservando el enlace y apertura individual de WhatsApp para reenvío. El teléfono sigue siendo del cliente. No mostrar historial ni eliminar auditoría.
 
