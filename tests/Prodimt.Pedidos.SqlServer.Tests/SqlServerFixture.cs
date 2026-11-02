@@ -29,6 +29,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
     // These credentials exist only in a newly created disposable test database.
     private const string AdminPassword = "Sql-test-only-admin-2026!";
     private readonly string _databaseName = $"ProdimtI02Test_{Guid.NewGuid():N}";
+    // The portable deployment validator uses only this generated name to
+    // independently verify cleanup after a lost CREATE or DROP response.
+    public string DisposableDatabaseName => _databaseName;
     private string _masterConnection = string.Empty;
     private bool _created;
     public string ConnectionString { get; private set; } = string.Empty;

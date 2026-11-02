@@ -1,5 +1,7 @@
 # I22 — Implementación y validación de Mi reparto
 
+> Antecedente de implementación, revisión 1. Las condiciones actuales de despliegue y los resultados adicionales se describen en [revisión 2](2026-11-02-driver-van-deployment.md), que sustituye el bloqueo de instalación y la etiqueta de compilación de validación indicados más abajo. SQL se valida automáticamente antes de aplicar; la aceptación de navegador será posterior, conforme la autorización del usuario.
+
 Fecha operativa: 2 de noviembre de 2026, America/Mexico_City.
 
 ## Base y autorización

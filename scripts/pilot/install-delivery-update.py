@@ -15,13 +15,16 @@ from pathlib import Path, PurePosixPath
 import re
 import resource
 import signal
+import shutil
 import stat
+import subprocess
 import sys
+import tempfile
 import types
 import uuid
 import zipfile
 
-REVISION = '20261102-delivery-install1'
+REVISION = '20261102-delivery-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -42,8 +45,13 @@ DELIVERY_TABLES = ('CustomerDeliveryLocations','DeliveryAssignments','DeliveryEv
 DELIVERY_PERMISSIONS = ('delivery.read.own','delivery.operate.own','delivery.manage')
 SUPPORT_FILES = ('inspect-native.py','native-deployment-support.py','commercial-catalog-support.py',
                  'token-management-support.py','customer-products-support.py','security-administration-support.py',
-                 'production-support.py','delivery-schema-contract.py')
-SQL_FILES = ('migrations-i22.sql','delivery-schema.json')
+                 'production-support.py','delivery-schema-contract.py','validate-delivery-sql.py')
+SQL_FILES = ('migrations-i22.sql','delivery-schema.json','validation-baseline.sql')
+VALIDATION_REQUIRED = ('validation/Prodimt.Pedidos.DeploymentValidation.dll',
+                       'validation/Prodimt.Pedidos.DeploymentValidation.runtimeconfig.json',
+                       'validation/Prodimt.Pedidos.DeploymentValidation.deps.json')
+VALIDATED_ASSEMBLIES = ('Prodimt.Pedidos.Api.dll','Prodimt.Pedidos.Application.dll',
+                        'Prodimt.Pedidos.Domain.dll','Prodimt.Pedidos.Infrastructure.dll')
 
 
 class InstallError(Exception):
@@ -93,26 +101,32 @@ def load_payload(path):
     require(sha(raw) == EXPECTED_PAYLOAD_SHA256, 'payload_hash_mismatch')
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         rows = archive.infolist()
-        require(0 < len(rows) <= 250 and len({row.filename for row in rows}) == len(rows)
+        require(0 < len(rows) <= 700 and len({row.filename for row in rows}) == len(rows)
                 and sum(row.file_size for row in rows) <= 100 * 1024 * 1024, 'payload_size_or_duplicates_invalid')
         require(all(safe_name(row.filename) and not row.is_dir() and not row.flag_bits & 1
                     and not stat.S_ISLNK(row.external_attr >> 16) for row in rows), 'payload_path_invalid')
         files = {row.filename: archive.read(row) for row in rows}
     manifest = json.loads(files.pop('manifest.json'))
-    required = set(SUPPORT_FILES + SQL_FILES) | {'backend/Prodimt.Pedidos.Api.dll','backend/appsettings.json','frontend/index.html'}
+    required = set(SUPPORT_FILES + SQL_FILES + VALIDATION_REQUIRED) | {'backend/Prodimt.Pedidos.Api.dll','backend/appsettings.json','frontend/index.html'}
     require(manifest.get('feature') == 'delivery-operations-v1' and manifest.get('sourceCommit') == EXPECTED_SOURCE
             and manifest.get('migration') == MIGRATION and manifest.get('migrationsBefore') == 16
             and manifest.get('migrationsAfter') == 17 and manifest.get('previousPairs') == [list(pair) for pair in PREVIOUS_PAIRS]
             and manifest.get('revokeTokens') is False and manifest.get('encryptionKeyInPackage') is False
+            and manifest.get('validation') == dict(schema='prodimt.delivery.validation.v1', expected=3, beforeProductionChanges=True)
             and set(manifest.get('files', {})) == set(files) and required <= set(files)
-            and all(name in required or name.startswith(('backend/','frontend/')) for name in files), 'payload_manifest_unexpected')
+            and all(name in required or name.startswith(('backend/','frontend/','validation/')) for name in files), 'payload_manifest_unexpected')
     require(all(meta == dict(bytes=len(files[name]),sha256=sha(files[name])) for name,meta in manifest['files'].items()), 'payload_file_hash_mismatch')
+    require(all('backend/' + name in files and 'validation/' + name in files
+                and files['backend/' + name] == files['validation/' + name] for name in VALIDATED_ASSEMBLIES),
+            'validation_application_binary_mismatch')
     require(all(not name.endswith(('.map','.pdb','.env','.key','.pem','.pfx','.p12','.trace','.dmp','.log'))
                 and not name.endswith('appsettings.Development.json') for name in files), 'payload_private_or_debug_file')
     sql = files['migrations-i22.sql'].decode('utf-8-sig')
     validate_migration_sql(sql)
     schema = module('i22_delivery_schema_validator',files['delivery-schema-contract.py'])
     require(json.loads(files['delivery-schema.json']) == schema.contract_from_sql(sql), 'delivery_schema_contract_mismatch')
+    validation = module('i22_baseline_validator', files['validate-delivery-sql.py'])
+    validation.validate_baseline(files['validation-baseline.sql'].decode('utf-8-sig'))
     return files
 
 
@@ -175,6 +189,86 @@ def migration_sql_for_sqlcmd(files):
     return sql.removesuffix('COMMIT;\nGO\n\n') + 'GO\n\n' + DELIVERY_GRANTS + '\nCOMMIT;\nGO\n\n'
 
 
+def validation_connection(server, login, password):
+    """ADO.NET quoted values, including semicolons and embedded double quotes."""
+    def quote(value):
+        require(isinstance(value, str) and not any(char in value for char in '\0\r\n'),
+                'validation_connection_value_invalid')
+        return '"' + value.replace('"', '""') + '"'
+    return ('Server=' + quote(server) + ';Database=master;User ID=' + quote(login) +
+            ';Password=' + quote(password) + ';Encrypt=True;TrustServerCertificate=True;Connection Timeout=5')
+
+
+def validated_dotnet_executable(dotnet):
+    require(isinstance(dotnet, str) and Path(dotnet).is_absolute() and Path(dotnet).is_file()
+            and os.access(dotnet, os.X_OK), 'validation_dotnet_runtime_unavailable')
+    target = Path(dotnet).resolve(strict=True)
+    identity = target.stat()
+    require(identity.st_uid == 0 and not identity.st_mode & 0o022, 'validation_dotnet_identity_unexpected')
+    return target
+
+
+def run_portable_validation(files, dotnet, connection, clean_environment, cleanup_database):
+    """Run pinned binaries without SDK, operational environment or printed logs."""
+    target = validated_dotnet_executable(dotnet)
+    with tempfile.TemporaryDirectory(prefix='prodimt-i22-validation-') as folder:
+        directory = Path(folder)
+        directory.chmod(0o700)
+        for name, raw in files.items():
+            if not name.startswith('validation/'):
+                continue
+            require(safe_name(name), 'validation_file_path_invalid')
+            path = directory / name
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(raw)
+        assembly = directory / VALIDATION_REQUIRED[0]
+        environment = dict(clean_environment, PRODIMT_SQL_TEST_CONNECTION=connection,
+                           DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1', DOTNET_NOLOGO='1')
+        output = ''
+        issue = None
+        returncode = None
+        try:
+            with subprocess.Popen([str(target), 'exec', str(assembly), '--validate'], cwd=assembly.parent,
+                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, env=environment) as child:
+                try:
+                    output, _ = child.communicate(timeout=360)
+                    returncode = child.returncode
+                except (subprocess.TimeoutExpired, KeyboardInterrupt, InstallError):
+                    child.kill()
+                    output, _ = child.communicate(timeout=15)
+                    issue = 'portable_validation_interrupted_or_timed_out'
+        except (OSError, subprocess.TimeoutExpired, UnicodeError):
+            issue = 'portable_validation_process_failed'
+        # The runner flushes its generated DB name before opening SQL. Only
+        # this bounded prefix can be cleaned; no user-supplied catalog is used.
+        names = re.findall(r'(?m)^DATABASE (ProdimtI02Test_[a-f0-9]{32})\s*$', output)
+        cleanup_results = []
+        for name in dict.fromkeys(names):
+            try:
+                cleanup_results.append(cleanup_database(name) is True)
+            except Exception:
+                cleanup_results.append(False)
+        if not all(cleanup_results):
+            error = InstallError('portable_validation_database_cleanup_failed')
+            error.cleanup_database = list(dict.fromkeys(names))[cleanup_results.index(False)]
+            raise error from None
+        require(issue is None, issue or 'portable_validation_process_failed')
+        require(0 < len(set(names)) <= 4, 'portable_validation_database_marker_unrecognized')
+        require(returncode == 0 and len(output) < 1024 * 1024, 'portable_validation_failed')
+        try:
+            summary = json.loads(output.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            raise InstallError('portable_validation_summary_unrecognized') from None
+        require(isinstance(summary, dict) and summary.get('schema') == 'prodimt.delivery.validation.v1'
+                and summary.get('status') == 'passed' and summary.get('passed') == 3
+                and summary.get('expected') == 3 and summary.get('cleanupVerified') is True,
+                'portable_validation_not_passed')
+        return dict(status='passed', passed=3, expected=3, cleanupVerified=True)
+
+
 def make_installer(package):
     files = load_payload(package)
     runtime = module('reviewed_i18_native_support', files['native-deployment-support.py'])
@@ -190,6 +284,7 @@ def make_installer(package):
     production = module('i22_baseline_production_support', files['production-support.py'])
     production.InstallError = InstallError
     schema = module('i22_delivery_schema_support', files['delivery-schema-contract.py'])
+    validation = module('i22_isolated_sql_support', files['validate-delivery-sql.py'])
     contract = json.loads(files['delivery-schema.json'])
     base = runtime.MIGRATIONS + [token.PRICE_MIGRATION, token.MIGRATION, SETUP_MIGRATION, IDENTITY_MIGRATION, PRODUCTION_MIGRATION]
     migrations = base + [MIGRATION]
@@ -373,6 +468,9 @@ def make_installer(package):
                     self.overrides['backend/' + name] = raw
             require(runtime.shutil.disk_usage(ROOT).free >= 2 * sum(map(len, files.values())) + 100 * 1024 * 1024, 'disk_space_insufficient')
             self.process_input = dict(environment=process_environment, argv=argv, unit=self.unit_configuration)
+            executable = argv[0] if Path(argv[0]).is_absolute() else shutil.which(argv[0], path=runtime.CLEAN_ENV['PATH'])
+            require(executable is not None, 'validation_dotnet_runtime_unavailable')
+            self.dotnet_executable = executable
             self.state.update(base_release_verified=True, env_preserved=True, encryption_key_present=True,
                               migration_ids_before=ids, migrations_before=len(ids))
             if self.recovery:
@@ -462,12 +560,52 @@ def make_installer(package):
                         and regular(ENV_FILE) == self.environment, 'configuration_or_token_key_changed')
                 self.state.update(frontend_verified=True, encryption_key_effective_verified=True)
 
+        def validate_before_apply(self):
+            self.state['phase'] = 'isolated-http-and-sql-validation'
+            connection = validation_connection(runtime.SERVER, self.sql_login, self.sql_password)
+            def cleanup(database):
+                return validation.cleanup_generated_database(self.sql_tool, runtime.SERVER, self.sql_login,
+                    self.sql_password, runtime.OPTIONS, runtime.CLEAN_ENV, self.inspector.parse_sql_output, database)
+            try:
+                portable = run_portable_validation(files, self.dotnet_executable, connection, runtime.CLEAN_ENV, cleanup)
+            except InstallError as error:
+                if getattr(error, 'cleanup_database', None):
+                    self.state['validation_database_cleanup_required'] = error.cleanup_database
+                raise
+            self.state['portable_validation'] = portable
+            self.state['phase'] = 'isolated-exact-sql-validation'
+            operations = types.SimpleNamespace(migration_sql_for_sqlcmd=migration_sql_for_sqlcmd,
+                SECURITY_FINGERPRINT=SECURITY_FINGERPRINT, DELIVERY_SQL_PERMISSIONS=DELIVERY_SQL_PERMISSIONS,
+                EXPECTED_DELIVERY_PERMISSIONS=EXPECTED_DELIVERY_PERMISSIONS, DELIVERY_ROLE_DATA=DELIVERY_ROLE_DATA,
+                DELIVERY_COUNTS=DELIVERY_COUNTS, DELIVERY_TABLES=DELIVERY_TABLES)
+            try:
+                exact = validation.validate_exact_sql(files, operations, schema,
+                    self.sql_tool, runtime.SERVER, self.sql_login, self.sql_password,
+                    runtime.OPTIONS, runtime.CLEAN_ENV, self.inspector.parse_sql_output)
+            except validation.ValidationFailure as error:
+                if error.cleanup_database:
+                    self.state['validation_database_cleanup_required'] = error.cleanup_database
+                raise InstallError(str(error)) from None
+            self.state.update(exact_sql_validation=exact, isolated_validation_verified=True,
+                              validation_databases_cleaned=True)
+
+        def validate_only(self):
+            self.preflight()
+            self.state['phase'] = 'sql-admin-authentication'
+            self.authenticate_admin()
+            self.validate_before_apply()
+            self.state.update(status='validated', phase='completed', changes_made=False,
+                              production_changes_made=False, source_commit=EXPECTED_SOURCE)
+
         def apply(self):
             self.preflight()
             if self.state['status'] == 'already_current':
                 return
             self.state['phase'] = 'sql-admin-authentication'
             self.authenticate_admin()
+            # All test DBs are dropped before creating a deployment snapshot,
+            # staging a release, writing recovery state or stopping PRODIMT.
+            self.validate_before_apply()
             if not self.recovery:
                 self.snapshot = BACKUPS / ('delivery-update-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:12])
                 self.snapshot.mkdir(mode=0o700)
@@ -528,12 +666,14 @@ def make_installer(package):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', type=Path, default=Path('/root/prodimt-delivery-payload.zip'))
-    parser.add_argument('--apply', action='store_true')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--apply', action='store_true')
+    mode.add_argument('--validate-only', action='store_true', help='Validate in generated temporary databases; do not change deployment.')
     args = parser.parse_args()
     require(os.geteuid() == 0, 'root_required')
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     installer = make_installer(args.package)
-    installer.state['mode'] = 'apply' if args.apply else 'read-only'
+    installer.state['mode'] = 'apply' if args.apply else 'validate-only' if args.validate_only else 'read-only'
     fd = os.open(LOCK, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     previous = {}
     try:
@@ -548,6 +688,8 @@ def main():
         try:
             if args.apply:
                 installer.apply()
+            elif args.validate_only:
+                installer.validate_only()
             else:
                 installer.preflight()
                 if installer.state['status'] != 'already_current':
@@ -561,7 +703,7 @@ def main():
             except (Exception, KeyboardInterrupt):
                 installer.state['rollback_failed'] = True
         print(json.dumps(installer.state, ensure_ascii=False, indent=2))
-        return 0 if installer.state['status'] in ('planned', 'updated', 'already_current', 'recovery_pending') else 1
+        return 0 if installer.state['status'] in ('planned', 'validated', 'updated', 'already_current', 'recovery_pending') else 1
     finally:
         for number, handler in previous.items():
             signal.signal(number, handler)

@@ -1,10 +1,10 @@
 # PRODIMT — Pedidos y operación
 
-## Mi reparto I22 — Compilación de validación
+## Mi reparto I22 — Despliegue con validación previa automática
 
 `/reparto` permite al Repartidor - Camioneta operar sólo sus rutas/vueltas y registrar conteo, carga, entregas parciales y observaciones. `/admin/reparto` administra asignaciones, saldos, ubicaciones, transferencias, devoluciones y correcciones auditadas, sin modificar el pedido original. [Contrato y configuración](docs/proyecto/INCREMENTO-22.md), [validación ejecutada y pendientes](docs/validation/2026-11-02-driver-van-deliveries.md).
 
-Código/builds y436 pruebas .NET correctos. Ejecución SQL Server real y Playwright pendientes antes de instalación; no está desplegado. Conserva la base integrada I16/I18/I19/I21.
+Código/builds y 436 pruebas .NET correctos. El usuario autoriza desplegar: la revisión 2 ejecuta pruebas SQL/HTTP y SQL exacto en bases temporales antes de cambiar producción, usando runtime .NET10 sin SDK/Docker. La aceptación de navegador será posterior. [Despliegue y evidencia](docs/validation/2026-11-02-driver-van-deployment.md). No se declara instalado hasta comprobar la ejecución del actualizador; conserva la base integrada I16/I18/I19/I21.
 
 ## Producción I19
 

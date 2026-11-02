@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj" />
+  </ItemGroup>
+  <!-- The API is loaded by TestServer, not launched as another executable.
+       Test SDK references can otherwise contribute RID/non-RID copies of its
+       launcher and runtimeconfig to a console publish. Keep the API DLL/deps. -->
+  <Target Name="RemoveApiExecutableDescriptorsFromValidationPublish" BeforeTargets="_HandleFileConflictsForPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+        Condition="'%(ResolvedFileToPublish.RelativePath)' == 'Prodimt.Pedidos.Api' or '%(ResolvedFileToPublish.RelativePath)' == 'Prodimt.Pedidos.Api.exe' or '%(ResolvedFileToPublish.RelativePath)' == 'Prodimt.Pedidos.Api.runtimeconfig.json'" />
+    </ItemGroup>
+  </Target>
+</Project>

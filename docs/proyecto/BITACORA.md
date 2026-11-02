@@ -1,5 +1,14 @@
 # Bitácora de trabajo
 
+## I22 revisión 2 — Despliegue autorizado y validación previa automática
+
+El usuario autoriza desplegar para validar. La instalación exige dos validaciones antes de snapshot, staging, marcador o parada: tres pruebas SQL/HTTP de reparto en una base UUID y la migración exacta 16→17 con permisos, esquema, rollback y repetición en otra base UUID. Usa runtime .NET10 sin SDK. Credenciales sólo por entorno privado, limpieza independiente incluso tras timeout y ninguna entrada selecciona una base operativa. Constructor e instalador exigen las cuatro DLL principales idénticas entre backend y validador. No cambia el código funcional de reparto ni la migración publicada.
+
+Pasaron 436 pruebas .NET y 33 Python focalizadas (19+14). Runner publicado y probado fuera del repositorio con runtime sin SDK: self-test HTTP200 sin SQL y tres rechazos seguros sin filtrar secretos. El baseline EF conserva 16 transacciones y sólo dos GO adicionales revisados. El SQL real se ejecutará obligatoriamente antes de modificar el despliegue; Playwright y aceptación de interfaz siguen pendientes, posteriores por petición del usuario.
+
+HTTPS actual /health/db respondió ok/reachable. SSH no pudo conectar: el cliente rechaza su configuración de sistema por propietario/permisos inválidos. No se cambió ni evitó esa configuración; el usuario ejecutará el comando desde WSL. No afirmar instalación hasta recibir updated/completed, isolated_validation_verified=true, validation_databases_cleaned=true, 17 migraciones y salud/frontend correctos. Ver docs/validation/2026-11-02-driver-van-deployment.md. La publicación GitHub sigue independiente y pendiente; se reemplazan los archivos entregados conservando su identidad.
+
+
 ## I22 — Mi reparto implementado; validación SQL/navegador pendiente
 
 Autorizado el 2 de noviembre tras aprobar el diseño del repartidor en camioneta. Implementación sobre I21 recuperado496eb70 con I16/I18/I19 y arreglos posteriores I18 integrados. Rutas/vueltas/asignaciones por partida, reservas, conteo, carga, entregas parciales, custodia, devoluciones, transferencias, correcciones e instrucciones/Maps; rol/permisos propios y gestión. El pedido original se conserva. Ejemplo ficticio50/25/20:30 pendientes al cliente,25 sin asignar y5 en custodia. El pedido compuesto no se completa por surtir sólo una partida.

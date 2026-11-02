@@ -27,6 +27,7 @@ commercial = load('i22_commercial_tests', ROOT / 'scripts/pilot/install-commerci
 token = load('i22_token_tests', ROOT / 'scripts/pilot/install-access-token-management-update.py')
 setup = load('i22_setup_tests', ROOT / 'scripts/pilot/install-customer-products-update.py')
 exporter = load('i22_exporter_tests', ROOT / 'scripts/pilot/export-delivery-changes.py')
+validation = load('i22_sql_validation_tests', ROOT / 'scripts/pilot/validate-delivery-sql.py')
 
 
 def migration():
@@ -56,9 +57,12 @@ def supports():
         ('customer-products-support.py', 'install-customer-products-update.py'),
         ('security-administration-support.py', 'install-identity-update.py'),
         ('production-support.py', 'install-production-update.py'),
-        ('delivery-schema-contract.py', 'delivery-schema-contract.py'))}
+        ('delivery-schema-contract.py', 'delivery-schema-contract.py'),
+        ('validate-delivery-sql.py', 'validate-delivery-sql.py'))}
     return files | {'migrations-i22.sql': migration().encode(),
-                    'delivery-schema.json': json.dumps(schema.contract_from_sql(migration())).encode()}
+                    'delivery-schema.json': json.dumps(schema.contract_from_sql(migration())).encode(),
+                    'validation-baseline.sql': builder.normalized_validation_baseline(
+                        (ROOT / 'tests/pilot/fixtures/i22-validation-baseline.sql').read_text(encoding='utf-8-sig')).encode()}
 
 
 class DeliveryPackageTests(unittest.TestCase):
@@ -276,10 +280,17 @@ class DeliveryPackageTests(unittest.TestCase):
             (frontend / 'index.html').write_text('<html></html>')
             (frontend / '3rdpartylicenses.txt').write_text('synthetic')
             (frontend / 'main.js').write_text('apiBaseUrl:"" /access-tokens /prices /security /product-setups /additional-products /operations/production delivery.read.own delivery.manage /delivery')
+            validator = root / 'validator'; validator.mkdir()
+            for name in installer.VALIDATION_REQUIRED:
+                (validator / Path(name).name).write_text('{}')
+            for name in builder.SHARED_ASSEMBLIES:
+                (backend / name).write_bytes(b'synthetic-shared-assembly')
+                (validator / name).write_bytes(b'synthetic-shared-assembly')
             sql = ROOT / 'tests/pilot/fixtures/i22-delivery-migration.sql'
             output = root / 'package.zip'
             with patch.object(builder, 'validate_source'):
-                result = builder.build(backend, frontend, sql, output, 'a' * 40)
+                result = builder.build(backend, frontend, sql, output, 'a' * 40, validator,
+                    ROOT / 'tests/pilot/fixtures/i22-validation-baseline.sql')
             with zipfile.ZipFile(output) as outer:
                 exported = root / 'exported.py'; exported.write_bytes(outer.read(builder.PREFIX + 'PRODIMT_Instalar_I22.py'))
                 payload = root / 'payload.zip'; payload.write_bytes(outer.read(builder.PREFIX + 'prodimt-delivery-payload.zip'))
@@ -288,6 +299,7 @@ class DeliveryPackageTests(unittest.TestCase):
                     self.assertEqual(manifest['previousPairs'], [list(pair) for pair in installer.PREVIOUS_PAIRS])
                     self.assertEqual(manifest['migrationsBefore'], 16)
                     self.assertEqual(manifest['migrationsAfter'], 17)
+                    self.assertEqual(manifest['validation']['expected'], 3)
             module = load('i22_exported_tests', exported)
             self.assertEqual(module.EXPECTED_SOURCE, 'a' * 40)
             self.assertEqual(module.EXPECTED_PAYLOAD_SHA256, result['payloadSha256'])
@@ -298,6 +310,10 @@ class DeliveryPackageTests(unittest.TestCase):
                 payload.write_bytes(payload.read_bytes() + b'corruption')
                 with self.assertRaisesRegex(module.InstallError, 'payload_hash_mismatch'):
                     module.load_payload(payload)
+            (validator / 'Prodimt.Pedidos.Api.dll').write_bytes(b'outdated-api')
+            with patch.object(builder, 'validate_source'), self.assertRaisesRegex(ValueError, 'validation_application_binary_mismatch'):
+                builder.build(backend, frontend, sql, output, 'a' * 40, validator,
+                    ROOT / 'tests/pilot/fixtures/i22-validation-baseline.sql')
 
     def test_builder_refuses_wrong_or_dirty_source(self):
         with patch.object(builder.subprocess, 'check_output', return_value='b' * 40):
