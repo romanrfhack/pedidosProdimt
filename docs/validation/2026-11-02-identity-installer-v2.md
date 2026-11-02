@@ -32,3 +32,11 @@ Archivo final guardado: `PRODIMT_Instalar_I18_v2.py`, 37653 bytes, SHA256 `2bc08
 
 
 CI final completo y correcto sobre la fuente fijada:356 Domain/Application,72 SQL/criptografía,163 E2E,374 Python y smoke Production inicial/persistido. Los fallos intermedios del fixture quedaron corregidos antes de entregar; no se omitieron pruebas. La lectura del usuario con revisión2 y la instalación remota siguen pendientes.
+
+## Estado posterior — I19 ya incluye seguridad
+
+El usuario había compartido aplicación I19 exitosa (`updated/completed`,13→16, `production-d3a11420b202`, salud/frontend true, recovery_pending false y comprobaciones de datos/permisos/tokens/clave correctas). La evidencia es el reporte del usuario; no hubo acceso independiente al servidor. Se inspeccionó el ZIP I19 actual y coincide su SHA256 `c9a862885c79910ce13d62c160eb9bc8a9db862c9c395b4a2a8b70016c744faa`. Manifest y SQL integran I16+I18+I19, y frontend contiene `/admin/seguridad`, `roleIds`, `directPermissionIds`, `security.manage` y los tres editores CRUD.
+
+El nuevo intento con revisión2 devolvió `failed/read-only-preflight`, paso `directories-and-releases`, issue `previous_release_not_supported`. Todos los indicadores de cambios, migración y reinicio fueron false; el comando de aplicación encadenado no se ejecutó. No es otro fallo del esquema: es la protección del payload I18 contra una base posterior. El guard no se modifica y no se generan binarios/paquetes de reemplazo.
+
+I18 se considera instalado mediante I19; resta aceptación funcional. Las instrucciones anteriores para aplicar I18v2 sobre I12/I15/I17 quedan históricas. No pedir repetir una instalación ya acreditada; abrir Seguridad con Ctrl+F5. Sólo si hubiera nueva incertidumbre de runtime, usar preflight I19 sin --apply para verificar release,16 IDs de migración, esquema/permisos/archivos y salud. El SHA fuente I19 no estaba disponible mediante GitHub al consultar; la revisión de integración se fundamenta en el artefacto entregado y el resultado real del usuario.

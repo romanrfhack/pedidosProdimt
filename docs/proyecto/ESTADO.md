@@ -1,5 +1,18 @@
 # Estado del proyecto
 
+## Estado vigente — Seguridad I18 instalada dentro de I19
+
+El reporte de ejecución I19 compartido por el usuario el 2 de noviembre terminó `updated/completed`: migraciones13→16, backend/frontend `production-d3a11420b202`, fuente `d3a11420b2025fa0a19f84e1796d5a8b252259a3`, `health_verified=true`, `frontend_verified=true`, `recovery_pending=false` y verificaciones de esquema/datos/precios/permisos/tokens/clave correctas. Es confirmación por el reporte del usuario; no una inspección SSH independiente desde este trabajo.
+
+El ZIP I19 entregado con SHA256 `c9a862885c79910ce13d62c160eb9bc8a9db862c9c395b4a2a8b70016c744faa` integra explícitamente I16, I17, I18 y producción. Su manifiesto contiene los IDs exactos de configuración de productos, seguridad y producción; el SQL I18 coincide con SHA256 `95398db9ae5b24c97e9ca0c59bf85b71a2c8c4a9ebcec9aa3b07e5a81561a5ed`. Frontend comprobado con `/admin/seguridad`, CRUD de usuarios/roles/permisos, multirrol y concesiones directas.
+
+El intento posterior con `PRODIMT_Instalar_I18_v2.py` falló en `directories-and-releases`, `previous_release_not_supported`, sin cambios/migración/reinicio. Ese guard es correcto: el payload I18 antiguo no debe reemplazar el release integrado I19. El `&&` impidió ejecutar la aplicación. No ampliar allowlist, retroceder enlaces, reinstalar I18 ni repetir incrementos anteriores.
+
+Seguridad ya está incluida por I19; resta aceptación funcional en sesión administrativa. Próximo: Ctrl+F5 y `/admin/seguridad`; comprobar Usuarios/Roles/Permisos y permisos efectivos. Si se requiere una verificación adicional del release, ejecutar únicamente el preflight I19 sin `--apply`, esperando `already_current/completed` y16 migraciones exactas. No hace falta para repetir evidencia ya reportada. Se conserva el estado de usuarios/roles/permisos existente.
+
+Las instrucciones I18v2 de las secciones históricas siguientes corresponden a la base anterior y quedan sustituidas por este estado. En esta sesión no se operó VPS/SQL ni se modificó código, instalador o paquete.
+
+
 ## I18 — Revisión 2 corregida y validada en SQL; lectura remota pendiente
 
 El preflight revisión1 se detuvo sin cambios con `token_management_schema_unexpected`. Se reprodujo ese falso negativo en SQL Server con usuario DML sin VIEW DEFINITION. Revisión2 valida estructura/bindings y defaults visibles; los ocultos quedan `token_schema_defaults_pending_admin=true` hasta la verificación administrativa exacta anterior a cualquier cambio. No se amplían permisos ni se modifican binarios, migraciones, configuración, claves o tokens para corregirlo.
