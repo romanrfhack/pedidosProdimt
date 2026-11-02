@@ -540,3 +540,12 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 - Se integra base I12 7ad9bb0 con corrección v2 ya validada en otro chat. I12 sigue pendiente de confirmación remota; I13 no lo instala ni intenta repararlo.
 - Se prepara instalador frontend exclusivo sobre I12 saludable, con pines, snapshot, activación atómica, verificación HTTP y recuperación del enlace previo.
 - Validaciones y entrega en curso; no se operó el VPS ni consultó la base real.
+
+
+### Cierre I13
+
+- Fuente de aplicación a6b7cec; paquete2345c7f con ajuste de prueba para CI sin root, sin cambiar aplicación ni permisos requeridos del VPS.
+- [CI 41381704462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41381704462) completo: cuatro trabajos correctos, 335 Application/Domain, 66 SQL/criptografía, 133 E2E, 305 Python y smoke Production. Doce casos nuevos de interfaz y quince del paquete. Build Angular correcto; avisos CSS documentados sin elevar límites.
+- Paquete PRODIMT_Catalogo_Productos_I13.zip, 271205 bytes, SHA256 26c27c5e1972af27321ac47efab18692e2fc39ab6a8af5e1d9c13eec30b1cd2d. CRC/checksums, manifest, pines y carga del instalador generado verificados; archivo guardado.
+- PR #5 en borrador sobre I12; main492bbe9 y baseI12 7ad9bb0 sin alterar. graphify no disponible. Sin acceso SSH ni consulta a BD real.
+- Pendiente: completar I12 con instalador v2 y confirmar remoto, después preflight/aplicación I13 y aceptación visual real. El paquete no adelanta ni reemplaza I12.

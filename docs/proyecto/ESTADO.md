@@ -2,13 +2,17 @@
 
 Actualizado: 1 de noviembre de 2026.
 
-## I13 — Catálogo de productos agrupado y responsivo
+## I13 — Catálogo agrupado validado y empaquetado
 
 El usuario confirma que terminó la consolidación de duplicados y solicita aprovechar el ancho disponible con tarjetas por tipo. Se implementa agrupación visual por nombre explícito: Por número, Harina, Sancochados, Vapor y Otros productos; búsqueda por nombre/descripción/tipo/unidad y filtros de estado. La lista de 17 nombres suministrada da 9/3/2/1/2 productos respectivamente; no se incorporan descripciones o relaciones reales al repositorio.
 
 Nuevo producto y Editar abren un modal centrado, cargado bajo demanda. Mantiene unidad desconocida como null, validación, borrador ante error, foco y bloqueo de cierre durante guardado. Los archivados por consolidación siguen aparte sin editar/reactivar; perfiles, posiciones, precios e historial permanecen intactos. No se accedió a la BD ni al VPS: se revisaron el DTO/método GET de productos y el listado proporcionado.
 
-Rama codex/i13-responsive-products basada en I12 y actualizada a 7ad9bb0 para conservar su corrección de instalador. I13 sólo actualiza frontend; requiere I12 access-tokens-65560ca3cf98 activo y saludable. El último reporte de I12 aún requiere reintento con instalador revisión 2: no instalar I13 sobre I11 ni sustituir el frontend mientras se resuelve ese paso. El instalador I13 lo rechaza antes de cualquier cambio. Sin SQL, cambios de clave o backend, ni reinicio. Pruebas/paquete en preparación; no afirmar despliegue.
+Rama codex/i13-responsive-products basada en I12 y actualizada a 7ad9bb0 para conservar su corrección de instalador. I13 sólo actualiza frontend; requiere I12 access-tokens-65560ca3cf98 activo y saludable. El último reporte de I12 aún requiere reintento con instalador revisión 2: no instalar I13 sobre I11 ni sustituir el frontend mientras se resuelve ese paso. El instalador I13 lo rechaza antes de cualquier cambio. Sin SQL, cambios de clave o backend, ni reinicio. Validación y paquete completados; no afirmar despliegue.
+
+Código de aplicación a6b7cec04977821f42a2bbb150c00cba9220179e; fuente final del paquete 2345c7f4c27f89b841344c6a8dfb2b3bfb196285. [CI 41381704462](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41381704462) completo con los cuatro trabajos correctos: 335 Application/Domain, 66 SQL/criptografía, 133 E2E y 305 Python, además de smoke Production. La primera CI detectó una prueba que asumía propietario root en carpetas temporales; corregida sólo esa prueba para runner sin privilegios, manteniendo las restricciones del instalador. Rejilla comprobada a 320/390/768/1366/1920px, 1/1/2/4/6 columnas, sin desbordamiento; modal, filtros, archivo, guardado y regresión de precios/accesos correctos.
+
+Entrega verificada y guardada: PRODIMT_Catalogo_Productos_I13.zip, 271205 bytes, SHA256 26c27c5e1972af27321ac47efab18692e2fc39ab6a8af5e1d9c13eec30b1cd2d. Payload db6301283505a3156cb2728f1c071dce3bdf560ac494bc006bac96240701bf4f. CRC, hashes, pines, quince archivos frontend/licencias y carga del instalador final comprobados. Instalación y aceptación remotas pendientes. Completar I12 con revisión2 antes de I13; luego preflight planned/completed, aplicar, confirmar updated/completed y verificaciones true, Ctrl+F5 y revisar Catálogos → Productos. No se operó el VPS ni consultó la BD real.
 
 ## I12 — Instalador v2 validado para SQL207; reintento remoto pendiente
 
