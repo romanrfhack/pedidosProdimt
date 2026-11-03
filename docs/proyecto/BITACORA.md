@@ -1,5 +1,13 @@
 # Bitácora de trabajo
 
+## I22 — Preflight detenido; diagnóstico de esquema (3 de noviembre)
+
+El usuario ejecutó el ZIP revisión 2 de SHA256 `5fbf124e49a5b7ea422cc333a0a044b554726f75dec18a7ea8929b51c289ba92`. El instalador devolvió `failed`, `phase=read-only-preflight`, `issue=delivery_schema_unexpected`, con cambios, migración y reinicio en false. El `&&` impidió ejecutar `--apply`. No declarar instalación ni inferir una caída por `health_verified=false`: ese chequeo ocurre después del contrato de esquema que falló.
+
+Se recuperaron desde los paquetes guardados la fuente exacta `0cfe3ef511d80e4af032a3e64abd97391e86df08` y el payload `fb0485190d68285cc121603a3b946a19fb9c6a8a5f6e0da77ddfdcd5d079fb2d`. No se detectó una causa determinista en la comparación de las cinco listas vacías. El resultado recibido no distingue objetos existentes, metadatos incompletos y formato inesperado.
+
+Se prepara `PRODIMT_Diagnostico_Reparto_I22.py`: verifica los pines de los archivos ya copiados al VPS y ejecuta sólo el preflight existente, preservando el resultado de la comparación. Reporta tipos y conteos acotados, sin credenciales, pedidos, definiciones SQL ni valores desconocidos. No llama apply, rollback, migración, consultas administrativas o reinicio. Mantener el ZIP/payload y las guardas originales; el siguiente paso es obtener el JSON del diagnóstico antes de diseñar la corrección. Pasaron las 40 pruebas focalizadas (33 existentes + siete del diagnóstico), con composición real y transporte de lectura simulado, pines alterados, bloqueo y canarios. Ver `docs/validation/2026-11-03-driver-van-schema-preflight.md`. La publicación GitHub conserva su antecedente pendiente; guardar la continuación en el bundle de fuentes.
+
 ## I22 revisión 2 — Despliegue autorizado y validación previa automática
 
 El usuario autoriza desplegar para validar. La instalación exige dos validaciones antes de snapshot, staging, marcador o parada: tres pruebas SQL/HTTP de reparto en una base UUID y la migración exacta 16→17 con permisos, esquema, rollback y repetición en otra base UUID. Usa runtime .NET10 sin SDK. Credenciales sólo por entorno privado, limpieza independiente incluso tras timeout y ninguna entrada selecciona una base operativa. Constructor e instalador exigen las cuatro DLL principales idénticas entre backend y validador. No cambia el código funcional de reparto ni la migración publicada.
