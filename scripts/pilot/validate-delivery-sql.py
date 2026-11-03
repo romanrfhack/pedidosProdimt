@@ -108,7 +108,7 @@ def cleanup_generated_database(tool, server, login, password, options, clean_env
 
 
 def validate_exact_sql(files, installer, schema, tool, server, login, password, options,
-                       clean_environment, parse_output, transport_factory=Transport):
+                       clean_environment, parse_output, transport_factory=Transport, baseline_fixture=None):
     baseline = files['validation-baseline.sql'].decode('utf-8-sig')
     validate_baseline(baseline)
     contract = json.loads(files['delivery-schema.json'])
@@ -127,6 +127,8 @@ def validate_exact_sql(files, installer, schema, tool, server, login, password, 
         transport.run(database, "CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n"
             "ALTER ROLE [db_datareader] ADD MEMBER [prodimt_pedidos_app];\n"
             "ALTER ROLE [db_datawriter] ADD MEMBER [prodimt_pedidos_app];\n")
+        if baseline_fixture is not None:
+            baseline_fixture(transport, database)
         before = transport.query(history_query())
         require(before == [{'MigrationId': value} for value in BASE_IDS], 'validation_baseline_history_mismatch')
         empty = {key: [] for key in contract}

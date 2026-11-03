@@ -42,7 +42,8 @@ def migration():
     return ('BEGIN TRANSACTION;\n' + ''.join(tables) +
         'CREATE UNIQUE INDEX [IX_DeliveryRoutes_Name] ON [DeliveryRoutes] ([Name]);\n' +
         ''.join("INSERT INTO [SecurityPermissions] ([Key]) VALUES(N'" + key + "');\n" for key in installer.DELIVERY_PERMISSIONS) +
-        "INSERT INTO [SecurityRoles] ([Id]) VALUES('" + installer.DELIVERY_ROLE + "');\n" +
+        "EXEC(N'INSERT INTO [SecurityRoles] ([Id], [Name], [Description], [IsActive], [IsSystem])\n"
+        "    VALUES (''" + installer.DELIVERY_ROLE + "'', N''Repartidor - Camioneta'', N''Synthetic role'', CAST(1 AS bit), CAST(1 AS bit))');\n" +
         "INSERT INTO [SecurityRolePermissions] ([RoleId]) VALUES('" + installer.DELIVERY_ROLE + "');\n" +
         'UPDATE [SecurityStates] SET [Revision] = NEWID() WHERE [Id] = 1;\n' +
         "INSERT INTO [__EFMigrationsHistory] ([MigrationId],[ProductVersion]) VALUES (N'" + installer.MIGRATION + "', N'10.0.8');\nCOMMIT;\nGO\n\n")
@@ -205,7 +206,8 @@ class DeliveryPackageTests(unittest.TestCase):
         mapping = {instance.runtime.COUNTS_QUERY: counts, commercial.PRICE_COUNTS: {}, token.TOKEN_COUNTS: {},
             setup.DATA_FINGERPRINT: {}, setup.SETUP_COUNTS: {}, installer.SECURITY_FINGERPRINT: {},
             installer.DELIVERY_COUNTS: dict.fromkeys(installer.DELIVERY_TABLES, 0),
-            installer.DELIVERY_ROLE_DATA: dict(driver_roles=1, driver_grants=2, driver_total_grants=2)}
+            installer.DELIVERY_ROLE_DATA: dict(driver_roles=1, driver_grants=2, driver_total_grants=2),
+            installer.DELIVERY_SEED_COLLISIONS: dict(role_id_count=0,role_name_count=0,permission_id_count=0,permission_key_count=0)}
         instance.sql_json = lambda query: [{'MigrationId': value} for value in ids] if query == 'history' else mapping[query]
         events = []
         def backup():

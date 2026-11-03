@@ -141,10 +141,13 @@ def build(backend, frontend, migration, output, source, validation, baseline_mig
         raise ValueError('installer_template_invalid')
     exported = template.replace('REPLACE_SOURCE_COMMIT', source).replace('REPLACE_PAYLOAD_SHA256', digest(payload))
     readme = '''PRODIMT I22 — Mi reparto: Repartidor - Camioneta
-REVISIÓN 3 — ESQUEMA VACÍO EXPLÍCITO Y VALIDACIÓN SQL PREVIA
+REVISIÓN 4 — ROL PERSONALIZADO CONSERVADO Y VALIDACIÓN SQL PREVIA
 
 La consulta de esquema siempre emite las cinco listas, incluso vacías. Conserva
 la comparación estricta: no acepta objetos incompletos ni omite sus comprobaciones.
+El rol nuevo se llama Repartidor - Camioneta (sistema); conserva los roles
+personalizados anteriores y no traslada ni asigna usuarios automáticamente.
+La validación SQL previa incluye una fixture legacy antes de fingerprints.
 
 --apply primero ejecuta tres pruebas EF/HTTP portátiles y el SQL exacto del
 paquete en bases temporales generadas internamente, en la instancia SQL existente.
@@ -205,7 +208,7 @@ la custodia de producto ni restaura SQL automáticamente. No borrar el marcador.
 Un paquete distinto o cambios de configuración durante recuperación se rechazan.
 Repetir instalado y saludable muestra already_current sin migrar/reotorgar roles.
 
-5. Ctrl+F5. Seguridad: asignar el rol Repartidor - Camioneta a las cuentas elegidas.
+5. Ctrl+F5. Seguridad: asignar Repartidor - Camioneta (sistema) a las cuentas elegidas.
 El rol nuevo recibe delivery.read.own y delivery.operate.own. Administrador recibe
 también delivery.manage. No se asigna el rol a ninguna cuenta automáticamente.
 Reparto administrativo: completar rutas, chofer habitual, sustituto por fecha/vuelta,

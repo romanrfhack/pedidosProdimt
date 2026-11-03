@@ -1,5 +1,17 @@
 # Bitácora de trabajo
 
+## I22 revisión 4 — Preservar el rol personalizado y evitar la colisión
+
+Diagnóstico real recibido: existe un rol activo no sistema llamado Repartidor - Camioneta, con ID distinto al canónico, dos grants y una asignación. No existe el ID canónico ni ninguna de las tres claves/IDs nuevos de reparto. Historia16 y salud correctas. La colisión del nombre del rol queda confirmada; no es un conflicto de permisos ni falta de tablas.
+
+La revisión 4 conserva íntegros rol, permisos y usuario existentes. El nuevo rol canónico se llama `Repartidor - Camioneta (sistema)` y recibe sólo consulta/operación propias; no asigna usuarios automáticamente. El instalador adapta únicamente el literal del nombre en el INSERT del rol, con layout/identidad exactos, y mantiene payload `fb0485190d68285cc121603a3b946a19fb9c6a8a5f6e0da77ddfdcd5d079fb2d`, aplicación `0cfe3ef511d80e4af032a3e64abd97391e86df08`, estructura SQL y binarios sin cambios.
+
+Se comprueban colisiones del ID/nombre canónico y tres IDs/claves en lectura antes de stage/stop, bajo administrador y antes del DDL. La validación SQL aislada incorpora una fixture ficticia con el nombre legacy, dos grants y un usuario antes de fingerprints/rollback/repetición; sólo en su base ProdimtI22Validation_UUID. El helper antiguo se adapta bajo SHA y anclas exactas al hook opcional; ningún dato de prueba entra a producción. Se fortalece el fingerprint para incluir cualquier grant nuevo accidental a roles ajenos al Administrador y canónico. Se verifican nombre canónico y ausencia de asignación automática al instalar; futuras asignaciones legítimas no bloquean already_current.
+
+Validación local: 70 pruebas Python focalizadas correctas, 17 nuevas. Artefactos/cargador/overlays y payload original verificados; SQL real con esta fixture se ejecutará en el VPS antes de cambios.
+
+Entrega: instalador v4 pequeño, reutilizando el payload ya copiado; pruebas aisladas y respaldo siguen antes de la migración. Instalación/aceptación pendientes del reporte del VPS. Tras instalar, Administración debe asignar el nuevo rol del sistema al chofer elegido; el rol personalizado anterior conserva sus accesos. Ver docs/validation/2026-11-03-driver-van-role-preservation.md. Sin publicación GitHub; preservar en bundle.
+
 ## I22 — Migración detenida por 2601; versión anterior recuperada
 
 El usuario ejecutó v3 de SHA `1c5dec8f3bd590f109ce76a6fb356af33b6e5eca78209fd2d2a62f7528cf5806`. La lectura terminó planned/completed con las 16 migraciones y salud correctas. En --apply PASARON las tres pruebas SQL/HTTP portátiles y la validación del SQL exacto (esquema estricto, permisos DML, rollback, repetición y limpieza). También se verificó el respaldo SQL. Esto sustituye el pendiente de ejecución SQL de las secciones históricas; no acredita instalación de I22.

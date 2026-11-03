@@ -33,7 +33,7 @@ El responsable de reparto configura rutas por sus códigos existentes, chofer ha
 
 ## Seguridad y compatibilidad
 
-Permisos del sistema previstos: `delivery.read.own`, `delivery.operate.own`, `delivery.manage`. El rol Repartidor - Camioneta obtiene sólo consulta/operación propias. El administrador conserva acceso por sus permisos; no se convierte a los usuarios existentes en choferes ni se asignan rutas automáticamente.
+Permisos del sistema previstos: `delivery.read.own`, `delivery.operate.own`, `delivery.manage`. El rol canónico Repartidor - Camioneta (sistema) obtiene sólo consulta/operación propias. El rol personalizado homónimo anterior se conserva íntegro; no se adoptan ni trasladan sus asignaciones automáticamente. El administrador conserva acceso por sus permisos; no se convierte a los usuarios existentes en choferes ni se asignan rutas automáticamente.
 
 La API verifica permisos efectivos por petición, cuenta activa y propiedad del recorrido. Una concesión directa tiene la misma validez que un rol, conforme I18. No exponer contraseñas, claves, tokens, datos de otros recorridos ni instrucciones internas a clientes externos.
 

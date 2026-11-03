@@ -64,6 +64,7 @@ class DeliveryDiagnosisTests(unittest.TestCase):
                 fixtures.setup.SETUP_PERMISSIONS: fixtures.setup.EXPECTED_SETUP_PERMISSIONS,
                 security.SECURITY_PERMISSIONS: security.EXPECTED_SECURITY_PERMISSIONS,
                 production.PRODUCTION_SQL_PERMISSIONS: production.EXPECTED_PRODUCTION_PERMISSIONS,
+                installer.DELIVERY_SEED_COLLISIONS: dict(role_id_count=0,role_name_count=0,permission_id_count=0,permission_key_count=0),
                 'history': [{'MigrationId': value} for value in history],
             }
             reader = Mock(side_effect=lambda tool, fields, query: mapping[query])

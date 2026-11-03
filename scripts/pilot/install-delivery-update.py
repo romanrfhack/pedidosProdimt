@@ -24,7 +24,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261103-delivery-install3'
+REVISION = '20261103-delivery-install4'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -41,6 +41,9 @@ IDENTITY_MIGRATION = '20261102235000_AddSecurityAdministration'
 PRODUCTION_MIGRATION = '20261103010000_AddProductionAllocation'
 MIGRATION = '20261103020000_AddDeliveryOperations'
 DELIVERY_ROLE = '22220000-0000-0000-0000-000000000001'
+CANONICAL_DELIVERY_ROLE_NAME = 'Repartidor - Camioneta (sistema)'
+LEGACY_VALIDATION_HELPER_SHA256 = '6ddf2a1759a23b40bebe19ebfd5f793e28b0587a69035faec891458bd536431e'
+CURRENT_VALIDATION_HELPER_SHA256 = '11e632669a295fff86d9a86905d57e1046e511022405cd9dcdf2c9323184c87a'
 DELIVERY_TABLES = ('CustomerDeliveryLocations','DeliveryAssignments','DeliveryEvents','DeliveryRoutes','DeliveryTrips')
 DELIVERY_PERMISSIONS = ('delivery.read.own','delivery.operate.own','delivery.manage')
 SUPPORT_FILES = ('inspect-native.py','native-deployment-support.py','commercial-catalog-support.py',
@@ -160,11 +163,27 @@ def correct_delivery_schema_query(sql):
 
 def module(name, raw):
     result = types.ModuleType(name)
+    if name in ('i22_baseline_validator','i22_isolated_sql_support'):
+        raw = adapt_delivery_validation_source(raw)
     exec(compile(raw, name, 'exec'), result.__dict__)
     if name in ('i22_delivery_schema_validator','i22_delivery_schema_support'):
         original_query = result.schema_query
         result.schema_query = lambda strict=True: correct_delivery_schema_query(original_query(strict))
     return result
+
+
+def adapt_delivery_validation_source(raw):
+    """Add the reviewed fixture hook to the exact immutable v2 helper only."""
+    if sha(raw) == CURRENT_VALIDATION_HELPER_SHA256:
+        return raw
+    require(sha(raw) == LEGACY_VALIDATION_HELPER_SHA256, 'delivery_validation_helper_unexpected')
+    signature = b'                       clean_environment, parse_output, transport_factory=Transport):\n'
+    before = b'        before = transport.query(history_query())\n'
+    require(raw.count(signature) == raw.count(before) == 1, 'delivery_validation_helper_layout_unexpected')
+    changed = raw.replace(signature, signature.replace(b'Transport):', b'Transport, baseline_fixture=None):'))
+    changed = changed.replace(before, b'        if baseline_fixture is not None:\n            baseline_fixture(transport, database)\n' + before)
+    require(sha(changed) == CURRENT_VALIDATION_HELPER_SHA256, 'delivery_validation_helper_overlay_unexpected')
+    return changed
 
 
 DELIVERY_GRANTS = ''.join('GRANT SELECT,INSERT' + (',UPDATE' if table != 'DeliveryEvents' else '') +
@@ -179,11 +198,53 @@ EXPECTED_DELIVERY_PERMISSIONS = {table+'_'+operation:int(operation in ('SELECT',
 DELIVERY_COUNTS = 'SELECT '+','.join('(SELECT COUNT(*) FROM dbo.'+table+') AS ['+table+']'
     for table in DELIVERY_TABLES)+' FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;'
 DELIVERY_ROLE_DATA = """SELECT
- (SELECT COUNT(*) FROM dbo.SecurityRoles WHERE Id='22220000-0000-0000-0000-000000000001' AND IsActive=1 AND IsSystem=1) AS driver_roles,
+ (SELECT COUNT(*) FROM dbo.SecurityRoles WHERE Id='22220000-0000-0000-0000-000000000001' AND IsActive=1 AND IsSystem=1
+  AND Name=N'Repartidor - Camioneta (sistema)' AND NOT EXISTS
+   (SELECT 1 FROM dbo.SecurityUserRoles WHERE RoleId='22220000-0000-0000-0000-000000000001')) AS driver_roles,
  (SELECT COUNT(*) FROM dbo.SecurityRolePermissions rp JOIN dbo.SecurityPermissions p ON p.Id=rp.PermissionId
   WHERE rp.RoleId='22220000-0000-0000-0000-000000000001' AND p.[Key] IN (N'delivery.read.own',N'delivery.operate.own')) AS driver_grants,
  (SELECT COUNT(*) FROM dbo.SecurityRolePermissions rp WHERE rp.RoleId='22220000-0000-0000-0000-000000000001') AS driver_total_grants
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
+
+# Seed integrity is checked only immediately after a new migration and in the
+# disposable validation DB. Later legitimate user assignments remain allowed.
+DELIVERY_SEED_COLLISIONS = """SELECT
+ (SELECT COUNT(*) FROM dbo.SecurityRoles WHERE Id='22220000-0000-0000-0000-000000000001') AS role_id_count,
+ (SELECT COUNT(*) FROM dbo.SecurityRoles WHERE Name=N'Repartidor - Camioneta (sistema)') AS role_name_count,
+ (SELECT COUNT(*) FROM dbo.SecurityPermissions WHERE Id IN
+  ('18180000-0000-0000-0001-000000000019','18180000-0000-0000-0001-000000000020','18180000-0000-0000-0001-000000000021')) AS permission_id_count,
+ (SELECT COUNT(*) FROM dbo.SecurityPermissions WHERE [Key] IN
+  (N'delivery.read.own',N'delivery.operate.own',N'delivery.manage')) AS permission_key_count
+ FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
+
+
+def require_delivery_seed_space(reader):
+    values = reader(DELIVERY_SEED_COLLISIONS)
+    expected = {'role_id_count','role_name_count','permission_id_count','permission_key_count'}
+    require(type(values) is dict and set(values) == expected
+            and all(type(value) is int and value >= 0 for value in values.values()), 'delivery_seed_inventory_unexpected')
+    require(all(value == 0 for value in values.values()), 'delivery_seed_collision')
+
+
+LEGACY_VALIDATION_FIXTURE_SQL = """BEGIN TRANSACTION;
+INSERT INTO dbo.SecurityRoles (Id,Name,Description,IsActive,IsSystem)
+VALUES ('24240000-0000-0000-0000-000000000001',N'Repartidor - Camioneta',N'Synthetic legacy validation role',1,0);
+INSERT INTO dbo.AdminUsers (Id,UserName,PasswordHash,DisplayName,IsActive,CreatedAt,IsDeleted,SessionRevision)
+VALUES ('24240000-0000-0000-0000-000000000002',N'i22-synthetic-legacy-user',N'synthetic-not-a-login',N'Synthetic legacy validation user',
+ 1,'2026-11-03T00:00:00+00:00',0,'24240000-0000-0000-0000-000000000003');
+INSERT INTO dbo.SecurityRolePermissions (RoleId,PermissionId) VALUES
+ ('24240000-0000-0000-0000-000000000001','18180000-0000-0000-0001-000000000001'),
+ ('24240000-0000-0000-0000-000000000001','18180000-0000-0000-0001-000000000013');
+INSERT INTO dbo.SecurityUserRoles (UserId,RoleId)
+VALUES ('24240000-0000-0000-0000-000000000002','24240000-0000-0000-0000-000000000001');
+COMMIT;
+"""
+
+
+def delivery_validation_legacy_fixture(transport, database):
+    require(type(database) is str and re.fullmatch(r'ProdimtI22Validation_[a-f0-9]{32}', database)
+            and getattr(transport, 'database', None) == database, 'delivery_validation_fixture_target_unexpected')
+    transport.run(database, LEGACY_VALIDATION_FIXTURE_SQL, timeout=120)
 
 def security_fingerprint_query():
     excluded=','.join("N'"+key+"'" for key in DELIVERY_PERMISSIONS)
@@ -192,7 +253,8 @@ def security_fingerprint_query():
         'user_permissions':'SELECT * FROM dbo.SecurityUserPermissions ORDER BY UserId,PermissionId',
         'state':'SELECT Id FROM dbo.SecurityStates ORDER BY Id',
         'permissions':'SELECT * FROM dbo.SecurityPermissions WHERE [Key] NOT IN ('+excluded+') ORDER BY Id',
-        'role_permissions':'SELECT rp.* FROM dbo.SecurityRolePermissions rp JOIN dbo.SecurityPermissions p ON p.Id=rp.PermissionId WHERE p.[Key] NOT IN ('+excluded+') ORDER BY rp.RoleId,rp.PermissionId'}
+        'role_permissions':'SELECT rp.* FROM dbo.SecurityRolePermissions rp JOIN dbo.SecurityPermissions p ON p.Id=rp.PermissionId WHERE NOT '
+            '(p.[Key] IN ('+excluded+") AND rp.RoleId IN ('18180000-0000-0000-0000-000000000001','"+DELIVERY_ROLE+"')) ORDER BY rp.RoleId,rp.PermissionId"}
     return 'SELECT '+','.join("CONVERT(varchar(64),HASHBYTES('SHA2_256',("+query+" FOR JSON PATH,INCLUDE_NULL_VALUES)),2) AS ["+key+']'
         for key,query in queries.items())+' FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;'
 
@@ -203,8 +265,17 @@ SECURITY_FINGERPRINT = security_fingerprint_query()
 def migration_sql_for_sqlcmd(files):
     sql = files['migrations-i22.sql'].decode('utf-8-sig')
     validate_migration_sql(sql)
+    sql = canonical_delivery_role_sql(sql)
     # The GO keeps the same connection/transaction and avoids SQL207 on new tables.
     return sql.removesuffix('COMMIT;\nGO\n\n') + 'GO\n\n' + DELIVERY_GRANTS + '\nCOMMIT;\nGO\n\n'
+
+
+def canonical_delivery_role_sql(sql):
+    marker = ("INSERT INTO [SecurityRoles] ([Id], [Name], [Description], [IsActive], [IsSystem])\n"
+              "    VALUES (''22220000-0000-0000-0000-000000000001'', N''Repartidor - Camioneta'',")
+    require(type(sql) is str and sql.count(marker) == 1 and sql.count("N''Repartidor - Camioneta''") == 1,
+            'delivery_role_seed_layout_unexpected')
+    return sql.replace(marker, marker.replace("N''Repartidor - Camioneta''", "N''Repartidor - Camioneta (sistema)''"))
 
 
 def validation_connection(server, login, password):
@@ -454,7 +525,7 @@ def make_installer(package):
             self.inspector.QUERIES = (commercial.PERMISSION_QUERY, commercial.NEW_SCHEMA, commercial.PRICE_PERMISSIONS,
                 setup.TOKEN_SCHEMA, setup.TOKEN_SHAPE, setup.SETUP_SCHEMA, setup.SETUP_SHAPE, setup.SETUP_PERMISSIONS,
                 SECURITY_SCHEMA, SECURITY_PERMISSIONS, production.PRODUCTION_SCHEMA, production.PRODUCTION_SHAPE, production.PRODUCTION_SQL_PERMISSIONS,
-                schema.schema_query(True), schema.schema_query(False), DELIVERY_SQL_PERMISSIONS,
+                schema.schema_query(True), schema.schema_query(False), DELIVERY_SQL_PERMISSIONS, DELIVERY_SEED_COLLISIONS,
                 self.inspector.SQL_MIGRATIONS)
             if process_environment is None:
                 process_environment = self.inspector.process_environment(pid)
@@ -470,6 +541,8 @@ def make_installer(package):
             require(self.sql_tool, 'sqlcmd_required')
             read = lambda query: self.inspector.query_sql(self.sql_tool, self.fields, query)
             ids = self.schemas(read)
+            if MIGRATION not in ids:
+                require_delivery_seed_space(read)
             if not self.recovery:
                 expected = migrations if own else base
                 require(ids == expected, 'release_and_migration_history_disagree')
@@ -539,11 +612,14 @@ def make_installer(package):
             security_before = self.sql_json(SECURITY_FINGERPRINT) if IDENTITY_MIGRATION in ids else None
             setup_before = self.sql_json(setup.SETUP_COUNTS) if SETUP_MIGRATION in ids else None
             delivery_before = self.sql_json(DELIVERY_COUNTS) if MIGRATION in ids else dict.fromkeys(DELIVERY_TABLES, 0)
+            if MIGRATION not in ids:
+                require_delivery_seed_space(self.sql_json)
             self.database_backup()
             require(self.state.get('verified_database_backup'), 'verified_database_backup_required')
             require(regular(ENV_FILE) == self.environment and token.environment_key(self.environment) == self.token_encryption_key, 'configuration_changed_before_migration')
             new_migration = MIGRATION not in ids
             if new_migration:
+                require_delivery_seed_space(self.sql_json)
                 self.state.update(database_migrations_run=True, migrations_may_have_changed=True)
                 self.sql_run(migration_sql_for_sqlcmd(files), timeout=180)
                 ids = self.history(self.sql_json)
@@ -579,6 +655,8 @@ def make_installer(package):
                 self.state.update(frontend_verified=True, encryption_key_effective_verified=True)
 
         def validate_before_apply(self):
+            if MIGRATION not in self.state['migration_ids_before']:
+                require_delivery_seed_space(self.sql_json)
             self.state['phase'] = 'isolated-http-and-sql-validation'
             connection = validation_connection(runtime.SERVER, self.sql_login, self.sql_password)
             def cleanup(database):
@@ -599,7 +677,8 @@ def make_installer(package):
             try:
                 exact = validation.validate_exact_sql(files, operations, schema,
                     self.sql_tool, runtime.SERVER, self.sql_login, self.sql_password,
-                    runtime.OPTIONS, runtime.CLEAN_ENV, self.inspector.parse_sql_output)
+                    runtime.OPTIONS, runtime.CLEAN_ENV, self.inspector.parse_sql_output,
+                    baseline_fixture=delivery_validation_legacy_fixture)
             except validation.ValidationFailure as error:
                 if error.cleanup_database:
                     self.state['validation_database_cleanup_required'] = error.cleanup_database
