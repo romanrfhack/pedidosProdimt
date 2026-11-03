@@ -21,7 +21,7 @@ using Prodimt.Pedidos.Infrastructure.Repositories;
 
 namespace Prodimt.Pedidos.Application.Tests;
 
-public sealed class CustomerOrderCaptureTests
+public sealed partial class CustomerOrderCaptureTests
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
 
@@ -307,7 +307,7 @@ public sealed class CustomerOrderCaptureTests
                     () => Clock.Now = DateTimeOffset.Parse("2026-11-01T00:01:00Z"));
             var audit = new EfOrderAuditLogRepository(db); var machines = new EfMachineRepository(db);
             var store = new EfOrderOperationStore(db); var channels = new EfSalesChannelRepository(db);
-            Service = new(customers, new EfProductRepository(db), machines, channels, orders, audit, store, Clock);
+            Service = new(customers, new EfProductRepository(db), machines, channels, orders, audit, store, Clock, scheduling: new OrderSchedulingService(new EfOrderingScheduleRepository(db)));
             var admin = new AdminOrderService(orders, audit, customers, new EfProductRepository(db), machines,
                 channels, Clock, new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(db), machines, customers));
             AdminOrders = admin;

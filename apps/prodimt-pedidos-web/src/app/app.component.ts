@@ -21,12 +21,13 @@ import { AuthService } from './auth.service';
           @if (access.has('delivery.manage')) { <a routerLink="/admin/reparto" routerLinkActive="active">Reparto</a> }
           @if (access.has('orders.read')) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
           @if (access.any(['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'])) { <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a> }
-          @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Revision</a> }
+          @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Por confirmar</a> }
           @if (access.has('orders.capture')) { <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a> }
           @if (access.any(['customers.read','customers.manage','products.read','products.manage','machines.read','machines.manage','tokens.manage','pricing.manage'])) { <a routerLink="/admin/catalogos" routerLinkActive="active">Catalogos</a> }
           @if (access.has('imports.manage')) { <a routerLink="/admin/importacion" routerLinkActive="active">Importacion</a> }
           @if (access.has('imports.manage')) { <a routerLink="/admin/importar-pedidos" routerLinkActive="active">Importar pedidos</a> }
           @if (access.any(['customers.manage','pricing.manage'])) { <a routerLink="/admin/productos-por-configurar" routerLinkActive="active" aria-label="Productos por configurar">Configurar productos @if (setups.pendingCount(); as count) { <span class="setup-nav-count">{{ count }}</span> }</a> }
+          @if (access.has('customers.manage')) { <a routerLink="/admin/horarios" routerLinkActive="active">Horarios</a> }
           @if (access.has('security.manage')) { <a routerLink="/admin/seguridad" routerLinkActive="active">Seguridad</a> }
           <a routerLink="/admin/cambiar-contrasena" routerLinkActive="active">Cambiar contraseña</a>
         }

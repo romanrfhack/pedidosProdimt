@@ -40,6 +40,7 @@ export class CustomerTodayComponent implements OnDestroy {
   private manualDirty = false;
   private pendingManual = false;
 
+  protected acceptedDeliveryDate: string | null = null;
   protected customerName = 'Cliente';
   protected customerToken = environment.demoCustomerToken;
   protected nextOrder: CustomerNextOrder | null = null;
@@ -56,6 +57,7 @@ export class CustomerTodayComponent implements OnDestroy {
   protected noOrderConfirmation = false;
   protected loadError: string | null = null;
   protected tokenLoginError: string | null = null;
+  protected linkUnavailable = false;
   protected error: string | null = null;
   protected notice: string | null = null;
   protected actionMessage: string | null = null;
@@ -85,11 +87,13 @@ export class CustomerTodayComponent implements OnDestroy {
     return this.products.slice().sort((a, b) => (a.interpretationPosition ?? 999) - (b.interpretationPosition ?? 999));
   }
   protected get canSave(): boolean {
-    if (this.locked || this.interpreting || this.hasActiveOrder || !this.nextOrder) return false;
+    if (this.locked || this.interpreting || this.hasActiveOrder || !this.nextOrder || !this.dateAccepted) return false;
     return this.mode === 'quick'
       ? !!this.preview && this.preview.text === this.text.trim() && this.nextOrder.isProfileApproved
       : this.products.some(x => Number(x.quantity) > 0) && this.products.every(x => this.validQuantity(x.quantity) && (!x.quantity || !!x.unitCode));
   }
+  protected get dateAccepted(): boolean { return !this.nextOrder?.orderingWindow?.requiresDateAcceptance || this.acceptedDeliveryDate === this.nextOrder.deliveryDate; }
+  protected acceptDeliveryDate(): void { if (this.nextOrder) this.acceptedDeliveryDate = this.nextOrder.deliveryDate; }
   protected get deliveryLabel(): string {
     const next = this.nextOrder;
     if (next?.preferredDeliveryTime) return next.preferredDeliveryTime.slice(0, 5);
@@ -100,7 +104,7 @@ export class CustomerTodayComponent implements OnDestroy {
 
   protected loginCustomer(): void {
     if (this.isAuthenticating || !this.customerToken.trim()) return;
-    this.tokenLoginError = null; this.isAuthenticating = true;
+    this.tokenLoginError = null; this.linkUnavailable = false; this.isAuthenticating = true;
     this.requests.add(this.auth.loginCustomerWithToken(this.customerToken.trim()).subscribe({
       next: session => {
         this.customerToken = ''; this.customerName = session.customerName ?? 'Cliente';
@@ -108,7 +112,8 @@ export class CustomerTodayComponent implements OnDestroy {
         this.loadNext(this.loadedCustomerId === session.customerId);
       },
       error: error => {
-        this.tokenLoginError = this.message(error, 'El enlace o token no es válido, venció o fue revocado.');
+        this.linkUnavailable = error instanceof HttpErrorResponse && [401, 403].includes(error.status);
+        this.tokenLoginError = this.message(error, 'No pudimos conectarnos. Intenta de nuevo en un momento.');
         this.isAuthenticating = false; this.changeDetector.detectChanges();
       }
     }));
@@ -206,7 +211,7 @@ export class CustomerTodayComponent implements OnDestroy {
   }
 
   protected confirmNoOrder(): void {
-    if (this.locked || this.hasActiveOrder || !this.noOrderConfirmation || !this.nextOrder) return;
+    if (this.locked || this.hasActiveOrder || !this.noOrderConfirmation || !this.nextOrder || !this.dateAccepted || this.nextOrder.orderingWindow?.requestOnly) return;
     this.attempt = { kind: 'no-order', request: { operationId: crypto.randomUUID(), expectedDeliveryDate: this.nextOrder.deliveryDate } };
     this.noOrderConfirmation = false; this.sendAttempt();
   }
@@ -227,8 +232,8 @@ export class CustomerTodayComponent implements OnDestroy {
   protected currentOrderTitle(): string {
     const status = this.nextOrder?.currentOrder?.status;
     if (status === 'NoOrder') return 'Confirmaste que no pedirás para esta entrega';
-    if (status === 'PendingAdminReview') return 'Pedido recibido y pendiente de revisión';
-    if (status === 'Rejected') return 'Pedido rechazado';
+    if (status === 'PendingAdminReview') return 'Solicitud recibida · Pendiente de confirmación';
+    if (status === 'Rejected') return 'No fue posible confirmar este pedido';
     if (status === 'Cancelled') return 'Pedido cancelado';
     return 'Pedido registrado';
   }
@@ -243,7 +248,9 @@ export class CustomerTodayComponent implements OnDestroy {
       next: (receipt: CustomerCaptureReceipt) => {
         this.isSubmitting = false; this.uncertain = false; this.attempt = null;
         this.actionMessage = attempt.kind === 'no-order' ? 'Se registró que no pedirás para esta entrega.'
-          : `Pedido confirmado para el ${this.formatDeliveryDate(receipt.order.orderDate)}${receipt.order.requiresAdminReview ? '; pendiente de revisión.' : '.'}`;
+          : receipt.order.requiresAdminReview
+            ? `Recibimos tu solicitud para el ${this.formatDeliveryDate(receipt.order.orderDate)}. Está pendiente de confirmación; revisaremos la disponibilidad de producción y reparto y te avisaremos si podemos surtirla.`
+            : `Pedido registrado para el ${this.formatDeliveryDate(receipt.order.orderDate)}.`;
         this.loadNext(false);
       },
       error: error => {
@@ -286,7 +293,7 @@ export class CustomerTodayComponent implements OnDestroy {
       error: error => {
         this.loadError = this.message(error, 'No pudimos consultar tu próximo pedido.'); this.isLoading = false;
         if (error instanceof HttpErrorResponse && error.status === 401) {
-          this.tokenLoginError = 'El acceso venció o fue revocado. Solicita un enlace vigente para continuar.'; this.auth.logout();
+          this.linkUnavailable = true; this.tokenLoginError = 'El acceso venció o fue revocado. Solicita un enlace vigente para continuar.'; this.auth.logout();
         }
         this.changeDetector.detectChanges();
       }
@@ -297,7 +304,7 @@ export class CustomerTodayComponent implements OnDestroy {
     this.error = this.message(error, fallback);
     if (!(error instanceof HttpErrorResponse)) return;
     if (error.status === 401) {
-      this.tokenLoginError = 'El acceso venció o fue revocado. Solicita un enlace vigente para continuar.';
+      this.linkUnavailable = true; this.tokenLoginError = 'El acceso venció o fue revocado. Solicita un enlace vigente para continuar.';
       this.auth.logout();
     } else if (error.status === 409) {
       if (error.error?.code === 'DeliveryDateChanged' && error.error.deliveryDate) {

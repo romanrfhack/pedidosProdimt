@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import types
 import unittest
+import os
 from unittest.mock import Mock, patch
 import zipfile
 
@@ -198,6 +199,7 @@ class ProductionPackageTests(unittest.TestCase):
         self.assertTrue(instance.state['rollback_blocked_service_stop'])
         self.assertNotIn('application_stopped_for_security',instance.state)
 
+    @unittest.skipUnless(os.geteuid() == 0, 'Native ownership fixture requires root; production owner checks remain enabled.')
     def test_recovery_marker_pins_source_payload_and_private_environment(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(installer,'BACKUPS',Path(folder)):
             instance = self.instance()
@@ -206,6 +208,7 @@ class ProductionPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(installer.InstallError,'different_update_recovery_pending'):
                 instance.read_marker()
 
+    @unittest.skipUnless(os.geteuid() == 0, 'Native ownership fixture requires root; production owner checks remain enabled.')
     def test_readonly_recovery_accepts_stopped_service_and_apply_activates_only_i19(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)/'app'
@@ -277,6 +280,7 @@ class ProductionPackageTests(unittest.TestCase):
                 self.assertFalse(instance.marker.exists())
                 self.assertEqual(env.read_bytes(),raw)
 
+    @unittest.skipUnless(os.geteuid() == 0, 'Native ownership fixture requires root; production owner checks remain enabled.')
     def test_build_and_exported_installer_agree_on_pins_hashes_and_all_three_migrations(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

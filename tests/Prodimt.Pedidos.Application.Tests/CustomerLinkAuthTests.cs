@@ -16,9 +16,9 @@ namespace Prodimt.Pedidos.Application.Tests;
 public sealed class CustomerLinkAuthTests
 {
     [Theory]
-    [InlineData(5, 5)]
+    [InlineData(5, 60)]
     [InlineData(120, 60)]
-    public void CustomerJwt_ContainsOriginTokenAndNeverOutlivesLink(int linkMinutes, int sessionMinutes)
+    public void CustomerJwt_ContainsOriginTokenAndBoundsRequestSession(int linkMinutes, int sessionMinutes)
     {
         var clock = new FixedClock(new DateTimeOffset(2026, 10, 31, 15, 0, 0, TimeSpan.Zero));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -120,7 +120,7 @@ public sealed class CustomerLinkAuthTests
         var customerLogin = await client.PostAsJsonAsync("/api/auth/customer-token", new CustomerTokenLoginRequest(link.PlainToken));
         var customerSession = await customerLogin.Content.ReadFromJsonAsync<CustomerTokenLoginResponse>();
         Assert.Equal(link.ExpiresAt, customerSession!.AccessLinkExpiresAt);
-        Assert.True(customerSession.ExpiresAt <= link.ExpiresAt);
+        Assert.True(customerSession.ExpiresAt <= CustomerLinkAccessPolicy.MaximumAccessAt(new CustomerAccessToken { ExpiresAt = link.ExpiresAt }));
         Assert.Equal("no-store", customerLogin.Headers.CacheControl?.ToString());
         Assert.Equal("no-referrer", customerLogin.Headers.GetValues("Referrer-Policy").Single());
     }

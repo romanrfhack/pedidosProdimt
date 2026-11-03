@@ -122,6 +122,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<TimeOnly?>("AutomaticConfirmationCutoff")
+                        .IsConcurrencyToken()
+                        .HasColumnType("time");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -152,6 +156,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("OrderingProfileVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderingScheduleVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("int");
 
@@ -199,6 +207,7 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("Customers", t =>
                         {
                             t.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
+                            t.HasCheckConstraint("CK_Customers_AutomaticConfirmationCutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'");
                         });
                 });
 
@@ -1401,6 +1410,24 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_ProductionBatch_Unit", "[UnitCode] = 'kg'");
                         });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.RouteOrderSchedule", b =>
+                {
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<TimeOnly?>("AutomaticConfirmationCutoff")
+                        .HasColumnType("time");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("RouteCode");
+
+                    b.ToTable("RouteOrderSchedules", null, t => t.HasCheckConstraint("CK_RouteOrderSchedules_Cutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'"));
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.SalesChannel", b =>

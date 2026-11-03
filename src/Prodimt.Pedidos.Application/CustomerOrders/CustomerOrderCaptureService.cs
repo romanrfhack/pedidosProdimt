@@ -12,11 +12,11 @@ namespace Prodimt.Pedidos.Application.CustomerOrders;
 public sealed class CustomerOrderCaptureService(ICustomerRepository customers, IProductRepository products,
     IMachineRepository machines, ISalesChannelRepository channels, IOrderRepository orders,
     IOrderAuditLogRepository audit, IOrderOperationStore operations, IDateTimeProvider clock,
-    ICommercialCatalogRepository? commercial = null, CustomerProductSetupService? additional = null)
+    ICommercialCatalogRepository? commercial = null, CustomerProductSetupService? additional = null, OrderSchedulingService? scheduling = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public async Task<CustomerNextOrderResponse> GetNextAsync(Guid customerId, CancellationToken token)
+    public async Task<CustomerNextOrderResponse> GetNextAsync(Guid customerId, CancellationToken token, bool requestOnly = false)
     {
         var (customer, profile) = await ReadProfileAsync(customerId, token);
         var now = clock.Now;
@@ -34,7 +34,8 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
                 current.DeliveryNotes, current.Lines.Select(x => new CustomerCaptureCurrentLine(x.ProductId,
                     x.ProductNameSnapshot ?? profile.Items.FirstOrDefault(p => p.ProductId == x.ProductId)?.ProductName ?? "Producto",
                     x.Quantity, x.UnitCode, x.Notes)).ToArray()),
-            customer.PreferredDeliveryTime, customer.PreferredDeliveryWindowStart, customer.PreferredDeliveryWindowEnd);
+            customer.PreferredDeliveryTime, customer.PreferredDeliveryWindowStart, customer.PreferredDeliveryWindowEnd,
+            scheduling is null ? null : await scheduling.GetAsync(customer, now, requestOnly, token));
     }
 
     public async Task<PreviewCustomerOrderCaptureResponse> PreviewAsync(Guid customerId,
@@ -48,7 +49,7 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
     }
 
     public async Task<SubmitCustomerOrderCaptureResponse> SubmitAsync(Guid customerId,
-        SubmitCustomerOrderCaptureRequest request, CancellationToken cancellationToken)
+        SubmitCustomerOrderCaptureRequest request, CancellationToken cancellationToken, bool requestOnly = false)
     {
         var received = DeliveryDatePolicy.Capture(clock);
         ArgumentNullException.ThrowIfNull(request);
@@ -90,15 +91,20 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
                     resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet());
                 var channel = await channels.GetRequiredByTypeAsync(SalesChannelType.Customer, inner);
                 var count = await orders.CountCustomerOrdersAsync(customerId, date, inner);
+                var window = scheduling is null ? null : await scheduling.GetAsync(customer, received.Now, requestOnly, inner);
+                var evaluation = window is null ? ServiceDatePolicy.Evaluate(date, received, false)
+                    : window.RequiresConfirmation ? new Prodimt.Pedidos.Domain.Services.OrderSubmissionEvaluation(
+                        true, true, AdminReviewReason.LateSubmission, OrderStatus.PendingAdminReview)
+                    : new Prodimt.Pedidos.Domain.Services.OrderSubmissionEvaluation(false, false, null, OrderStatus.Submitted);
                 var order = Order.CreateSubmitted(customerId, channel.Id, date, received.Now, count + 1,
-                    ServiceDatePolicy.Evaluate(date, received, false), lines, customer);
+                    evaluation, lines, customer);
                 order.ApplyDeliveryChanges(null, null, null, request.DeliveryNotes);
                 await orders.AddAsync(order, inner);
                 await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderSubmitted, order.SubmittedAt,
-                    AuditActorType.Customer, quick ? "Pedido del cliente confirmado mediante captura rápida." : "Pedido del cliente confirmado mediante captura manual.",
+                    AuditActorType.Customer, quick ? "Solicitud del cliente recibida mediante captura rápida." : "Solicitud del cliente recibida mediante captura manual.",
                     metadataJson: JsonSerializer.Serialize(new { mode = quick ? "quick" : "manual",
                         originalText = quick ? request.Text!.Trim() : null, request.OperationId,
-                        deliveryDate = date, profile.OrderingProfileVersion, lines = resolved }, JsonOptions)), inner);
+                        deliveryDate = date, window, requestOnly, profile.OrderingProfileVersion, lines = resolved }, JsonOptions)), inner);
                 if (order.IsLate)
                     await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderMarkedLate, order.SubmittedAt,
                         AuditActorType.System, "Pedido recibido después de la hora habitual para esta fecha de entrega."), inner);

@@ -15,6 +15,12 @@ public sealed class SecurityAdministrationTests
     private const string Root = "/api/admin/security";
     private const string Password = "Fictional-security-2026-only!";
 
+    [Theory]
+    [InlineData("/api/admin/ordering-schedules", "customers.manage")]
+    [InlineData("/api/admin/delivery", "delivery.manage")]
+    public void IntegratedSchedulesAndDelivery_KeepTheirOwnAdministrativePermission(string path, string expected)
+        => Assert.Equal(expected, Prodimt.Pedidos.Api.AdminPermissionMiddleware.RequiredPermission("GET", path));
+
     [Fact]
     public async Task SecurityAdministration_RejectsAnonymousCustomerAndUnprivilegedStaff()
     {

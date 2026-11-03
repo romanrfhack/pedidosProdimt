@@ -17,4 +17,4 @@ public sealed record AdminOrderSummaryResponse(
     TimeOnly? RequestedDeliveryWindowStart,
     TimeOnly? RequestedDeliveryWindowEnd,
     string? DeliveryNotes,
-    AdminDecision? AdminDecision);
+    AdminDecision? AdminDecision, string? RouteCode = null);

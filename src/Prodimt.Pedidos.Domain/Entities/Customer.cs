@@ -20,6 +20,10 @@ public sealed class Customer
 
     public string? DeliveryNotes { get; set; }
 
+    public int OrderingScheduleVersion { get; set; }
+
+    public TimeOnly? AutomaticConfirmationCutoff { get; set; }
+
     public string? RouteCode { get; set; }
 
     public int? RouteStopOrder { get; set; }

@@ -259,7 +259,7 @@ public sealed class AccessTokenManagementTests
     }
 
     [Fact]
-    public async Task ExpiredLink_BlocksAlreadyAuthenticatedCustomer_WithoutChangingProtectedCredential()
+    public async Task ExpiredLink_RestrictsAlreadyAuthenticatedCustomer_WithoutChangingProtectedCredential()
     {
         await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
         using var admin = factory.CreateClient();
@@ -273,14 +273,14 @@ public sealed class AccessTokenManagementTests
         var row = store.CustomerAccessTokens.Single(x => x.Id == token.TokenId);
         // Advance only the authoritative access-link deadline; the issued JWT still has its original expiry.
         row.ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(-1);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await customer.GetAsync(
+        Assert.Equal(HttpStatusCode.OK, (await customer.GetAsync(
             $"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/next")).StatusCode);
         Assert.Equal(token.PlainToken, new AesGcmCustomerAccessTokenProtector(factory.Services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>())
             .Unprotect(row.CustomerId, row.Id, row.ProtectedToken!));
     }
 
     [Fact]
-    public async Task ExtendingLink_RequiresNewLoginToReceiveLongerSession_AndKeepsTheSameToken()
+    public async Task ExtendingLink_PublishesNewDeadline_AndKeepsTheSameToken()
     {
         await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
         using var admin = factory.CreateClient();
@@ -293,7 +293,7 @@ public sealed class AccessTokenManagementTests
         using var customer = factory.CreateClient();
         var firstLogin = await customer.PostAsJsonAsync("/api/auth/customer-token", new CustomerTokenLoginRequest(token.PlainToken));
         var firstSession = (await firstLogin.Content.ReadFromJsonAsync<CustomerTokenLoginResponse>())!;
-        Assert.Equal(initialDeadline, firstSession.ExpiresAt);
+        Assert.Equal(initialDeadline, firstSession.AccessLinkExpiresAt);
 
         var newDeadline = DateTimeOffset.UtcNow.AddMinutes(20);
         var update = await admin.PatchAsJsonAsync($"{TokensPath}/{token.TokenId}",
@@ -301,9 +301,9 @@ public sealed class AccessTokenManagementTests
         update.EnsureSuccessStatusCode();
         var anotherLogin = await customer.PostAsJsonAsync("/api/auth/customer-token", new CustomerTokenLoginRequest(token.PlainToken));
         var nextSession = (await anotherLogin.Content.ReadFromJsonAsync<CustomerTokenLoginResponse>())!;
-        Assert.Equal(newDeadline, nextSession.ExpiresAt);
+        Assert.True(nextSession.ExpiresAt <= CustomerLinkAccessPolicy.MaximumAccessAt(new CustomerAccessToken { ExpiresAt = newDeadline }));
         Assert.Equal(newDeadline, nextSession.AccessLinkExpiresAt);
-        Assert.Equal(initialDeadline, firstSession.ExpiresAt);
+        Assert.Equal(initialDeadline, firstSession.AccessLinkExpiresAt);
         Assert.NotEqual(firstSession.AccessToken, nextSession.AccessToken);
     }
 

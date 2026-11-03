@@ -1,5 +1,11 @@
 # Estado del proyecto
 
+## I23 — Fuente integrada, pendiente de compilar backend/aplicar desde WSL
+
+El usuario autoriza continuar implementación/despliegue tras el rechazo del paquete paralelo de horarios I22. Unión preparada con Reparto I22 y base estricta `delivery-0cfe3ef511d8`, migraciones17→18. Web compilada correctamente; Python508,504 correctas/cuatro omitidas. Backend no compilado aquí por ausencia de SDK y descarga bloqueada; Chromium no inicia por restricción de sockets. SSH al VPS sin ruta; no se modificó producción.
+
+Runner WSL entregable: exige compilación/pruebas backend y coherencia EF antes de copiar; reutiliza el paquete generado en reintentos. Pruebas EF/HTTP y SQL exacto aislados con limpieza antes de stage/stop, respaldo verificado antes de DDL y huellas completas de reparto/seguridad. Último despliegue confirmado permanece I22 Reparto hasta recibir JSON real de I23. Detalles en ../validation/2026-11-03-schedules-on-delivery.md.
+
 ## I22 instalado — Migración 17, salud y repetición verificadas
 
 El usuario reporta v4 updated/completed: migraciones 16→17, pruebas SQL/HTTP 3/3 y SQL exacto con fixture legacy correctos (esquema/permisos/rollback/replay/limpieza), respaldo verificado, aplicación reiniciada, health_verified=true, frontend_verified=true y recovery_pending=false. Backend y frontend activos delivery-0cfe3ef511d8; fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Datos/precios/cuentas/permisos/producción/reparto/tokens/clave conservados conforme los controles del instalador. No restauración automática de SQL ni cambio de contraseña.

@@ -1,5 +1,15 @@
 # Continuar PRODIMT
 
+## I23 — Horarios sobre Reparto I22: fuente integrada y preparación de despliegue
+
+El usuario autoriza implementar/desplegar después de `previous_release_not_supported` en el paquete antiguo de horarios. Se recuperaron las versiones actuales de ambos bundles. El I22 de horarios esperaba I19/I21 y no incluía reparto; aceptar el nuevo nombre de release sin integrar binarios perdería esa función. Se integra sobre I22 Reparto, conservando su instalación documentada `delivery-0cfe3ef511d8`, 17 migraciones.
+
+I23 admite exclusivamente esa pareja backend/frontend e historial exacto, añade sólo AddOrderingSchedules (18), conserva permisos y huellas de datos de reparto, seguridad, precios y tokens. El snapshot EF y el Designer nuevo contienen ambas funciones; no se reescriben las migraciones históricas. Las autorizaciones HTTP de Horarios y Reparto se conservan por separado.
+
+El entorno actual carece de SDK .NET y no tiene ruta SSH al VPS; la descarga del SDK también está bloqueada. Compilación Angular correcta; Python y limitaciones en docs/validation/2026-11-03-schedules-on-delivery.md. No afirmar compilación backend ni despliegue I23. Se entrega un runner WSL que prepara .NET10 en carpeta propia sólo si falta, exige pruebas backend y comprobación del modelo EF, genera un paquete nativo de fuente fija y reutiliza el mismo paquete en reintentos. Frontend de producción compilado incluido, sin necesitar Node en WSL. Antes de cambios operativos ejecuta tres pruebas SQL/HTTP portátiles y SQL exacto aislado, comprueba limpieza y después respaldo operativo verificado. Pendientes ejecución del runner y JSON real `updated/completed`, migraciones18 y salud/frontend.
+
+La publicación GitHub sigue pendiente; fuente y validación se conservan en bundle autosuficiente. No repetir los instaladores I22 antiguos ni pedir al usuario contraseñas en el chat.
+
 ## I22 instalado — Migración 17, salud y repetición verificadas
 
 El usuario reporta v4 updated/completed: migraciones 16→17, pruebas SQL/HTTP 3/3 y SQL exacto con fixture legacy correctos (esquema/permisos/rollback/replay/limpieza), respaldo verificado, aplicación reiniciada, health_verified=true, frontend_verified=true y recovery_pending=false. Backend y frontend activos delivery-0cfe3ef511d8; fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Datos/precios/cuentas/permisos/producción/reparto/tokens/clave conservados conforme los controles del instalador. No restauración automática de SQL ni cambio de contraseña.

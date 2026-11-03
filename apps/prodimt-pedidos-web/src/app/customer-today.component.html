@@ -1,31 +1,58 @@
 <section class="page stack customer-order-page" data-testid="customer-today">
   <div class="page-title"><p class="eyebrow">{{ customerName }}</p><h2>Mi próximo pedido</h2></div>
   @if (!isCustomerAuthenticated) {
+    @if (tokenLoginError && linkUnavailable) {
+      <section class="friendly-access stack" role="status"><span class="friendly-clock" aria-hidden="true">◷</span>
+        <h3>Este enlace ya no está disponible</h3><p>Para registrar tu pedido, utiliza el enlace más reciente que te enviamos.</p>
+        <p>Recibir tu pedido a tiempo nos ayuda a organizar la producción y las rutas de entrega. Gracias por ayudarnos a preparar tu entrega.</p>
+        <button type="button" class="secondary" (click)="tokenLoginError = null">Usar otro enlace</button>
+      </section>
+    } @else {
     <form class="login-form" (ngSubmit)="loginCustomer()">
       <label><span>Token de acceso</span><input name="customerToken" autocomplete="one-time-code" [(ngModel)]="customerToken" [disabled]="isAuthenticating"></label>
       @if (tokenLoginError) { <p class="alert error" role="alert">{{ tokenLoginError }}</p> }
       <button type="submit" class="primary" [disabled]="isAuthenticating || !customerToken.trim()">{{ isAuthenticating ? 'Entrando…' : 'Entrar' }}</button>
     </form>
+    }
   } @else {
     @if (isLoading) { <p class="notice" role="status">Consultando tu próxima entrega…</p> }
     @if (loadError) { <p class="alert error" role="alert">{{ loadError }}</p><button type="button" class="secondary" (click)="refresh()">Volver a consultar</button> }
     @if (nextOrder; as next) {
       <section class="status-panel delivery-date" aria-live="polite" data-testid="customer-delivery-date">
-        <span>Tu pedido se entregará el</span><strong>{{ formatDeliveryDate(next.deliveryDate) }}</strong>
+        <span>Fecha solicitada para tu pedido</span><strong>{{ formatDeliveryDate(next.deliveryDate) }}</strong>
         @if (deliveryLabel) { <small>Horario habitual: {{ deliveryLabel }}</small> }
-        <small>Desde las 6:00 p. m., los pedidos son para el día siguiente. Hora de Ciudad de México.</small>
-        @if (linkExpiresAt; as expiry) { <small>Enlace disponible hasta el {{ formatTimestamp(expiry) }}.</small> }
+        <small>Recepción para el mismo día: antes de las 6:00 p. m. Descansamos los martes. Hora de Ciudad de México.</small>
+        @if (!next.orderingWindow?.requestOnly && linkExpiresAt; as expiry) { <small>Enlace disponible hasta el {{ formatTimestamp(expiry) }}.</small> }
       </section>
+      @if (next.orderingWindow; as window) {
+        @if (window.requiresDateAcceptance && !dateAccepted && !hasActiveOrder) {
+          <section class="friendly-access stack" data-testid="next-business-day-offer" role="status">
+            <h3>Podemos recibir tu pedido para el siguiente día hábil</h3>
+            <p>Por hoy, {{ formatDeliveryDate(window.today) }}, ya terminó la recepción de pedidos o es nuestro día de descanso.</p>
+            <p>¿Deseas capturar tu pedido para el <strong>{{ formatDeliveryDate(next.deliveryDate) }}</strong>?</p>
+            <button class="primary" type="button" (click)="acceptDeliveryDate()">Sí, pedir para esta fecha</button>
+          </section>
+        }
+        @if (window.requiresConfirmation && dateAccepted && !hasActiveOrder) {
+          <section class="friendly-access stack" data-testid="late-order-notice" role="status">
+            <h3>Aún puedes enviar tu pedido</h3>
+            <p>La programación automática mediante este enlace ya cerró. El horario habitual de confirmación automática para el mismo día termina a las <strong>{{ window.automaticConfirmationCutoff.slice(0, 5) }}</strong>.</p>
+            <p>Tu solicitud quedará <strong>pendiente de confirmación</strong>. Revisaremos si podemos producirla e incluirla en una ruta para la fecha solicitada y te avisaremos.</p>
+            <p>Para tus próximos pedidos, envíalos antes de esa hora y con tu enlace vigente. Así nos ayudas a preparar la producción y el reparto a tiempo.</p>
+          </section>
+        }
+      }
       @if (actionMessage) { <p class="alert success" role="status">{{ actionMessage }}</p> }
       @if (next.currentOrder; as current) {
         <section class="status-panel stack" data-testid="customer-current-order">
           <strong>{{ currentOrderTitle() }}</strong><small>{{ formatTimestamp(current.submittedAt) }}</small>
           @for (line of current.lines; track line.productId) { <p><b>{{ line.quantity }} {{ unitLabel(line.unitCode) }}</b> de {{ line.productName }}</p> }
           @if (current.deliveryNotes) { <p>Notas de entrega: {{ current.deliveryNotes }}</p> }
-          @if (hasActiveOrder) { <p>Ya tenemos tu pedido para esta entrega. Si necesitas cambiarlo, comunícate con PRODIMT.</p> }
+          @if (current.status === 'PendingAdminReview') { <p>Revisaremos la disponibilidad de producción y reparto y te avisaremos si podemos surtirlo. Tu solicitud aún no está confirmada.</p> }
+          @if (hasActiveOrder) { <p>Ya recibimos tu captura para esta fecha. Si necesitas cambiarla, comunícate con PRODIMT.</p> }
         </section>
       }
-      @if (!hasActiveOrder && !loadError) {
+      @if (!hasActiveOrder && !loadError && dateAccepted) {
         <form class="stack capture-form" (ngSubmit)="save()" data-testid="customer-capture">
           <div class="capture-modes" role="group" aria-label="Modo de captura">
             <button type="button" [class.selected]="mode === 'quick'" [attr.aria-pressed]="mode === 'quick'" [disabled]="locked" (click)="changeMode('quick')">Captura rápida</button>
@@ -68,8 +95,8 @@
               <button type="button" class="primary" [disabled]="isSubmitting" (click)="retrySave()" data-testid="customer-capture-retry">{{ isSubmitting ? 'Verificando…' : 'Reintentar guardado' }}</button>
             </section>
           } @else {
-            <div class="capture-actions"><button type="submit" class="primary" [disabled]="!canSave">{{ isSubmitting ? 'Confirmando…' : 'Confirmar pedido' }}</button>
-              <button type="button" class="secondary" [disabled]="locked || next.currentOrder?.status === 'NoOrder'" (click)="noOrderConfirmation = !noOrderConfirmation">No pedir para esta entrega</button>
+            <div class="capture-actions"><button type="submit" class="primary" [disabled]="!canSave">{{ isSubmitting ? 'Enviando…' : next.orderingWindow?.requiresConfirmation ? 'Enviar solicitud de pedido' : 'Confirmar pedido' }}</button>
+              @if (!next.orderingWindow?.requestOnly) { <button type="button" class="secondary" [disabled]="locked || next.currentOrder?.status === 'NoOrder'" (click)="noOrderConfirmation = !noOrderConfirmation">No pedir para esta entrega</button> }
             </div>
             @if (noOrderConfirmation) {
               <section class="notice stack" data-testid="customer-no-order-confirmation"><p>¿Confirmas que no pedirás para el {{ formatDeliveryDate(next.deliveryDate) }}?</p>

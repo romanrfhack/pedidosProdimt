@@ -24,12 +24,17 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(x => x.DeliveryNotes)
             .HasMaxLength(500);
 
+        builder.Property(x => x.OrderingScheduleVersion).IsConcurrencyToken();
+        builder.Property(x => x.AutomaticConfirmationCutoff).IsConcurrencyToken();
         builder.Property(x => x.RouteCode).HasMaxLength(80);
         builder.Property(x => x.PaymentTermCode).HasMaxLength(32);
         builder.Property(x => x.InternalDeliveryInstructions).HasMaxLength(1000);
         builder.Property(x => x.OrderingProfileVersion).IsConcurrencyToken();
         builder.Property(x => x.RestDaysMask).HasDefaultValue(0);
-        builder.ToTable(table => table.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127"));
+        builder.ToTable(table => {
+            table.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
+            table.HasCheckConstraint("CK_Customers_AutomaticConfirmationCutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'");
+        });
         builder.HasIndex(x => new { x.RouteCode, x.RouteStopOrder });
 
         builder.HasMany<Order>()

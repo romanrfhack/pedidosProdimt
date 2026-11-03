@@ -48,6 +48,8 @@ I22 revisión 2: el usuario autoriza desplegar para validar la interfaz. Ejecuta
 
 ## Que es
 
+I23, autorizado el 3 de noviembre, integra horarios y solicitudes pendientes sobre I22 Reparto instalado. La base exclusiva es delivery-0cfe3ef511d8 en backend/frontend con las 17 migraciones exactas; añade sólo AddOrderingSchedules como migración 18. Conservar roles personalizados, permisos y datos de reparto/producción/precios y claves/tokens. Cliente prevalece sobre ruta y al borrar hereda; corte de solicitudes 18:00 y martes inhábil. Pruebas backend/modelo antes de empaquetar y tres pruebas EF/HTTP más SQL exacto en bases temporales verificadas y eliminadas antes de stage/stop. Respaldo verificado antes de DDL; recuperación hacia delante tras migrar. La autorización de despliegue continúa vigente y no requiere otra confirmación. Conservar la entrega autosuficiente por bundle; la publicación GitHub sigue pendiente independiente. Ver docs/proyecto/INCREMENTO-23.md y docs/validation/2026-11-03-schedules-on-delivery.md.
+
 I05, autorizado el 26 de octubre, añade cambio de contraseña propia para administración después de recuperar acceso. Ver `docs/proyecto/INCREMENTO-05.md`. No permite elegir otra cuenta por Id/nombre ni restablecimiento público. Contraseña/auditoría atómicas, protección de concurrencia e invalidación de sesiones administrativas anteriores; no publicar datos de acceso compartidos en el chat.
 
 PRODIMT Pedidos es la aplicacion web mobile first para capturar pedidos de clientes de PRODIMT y reemplazar gradualmente el flujo manual basado en WhatsApp, llamadas, mensajes en grupo y captura en Excel.

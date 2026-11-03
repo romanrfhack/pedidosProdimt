@@ -18,13 +18,13 @@ public static class CustomerOrderCaptureEndpoints
 
         var group = endpoints.MapGroup("/api/customer-orders/{customerId:guid}").RequireAuthorization("CustomerAccess");
         group.MapGet("/next", async (Guid customerId, ClaimsPrincipal user, CustomerOrderCaptureService service, CancellationToken token) =>
-            await ExecuteAsync(user, customerId, async () => Results.Ok(await service.GetNextAsync(customerId, token))));
+            await ExecuteAsync(user, customerId, async () => Results.Ok(await service.GetNextAsync(customerId, token, user.HasClaim(CustomerLinkAccessPolicy.RequestOnlyClaim, "true")))));
         group.MapPost("/preview", async (Guid customerId, ClaimsPrincipal user, PreviewCustomerOrderCaptureRequest request,
             CustomerOrderCaptureService service, CancellationToken token) =>
             await ExecuteAsync(user, customerId, async () => Results.Ok(await service.PreviewAsync(customerId, request, token))));
         group.MapPost("/capture", async (Guid customerId, ClaimsPrincipal user, SubmitCustomerOrderCaptureRequest request,
             CustomerOrderCaptureService service, CancellationToken token) =>
-            await ExecuteAsync(user, customerId, async () => Results.Ok(await service.SubmitAsync(customerId, request, token))));
+            await ExecuteAsync(user, customerId, async () => Results.Ok(await service.SubmitAsync(customerId, request, token, user.HasClaim(CustomerLinkAccessPolicy.RequestOnlyClaim, "true")))));
         group.MapPost("/next/no-order", async (Guid customerId, ClaimsPrincipal user, MarkNextCustomerNoOrderRequest request,
             CustomerOrderCaptureService service, CancellationToken token) =>
             await ExecuteAsync(user, customerId, async () => Results.Ok(await service.MarkNoOrderAsync(customerId, request, token))));

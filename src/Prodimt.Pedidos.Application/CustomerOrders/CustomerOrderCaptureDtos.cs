@@ -15,7 +15,8 @@ public sealed record CustomerCaptureCurrentOrder(Guid OrderId, DateOnly Delivery
 public sealed record CustomerNextOrderResponse(Guid CustomerId, string CustomerName, DateOnly DeliveryDate,
     DateTimeOffset ServerNow, int ProfileVersion, bool IsProfileApproved, bool HasActiveOrder,
     IReadOnlyList<CustomerCaptureProduct> Products, CustomerCaptureCurrentOrder? CurrentOrder,
-    TimeOnly? PreferredDeliveryTime, TimeOnly? PreferredDeliveryWindowStart, TimeOnly? PreferredDeliveryWindowEnd);
+    TimeOnly? PreferredDeliveryTime, TimeOnly? PreferredDeliveryWindowStart, TimeOnly? PreferredDeliveryWindowEnd,
+    OrderingWindow? OrderingWindow = null);
 
 public sealed record PreviewCustomerOrderCaptureRequest(string Text, DateOnly ExpectedDeliveryDate);
 

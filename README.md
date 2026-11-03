@@ -354,3 +354,7 @@ Antes de crear o modificar código, Codex debe leer:
 6. `docs/03-requerimientos-funcionales.md`
 7. `docs/06-modelo-datos-inicial.md`
 8. `docs/07-backlog-mvp.md`
+
+## Continuación I22 — Horarios y confirmación
+
+Ver [INCREMENTO-22](docs/proyecto/INCREMENTO-22.md) y su [validación](docs/validation/2026-11-02-ordering-schedules.md). Prioridad de hora cliente/ruta, solicitudes pendientes con acceso limitado, recepción hasta las 18:00 y siguiente día hábil excluyendo martes. El paquete se entrega para instalación; no acredita despliegue.

@@ -83,7 +83,7 @@ public sealed class CustomerProductSetupTests
     {
         await using var f = await Fixture.Create();
         var first = await f.Capture(false);
-        f.Clock.Now = f.Clock.Now.AddDays(1);
+        f.Clock.Now = f.Clock.Now.AddDays(2); // Wednesday: PRODIMT is closed on Tuesday.
         var second = await f.Capture(false);
         Assert.NotEqual(first, second);
         var request = await f.Db.CustomerProductSetupRequests.Include(x => x.Orders).SingleAsync();
@@ -141,9 +141,9 @@ public sealed class CustomerProductSetupTests
         var missing = await f.Setup.PreviewAsync(setup.Id, Ct);
         Assert.False(missing.CanComplete); Assert.Contains(missing.Blockers, x => x.Contains("perfil", StringComparison.OrdinalIgnoreCase) || x.Contains("configuración"));
         await f.ConfigureExtra(0);
-        f.Clock.Now = f.Clock.Now.AddDays(1);
+        f.Clock.Now = f.Clock.Now.AddDays(2); // Wednesday: PRODIMT is closed on Tuesday.
         var alreadyPricedOrder = await f.Capture(false);
-        await f.Price(22, expectedVersion: 1, effectiveFrom: f.Clock.Today.AddDays(-1));
+        await f.Price(22, expectedVersion: 1, effectiveFrom: f.Clock.Today.AddDays(-2));
         var preview = await f.Setup.PreviewAsync(setup.Id, Ct);
         Assert.True(preview.CanComplete); Assert.Equal(2, preview.Lines.Count);
         Assert.True(preview.Lines.Single(x => x.OrderId == originalOrder).ApplyPrice);

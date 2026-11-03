@@ -5,7 +5,7 @@ namespace Prodimt.Pedidos.Application.CustomerOrders;
 // The delivery date is a business date, independent of host/browser timezone.
 public static class DeliveryDatePolicy
 {
-    private static readonly TimeZoneInfo BusinessTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City");
+    public static readonly TimeZoneInfo BusinessTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City");
     public static readonly TimeOnly Cutoff = new(18, 0);
 
     public static DateOnly GetDate(IDateTimeProvider clock) => GetDate(clock.Now);
@@ -23,8 +23,19 @@ public static class DeliveryDatePolicy
     {
         var local = TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime;
         var date = DateOnly.FromDateTime(local);
-        return TimeOnly.FromDateTime(local) >= Cutoff ? date.AddDays(1) : date;
+        var candidate = TimeOnly.FromDateTime(local) >= Cutoff ? date.AddDays(1) : date;
+        while (candidate.DayOfWeek == DayOfWeek.Tuesday) candidate = candidate.AddDays(1);
+        return candidate;
     }
+
+    public static DateOnly NextBusinessDate(DateOnly date)
+    {
+        do { date = date.AddDays(1); } while (date.DayOfWeek == DayOfWeek.Tuesday);
+        return date;
+    }
+
+    public static DateOnly LocalDate(DateTimeOffset now) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime);
+    public static TimeOnly LocalTime(DateTimeOffset now) => TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime);
 
     public static DateOnly RequireExpectedDate(DateOnly? expected, IDateTimeProvider clock)
     {

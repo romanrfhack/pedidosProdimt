@@ -28,7 +28,7 @@ public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvi
         if (accessToken is not null)
             claims.Add(new Claim(ProdimtAuthClaims.CustomerAccessTokenId, accessToken.Id.ToString()));
 
-        return CreateToken(claims, accessToken?.ExpiresAt);
+        return CreateToken(claims, accessToken is null ? null : CustomerLinkAccessPolicy.MaximumAccessAt(accessToken));
     }
 
     public JwtTokenResult CreateAdminToken(AdminUser adminUser)
@@ -59,6 +59,7 @@ public sealed class JwtTokenService(IConfiguration configuration, IDateTimeProvi
             expiresAt = maximumExpiresAt.Value;
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.SigningKey));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+        claims = claims.Append(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")));
         var token = new JwtSecurityToken(
             issuer: settings.Issuer,
             audience: settings.Audience,

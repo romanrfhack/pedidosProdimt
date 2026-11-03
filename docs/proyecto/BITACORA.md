@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 2026-11-03 — I23: integrar horarios sobre Reparto I22 instalado
+
+Autorización del usuario: continuar implementación/despliegue. Se identifica colisión de numeración entre paquetes paralelos I22. Se integran las fuentes y el modelo EF; instalador nuevo sólo sobre release delivery-0cfe3ef511d8 e historial17 exacto, delta de horarios18, preservación completa de seguridad y reparto. Sin reescribir migraciones históricas ni publicar GitHub.
+
+Web compilada; Python508 (504 correctas, cuatro omitidas). SDK/backend y ejecución SQL reales pendientes; Chromium bloqueado al iniciar y SSH sin ruta. Runner WSL compila/prueba/coherencia EF antes de generar/copiar paquete; pruebas SQL/HTTP aisladas antes de mutaciones operativas y respaldo verificado antes de DDL. Se conserva bundle autosuficiente y frontend compilado, con continuidad en CONTINUAR.md. No afirmar despliegue I23 hasta recibir su JSON.
+
 ## I22 instalado — Migración 17, salud y repetición verificadas
 
 El usuario reporta v4 updated/completed: migraciones 16→17, pruebas SQL/HTTP 3/3 y SQL exacto con fixture legacy correctos (esquema/permisos/rollback/replay/limpieza), respaldo verificado, aplicación reiniciada, health_verified=true, frontend_verified=true y recovery_pending=false. Backend y frontend activos delivery-0cfe3ef511d8; fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Datos/precios/cuentas/permisos/producción/reparto/tokens/clave conservados conforme los controles del instalador. No restauración automática de SQL ni cambio de contraseña.

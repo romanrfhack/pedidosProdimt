@@ -102,7 +102,8 @@ test('enlace fragmento y query legado limpian la URL antes de autenticar', async
 test('un enlace vencido limpia la URL y permite pegar otro token', async ({ page }) => {
   const state = await mockPortal(page, { expired: true });
   await page.goto('/cliente#token=expired-demo');
-  await expect(page.getByRole('alert')).toContainText('El enlace venció.');
+  await expect(page.getByRole('heading', { name: 'Este enlace ya no está disponible' })).toBeVisible();
+  await page.getByRole('button', { name: 'Usar otro enlace' }).click();
   expect(state.loginUrls[0]).not.toContain('token');
   await expect(page.getByLabel('Token de acceso')).toBeVisible();
   await expect(page.getByTestId('customer-capture')).toHaveCount(0);
@@ -115,7 +116,8 @@ test('un enlace inválido no conserva la identidad de otro cliente previamente a
   })));
   await mockPortal(page, { expired: true });
   await page.goto('/cliente#token=invalid-link-demo');
-  await expect(page.getByRole('alert')).toContainText('El enlace venció.');
+  await expect(page.getByRole('heading', { name: 'Este enlace ya no está disponible' })).toBeVisible();
+  await page.getByRole('button', { name: 'Usar otro enlace' }).click();
   await expect(page.getByLabel('Token de acceso')).toBeVisible();
   await expect(page.getByTestId('customer-delivery-date')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('prodimt.auth.session.v1'))).toBeNull();

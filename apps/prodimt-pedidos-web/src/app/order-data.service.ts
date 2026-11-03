@@ -35,6 +35,7 @@ export interface CustomerToday {
 }
 
 export interface AdminOrder {
+  routeCode?: string | null;
   id: string;
   customerId: string | null;
   orderDate: string;
@@ -224,6 +225,7 @@ export class OrderDataService {
       requiresReview: order.requiresAdminReview,
       reviewReason: order.adminReviewReason,
       sequenceNumber: order.sequenceNumber,
+      routeCode: order.routeCode ?? null,
       adminDecision: order.adminDecision
     };
   }
