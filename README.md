@@ -4,7 +4,7 @@
 
 `/reparto` permite al Repartidor - Camioneta operar sólo sus rutas/vueltas y registrar conteo, carga, entregas parciales y observaciones. `/admin/reparto` administra asignaciones, saldos, ubicaciones, transferencias, devoluciones y correcciones auditadas, sin modificar el pedido original. [Contrato y configuración](docs/proyecto/INCREMENTO-22.md), [validación ejecutada y pendientes](docs/validation/2026-11-02-driver-van-deliveries.md).
 
-Código/builds y 436 pruebas .NET correctos. El usuario autoriza desplegar: la revisión 4 conserva los roles personalizados, crea Repartidor - Camioneta (sistema) y ejecuta pruebas SQL/HTTP y SQL exacto en bases temporales antes de cambiar producción, usando runtime .NET10 sin SDK/Docker. La aceptación de navegador será posterior. [Despliegue y preservación del rol existente](docs/validation/2026-11-03-driver-van-role-preservation.md). No se declara instalado hasta comprobar la ejecución del actualizador; conserva la base integrada I16/I18/I19/I21.
+Código/builds y 436 pruebas .NET correctos. El usuario autoriza desplegar: la revisión 4 conserva los roles personalizados, crea Repartidor - Camioneta (sistema) y ejecuta pruebas SQL/HTTP y SQL exacto en bases temporales antes de cambiar producción, usando runtime .NET10 sin SDK/Docker. La aceptación de navegador será posterior. [Despliegue y preservación del rol existente](docs/validation/2026-11-03-driver-van-role-preservation.md). Instalación confirmada por el reporte v4: 17 migraciones, backend/frontend verificados y repetición already_current sin cambios. Conserva I16/I18/I19/I21. [Resultado y aceptación pendiente](docs/validation/2026-11-03-driver-van-installed.md).
 
 ## Producción I19
 

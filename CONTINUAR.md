@@ -1,5 +1,15 @@
 # Continuar PRODIMT
 
+## I22 instalado — Migración 17, salud y repetición verificadas
+
+El usuario reporta v4 updated/completed: migraciones 16→17, pruebas SQL/HTTP 3/3 y SQL exacto con fixture legacy correctos (esquema/permisos/rollback/replay/limpieza), respaldo verificado, aplicación reiniciada, health_verified=true, frontend_verified=true y recovery_pending=false. Backend y frontend activos delivery-0cfe3ef511d8; fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Datos/precios/cuentas/permisos/producción/reparto/tokens/clave conservados conforme los controles del instalador. No restauración automática de SQL ni cambio de contraseña.
+
+El usuario repitió después lectura y --apply: ambos already_current/completed, historia exacta 17 incluyendo AddDeliveryOperations, salud/frontend/clave/tokens verificados, sin cambios, migración ni reinicio. La instalación está confirmada por esos reportes del usuario, no por SSH desde este agente. Comprobación HTTPS independiente de /health/db devolvió ok/reachable. No repetir instaladores para validar la UI.
+
+Siguiente: Ctrl+F5; Seguridad→Usuarios→Editar chofer→Roles del usuario→Repartidor - Camioneta (sistema)→Guardar usuario. El rol personalizado anterior y sus accesos se conservan; permisos aditivos, sin asignación automática al rol nuevo. Reparto→Nueva ruta con código del cliente y chofer habitual; elegir fecha del pedido, guardar Ubicación/Maps, crear Nueva vuelta y asignar cantidades por partida. Iniciar como chofer en Mi reparto y registrar cantidades reales, notas y consultar Bitácora. Caso de referencia 50/25/20: 30 pendientes al pedido y 5 bajo custodia; no equivale a una prueba de entrega realizada. La aceptación visual/operativa sigue pendiente; no se operaron clientes, usuarios o rutas reales desde el agente. Ver docs/validation/2026-11-03-driver-van-installed.md.
+
+La continuidad de herramientas v4 está en e1130a5ed31ec51573e20639df1e7f93137e960d; el bundle posterior añade esta evidencia, sin cambiar aplicación/payload/instalador. La publicación GitHub conserva su antecedente pendiente.
+
 ## I22 revisión 4 — Preservar el rol personalizado y evitar la colisión
 
 Diagnóstico real recibido: existe un rol activo no sistema llamado Repartidor - Camioneta, con ID distinto al canónico, dos grants y una asignación. No existe el ID canónico ni ninguna de las tres claves/IDs nuevos de reparto. Historia16 y salud correctas. La colisión del nombre del rol queda confirmada; no es un conflicto de permisos ni falta de tablas.

@@ -60,3 +60,8 @@ La actualización nativa admite exclusivamente I19 `production-d3a11420b202` con
 Entregar aplicación y fuente revisable por separado, mediante paquete nativo y bundle/parche. El antecedente de rechazo de publicación de I19 permanece pendiente; desarrollar no autoriza eludirlo por otro transporte. No se opera el VPS durante implementación. Instalación y aceptación de la ruta real se registran por separado de compilación y pruebas locales.
 
 Estado: implementación completa; 436 pruebas .NET y 33 Python del paquete/validador correctas, build Angular y modelo EF coherentes. El usuario autoriza desplegar para validar. La revisión 2 exige pruebas SQL reales en bases temporales antes de aplicar y deja la aceptación de navegador para después. Ver `../validation/2026-11-02-driver-van-deployment.md` para condiciones vigentes y `../validation/2026-11-02-driver-van-deliveries.md` para el antecedente de implementación.
+
+
+## Instalación confirmada
+
+El usuario reportó v4 updated/completed con migraciones 16→17, ambas validaciones SQL y limpieza correctas, respaldo verificado, configuración/datos/seguridad conservados y backend/frontend saludables. La repetición produjo already_current en lectura y apply sin nuevas mutaciones. Fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Quedan configuración del chofer/ruta y aceptación visual/operativa; ver ../validation/2026-11-03-driver-van-installed.md. No volver a ejecutar paquetes históricos para validar la interfaz.
