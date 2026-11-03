@@ -193,18 +193,18 @@ def schema_query(strict=True):
     scope = 't.schema_id=SCHEMA_ID(N\'dbo\') AND t.name IN (' + names + ')'
     definition = ',c.definition AS definition' if strict else ''
     return '''SELECT
- JSON_QUERY((SELECT t.name AS [table],c.name,TYPE_NAME(c.system_type_id) AS type,c.max_length AS length,
+ JSON_QUERY(COALESCE((SELECT t.name AS [table],c.name,TYPE_NAME(c.system_type_id) AS type,c.max_length AS length,
   c.precision,c.scale,CONVERT(int,c.is_nullable) AS nullable,
   CASE WHEN c.default_object_id=0 THEN 0 ELSE 1 END AS defaultBinding
   FROM sys.tables t JOIN sys.columns c ON c.object_id=t.object_id
-  WHERE ''' + scope + ''' ORDER BY t.name,c.name FOR JSON PATH)) AS [columns],
- JSON_QUERY((SELECT t.name AS [table],k.name,c.name AS [column],ic.key_ordinal AS ordinal,CONVERT(int,ki.is_disabled) AS disabled
+  WHERE ''' + scope + ''' ORDER BY t.name,c.name FOR JSON PATH), N'[]')) AS [columns],
+ JSON_QUERY(COALESCE((SELECT t.name AS [table],k.name,c.name AS [column],ic.key_ordinal AS ordinal,CONVERT(int,ki.is_disabled) AS disabled
   FROM sys.tables t JOIN sys.key_constraints k ON k.parent_object_id=t.object_id AND k.type=N'PK'
   JOIN sys.indexes ki ON ki.object_id=t.object_id AND ki.index_id=k.unique_index_id
   JOIN sys.index_columns ic ON ic.object_id=t.object_id AND ic.index_id=k.unique_index_id
   JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=ic.column_id
-  WHERE ''' + scope + ''' ORDER BY t.name,k.name,ic.key_ordinal FOR JSON PATH)) AS primaryKeys,
- JSON_QUERY((SELECT t.name AS [table],f.name,c.name AS [column],rt.name AS target,rc.name AS targetColumn,
+  WHERE ''' + scope + ''' ORDER BY t.name,k.name,ic.key_ordinal FOR JSON PATH), N'[]')) AS primaryKeys,
+ JSON_QUERY(COALESCE((SELECT t.name AS [table],f.name,c.name AS [column],rt.name AS target,rc.name AS targetColumn,
   fk.constraint_column_id AS ordinal,CONVERT(int,f.is_disabled) AS disabled,CONVERT(int,f.is_not_trusted) AS untrusted,
   CONVERT(int,f.delete_referential_action) AS deleteAction,CONVERT(int,f.update_referential_action) AS updateAction
   FROM sys.tables t JOIN sys.foreign_keys f ON f.parent_object_id=t.object_id
@@ -212,16 +212,16 @@ def schema_query(strict=True):
   JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=fk.parent_column_id
   JOIN sys.tables rt ON rt.object_id=f.referenced_object_id
   JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=fk.referenced_column_id
-  WHERE ''' + scope + ''' ORDER BY t.name,f.name,fk.constraint_column_id FOR JSON PATH)) AS foreignKeys,
- JSON_QUERY((SELECT t.name AS [table],i.name,c.name AS [column],ic.key_ordinal AS ordinal,CONVERT(int,i.is_unique) AS [unique],
+  WHERE ''' + scope + ''' ORDER BY t.name,f.name,fk.constraint_column_id FOR JSON PATH), N'[]')) AS foreignKeys,
+ JSON_QUERY(COALESCE((SELECT t.name AS [table],i.name,c.name AS [column],ic.key_ordinal AS ordinal,CONVERT(int,i.is_unique) AS [unique],
   CONVERT(int,i.is_disabled) AS disabled,CONVERT(int,i.has_filter) AS filtered,CONVERT(int,ic.is_descending_key) AS descending
   FROM sys.tables t JOIN sys.indexes i ON i.object_id=t.object_id AND i.is_primary_key=0 AND i.type=2
   JOIN sys.index_columns ic ON ic.object_id=t.object_id AND ic.index_id=i.index_id AND ic.key_ordinal>0
   JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=ic.column_id
-  WHERE ''' + scope + ''' ORDER BY t.name,i.name,ic.key_ordinal FOR JSON PATH)) AS indexes,
- JSON_QUERY((SELECT t.name AS [table],c.name,CONVERT(int,c.is_disabled) AS disabled,CONVERT(int,c.is_not_trusted) AS untrusted''' + definition + '''
+  WHERE ''' + scope + ''' ORDER BY t.name,i.name,ic.key_ordinal FOR JSON PATH), N'[]')) AS indexes,
+ JSON_QUERY(COALESCE((SELECT t.name AS [table],c.name,CONVERT(int,c.is_disabled) AS disabled,CONVERT(int,c.is_not_trusted) AS untrusted''' + definition + '''
   FROM sys.tables t JOIN sys.check_constraints c ON c.parent_object_id=t.object_id
-  WHERE ''' + scope + ''' ORDER BY t.name,c.name FOR JSON PATH)) AS checks
+  WHERE ''' + scope + ''' ORDER BY t.name,c.name FOR JSON PATH), N'[]')) AS checks
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;'''
 
 

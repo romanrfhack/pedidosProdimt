@@ -24,7 +24,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261102-delivery-install2'
+REVISION = '20261103-delivery-install3'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -143,9 +143,27 @@ def validate_migration_sql(sql):
     require(set(re.findall(r'\bINSERT INTO \[([^]]+)\]',sql,re.I)) ==
             {'SecurityPermissions','SecurityRoles','SecurityRolePermissions','__EFMigrationsHistory'}, 'delivery_seed_targets_unexpected')
 
+def correct_delivery_schema_query(sql):
+    """Preserve the pinned payload and make its empty metadata arrays explicit."""
+    require(isinstance(sql, str) and sql.count('JSON_QUERY(') == 5
+            and all(sql.count(alias) == 1 for alias in (
+                ' AS [columns],',' AS primaryKeys,',' AS foreignKeys,',' AS indexes,',' AS checks\n')),
+            'delivery_schema_query_layout_unexpected')
+    old_start, old_end = 'JSON_QUERY((SELECT ', 'FOR JSON PATH)) AS'
+    new_start, new_end = 'JSON_QUERY(COALESCE((SELECT ', "FOR JSON PATH), N'[]')) AS"
+    if sql.count(new_start) == sql.count(new_end) == 5 and old_start not in sql and old_end not in sql:
+        return sql
+    require(sql.count(old_start) == sql.count(old_end) == 5 and new_start not in sql and new_end not in sql,
+            'delivery_schema_query_layout_unexpected')
+    return sql.replace(old_start, new_start).replace(old_end, new_end)
+
+
 def module(name, raw):
     result = types.ModuleType(name)
     exec(compile(raw, name, 'exec'), result.__dict__)
+    if name in ('i22_delivery_schema_validator','i22_delivery_schema_support'):
+        original_query = result.schema_query
+        result.schema_query = lambda strict=True: correct_delivery_schema_query(original_query(strict))
     return result
 
 

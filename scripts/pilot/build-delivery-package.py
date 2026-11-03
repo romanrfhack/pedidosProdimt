@@ -141,7 +141,10 @@ def build(backend, frontend, migration, output, source, validation, baseline_mig
         raise ValueError('installer_template_invalid')
     exported = template.replace('REPLACE_SOURCE_COMMIT', source).replace('REPLACE_PAYLOAD_SHA256', digest(payload))
     readme = '''PRODIMT I22 — Mi reparto: Repartidor - Camioneta
-REVISIÓN 2 — VALIDACIÓN SQL AISLADA AUTOMÁTICA ANTES DE APLICAR
+REVISIÓN 3 — ESQUEMA VACÍO EXPLÍCITO Y VALIDACIÓN SQL PREVIA
+
+La consulta de esquema siempre emite las cinco listas, incluso vacías. Conserva
+la comparación estricta: no acepta objetos incompletos ni omite sus comprobaciones.
 
 --apply primero ejecuta tres pruebas EF/HTTP portátiles y el SQL exacto del
 paquete en bases temporales generadas internamente, en la instancia SQL existente.

@@ -1,5 +1,15 @@
 # Estado del proyecto
 
+## I22 revisión 3 — Consulta de esquema con listas vacías explícitas
+
+El usuario ejecutó el diagnóstico con los pines v2 verificados. Observó exactamente un objeto vacío `{}`: ninguna de las cinco secciones estaba presente, mientras el contrato previo a la migración exigía cinco listas vacías. `preflight` conservó `delivery_schema_unexpected`, sin cambios ni servicio alterado. El origen de los NULL de la consulta es inferido, no demostrado por el resumen; la omisión de secciones sí está observada.
+
+Se corrigen las cinco subconsultas a `JSON_QUERY(COALESCE((SELECT ... FOR JSON PATH),N'[]'))`. No se acepta `{}` en Python ni se relajan los contratos. El instalador revisión 3 adapta únicamente la consulta del helper antiguo verificado y cubre lectura DML, comprobación administrativa estricta y validación SQL aislada. Reutiliza aplicación `0cfe3ef511d80e4af032a3e64abd97391e86df08` y payload `fb0485190d68285cc121603a3b946a19fb9c6a8a5f6e0da77ddfdcd5d079fb2d`, sin recompilar ni cambiar DDL, permisos, runner, cuentas o datos. Las guardas, prueba SQL previa, respaldo y recuperación permanecen.
+
+Validación local: 47 pruebas Python focalizadas correctas, incluidas siete regresiones de formato, preflight, allowlist y validación aislada. No se afirma ejecución SQL real ni instalación.
+
+Entrega mínima: `PRODIMT_Instalar_I22_v3.py` para lectura y después aplicación mediante el payload ya copiado. El ZIP operativo se actualiza para futuras descargas conservando el payload exacto; el bundle de fuentes guarda la continuación sin publicar GitHub. No declarar instalación hasta obtener el reporte del VPS. Ver `docs/validation/2026-11-03-driver-van-schema-preflight.md`.
+
 ## I22 — Preflight detenido; diagnóstico de esquema (3 de noviembre)
 
 El usuario ejecutó el ZIP revisión 2 de SHA256 `5fbf124e49a5b7ea422cc333a0a044b554726f75dec18a7ea8929b51c289ba92`. El instalador devolvió `failed`, `phase=read-only-preflight`, `issue=delivery_schema_unexpected`, con cambios, migración y reinicio en false. El `&&` impidió ejecutar `--apply`. No declarar instalación ni inferir una caída por `health_verified=false`: ese chequeo ocurre después del contrato de esquema que falló.

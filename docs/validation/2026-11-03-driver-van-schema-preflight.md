@@ -35,3 +35,29 @@ Pasaron 40 pruebas Python focalizadas: las 33 existentes de paquete/validación 
 Esto valida la herramienta, no prueba la causa del rechazo en el VPS. Se espera `status=observed` del diagnóstico, con el resultado original en `preflight`. Un exit0 del diagnóstico no indica instalación ni autoriza omitir el fallo que conserve ese resultado.
 
 SHA256 del archivo de diagnóstico: `521905742d13a2e456a829b83881fc7d41331aa472e151013857b7f619cc6c9a`.
+
+## Resultado real del diagnóstico y revisión 3
+
+El usuario ejecutó el diagnóstico de SHA `521905742d13a2e456a829b83881fc7d41331aa472e151013857b7f619cc6c9a`. Ambos archivos fijados se verificaron, el bloqueo se adquirió y hubo una captura. `migrated_schema_expected=false`, `strict=false`, comparación false. La respuesta observada era un objeto sin propiedades conocidas ni desconocidas (`{}`), frente a las cinco listas esperadas; no se observaron nombres ni datos de objetos. Preflight falló con el código original. Ningún cambio operativo.
+
+Microsoft documenta que FOR JSON omite propiedades NULL y que JSON_QUERY conserva un fragmento JSON. Esto es consistente con el resultado observado, pero la fuente exacta del NULL no se capturó: https://learn.microsoft.com/en-us/sql/relational-databases/json/format-nested-json-output-with-path-mode-sql-server y https://learn.microsoft.com/en-us/sql/t-sql/functions/json-query-transact-sql.
+
+La revisión `20261103-delivery-install3` cambia únicamente la consulta: cada sección usa `JSON_QUERY(COALESCE((SELECT ... FOR JSON PATH),N'[]'))`, conservando proyecciones, scope, filtros, joins, orden y definiciones. `canonical` y `matches` permanecen estrictos: `{}`, secciones ausentes/null y objetos inesperados siguen rechazados. Se actualiza el helper fuente y se adapta, en memoria, el helper antiguo del payload exacto al cargar los módulos de contrato. El adaptador exige cinco expresiones antiguas o cinco ya corregidas; es idempotente y rechaza layouts distintos.
+
+El instalador nuevo conserva fuente de aplicación y SHA de payload v2. Las consultas adaptadas se incluyen en la allowlist DML y son las que se pasan a la validación aislada del SQL exacto. También se usa la forma estricta administrativa antes de cualquier cambio. Las pruebas SQL temporales, limpieza, respaldo, migración y recuperación siguen siendo obligatorias.
+
+Se entrega un instalador independiente para evitar volver a copiar el payload de 20MB. El ZIP completo se actualiza únicamente en instalador, instrucciones y checksums exteriores; el payload, la migración SQL, las cuatro DLL de aplicación y el runner se mantienen byte por byte. La fuente de continuación tiene un commit de herramientas posterior al commit de la aplicación compilada; ambos se distinguen explícitamente.
+
+La corrección local no acredita la lectura real ni instalación remota. Siguiente paso: ejecutar v3 sin --apply, y sólo si termina correctamente, continuar con --apply, que verifica SQL aislado antes de producción.
+
+### Cierre local de revisión 3
+
+Pasaron las 47 pruebas Python focalizadas (40 anteriores más siete regresiones). La composición de preflight con transporte simulado reproduce la respuesta vacía del query antiguo y acepta las cinco listas del query corregido. Se comprueba la allowlist exacta, el uso de la misma consulta en validación SQL aislada, idempotencia/layouts y rechazo de `{}`, objetos inesperados y drift. No se ejecutó SQL real localmente; el gate obligatorio del VPS lo verificará antes de aplicar.
+
+Artefactos fijados para entrega:
+
+- `PRODIMT_Instalar_I22_v3.py`: 47,133 bytes; SHA256 `1c5dec8f3bd590f109ce76a6fb356af33b6e5eca78209fd2d2a62f7528cf5806`.
+- `PRODIMT_Reparto_I22.zip` actualizado: 20,557,519 bytes; SHA256 `c307dc3e81413e660aebe4b8c4bd4d9966a38bda7faebf6662b93aa56f4106cd`.
+- El SHA del payload continúa siendo `fb0485190d68285cc121603a3b946a19fb9c6a8a5f6e0da77ddfdcd5d079fb2d`; no es necesario volver a copiarlo al VPS.
+
+La plantilla actual sólo sustituye `REPLACE_SOURCE_COMMIT` por la fuente de aplicación `0cfe3ef511d80e4af032a3e64abd97391e86df08` y `REPLACE_PAYLOAD_SHA256` por ese SHA para producir el instalador independiente. El script interior del ZIP contiene exactamente los mismos bytes. Se recalculan las instrucciones y SHA256SUMS exteriores sin alterar el payload. El bundle de fuentes se exporta desde el commit limpio de continuación y conserva toda la historia alcanzable.
