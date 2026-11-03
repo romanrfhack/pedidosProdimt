@@ -4,25 +4,27 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, CanDeactivateFn, RouterLink } from '@angular/router';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } from './order-data.service';
 import { FormsModule } from '@angular/forms';
 import { AdminOrderCorrectionComponent } from './admin-order-correction.component';
 import { AdminOperationsApiService, OperationsChange } from './admin-operations-api.service';
+import { AuthService } from './auth.service';
 
 type OrderListFilter = 'all' | 'registered' | 'review' | 'noOrder' | 'rejected' | 'late' | 'changes';
 
 @Component({
   selector: 'app-admin-today',
   imports: [FormsModule, AdminOrderCorrectionComponent, RouterLink],
-  styleUrl: './admin-today.component.css',
+  styleUrls: ['./admin-today.component.css', './admin-order-delivery-summary.css'],
   templateUrl: './admin-today.component.html'
 })
 export class AdminTodayComponent {
   protected readonly priceText = priceText;
   protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
+  private readonly auth = inject(AuthService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly operations = inject(AdminOperationsApiService);
   protected readonly access = inject(EffectivePermissionsService);
@@ -50,6 +52,7 @@ export class AdminTodayComponent {
   protected get today(): string { return businessDateToday(); }
   protected serviceDate = this.route.snapshot.queryParamMap.get('date') || this.today;
   protected correcting = false;
+  protected navigationBlocked = false;
   protected audit: AdminOrderAuditEvent[] | null = null;
   protected loadingAudit = false;
   protected changes: OperationsChange[] = [];
@@ -71,10 +74,36 @@ export class AdminTodayComponent {
     });
   }
 
+  canLeave(): boolean {
+    if (!this.auth.isAdminSession() || !this.correcting) return true;
+    this.navigationBlocked = true;
+    this.changeDetector.detectChanges();
+    return false;
+  }
+
+  protected startCorrection(): void {
+    this.navigationBlocked = false;
+    this.correcting = true;
+  }
+
   protected get visibleOrders(): AdminOrder[] {
     const query = this.normalizeSearch(this.searchText);
     return this.orders.filter(order => this.matchesFilter(order, this.selectedFilter)
       && (!query || this.normalizeSearch(`${order.customerName} #${order.sequenceNumber} ${this.statusLabel(order)}`).includes(query)));
+  }
+
+  protected get deliveryEligibleCount(): number {
+    return this.orders.filter(order => order.customerId !== null && ['Submitted', 'Accepted'].includes(order.status)).length;
+  }
+
+  protected get deliveryPath(): string {
+    if (this.access.has('delivery.manage')) return '/admin/reparto';
+    return this.access.any(['delivery.read.own', 'delivery.operate.own']) ? '/reparto' : '/personal/reparto';
+  }
+
+  protected get deliveryLabel(): string {
+    if (this.access.has('delivery.manage')) return 'Gestionar reparto';
+    return this.access.any(['delivery.read.own', 'delivery.operate.own']) ? 'Mi reparto' : 'Habilitar reparto';
   }
 
   protected filterCount(filter: OrderListFilter): number {
@@ -263,3 +292,5 @@ export class AdminTodayComponent {
     return 'No se pudieron cargar los pedidos de hoy.';
   }
 }
+
+export const adminTodayDraftGuard: CanDeactivateFn<AdminTodayComponent> = component => component.canLeave();

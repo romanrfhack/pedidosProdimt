@@ -2,6 +2,10 @@
 
 Fecha de referencia: 24 de octubre de 2026.
 
+## RF1 — Acceso y preparación del reparto (3 de noviembre)
+
+Completar la conexión visible desde Pedidos a revisión y reparto con la fecha seleccionada. Explicar permisos, choferes, rutas, vueltas y asignaciones mediante guía y lista de preparación, conservando las guardas y operaciones I22. El usuario capturó pedidos pendientes de revisión; esa captura no los acepta ni configura el recorrido. Entrega exclusiva del frontend con base I22 exacta y rechazo de releases paralelos/recuperaciones pendientes. Instalación y aceptación separadas de compilación, pruebas estáticas y paquete. Ver `INCREMENTO-22-RF1.md`.
+
 ## Objetivo
 
 Trazar el trabajo desde la recepción del pedido hasta producción, preparación, reparto, cobro e inventario, con implantación gradual. El primer beneficio es que administración capture una vez y cada área consulte los productos y cantidades correctos.

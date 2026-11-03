@@ -57,7 +57,10 @@ PRODIMT_I22.patch permite revisar la diferencia desde I21; incluye los arreglos
 posteriores del instalador I18 conservados en la integración. No aplicar sobre
 una base diferente ni sobre una carpeta con cambios locales sin revisarlos.
 Este ZIP contiene fuente, no instaladores listos para ejecutar en producción.
-Usar el paquete PRODIMT_Reparto_I22.zip para la actualización nativa revisada.
+I22 está instalado según el reporte del usuario. La integración posterior de
+Pedidos/Reparto se entrega como PRODIMT_Reparto_Flujo_RF1.zip, sólo frontend sobre
+la base I22 exacta. No repetir I22 para instalar RF1. Ambos paquetes rechazan
+bases distintas; Horarios u otros cambios paralelos requieren integración común.
 '''
         files = {'PRODIMT_I22.bundle': bundle.read_bytes(), 'PRODIMT_I22.patch': patch,
                  'LEEME.txt': readme.encode(),

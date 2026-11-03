@@ -1,5 +1,13 @@
 # Continuar PRODIMT
 
+## RF1 — Integración Pedidos/Reparto validada localmente
+
+El usuario ya capturó pedidos y pide completar el acceso al flujo. La captura muestra ocho por revisar, quince NoOrder y ninguno registrado/aceptado; además no aparece reparto en la navegación de esa cuenta. Se implementó acceso visible para personal: gestión, reparto propio o guía autenticada según permisos efectivos; resumen y enlaces con fecha desde Pedidos; revisión con fecha; lista de preparación y mensajes accionables en gestión. Ninguna lectura crea rutas, vueltas, reservas o entregas, ni aprueba pedidos o concede roles.
+
+RF1 cambia sólo frontend sobre I22 exacto `delivery-0cfe3ef511d8`. La consulta pública del índice coincidió con el payload I22; salud/BD200 y cuatro endpoints protegidos401. No mezclar con I23 Horarios/Confirmación del trabajo paralelo: una base cambiada debe bloquearse y requiere integración común. No se reejecuta la migración17. Build Angular correcto (494.67kB inicial); 90 pruebas Python de reparto correctas, incluidas20 RF1. Once nuevas pruebas E2E más once existentes se colectaron y tiparon; el intento anterior de20 casos abortó al iniciar Chromium por socket EPERM antes de ejecutar assertions. No hay validación visual ejecutada. Se protege la corrección abierta ante navegación, conservando salida de sesión explícita. Ver `docs/proyecto/INCREMENTO-22-RF1.md` y evidencia RF1.
+
+Se prepara `PRODIMT_Reparto_Flujo_RF1.zip`, con instalador exclusivo del frontend, pines exactos, snapshot privado y activación/reversión atómica; sin SQL o reinicio de la API. Las fuentes continúan en el bundle autosuficiente existente, sin publicar GitHub. La instalación RF1 y la aceptación real siguen pendientes del reporte del usuario.
+
 ## I22 instalado — Migración 17, salud y repetición verificadas
 
 El usuario reporta v4 updated/completed: migraciones 16→17, pruebas SQL/HTTP 3/3 y SQL exacto con fixture legacy correctos (esquema/permisos/rollback/replay/limpieza), respaldo verificado, aplicación reiniciada, health_verified=true, frontend_verified=true y recovery_pending=false. Backend y frontend activos delivery-0cfe3ef511d8; fuente compilada 0cfe3ef511d80e4af032a3e64abd97391e86df08. Datos/precios/cuentas/permisos/producción/reparto/tokens/clave conservados conforme los controles del instalador. No restauración automática de SQL ni cambio de contraseña.
