@@ -1,5 +1,15 @@
 # Bitácora de trabajo
 
+## I22 — Migración detenida por 2601; versión anterior recuperada
+
+El usuario ejecutó v3 de SHA `1c5dec8f3bd590f109ce76a6fb356af33b6e5eca78209fd2d2a62f7528cf5806`. La lectura terminó planned/completed con las 16 migraciones y salud correctas. En --apply PASARON las tres pruebas SQL/HTTP portátiles y la validación del SQL exacto (esquema estricto, permisos DML, rollback, repetición y limpieza). También se verificó el respaldo SQL. Esto sustituye el pendiente de ejecución SQL de las secciones históricas; no acredita instalación de I22.
+
+La aplicación del DDL/seed en producción falló con SQL2601. El rollback registró primero parada y luego restauró enlaces, inició la aplicación anterior y verificó su salud: previous_health_verified=true, recovery_pending=false. No confundir rollback_service_stopped=true con servicio detenido al terminar. No hubo activación I22, cambio de contraseñas, clave o tokens, ni restauración automática de SQL. /health/db respondió independientemente ok/reachable durante este análisis.
+
+2601 indica colisión en índice único. Por el SQL de esta migración los candidatos son SecurityRoles.Name (Repartidor - Camioneta) o SecurityPermissions.Key (tres delivery.*). I18 permite crear esos nombres/claves con otros IDs; los datos personalizados no estaban en el baseline limpio de validación. Aún falta confirmar el índice y registro específicos. No borrar, adoptar, renombrar ni reasignar roles/permisos para liberar nombres sin el diagnóstico.
+
+Se prepara `PRODIMT_Diagnostico_Semillas_I22.py`, sólo SELECT agregado de las cuatro semillas conocidas, con comparación SQL bajo la collation real, pines v3 verificados y credenciales DML existentes. No solicita SQL administrativo ni ejecuta apply/rollback/stage/migración/reinicio. Obtiene coincidencias de ID y nombre/clave, estados y cantidades de asignaciones sin imprimir usuarios ni GUIDs desconocidos. Siguiente paso: recibir su JSON y preparar la corrección concreta; no reintentar --apply a ciegas. Pasaron las 53 pruebas focalizadas (47 anteriores + seis del diagnóstico), con transporte SQL simulado, salida limitada y pines/bloqueo conservados. Ver `docs/validation/2026-11-03-driver-van-seed-collision.md`. La publicación GitHub sigue pendiente; conservar fuentes en el bundle.
+
 ## I22 revisión 3 — Consulta de esquema con listas vacías explícitas
 
 El usuario ejecutó el diagnóstico con los pines v2 verificados. Observó exactamente un objeto vacío `{}`: ninguna de las cinco secciones estaba presente, mientras el contrato previo a la migración exigía cinco listas vacías. `preflight` conservó `delivery_schema_unexpected`, sin cambios ni servicio alterado. El origen de los NULL de la consulta es inferido, no demostrado por el resumen; la omisión de secciones sí está observada.
