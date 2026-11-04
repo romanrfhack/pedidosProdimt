@@ -12,6 +12,20 @@
   @if (errorMessage) { <p class="alert error" role="alert">{{ errorMessage }}</p> }
   @if (refreshError) { <p class="alert warning" role="alert">{{ refreshError }} Las cantidades y avisos mostrados pueden estar desactualizados. Vuelve a consultar antes de continuar.</p> }
   @if (successMessage) { <p class="notice production-success" role="status">{{ successMessage }}</p> }
+  @if (storageError) { <p class="alert error" role="alert">{{ storageError }}</p> }
+  @if (recovery.length) {
+    <section class="stack alert warning no-print" aria-labelledby="production-recovery-heading" data-testid="production-recovery">
+      <h3 id="production-recovery-heading">Producción pendiente de confirmación</h3>
+      <p>El registro pudo haberse guardado. Recupera su resultado antes de capturar otra vez los mismos kilos. La referencia se conserva en este navegador para esta cuenta, incluso al salir de sesión.</p>
+      @if (recoveryError && !editor) { <p role="alert">{{ recoveryError }}</p> }
+      @for (command of recovery; track command.request.operationId) {
+        <div class="detail-panel"><strong>{{ recoveryTitle(command) }}</strong><span>Servicio {{ command.date }}</span><small>Referencia: {{ command.request.operationId }}</small>
+          <button type="button" class="primary" (click)="retryPending(command)" [disabled]="!canRetry(command) || !!editor">{{ saving ? 'Comprobando…' : 'Recuperar resultado' }}</button>
+          @if (!canRetry(command) && !saving && !storageError) { <small>Necesitas el permiso correspondiente y la misma cuenta para recuperar este resultado.</small> }
+        </div>
+      }
+    </section>
+  }
   @if (plan; as current) {
     @if (production; as day) {
       <div class="production-caption"><strong>{{ current.date }} · {{ current.routeCode || 'Todas las rutas' }}</strong><small>Última consulta: {{ lastUpdated }} · actualización automática cada 15 segundos.</small></div>
@@ -97,7 +111,7 @@
         </div>
       </section>
       <details class="production-demand-detail"><summary>Demanda por producto y unidad</summary><div class="table-scroll"><table class="operations-table" data-testid="machine-demand"><thead><tr><th>Máquina</th><th>Producto</th><th>Cantidad solicitada</th></tr></thead><tbody>@for (item of visibleDemand; track $index) { <tr><td>{{ machineLabel(item.machineNumber, item.machineName) }}</td><td>{{ item.productName }}</td><td class="quantity-cell">{{ item.quantity }} {{ unitLabel(item.unitCode) }}</td></tr> }</tbody></table></div></details>
-      @if (current.pendingReview.length) { <section class="stack pending-plan" data-testid="plan-pending-review"><h3>Pendientes de revisión</h3><p>Estos pedidos todavía no forman parte de la demanda por producir.</p><ul>@for (order of current.pendingReview; track order.orderId) { <li [id]="'pedido-' + order.orderId">{{ order.customerName }} · Pedido #{{ order.sequenceNumber }}</li> }</ul>@if (access.has('orders.review')) { <a class="no-print" routerLink="/admin/pendientes">Ir a revisión administrativa</a> }</section> }
+      @if (current.pendingReview.length) { <section class="stack pending-plan" data-testid="plan-pending-review"><h3>Pendientes de revisión</h3><p>Estos pedidos todavía no forman parte de la demanda por producir.</p><ul>@for (order of current.pendingReview; track order.orderId) { <li [id]="'pedido-' + order.orderId">{{ order.customerName }} · Pedido #{{ order.sequenceNumber }}</li> }</ul>@if (access.has('orders.review')) { <a class="no-print" routerLink="/admin/pendientes" [queryParams]="{ date: current.date }">Ir a revisión administrativa</a> }</section> }
       <p class="print-footer">Plan de preparación. No es comprobante de entrega ni de pago.</p>
     }
   }
@@ -128,9 +142,10 @@
         <p>Se devolverán <strong>{{ quantity(edit.allocation!.quantity) }} kg</strong> al lote de producción. El registro de lo producido se conserva.</p>
         <label><span>Motivo de la reversión</span><textarea name="reverseReason" maxlength="500" rows="2" required [(ngModel)]="edit.reason" [disabled]="edit.locked"></textarea></label>
       }
-      @if (pendingConfirmation && !saving) { <p class="production-help">La operación está pendiente de confirmación. Reintenta con la misma referencia antes de cerrar para evitar un registro duplicado.</p> }
+      @if (pendingConfirmation && !saving) { <p class="production-help">La operación está pendiente de confirmación. Reintenta con la misma referencia. También puedes cerrar conservándola para recuperarla desde esta cuenta.</p> }
+      @if (edit.submitted && !saving) { <button type="button" class="secondary" (click)="keepPendingAndClose()">Cerrar y conservar pendiente</button> }
       @if (edit.conflict) { <p class="production-help">Consulta el estado actual antes de preparar otra operación. El borrador se conserva hasta cerrar.</p><button type="button" class="secondary" (click)="closeAndRefresh()">Cerrar y consultar plan</button> }
-      <div class="production-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || pendingConfirmation">Cancelar</button><button type="submit" class="primary" [disabled]="saving || edit.conflict || (edit.kind === 'batch' && loadingProducts) || (edit.kind === 'allocation' && !editorBatches.length)">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : edit.kind === 'batch' ? 'Guardar producción' : edit.kind === 'allocation' ? 'Asignar kilos' : edit.kind === 'machine' ? 'Guardar asignación' : 'Confirmar reversión' }}</button></div>
+      <div class="production-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || pendingConfirmation">Cancelar</button><button type="submit" class="primary" [disabled]="saving || edit.conflict || (!edit.submitted && (recovery.length > 0 || !!storageError)) || (edit.kind === 'batch' && loadingProducts) || (edit.kind === 'allocation' && !editorBatches.length)">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : edit.kind === 'batch' ? 'Guardar producción' : edit.kind === 'allocation' ? 'Asignar kilos' : edit.kind === 'machine' ? 'Guardar asignación' : 'Confirmar reversión' }}</button></div>
     </form>
   </dialog>
 }

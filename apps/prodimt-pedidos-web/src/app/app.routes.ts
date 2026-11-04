@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { productionDraftGuard } from './production-draft.guard';
 import { deliveryDraftGuard } from './delivery-draft.guard';
 import { AdminLoginComponent } from './admin-login.component';
 import { AdminPasswordComponent } from './admin-password.component';
@@ -28,7 +29,7 @@ export const routes: Routes = [
   { path: 'admin/productos-por-configurar', loadComponent: () => import('./admin-product-setups.component').then(m => m.AdminProductSetupsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage','pricing.manage'] } },
   { path: 'admin/catalogos', loadComponent: () => import('./admin-catalogs.component').then(m => m.AdminCatalogsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.read', 'customers.manage', 'products.read', 'products.manage', 'machines.read', 'machines.manage', 'tokens.manage', 'pricing.manage'] } },
   { path: 'admin/clientes/:customerId/configuracion', loadComponent: () => import('./admin-catalogs.component').then(m => m.AdminCatalogsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage', 'tokens.manage', 'pricing.manage'] } },
-  { path: 'admin/operacion', loadComponent: () => import('./admin-operations.component').then(m => m.AdminOperationsComponent), canActivate: [permissionGuard], data: { permissions: ['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'] } },
+  { path: 'admin/operacion', loadComponent: () => import('./admin-operations.component').then(m => m.AdminOperationsComponent), canActivate: [permissionGuard], canDeactivate: [productionDraftGuard], data: { permissions: ['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'] } },
   { path: 'admin/importar-pedidos', component: AdminDailyImportComponent, canActivate: [permissionGuard], data: { permissions: ['imports.manage'] } },
   { path: 'admin/importacion', component: AdminImportComponent, canActivate: [permissionGuard], data: { permissions: ['imports.manage'] } }
 ];

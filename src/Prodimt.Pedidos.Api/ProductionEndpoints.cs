@@ -34,7 +34,7 @@ public static class ProductionEndpoints
     private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> action)
     {
         try { return await action(); }
-        catch (CustomerOrderConflictException ex) { return Results.Conflict(new { error = ex.Message }); }
+        catch (CustomerOrderConflictException ex) { return Results.Conflict(new { error = ex.Message, retrySameOperation = ex.RetrySameOperation }); }
         catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
         catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }
         catch (NotSupportedException) { return Results.Problem("Esta operación requiere SQL Server y persistencia transaccional.", statusCode: 503); }

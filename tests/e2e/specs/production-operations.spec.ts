@@ -23,7 +23,7 @@ function fixture() {
       createdAt: `${date}T12:10:00Z`, reversedAt: null, reverseReason: null }] };
   const writes: Array<{ path: string; body: any }> = [];
   const operations = new Map<string, any>();
-  let loseFirstBatchResponse = false;
+  let loseFirstBatchResponse = false, loseFirstAllocationResponse = false;
   function refresh() {
     for (const batch of dashboard.batches) { batch.allocatedQuantity = dashboard.allocations.filter((a: any) => a.batchId === batch.id && !a.reversedAt).reduce((sum: number, a: any) => sum + a.quantity, 0); batch.availableQuantity = batch.quantity - batch.allocatedQuantity; }
     for (const order of dashboard.orders) for (const item of order.lines) { item.allocatedQuantity = dashboard.allocations.filter((a: any) => a.orderLineId === item.orderLineId && !a.reversedAt).reduce((sum: number, a: any) => sum + a.quantity, 0); item.pendingAllocationQuantity = Math.max(0, item.quantity - item.allocatedQuantity); }
@@ -66,10 +66,11 @@ function fixture() {
       }
       operations.set(body.operationId, result); refresh();
       if (path.endsWith('/batches') && loseFirstBatchResponse) { loseFirstBatchResponse = false; return route.abort('failed'); }
+      if (path.endsWith('/allocations') && loseFirstAllocationResponse) { loseFirstAllocationResponse = false; return route.abort('failed'); }
       return route.fulfill({ json: result });
     });
   }
-  refresh(); return { dashboard, writes, install, loseBatchResponse: () => { loseFirstBatchResponse = true; } };
+  refresh(); return { dashboard, writes, install, loseBatchResponse: () => { loseFirstBatchResponse = true; }, loseAllocationResponse: () => { loseFirstAllocationResponse = true; } };
 }
 async function login(page: Page) { await page.goto('/admin/login'); await page.getByRole('button', { name: 'Entrar', exact: true }).click(); await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible(); }
 async function board(page: Page, state: ReturnType<typeof fixture>) { await state.install(page); await login(page); await page.goto(`/admin/operacion?date=${date}`); await expect(page.getByTestId('preparation-order')).toHaveCount(3); }
@@ -142,7 +143,7 @@ test('editor conserva borrador ante refresco y conflicto sin emitir escritura au
   await page.clock.fastForward('00:00:16'); await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(dialog.getByLabel('Kilos a asignar al pedido')).toHaveValue('8'); expect(reads).toBe(0);
   let writes = 0;
-  await page.route('**/api/admin/operations/production/allocations', route => { writes++; return route.fulfill({ status: 409, json: { error: 'El pedido cambió. Consulta su versión actual.' } }); });
+  await page.route('**/api/admin/operations/production/allocations', route => { writes++; return route.fulfill({ status: 409, json: { error: 'El pedido cambió. Consulta su versión actual.', retrySameOperation: false } }); });
   await dialog.getByRole('button', { name: 'Asignar kilos', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('El pedido cambió'); await expect(dialog.getByLabel('Kilos a asignar al pedido')).toHaveValue('8');
   await expect(dialog.getByRole('button', { name: 'Reintentar operación', exact: true })).toBeDisabled(); expect(writes).toBe(1);
@@ -197,4 +198,77 @@ test('cerrar consulta de productos pendiente no bloquea otros editores', async (
   await expect(dialog.getByRole('button', { name: 'Guardar asignación', exact: true })).toBeEnabled();
   await dialog.getByRole('button', { name: 'Guardar asignación', exact: true }).click(); await expect(dialog).toHaveCount(0); release();
   expect(state.writes).toHaveLength(1);
+});
+
+
+for (const kind of ['batch', 'allocation'] as const) {
+  test(`F01 ${kind}: recupera tras recargar con la misma referencia y sin duplicados`, async ({ page }) => {
+    const state = fixture(); await board(page, state);
+    if (kind === 'batch') {
+      state.loseBatchResponse(); await page.getByRole('button', { name: 'Registrar producción', exact: true }).click();
+      const dialog = page.getByRole('dialog'); await dialog.getByLabel('Máquina de producción').selectOption(m1);
+      await dialog.getByLabel('Producto producido').selectOption(product); await dialog.getByLabel('Kilos producidos').fill('7');
+      await dialog.getByRole('button', { name: 'Guardar producción', exact: true }).click();
+    } else {
+      state.loseAllocationResponse(); await page.getByRole('button', { name: 'Asignar kilos a Cliente Producción Uno #11 Demo', exact: true }).click();
+      const dialog = page.getByRole('dialog'); await dialog.getByLabel('Kilos a asignar al pedido').fill('7');
+      await dialog.getByRole('button', { name: 'Asignar kilos', exact: true }).click();
+    }
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('No se recibió confirmación');
+    const first = structuredClone(state.writes[0].body);
+    page.on('dialog', dialog => dialog.accept()); await page.reload();
+    const recovery = page.getByTestId('production-recovery'); await expect(recovery).toContainText(first.operationId);
+    await expect(page.getByRole('button', { name: 'Registrar producción', exact: true })).toBeDisabled();
+    expect(state.writes).toHaveLength(1);
+    await recovery.getByRole('button', { name: 'Recuperar resultado', exact: true }).click();
+    await expect(recovery).toHaveCount(0); expect(state.writes).toHaveLength(2); expect(state.writes[1].body).toEqual(first);
+    expect(kind === 'batch' ? state.dashboard.batches : state.dashboard.allocations).toHaveLength(2);
+  });
+}
+
+test('F01 salir de sesión conserva el pendiente sólo para la misma cuenta', async ({ page }) => {
+  const state = fixture(); await board(page, state); state.loseBatchResponse();
+  await page.getByRole('button', { name: 'Registrar producción', exact: true }).click();
+  const dialog = page.getByRole('dialog'); await dialog.getByLabel('Máquina de producción').selectOption(m1);
+  await dialog.getByLabel('Producto producido').selectOption(product); await dialog.getByLabel('Kilos producidos').fill('7');
+  await dialog.getByRole('button', { name: 'Guardar producción', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('No se recibió confirmación');
+  await dialog.getByRole('button', { name: 'Cerrar y conservar pendiente', exact: true }).click();
+  await page.getByRole('button', { name: 'Salir', exact: true }).click(); await login(page);
+  await page.goto(`/admin/operacion?date=${date}`); await expect(page.getByTestId('production-recovery')).toBeVisible();
+  await page.route('**/api/admin/security/me', route => route.fulfill({ json: { userId: 'another-admin', permissions: ['operations.read', 'operations.produce'] } }));
+  page.on('dialog', dialog => dialog.accept()); await page.reload();
+  await expect(page.getByTestId('preparation-order')).toHaveCount(3); await expect(page.getByTestId('production-recovery')).toHaveCount(0);
+  expect(state.writes).toHaveLength(1);
+});
+
+test('F01 almacenamiento bloqueado impide enviar sin referencia durable', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('prodimt.production.pending.')) throw new DOMException('Storage blocked', 'QuotaExceededError');
+      original.call(this, key, value);
+    };
+  });
+  const state = fixture(); await board(page, state);
+  await page.getByRole('button', { name: 'Registrar producción', exact: true }).click();
+  const dialog = page.getByRole('dialog'); await dialog.getByLabel('Máquina de producción').selectOption(m1);
+  await dialog.getByLabel('Producto producido').selectOption(product); await dialog.getByLabel('Kilos producidos').fill('7');
+  await dialog.getByRole('button', { name: 'Guardar producción', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('No se envió una nueva operación'); expect(state.writes).toHaveLength(0);
+});
+
+test('F09 revisión conserva la fecha del plan consultado', async ({ page }) => {
+  const state = fixture(); await state.install(page);
+  await page.route('**/api/admin/operations/plan?**', async route => {
+    const url = new URL(route.request().url());
+    await route.fulfill({ json: { date: url.searchParams.get('date'), routeCode: null, orders: [], machineDemand: [], warnings: [], pendingReview: [
+      { orderId: 'pending-one', customerName: 'Cliente de prueba', sequenceNumber: 1 }
+    ] } });
+  });
+  await page.route('**/api/admin/operations/production?**', route => route.fulfill({ json: { date: '2026-10-30', orders: [], batches: [], machines: [], allocations: [] } }));
+  await login(page); await page.goto('/admin/operacion?date=2026-10-30');
+  const link = page.getByRole('link', { name: 'Ir a revisión administrativa' });
+  await expect(link).toHaveAttribute('href', '/admin/pendientes?date=2026-10-30');
+  await link.click(); await expect(page).toHaveURL(/\/admin\/pendientes\?date=2026-10-30$/);
 });

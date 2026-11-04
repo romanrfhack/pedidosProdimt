@@ -10,6 +10,8 @@ import {
   ProductionAllocation, ProductionBatch, ProductionCommandResponse, ProductionDashboard, ProductionLine, ProductionOrder
 } from './admin-operations-api.service';
 import { businessDateToday, unitLabel } from './operational-labels';
+import { AuthService } from './auth.service';
+import { PendingProductionCommand, ProductionCommandStore } from './production-pending-command';
 
 type EditorKind = 'batch' | 'machine' | 'allocation' | 'reverse';
 interface ProductionEditor {
@@ -17,7 +19,7 @@ interface ProductionEditor {
   allocation: ProductionAllocation | null; machineId: string; productId: string; batchId: string;
   quantity: number | null; reason: string; notes: string; error: string | null;
   sourceBatch: ProductionBatch | null;
-  locked: boolean; conflict: boolean; submitted: (() => Observable<ProductionCommandResponse>) | null;
+  locked: boolean; conflict: boolean; submitted: PendingProductionCommand | null;
 }
 
 @Component({
@@ -28,6 +30,8 @@ interface ProductionEditor {
 })
 export class AdminOperationsComponent {
   private readonly api = inject(AdminOperationsApiService);
+  private readonly auth = inject(AuthService);
+  private readonly commandStore = new ProductionCommandStore(() => localStorage);
   private readonly catalogs = inject(AdminCatalogApiService);
   protected readonly access = inject(EffectivePermissionsService);
   private readonly changeDetector = inject(ChangeDetectorRef);
@@ -55,20 +59,72 @@ export class AdminOperationsComponent {
   protected successMessage: string | null = null;
   protected editor: ProductionEditor | null = null;
   protected saving = false;
+  protected recovery: PendingProductionCommand[] = [];
+  protected recoveryError: string | null = null;
+  protected storageError: string | null = null;
+  private readonly storageChanged = (event: StorageEvent) => {
+    if (event.key === null || event.key.startsWith('prodimt.production.pending.')) {
+      this.restorePending();
+      if (this.editor && !this.editor.submitted && this.recovery.length) this.editor.error = 'Otra pestaña conserva una operación sin confirmar. Cierra este borrador y recupera ese resultado antes de registrar más kilos.';
+      this.changeDetector.detectChanges();
+    }
+  };
+  private readonly beforeUnload = (event: BeforeUnloadEvent) => {
+    if (this.editor || this.recovery.length || this.saving) { event.preventDefault(); event.returnValue = ''; }
+  };
   protected loadingProducts = false;
   protected productionProducts: AdminProductCatalogApiResponse[] = [];
   protected readonly unitLabel = unitLabel;
 
   constructor() {
+    this.restorePending();
     this.load();
+    window.addEventListener('beforeunload', this.beforeUnload);
+    window.addEventListener('storage', this.storageChanged);
     const refresh = () => {
       if (!document.hidden && this.plan && this.appliedFilter && !this.editor && !this.acknowledgingIds.size && !this.isLoading && !this.isRefreshing) this.load(true);
     };
     const timer = window.setInterval(refresh, 15_000);
     document.addEventListener('visibilitychange', refresh);
     this.destroyRef.onDestroy(() => {
-      window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); this.planRequest?.unsubscribe();
+      window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('beforeunload', this.beforeUnload); window.removeEventListener('storage', this.storageChanged); this.planRequest?.unsubscribe();
     });
+  }
+
+  canLeave(): boolean {
+    // Explicit logout must remain available; the command belongs to the authenticated user.
+    if (!this.auth.isAdmin()) return true;
+    if (this.saving) return false;
+    if (this.recovery.length || this.editor?.submitted) return window.confirm('Hay una operación de producción sin confirmación. Se conservará para reintentar con la misma referencia cuando regreses con esta cuenta. ¿Salir de esta vista?');
+    return !this.editor || window.confirm('Hay una captura de producción sin guardar. ¿Descartar el borrador y salir?');
+  }
+
+  private restorePending(): void {
+    const userId = this.access.userId();
+    if (!userId) { this.storageError = 'No se pudo identificar la cuenta. Vuelve a iniciar sesión antes de registrar producción.'; return; }
+    try { this.recovery = this.commandStore.pending(userId); this.storageError = null; }
+    catch (error) { this.storageError = this.message(error, 'No se pudo recuperar la referencia de producción.'); }
+  }
+
+  protected recoveryTitle(command: PendingProductionCommand): string {
+    return command.kind === 'batch' ? `Registro de ${this.quantity(command.request.quantity)} kg producidos`
+      : command.kind === 'allocation' ? `Asignación de ${this.quantity(command.request.quantity)} kg a pedido`
+      : command.kind === 'machine' ? 'Asignación de máquina al pedido' : 'Reversión de asignación';
+  }
+
+  protected canRetry(command: PendingProductionCommand): boolean {
+    const permission = command.kind === 'batch' ? 'operations.produce' : command.kind === 'machine' ? 'operations.assign' : 'operations.allocate';
+    return !this.saving && !this.storageError && this.access.userId() === command.userId && this.access.has(permission);
+  }
+
+  protected retryPending(command: PendingProductionCommand): void {
+    if (!this.canRetry(command)) return;
+    this.sendCommand(command, false);
+  }
+
+  protected keepPendingAndClose(): void {
+    if (this.saving || !this.editor?.submitted) return;
+    this.productionDialog?.nativeElement.close(); this.editor = null; this.loadingProducts = false;
   }
 
   protected clearPlan(): void {
@@ -158,7 +214,7 @@ export class AdminOperationsComponent {
   protected get selectedMachineLabels(): string[] { return [...(this.selectedMachines.has('unassigned') ? ['Sin máquina asignada'] : []), ...this.availableMachines.filter(machine => this.selectedMachines.has(machine.id)).map(machine => machine.label)]; }
   protected get selectedBatch(): ProductionBatch | undefined { return this.editorBatches.find(batch => batch.id === this.editor?.batchId); }
   protected get allocationLimit(): number { return Math.min(this.editor?.line?.pendingAllocationQuantity ?? 0, this.selectedBatch?.availableQuantity ?? 0); }
-  protected canWrite(): boolean { return !this.isLoading && !this.isRefreshing && !this.refreshError && !this.saving; }
+  protected canWrite(): boolean { return !this.isLoading && !this.isRefreshing && !this.refreshError && !this.saving && !this.recovery.length && !this.storageError; }
   protected get pendingConfirmation(): boolean { return !!(this.editor?.locked && this.editor.submitted && !this.editor.conflict); }
   protected quantity(value: number): string { return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 }).format(value); }
   protected batchTargets(batch: ProductionBatch): Array<{ key: string; label: string; order: ProductionOrder; line: ProductionLine }> {
@@ -204,43 +260,84 @@ export class AdminOperationsComponent {
   protected saveEditor(): void {
     const editor = this.editor;
     if (!editor || this.saving || editor.conflict) return;
-    if (!editor.submitted) {
-      let command: () => Observable<ProductionCommandResponse>;
-      if (editor.kind === 'batch') {
-        if (!editor.machineId || !editor.productId || !this.validQuantity(editor.quantity)) { editor.error = 'Selecciona máquina, producto y kilos mayores a cero, con máximo dos decimales.'; return; }
-        const request = { operationId: editor.operationId, date: this.production!.date, machineId: editor.machineId, productId: editor.productId, quantity: editor.quantity!, notes: editor.notes.trim() || null };
-        command = () => this.api.registerProduction(request);
-      } else if (editor.kind === 'allocation') {
-        if (!editor.batchId || !this.validQuantity(editor.quantity) || editor.quantity! > this.allocationLimit) { editor.error = 'La cantidad debe ser mayor a cero y no superar el saldo del lote ni lo pendiente del pedido.'; return; }
-        const request = { operationId: editor.operationId, batchId: editor.batchId, orderId: editor.order!.orderId, orderLineId: editor.line!.orderLineId, quantity: editor.quantity!, expectedOrderVersion: editor.order!.orderVersion };
-        command = () => this.api.allocateProduction(request);
-      } else if (editor.kind === 'machine') {
-        if (!editor.reason.trim()) { editor.error = 'Escribe el motivo de la asignación.'; return; }
-        const request = { operationId: editor.operationId, machineId: editor.machineId || null, expectedOrderVersion: editor.order!.orderVersion, reason: editor.reason.trim() };
-        command = () => this.api.assignMachine(editor.order!.orderId, editor.line!.orderLineId, request);
-      } else {
-        if (!editor.reason.trim()) { editor.error = 'Escribe el motivo para devolver los kilos al lote.'; return; }
-        const request = { operationId: editor.operationId, reason: editor.reason.trim() };
-        command = () => this.api.reverseAllocation(editor.allocation!.id, request);
-      }
-      editor.submitted = command;
+    if (editor.submitted) { this.sendCommand(editor.submitted, false, editor); return; }
+    const userId = this.access.userId(), date = this.production?.date;
+    if (!userId || !date || !this.canWrite()) return;
+    let command: PendingProductionCommand;
+    const context = { version: 1 as const, userId, date };
+    if (editor.kind === 'batch') {
+      if (!editor.machineId || !editor.productId || !this.validQuantity(editor.quantity)) { editor.error = 'Selecciona máquina, producto y kilos mayores a cero, con máximo dos decimales.'; return; }
+      command = { ...context, kind: 'batch', request: { operationId: editor.operationId, date, machineId: editor.machineId, productId: editor.productId, quantity: editor.quantity!, notes: editor.notes.trim() || null } };
+    } else if (editor.kind === 'allocation') {
+      if (!editor.batchId || !this.validQuantity(editor.quantity) || editor.quantity! > this.allocationLimit) { editor.error = 'La cantidad debe ser mayor a cero y no superar el saldo del lote ni lo pendiente del pedido.'; return; }
+      command = { ...context, kind: 'allocation', request: { operationId: editor.operationId, batchId: editor.batchId, orderId: editor.order!.orderId, orderLineId: editor.line!.orderLineId, quantity: editor.quantity!, expectedOrderVersion: editor.order!.orderVersion } };
+    } else if (editor.kind === 'machine') {
+      if (!editor.reason.trim()) { editor.error = 'Escribe el motivo de la asignación.'; return; }
+      command = { ...context, kind: 'machine', orderId: editor.order!.orderId, lineId: editor.line!.orderLineId, request: { operationId: editor.operationId, machineId: editor.machineId || null, expectedOrderVersion: editor.order!.orderVersion, reason: editor.reason.trim() } };
+    } else {
+      if (!editor.reason.trim()) { editor.error = 'Escribe el motivo para devolver los kilos al lote.'; return; }
+      command = { ...context, kind: 'reverse', allocationId: editor.allocation!.id, request: { operationId: editor.operationId, reason: editor.reason.trim() } };
     }
-    this.saving = true; editor.locked = true; editor.error = null;
-    const subscription = editor.submitted().pipe(finalize(() => { this.saving = false; if (!this.destroyRef.destroyed) this.changeDetector.detectChanges(); })).subscribe({
+    try { this.commandStore.remember(command); }
+    catch (error) {
+      editor.error = this.message(error, 'No se conservó la referencia. No se envió la operación.');
+      this.restorePending(); this.changeDetector.detectChanges(); return;
+    }
+    editor.submitted = command; this.restorePending();
+    this.sendCommand(command, true, editor);
+  }
+
+  private execute(command: PendingProductionCommand): Observable<ProductionCommandResponse> {
+    switch (command.kind) {
+      case 'batch': return this.api.registerProduction(command.request);
+      case 'allocation': return this.api.allocateProduction(command.request);
+      case 'machine': return this.api.assignMachine(command.orderId, command.lineId, command.request);
+      case 'reverse': return this.api.reverseAllocation(command.allocationId, command.request);
+    }
+  }
+
+  private sendCommand(command: PendingProductionCommand, firstAttempt: boolean, editor?: ProductionEditor): void {
+    if (!this.canRetry(command)) return;
+    try {
+      const stored = this.commandStore.pending(command.userId).find(value => value.request.operationId === command.request.operationId);
+      if (JSON.stringify(stored) !== JSON.stringify(command)) throw new Error('La referencia guardada cambió. No se envió la operación; conserva el pendiente y solicita revisión.');
+    } catch (error) {
+      this.storageError = this.message(error, 'No se pudo verificar la referencia guardada.');
+      if (editor) editor.error = this.storageError;
+      return;
+    }
+    this.saving = true; this.recoveryError = null;
+    if (editor) { editor.locked = true; editor.error = null; }
+    const subscription = this.execute(command).pipe(finalize(() => { this.saving = false; if (!this.destroyRef.destroyed) this.changeDetector.detectChanges(); })).subscribe({
       next: () => {
-        editor.submitted = null; editor.locked = false;
-        this.saving = false; this.closeEditor();
-        this.successMessage = editor.kind === 'batch' ? 'Producción registrada. Los kilos están disponibles para asignar a pedidos.' : editor.kind === 'allocation' ? 'Kilos asignados al pedido.' : editor.kind === 'reverse' ? 'Asignación revertida. Los kilos vuelven a estar disponibles en el lote.' : 'Máquina del pedido actualizada.';
+        try { this.commandStore.complete(command); }
+        catch (error) {
+          this.recoveryError = this.message(error, 'El resultado fue confirmado, pero no se pudo retirar su referencia. Reintenta para comprobarlo antes de registrar otra operación.');
+          if (editor) editor.error = this.recoveryError;
+          return;
+        }
+        this.restorePending();
+        if (editor) { editor.submitted = null; editor.locked = false; this.saving = false; this.closeEditor(); }
+        this.successMessage = command.kind === 'batch' ? 'Producción registrada. Los kilos están disponibles para asignar a pedidos.' : command.kind === 'allocation' ? 'Kilos asignados al pedido.' : command.kind === 'reverse' ? 'Asignación revertida. Los kilos vuelven a estar disponibles en el lote.' : 'Máquina del pedido actualizada.';
         this.load(true);
       },
       error: (error: unknown) => {
-        editor.error = this.message(error, 'No se recibió confirmación. Puedes reintentar la misma operación para comprobar su resultado.');
-        if (error instanceof HttpErrorResponse && [400, 404, 409, 403].includes(error.status)) {
-          editor.conflict = error.status !== 400;
-          if (error.status === 400) { editor.locked = false; editor.submitted = null; editor.operationId = crypto.randomUUID(); }
-          if (error.status === 403) void this.access.refresh();
+        const message = this.message(error, 'No se recibió confirmación. Puedes reintentar la misma operación para comprobar su resultado.');
+        this.recoveryError = message;
+        if (editor) editor.error = message;
+        // A later rejection cannot prove that a previous uncertain attempt did not commit.
+        // Only a definitive rejection on the initial attempt releases its reference.
+        if (firstAttempt && error instanceof HttpErrorResponse && ([400, 404].includes(error.status) || error.status === 409 && error.error?.retrySameOperation === false)) {
+          try {
+            this.commandStore.complete(command); this.restorePending(); this.recoveryError = null;
+            if (editor) {
+              editor.submitted = null; editor.conflict = error.status !== 400; editor.locked = editor.conflict;
+              if (!editor.conflict) editor.operationId = crypto.randomUUID();
+            }
+          } catch (storageError) { this.storageError = this.message(storageError, 'No se pudo conservar el estado de la referencia.'); }
         }
-        this.changeDetector.detectChanges();
+        if (error instanceof HttpErrorResponse && error.status === 403) void this.access.refresh();
+        if (!this.destroyRef.destroyed) this.changeDetector.detectChanges();
       }
     });
     this.destroyRef.onDestroy(() => subscription.unsubscribe());

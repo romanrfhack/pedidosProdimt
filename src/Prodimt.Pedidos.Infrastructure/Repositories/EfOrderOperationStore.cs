@@ -25,7 +25,7 @@ public sealed class EfOrderOperationStore(PedidosDbContext dbContext) : IOrderOp
             if (receipt is not null)
             {
                 if (receipt.PayloadHash != payloadHash)
-                    throw new CustomerOrderConflictException("La clave de operacion ya se uso con otro contenido.");
+                    throw new CustomerOrderConflictException("La clave de operacion ya se uso con otro contenido.", retrySameOperation: true);
                 return new(JsonSerializer.Deserialize<T>(receipt.ResultJson, JsonOptions)!, true);
             }
 
@@ -43,13 +43,13 @@ public sealed class EfOrderOperationStore(PedidosDbContext dbContext) : IOrderOp
         {
             await RollbackSafelyAsync(transaction);
             dbContext.ChangeTracker.Clear();
-            throw new CustomerOrderConflictException("El pedido cambio durante la operacion. Recarga el detalle.");
+            throw new CustomerOrderConflictException("El pedido cambio durante la operacion. Recarga el detalle.", retrySameOperation: true);
         }
         catch (Exception ex) when (IsConcurrentSqlWrite(ex))
         {
             await RollbackSafelyAsync(transaction);
             dbContext.ChangeTracker.Clear();
-            throw new CustomerOrderConflictException("Otra operacion se guardo al mismo tiempo. Reintenta con la misma clave y contenido.");
+            throw new CustomerOrderConflictException("Otra operacion se guardo al mismo tiempo. Reintenta con la misma clave y contenido.", retrySameOperation: true);
         }
         catch
         {
