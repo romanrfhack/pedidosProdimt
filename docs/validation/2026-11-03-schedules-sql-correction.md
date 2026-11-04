@@ -1,5 +1,10 @@
 # I23 — Corrección SQL del instalador nativo v3
 
+**Cierre posterior:** el usuario reportó `updated/completed`, migraciones17→18,
+salud/frontend correctos y pruebas SQL reales con rollback/reaplicación/limpieza
+verificados. Ver [evidencia de instalación](2026-11-03-schedules-installed.md).
+Los pendientes descritos abajo corresponden al estado previo a ese reporte.
+
 ## Evidencia del destino
 
 El usuario reejecutó la preparación con el paquete compilado conservado. Se copiaron el instalador y payload completos. Inspección `planned/completed`, salud y base17 exacta correctas. Después de autenticación SQL pasaron las tres pruebas EF/HTTP portátiles y la limpieza. La prueba SQL exacta se detuvo con `validation_expected_rollback_not_observed`. No se creó snapshot ni stage ni se detuvo la API: cambios, migración y reinicio falsos.

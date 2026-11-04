@@ -1,5 +1,13 @@
 # Estado del proyecto
 
+## I23 instalado — 3 de noviembre de 2026
+
+El reporte del usuario confirma instalador nativo v3 `updated/completed`, migraciones17→18, tres pruebas EF/HTTP correctas y SQL exacto con rollback, reaplicación, permisos y limpieza verificados. Snapshot y respaldo SQL verificado reportados; servicio reiniciado, salud y frontend correctos; `recovery_pending=false`. Conteos, precios, tokens, clave efectiva, permisos y reparto conservados conforme los controles del instalador. Sin cambio de contraseña, rotación de clave, revocación de tokens ni restauración automática SQL.
+
+Aplicación instalada `aa802e210d15c70784f79dea2580709166b843c7`, ambos releases `ordering-schedules-i23-aa802e210d15`; corrector de herramientas8621e964 sobre el payload ya construido. Evidencia y resumen JSON en `docs/validation/2026-11-03-schedules-installed.{md,json}`. Este cierre sustituye los pendientes históricos de compilación/SQL/despliegue que siguen abajo; no se hizo verificación SSH independiente ni aceptación de navegador desde este agente.
+
+No repetir instaladores. Siguiente: Ctrl+F5 con capturas resueltas, revisar `/admin/horarios` y `/admin/pendientes` y comprobar continuidad de Reparto. La aceptación visual y operativa permanece pendiente; no se operaron datos reales ni se enviaron mensajes. Este cierre sólo documenta el resultado, con fuente por bundle autosuficiente y publicación GitHub todavía pendiente por separado.
+
 ## I23 — Corrector SQL nativo v3 sobre el payload ya construido
 
 El usuario confirmó transferencia correcta e inspección planned/completed, salud y base17 exacta. La aplicación se detuvo antes de snapshot/stage/stop en isolated-exact-sql-validation con validation_expected_rollback_not_observed. Antes pasaron las tres pruebas EF/HTTP portátiles y su limpieza. changes_made, database_migrations_run, migrations_may_have_changed y service_restarted=false. No se confirma I23 desplegado.

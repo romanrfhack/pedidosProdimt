@@ -41,4 +41,4 @@ La aplicación recibe SELECT/INSERT/UPDATE y DENY DELETE en RouteOrderSchedules.
 
 ## Validación
 
-Ver `docs/validation/2026-11-03-schedules-on-delivery.md`. No afirmar compilación backend de la integración, despliegue, aceptación de negocio, envío de mensajes ni pruebas visuales completadas sin evidencia del entorno correspondiente.
+Preparación en `docs/validation/2026-11-03-schedules-on-delivery.md` y corrección SQL en `docs/validation/2026-11-03-schedules-sql-correction.md`. El reporte posterior del usuario confirma instalación v3, migraciones17→18, salud/frontend y validaciones aisladas correctas: ver `docs/validation/2026-11-03-schedules-installed.md`. La aceptación visual y operativa sigue pendiente; no afirmar envío de mensajes ni pruebas de navegador completadas sin evidencia correspondiente.
