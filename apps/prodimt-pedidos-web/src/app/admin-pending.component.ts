@@ -179,6 +179,8 @@ export class AdminPendingComponent {
   private auditGeneration = 0;
   private pendingSubscription: Subscription | null = null;
   private pendingGeneration = 0;
+  private changeSubscription: Subscription | null = null;
+  private changeGeneration = 0;
 
   private readonly http = inject(HttpClient);
   protected notification: { message: string; whatsAppUrl: string | null } | null = null;
@@ -209,6 +211,7 @@ export class AdminPendingComponent {
     this.destroyRef.onDestroy(() => {
       this.resetAudit();
       this.cancelPendingLoad();
+      this.cancelChangeLoad();
     });
     this.load();
   }
@@ -246,12 +249,17 @@ export class AdminPendingComponent {
   }
 
   protected startAcceptedWithChanges(order: AdminOrder): void {
+    this.cancelChangeLoad();
+    if (this.destroyRef.destroyed || this.isLoading) return;
+    const generation = this.changeGeneration;
+    const date = this.serviceDate;
     this.errorMessage = null;
     this.resultMessage = null;
     this.loadingChangesOrderId = order.id;
 
-    this.data.loadOrderDetail(order.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.changeSubscription = this.data.loadOrderDetail(order.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (detail) => {
+        if (!this.isCurrentChangeLoad(generation, order.id, date)) return;
         this.changeDetail = detail;
         this.changeLines = detail.lines.map((line) => ({
           orderLineId: line.id,
@@ -267,6 +275,7 @@ export class AdminPendingComponent {
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
+        if (!this.isCurrentChangeLoad(generation, order.id, date)) return;
         this.errorMessage = this.formatError(error, 'No se pudo cargar el detalle del pedido.');
         this.loadingChangesOrderId = null;
         this.changeDetector.detectChanges();
@@ -313,6 +322,7 @@ export class AdminPendingComponent {
   }
 
   protected cancelChanges(): void {
+    this.cancelChangeLoad();
     this.changeDetail = null;
     this.changeLines = [];
     this.requestedDeliveryTime = null;
@@ -347,6 +357,7 @@ export class AdminPendingComponent {
   protected load(showLoading = true): void {
     this.resetAudit();
     this.cancelPendingLoad();
+    this.cancelChangeLoad();
     if (this.destroyRef.destroyed || !this.serviceDate) return;
     const generation = this.pendingGeneration;
     const date = this.serviceDate;
@@ -397,6 +408,18 @@ export class AdminPendingComponent {
     this.pendingGeneration++;
     this.pendingSubscription?.unsubscribe();
     this.pendingSubscription = null;
+  }
+
+  private cancelChangeLoad(): void {
+    this.changeGeneration++;
+    this.changeSubscription?.unsubscribe();
+    this.changeSubscription = null;
+    this.loadingChangesOrderId = null;
+  }
+
+  private isCurrentChangeLoad(generation: number, orderId: string, date: string): boolean {
+    return !this.destroyRef.destroyed && generation === this.changeGeneration
+      && this.loadingChangesOrderId === orderId && this.serviceDate === date;
   }
 
   private emptyToNull(value: string | null): string | null {

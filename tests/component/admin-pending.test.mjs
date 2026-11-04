@@ -12,6 +12,10 @@ const orderA = { id: 'order-a', orderDate: date };
 const orderB = { id: 'order-b', orderDate: date };
 const eventA = { id: 'event-a', summary: 'Historia de A' };
 const eventB = { id: 'event-b', summary: 'Historia de B' };
+const detail = order => ({
+  ...order, version: 1, deliveryNotes: `Entrega ${order.id}`, internalNotes: null,
+  lines: [{ id: `line-${order.id}`, productName: 'Tortilla de prueba', unitCode: 'kg', quantity: 10, notes: null }]
+});
 
 function fixture(t) {
   const audits = [];
@@ -160,4 +164,63 @@ test('F04: destruir la vista cancela las lecturas y no solicita renders tardíos
   assert.equal(renders(), rendersBefore);
   assert.equal(component.selectedAuditOrderId, null);
   assert.deepEqual(component.auditEvents, []);
+});
+
+test('F04 ampliación: detalle tardío de A no sustituye el borrador editado de B', t => {
+  const { component, otherReads } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  component.startAcceptedWithChanges(orderB);
+  otherReads[1].next(detail(orderB));
+  component.changeLines[0].quantity = 25;
+  component.deliveryNotes = 'Borrador de entrega B';
+  otherReads[0].next(detail(orderA));
+  assert.equal(component.changeDetail.id, orderB.id);
+  assert.equal(component.changeLines[0].quantity, 25);
+  assert.equal(component.deliveryNotes, 'Borrador de entrega B');
+  assert.equal(otherReads[0].observed, false);
+});
+
+test('F04 ampliación: error tardío de detalle A no afecta la carga de B', t => {
+  const { component, otherReads } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  component.startAcceptedWithChanges(orderB);
+  otherReads[0].error(new HttpErrorResponse({ status: 500, error: { error: 'Error detalle A' } }));
+  assert.equal(component.loadingChangesOrderId, orderB.id);
+  assert.equal(component.errorMessage, null);
+  otherReads[1].next(detail(orderB));
+  assert.equal(component.changeDetail.id, orderB.id);
+  assert.equal(component.loadingChangesOrderId, null);
+});
+
+test('F04 ampliación: cancelar ajustes no permite que una lectura pendiente reabra el editor', t => {
+  const { component, otherReads } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  component.cancelChanges();
+  otherReads[0].next(detail(orderA));
+  assert.equal(component.changeDetail, null);
+  assert.deepEqual(component.changeLines, []);
+  assert.equal(component.loadingChangesOrderId, null);
+  assert.equal(otherReads[0].observed, false);
+});
+
+test('F04 ampliación: cambiar fecha descarta una respuesta pendiente de detalle de la fecha anterior', t => {
+  const { component, otherReads } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  component.serviceDate = '2026-11-04';
+  component.changeDate();
+  otherReads[0].next(detail(orderA));
+  assert.equal(component.changeDetail, null);
+  assert.deepEqual(component.changeLines, []);
+  assert.equal(component.loadingChangesOrderId, null);
+});
+
+test('F04 ampliación: consultar pendientes otra vez cancela la lectura de ajustes aún sin resolver', t => {
+  const { component, otherReads, lists } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  component.load();
+  otherReads[0].next(detail(orderA));
+  lists[1].response.next([orderA, orderB]);
+  assert.equal(component.changeDetail, null);
+  assert.equal(component.loadingChangesOrderId, null);
+  assert.deepEqual(component.changeLines, []);
 });
