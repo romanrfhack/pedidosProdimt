@@ -177,10 +177,10 @@ test('admin muestra pendientes y acepta pedido con refresco', async ({ page }) =
   await loginAdmin(page);
   await page.goto('/admin/pendientes');
 
-  await expect(page.getByRole('heading', { name: 'Pendientes de revision' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pedidos por confirmar' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aceptar' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Rechazar' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Cambios' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ver detalle / ajustar', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ver auditoria' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Aceptar' }).click();
@@ -193,7 +193,7 @@ test('admin puede aceptar pendiente con cambios', async ({ page }) => {
   await loginAdmin(page);
   await page.goto('/admin/pendientes');
 
-  await page.getByRole('button', { name: 'Cambios' }).click();
+  await page.getByRole('button', { name: 'Ver detalle / ajustar', exact: true }).click();
   await expect(page.getByText('Aceptar con cambios').first()).toBeVisible();
   await page.getByLabel('Hora entrega').fill('13:00');
   await page.getByLabel('Notas de entrega').fill('Entregar despues de las 13');
