@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I16 — Pedir otro producto y completar su configuración
 
 Fecha: 2 de noviembre de 2026, America/Mexico_City.

@@ -1,8 +1,14 @@
-# 08 — Contexto para Codex
+> Referencia de una etapa anterior. Para implementación, versiones y próximos pasos usar el [índice vigente](README.md), el [estado](proyecto/ESTADO.md) y los contratos ampliados. Este documento no autoriza una instalación inicial sobre el sistema actualmente en operación.
+
+# 08 - Contexto para Codex
 
 ## Continuidad vigente
 
-Desde el 24 de octubre de 2026, iniciar en `../CONTINUAR.md` y `proyecto/ESTADO.md`. El plan integral de `proyecto/PLAN.md` y sus decisiones sustituyen el alcance histórico cuando difieran. Actualizar siempre el estado y la bitácora al terminar, y comprobar commit/PR remoto. El usuario confirmó que no existe base operativa a preservar y autorizó preparar un piloto de ruta. Los datos reales permanecen privados.
+Hay infraestructura, SQL y datos operativos existentes que preservar. Iniciar en [CONTINUAR](../CONTINUAR.md), [ESTADO](proyecto/ESTADO.md), [ARQUITECTURA](proyecto/ARQUITECTURA-ACTUAL.md) y [PLAN-CONSOLIDACIÓN](proyecto/PLAN-CONSOLIDACION.md). OCT-002 fue sustituida por el inventario OCT-032. La publicación remota mantiene su antecedente independiente; la entrega de esta auditoría se conserva por bundle, sin forzar un push.
+
+## Contexto inicial conservado como antecedente
+
+Las secciones siguientes describen la fase inicial; sus pendientes no son el estado actual. No ordenar otra migración inicial ni omitir módulos ya autorizados basándose sólo en ellas.
 
 ## Proyecto
 

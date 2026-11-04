@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I15 — Catálogo de clientes con rejilla responsiva
 
 Autorizado el 2 de noviembre de 2026. El usuario solicita aprovechar el ancho en PC y adaptar tamaño/número de tarjetas a la pantalla.

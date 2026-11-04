@@ -1,0 +1,55 @@
+{
+  "baseline": "aa802e210d15c70784f79dea2580709166b843c7",
+  "applicationCodeChanged": false,
+  "dotnet": {
+    "build": "passed",
+    "domainPassed": 5,
+    "applicationPassed": 450,
+    "failed": 0,
+    "skipped": 0,
+    "sdk": "10.0.403",
+    "sqlProjectCompiled": true,
+    "sqlFixtureWarnings": 3,
+    "sqlExecuted": false,
+    "efModelDrift": false
+  },
+  "python": {
+    "total": 528,
+    "passed": 524,
+    "skipped": 4
+  },
+  "angular": {
+    "build": "passed",
+    "initialKB": 496.72,
+    "estimatedTransferKB": 129.05,
+    "cssWarnings": 6
+  },
+  "browser": {
+    "collected": 231,
+    "files": 23,
+    "attempt": "Chromium EPERM before assertions",
+    "launchFailures": 1,
+    "notRunInAttempt": 3,
+    "functionalAssertionsExecuted": 0
+  },
+  "typescript": {
+    "focusedDeliverySchedules": "passed",
+    "allSpecs": "failed: Buffer type missing daily-orders.spec.ts:95"
+  },
+  "npm": {
+    "developmentModerateEntries": 16,
+    "productionVulnerabilitiesReported": 0,
+    "high": 0,
+    "critical": 0
+  },
+  "nuget": {
+    "scannedSolutionProjects": 6,
+    "vulnerablePackagesReported": 0
+  },
+  "documentChecks": {
+    "localLinksChecked": 164,
+    "broken": 0,
+    "evidencePathsAndLines": "passed",
+    "findingPhaseCoverage": "24/24"
+  }
+}

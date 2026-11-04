@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I06 — Catálogo de clientes y estado del día
 
 Autorizado el 28 de octubre de 2026. El usuario confirmó la carga inicial de clientes y pidió que la búsqueda sea el acceso principal, el alta se abra en un modal y las tarjetas reflejen la situación del día.

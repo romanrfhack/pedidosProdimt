@@ -1,0 +1,500 @@
+{
+  "date": "2026-11-03",
+  "timezone": "America/Mexico_City",
+  "sourceCommit": "aa802e210d15c70784f79dea2580709166b843c7",
+  "installedBackend": "delivery-0cfe3ef511d8",
+  "installedFrontend": "delivery-flow-426c360e1365",
+  "knownMigrations": 17,
+  "preparedMigration": "20261103030000_AddOrderingSchedules",
+  "findings": [
+    {
+      "id": "F01",
+      "priority": "P1",
+      "scope": "RF1 e I23",
+      "title": "Reintento incierto de producción pierde su identidad al navegar",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-operations.component.ts:181",
+        "apps/prodimt-pedidos-web/src/app/admin-operations.component.ts:204",
+        "apps/prodimt-pedidos-web/src/app/app.routes.ts:31"
+      ],
+      "condition": "El POST puede confirmar en servidor y perder su respuesta. El comando y UUID quedan sólo en editor.submitted; cambiar de pantalla o recargar destruye la referencia. Volver a capturar usa otro UUID y puede duplicar un lote. No se constató un incidente real.",
+      "fix": "Persistir un DTO pendiente por usuario antes de enviar y recuperar/repetir el mismo UUID. Reutilizar el patrón de Reparto; añadir protección de navegación sin bloquear el logout.",
+      "acceptance": "Commit con respuesta perdida + navegación/recarga + reintento produce exactamente un lote o una asignación, según el comando; la referencia se conserva y no se reutiliza entre usuarios.",
+      "phase": "1",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F02",
+      "priority": "P1",
+      "scope": "RF1 e I23",
+      "title": "Login administrativo sin límite de intentos en aplicación",
+      "evidence": [
+        "src/Prodimt.Pedidos.Api/Program.cs:71",
+        "src/Prodimt.Pedidos.Api/Program.cs:298",
+        "src/Prodimt.Pedidos.Application/Auth/PilotAuthenticationService.cs:61"
+      ],
+      "condition": "El endpoint anónimo de administración no aplica la policy de rate limiting que sí usa el acceso de clientes. No hay contador/limitación equivalente en el servicio. El perímetro real no fue inspeccionado; no se intentó explotar el servidor.",
+      "fix": "Policy configurable de límites administrativos, validación de longitudes antes del hash y eventos sanitizados. Evitar un bloqueo permanente de cuenta que permita denegar servicio a terceros.",
+      "acceptance": "HTTP aislado devuelve 429 al exceder la ventana, permite recuperación y login legítimo; no registra contraseñas ni tokens. Revocación y RBAC siguen correctos.",
+      "phase": "1",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F03",
+      "priority": "P1",
+      "scope": "Entrega I23, sin aplicar a producción",
+      "title": "Gate SQL de I23 detenido sin causa SQL suficientemente visible",
+      "evidence": [
+        "scripts/pilot/validate-ordering-schedules-sql.py:63",
+        "scripts/pilot/validate-ordering-schedules-sql.py:135",
+        "scripts/pilot/install-ordering-schedules-on-delivery-update.py"
+      ],
+      "condition": "El último reporte disponible señala isolated-exact-sql-validation / validation_expected_rollback_not_observed antes de migrar. El validador colapsa un retorno/marker inesperados en el mismo error. La causa exacta no quedó demostrada y no debe atribuirse a una sentencia por conjetura.",
+      "fix": "Diagnóstico acotado de exit code, presencia de marker y números SQL saneados; reproducir el SQL empaquetado exacto en una base temporal. Conservar el requisito de rollback, repetición, limpieza y respaldo.",
+      "acceptance": "CI SQL nativo demuestra fallo intencionado y rollback, aplicación, replay, permisos y limpieza. Una falla previa explica su fase sin secretos. Sólo entonces puede prepararse otra entrega.",
+      "phase": "0",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F04",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Auditoría de un pedido puede mostrarse bajo otro",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-pending.component.ts:306"
+      ],
+      "condition": "Dos lecturas A y B terminan B y A; la respuesta de A sobreescribe auditEvents cuando selectedAuditOrderId ya es B. Reproducción del método TypeScript real con transporte sintético: selected=B / events=A.",
+      "fix": "Cancelar lectura previa o usar generación/switchMap, verificar ID y fecha antes de publicar y limpiar al destruir la vista.",
+      "acceptance": "Respuestas invertidas, cambio de fecha y salida de vista no muestran historia ajena ni actualizan una vista destruida.",
+      "phase": "1",
+      "confidence": "Reproducido sin navegador",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F05",
+      "priority": "P2",
+      "scope": "Sólo I23 preparado",
+      "title": "Guardar un horario descarta borradores de otras tarjetas",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-ordering-schedules.component.ts:23",
+        "apps/prodimt-pedidos-web/src/app/admin-ordering-schedules.component.ts:51"
+      ],
+      "condition": "Los inputs modifican data directamente; guardar A vuelve a cargar todo y sustituye un borrador B. Reproducción con métodos reales: B editado a 08:00 vuelve a 10:00 al guardar A. Durante el GET saving ya es false.",
+      "fix": "Separar snapshot y borradores por ID o usar editor único. Reconciliar sólo la entidad guardada, controlar dirty/loading y preservar el borrador ante 409.",
+      "acceptance": "Editar A+B y guardar A conserva B; GET lento no pisa cambios ni permite enviar una versión obsoleta.",
+      "phase": "1",
+      "confidence": "Reproducido sin navegador",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F06",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Auditoría de perfiles puede superar el límite SQL de 2000 caracteres",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/AdminCatalogs/AdminCustomerCatalogService.cs:273",
+        "src/Prodimt.Pedidos.Infrastructure/Persistence/Configurations/AuditLogConfiguration.cs:35",
+        "src/Prodimt.Pedidos.Infrastructure/Repositories/EfAuditLogRepository.cs:9"
+      ],
+      "condition": "Se serializan productIds, captureAliases y machineInheritance. Un ejemplo sintético sin aliases con 9 productos genera 2131 caracteres frente a nvarchar(2000). Incompatibilidad estructural confirmada; error SQL no reproducido aquí y tamaños reales no inspeccionados.",
+      "fix": "Definir evidencia completa con tamaño coherente: resumen acotado con referencia versionada o ampliación SQL aditiva con límites deliberados. Revisar también auditoría de seguridad. No truncar JSON silenciosamente.",
+      "acceptance": "SQL Server guarda perfiles de 9/20 productos y Unicode con perfil, versión y auditoría atómicos; un fallo deliberado revierte todo.",
+      "phase": "1",
+      "confidence": "Contrato incompatible confirmado; SQL pendiente",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F07",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Revisión no valida notas según los límites persistidos",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/AdminOrders/AdminOrderService.cs:238",
+        "src/Prodimt.Pedidos.Application/AdminOrders/AdminOrderService.cs:345",
+        "src/Prodimt.Pedidos.Infrastructure/Persistence/Configurations/OrderConfiguration.cs:25"
+      ],
+      "condition": "InternalNotes y DeliveryNotes se asignan sin validar 500/1000 caracteres aunque SQL establece esos máximos. El formulario de revisión tampoco limita la entrada. Un error SQL/500 es inferido, no ejecutado.",
+      "fix": "Validar el comando completo antes de mutar, con límites compartidos por captura/revisión/corrección y errores de campo consistentes.",
+      "acceptance": "Valores en límite guardan, límite+1 retorna 400 sin cambios parciales; el mensaje identifica el campo y conserva el borrador.",
+      "phase": "1",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F08",
+      "priority": "P2",
+      "scope": "RF1; semántica de martes nueva en I23",
+      "title": "NoOrder heredado y moderno operan con fechas distintas",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/CustomerOrders/CustomerOrderService.cs:90",
+        "src/Prodimt.Pedidos.Application/CustomerOrders/CustomerOrderCaptureService.cs:122",
+        "src/Prodimt.Pedidos.Application/Auth/CustomerLinkAccessPolicy.cs:18"
+      ],
+      "condition": "La ruta heredada usa Today repetidamente y no un recibo durable; la moderna exige fecha esperada y aplica corte. Después de 18:00 pueden operar sobre días distintos; I23 añade martes inhábil. La UI moderna no usa esa ruta y request-only no puede invocarla: no es un bypass de demanda.",
+      "fix": "Decidir compatibilidad del endpoint legacy y unificar el caso de uso o devolver un conflicto orientativo antes de escribir. Deprecar gradualmente sin retirar consumidores a ciegas.",
+      "acceptance": "HTTP antes/después de 18:00, lunes/martes, enlace activo/restringido y replay preservan la fecha confirmada y no reescriben historia.",
+      "phase": "1",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F09",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Operación pierde la fecha al abrir Revisión",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-operations.component.html:100",
+        "apps/prodimt-pedidos-web/src/app/admin-pending.component.ts:195"
+      ],
+      "condition": "Operación permite una fecha histórica pero su enlace a Revisión no pasa ?date. Revisión toma hoy si falta y puede abrir otro día.",
+      "fix": "Pasar current.date del plan ya cargado y conservar contexto al volver; no usar una fecha editada todavía no consultada.",
+      "acceptance": "Consultar un día distinto y navegar a Revisión conserva exactamente el día del plan.",
+      "phase": "1",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F10",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Pedido capturado sin ruta carece de una resolución operativa explícita",
+      "evidence": [
+        "src/Prodimt.Pedidos.Domain/Entities/Order.cs:100",
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:142",
+        "src/Prodimt.Pedidos.Application/AdminOrders/DailyOrderDtos.cs:4"
+      ],
+      "condition": "La ruta se fija como snapshot. Asignar exige coincidencia con la vuelta; editar al cliente sólo afecta pedidos futuros y la corrección actual admite partidas, no ruta. Un pedido sin ruta o con una equivocada puede quedar bloqueado.",
+      "fix": "Primero prevenir/detectar ruta ausente antes de capturar y explicar la salida soportada. Diseñar una resolución auditada mínima de un pedido no comprometido sólo si se confirma esa necesidad; no aplicar fallback silencioso al cliente.",
+      "acceptance": "Caso sin ruta y ruta equivocada tiene una salida documentada sin borrar/recrear historia ni afectar reservas/custodia. Una corrección eventual exige motivo/versión y rechaza pedidos comprometidos.",
+      "phase": "3",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F11",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Maps e instrucciones de parada proceden sólo de la primera partida",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/delivery-workspace.component.html:59",
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:271"
+      ],
+      "condition": "La cabecera usa assignments[0], pero actualizar indicaciones modifica una asignación. Con dos productos, cambiar la segunda puede dejar la cabecera antigua u ocultar snapshots divergentes.",
+      "fix": "Detectar diferencias y mostrar su alcance por partida, o aplicar una actualización explícita de parada a todas las partidas elegidas. Conservar snapshots históricos y reglas de permisos.",
+      "acceptance": "Dos productos con indicaciones diferentes no ocultan información ni usan un Maps ambiguo; actualizar no cambia historia sin evento.",
+      "phase": "3",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F12",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Asignar producción se interpreta como cambio comercial en reparto",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/AdminOperations/ProductionManagementService.cs:134",
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:186",
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:427"
+      ],
+      "condition": "Producción incrementa Order.Version; reparto compara esa versión como cambio del pedido. Sin cambiar cantidad ni destino, una asignación/reversión técnica puede exigir reconocer una supuesta modificación comercial.",
+      "fix": "Separar revisión técnica de contenido operativo mediante una revisión/fingerprint semántico, conservando el token de concurrencia y el reconocimiento de cambios reales.",
+      "acceptance": "Asignar producción sin cambiar demanda no avisa cambio comercial; corregir cantidad, unidad o destino sí lo avisa y conserva control concurrente.",
+      "phase": "4",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F13",
+      "priority": "P2",
+      "scope": "Validación I23",
+      "title": "Las tres pruebas portátiles de SQL no prueban funcionalmente Horarios",
+      "evidence": [
+        "tests/Prodimt.Pedidos.DeploymentValidation/ValidationRunner.cs:62",
+        "tests/Prodimt.Pedidos.Application.Tests/OrderingScheduleTests.cs",
+        ".github/workflows/ci.yml:129"
+      ],
+      "condition": "El runner selecciona DeliveryManagementSqlTests. Es una regresión valiosa de reparto; OrderingScheduleTests usa SQLite y no se identifican pruebas funcionales propias de horarios en SqlServer.Tests. El gate SQL exacto comprueba otro tipo de riesgo.",
+      "fix": "Añadir pruebas HTTP/SQL de horarios y solicitudes, conservando las de reparto: enlace vencido/revocado, corte/fecha/aceptación y replay/concurrencia. Extender el gate nativo CI aI22/I23.",
+      "acceptance": "Una base UUID SQL Server valida nuevos flujos, permisos, rollback/replay y limpieza en CI antes del despliegue.",
+      "phase": "2",
+      "confidence": "Brecha de cobertura confirmada",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F14",
+      "priority": "P2",
+      "scope": "Pruebas de interfaz y contratos",
+      "title": "La comprobación completa UI-API-SQL y los comandos de test están incompletos",
+      "evidence": [
+        "tests/e2e/playwright.config.js:17",
+        "apps/prodimt-pedidos-web/package.json:8",
+        "apps/prodimt-pedidos-web/angular.json",
+        "tests/e2e/specs/daily-orders.spec.ts:95"
+      ],
+      "condition": "Playwright usa una API simulada. ng test figura en scripts sin target test. El typecheck estricto de todos los specs falla por Buffer sin tipos Node; el subconjunto Reparto/Horarios sí pasa. El navegador local aborta al iniciar por socket EPERM.",
+      "fix": "Mantener UI mock rápida, añadir un recorrido pequeño con API y SQL reales, alinear comandos y dependencias de tipos. Incorporar lint/analyzers/formato incremental y cobertura de cambios críticos, sin ocultar deuda anterior.",
+      "acceptance": "Un comando documentado por nivel funciona en CI; typecheck global pasa; recorrido real cubre captura, revisión y parcial 50/25/20; SQL y navegador no se sustituyen por mocks.",
+      "phase": "2",
+      "confidence": "Ejecutado: typecheck global falla; navegador bloqueado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F15",
+      "priority": "P2",
+      "scope": "Herramientas de desarrollo web",
+      "title": "Dependencias transitivas tienen avisos moderados sin control de mantenimiento completo",
+      "evidence": [
+        "apps/prodimt-pedidos-web/package-lock.json:4942",
+        "apps/prodimt-pedidos-web/package-lock.json:5695",
+        ".github/workflows/ci.yml:158"
+      ],
+      "condition": "npm audit devuelve 16 entradas moderadas, dos avisos raíz glob/minimatch en la cadena de Angular CLI; --omit=dev devuelve 0. El arreglo automático propone salto mayor aAngular 22: no es un parche que deba forzarse. El gate actual sólo bloquea high/critical.",
+      "fix": "Resolver con versiones compatibles verificadas o registrar una excepción temporal con vencimiento mientras se prepara la actualización. Añadir revisión de NuGet/transitivas y lock/pines reproducibles; no usar audit fix --force.",
+      "acceptance": "Escaneo fechado distingue runtime/tooling, cada aviso tiene tratamiento y no quedan high/critical sin decisión. Build, UI y contratos pasan antes/después.",
+      "phase": "2",
+      "confidence": "npm audit ejecutado; sin explotación demostrada",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F16",
+      "priority": "P2",
+      "scope": "Lecturas RF1 e I23",
+      "title": "Dashboard de reparto multiplica consultas por pedido y asignación",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:22",
+        "src/Prodimt.Pedidos.Application/Delivery/DeliveryManagementService.cs:404",
+        "src/Prodimt.Pedidos.Infrastructure/Repositories/EfDeliveryRepository.cs"
+      ],
+      "condition": "El servicio lee por candidata y vuelve a consultar pedido/reservas por asignación; own se filtra tras obtener vueltas del día. Son consultas SQL repetidas demostrables; no se midió lentitud actual en la ruta piloto. La UI también recalcula agrupaciones en getters.",
+      "fix": "Medir 25/100/500 pedidos, construir proyecciones por lotes y filtros en repositorio, luego memorizar viewmodels/índices de UI por snapshot. No debilitar transacciones del ledger ni paralelizar un DbContext compartido.",
+      "acceptance": "Consultas de lectura no crecen linealmente por partida; métricas p50/p95 y payload antes/después, cero acceso ajeno y resultados equivalentes. Virtualizar sólo si la medición lo exige.",
+      "phase": "4",
+      "confidence": "Patrón N+1 confirmado; latencia pendiente de medir",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F17",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "Contraste y semántica de tabs requieren ajuste accesible",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-security.component.css:1",
+        "apps/prodimt-pedidos-web/src/app/admin-security.component.html:12"
+      ],
+      "condition": "El texto .75rem #658087 da 4.21:1 sobre blanco y 3.89:1 sobre seleccionado #eff8f5, por debajo del mínimo 4.5:1 de texto normal. role=tab sólo implementa click, sin navegación de flechas propia de ese patrón.",
+      "fix": "Token de texto secundario con contraste suficiente y semántica/teclado coherentes: implementar tabs o usar botones de filtro. Conservar foco y etiquetas junto al color.",
+      "acceptance": "Contraste>=4.5 sin redondear, teclado completo y zoom 200%; revisión de 320/390/768/1440/1920px sin pérdida de captura. No se afirma certificación WCAG completa.",
+      "phase": "3",
+      "confidence": "Contraste calculado desde CSS; inspección visual pendiente",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F18",
+      "priority": "P2",
+      "scope": "RF1 e I23",
+      "title": "La revisión no presenta cantidades en una consulta de sólo lectura",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/app/admin-pending.component.ts:53",
+        "apps/prodimt-pedidos-web/src/app/admin-pending.component.ts:231"
+      ],
+      "condition": "Antes de Aceptar/Rechazar, la tarjeta muestra metadatos pero no las partidas; para verlas debe entrar a Cambios o ir a Pedidos y regresar. Es una fricción verificable del diseño, no una prueba de que el usuario aceptara algo incorrecto.",
+      "fix": "Detalle readonly con producto/cantidad/unidad/ruta/horario reutilizando GET existente. Separar consultar de editar y conservar fecha/selección al decidir.",
+      "acceptance": "Puede revisar todas las partidas sin activar edición, decidir y avanzar conservando fecha/posición en móvil y PC.",
+      "phase": "3",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F19",
+      "priority": "P1",
+      "scope": "Documentación",
+      "title": "Una instrucción vigente aún afirmaba que no existía BD operativa",
+      "evidence": [
+        "docs/08-contexto-para-codex.md:5",
+        "docs/proyecto/DECISIONES.md:13"
+      ],
+      "condition": "La premisa histórica deOCT-002 seguía presentada como vigente pese al inventarioOCT-032 y al sistema instalado. Es un riesgo de ejecución de mantenimiento, no un defecto de persistencia.",
+      "fix": "Marcar la premisa sustituida, preservar historia y exigir lectura del estado actual con infraestructura/datos existentes.",
+      "acceptance": "Las entradas vigentes describen instalación existente y enlazan una única fuente de estado. La historia queda identificada como tal.",
+      "phase": "0",
+      "confidence": "Contradicción documental confirmada",
+      "status": "Resuelto documentalmente"
+    },
+    {
+      "id": "F20",
+      "priority": "P2",
+      "scope": "Documentación",
+      "title": "Estados históricos se mezclaban con entregas actuales y evidencia de pruebas",
+      "evidence": [
+        "README.md:15",
+        "README.md:19",
+        "CONTINUAR.md",
+        "docs/proyecto/ESTADO.md"
+      ],
+      "condition": "I18/I19 aparecían como pendientes mientras I22 ya los integraba. Continuidad/estado/bitácora repetían 1687 líneas de intentos y la baseI23 no tenía el registro de RF1 instalado. Implementado, probado, instalado y aceptado no estaban separados uniformemente.",
+      "fix": "README y handoff breves, estado y matriz vigentes únicos, archivos históricos conservados, arquitectura real y evidencia de pruebas por entorno. Registrar I23 preparado/bloqueado sin declararlo instalado.",
+      "acceptance": "Lectura inicial no exige reconstruir intentos; todo estado tiene base y evidencia; no se equipara mock/SQLite/build con validación SQL/navegador real.",
+      "phase": "0",
+      "confidence": "Contradicción documental confirmada",
+      "status": "Resuelto documentalmente"
+    },
+    {
+      "id": "F21",
+      "priority": "P3",
+      "scope": "Arquitectura y mantenibilidad",
+      "title": "Responsabilidades distintas se concentran en clases y componentes grandes",
+      "evidence": [
+        "src/Prodimt.Pedidos.Application/AdminImports/AdminImportService.cs:1",
+        "src/Prodimt.Pedidos.Api/Program.cs:1",
+        "apps/prodimt-pedidos-web/src/app/admin-catalogs.component.ts:48"
+      ],
+      "condition": "Importaciones 2265 líneas coordina parsing/validación/aplicación; Program 1164 mezcla composición y muchos endpoints; catálogo 953 coordina clientes/perfiles/precios/máquinas/tokens. El problema es la mezcla concreta de razones de cambio, no un límite arbitrario de líneas.",
+      "fix": "Extraer por caso de uso, empezar por endpoints de un módulo y parsing puro, luego configuración/catálogo. Interfaces sólo en límites que se necesiten y editores como uniones discriminadas donde ayuden.",
+      "acceptance": "Contratos HTTP/DTO y permisos no cambian; cada extracción pasa regresión; precios y calendario no obligan a tocar máquinas. No se impone MediatR, NgRx ni microservicios.",
+      "phase": "5",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F22",
+      "priority": "P3",
+      "scope": "Arquitectura y contratos internos",
+      "title": "Estados y traducción de errores se repiten en varios bordes",
+      "evidence": [
+        "src/Prodimt.Pedidos.Api/Program.cs",
+        "src/Prodimt.Pedidos.Api/DeliveryEndpoints.cs",
+        "apps/prodimt-pedidos-web/src/app/operational-labels.ts"
+      ],
+      "condition": "Hay estados/políticas con strings y traducciones de excepción repetidas; usar InvalidOperationException como no encontrado hace frágil separar 404/409. Son puntos de extensión/error inconsistentes, sin demostrar un incidente.",
+      "fix": "Catálogos internos tipados de estados y resultados/errores de aplicación acotados, con adaptadores HTTP consistentes por módulo. Preservar strings públicos y fixtures.",
+      "acceptance": "Matriz 400/401/403/404/409 consistente y contrato externo sin cambios; estados desconocidos siguen neutrales.",
+      "phase": "5",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F23",
+      "priority": "P3",
+      "scope": "Experiencia visual transversal",
+      "title": "Shell y estilos específicos producen anchos y jerarquías incoherentes",
+      "evidence": [
+        "apps/prodimt-pedidos-web/src/styles.css:82",
+        "apps/prodimt-pedidos-web/src/styles.css:549",
+        "apps/prodimt-pedidos-web/src/app/admin-ordering-schedules.component.ts:36"
+      ],
+      "condition": "main limita 860px y varias páginas se amplían con :has de clases internas; Revisión y Horarios no comparten esa ampliación. Seis CSS exceden el aviso de 4kB y hay reglas de navegación repetidas. No equivale a un defecto visual observado en un navegador.",
+      "fix": "Tokens CSS y shell con variantes explícitas de ancho; encabezado, filtros, métricas, vacío/error/carga y acciones consistentes. Mantener paleta sobria, densidad útil y tarjetas existentes.",
+      "acceptance": "Mismos recorridos tienen misma jerarquía y comportamiento responsive; sin overflow, teclado/zoom y foco/borrador preservados. Reducir duplicación sin aumentar presupuestos para ocultarla.",
+      "phase": "3",
+      "confidence": "Código confirmado; impacto condicionado",
+      "status": "Pendiente"
+    },
+    {
+      "id": "F24",
+      "priority": "P3",
+      "scope": "Defensa por capas",
+      "title": "Auditoría inmutable y cabeceras no están protegidas de forma homogénea",
+      "evidence": [
+        "src/Prodimt.Pedidos.Infrastructure/Persistence/PedidosDbContext.cs:63",
+        "src/Prodimt.Pedidos.Infrastructure/Persistence/Configurations/OrderAuditLogConfiguration.cs:48",
+        "scripts/pilot/validate-ordering-schedules-sql.py:125"
+      ],
+      "condition": "DeliveryEvent tiene protección EF/SQL contra cambios; auditorías generales/recibos no comparten toda esa política y existe una cascada en historial de pedido. En la respuesta pública observada no aparecieron CSP/HSTS/nosniff/frame/referrer-policy. No se demostró endpoint que borre auditoría ni vulnerabilidad explotada.",
+      "fix": "Definir retención y permisos mínimos antes de cambiar cascadas; extender protección deliberada y pruebas de actor/recibo. Preparar cabeceras primero en staging/report-only compatible con Angular. Añadir correlación de errores y medidas operativas sin datos sensibles.",
+      "acceptance": "Roles de aplicación no alteran evidencia histórica fuera de mantenimiento explícito; políticas de cabeceras no rompen Maps/portal; un error puede correlacionarse sin exponer tokens o instrucciones privadas.",
+      "phase": "5",
+      "confidence": "Controles no homogéneos confirmados; impacto de hardening",
+      "status": "Pendiente"
+    }
+  ],
+  "phases": [
+    {
+      "id": "0",
+      "name": "Fijar la base y reconciliar documentación",
+      "days": "0.5-1",
+      "ids": [
+        "F03",
+        "F19",
+        "F20"
+      ],
+      "depends": "Inicio",
+      "deliverable": "Estado único y evidencia I23; diagnóstico SQL acotado. La reconciliación documental ya queda entregada.",
+      "exit": "RF1 instalado / I23 preparado diferenciados. Gate SQL explica su fallo; no se elimina ni se fuerza la migración."
+    },
+    {
+      "id": "1",
+      "name": "Cerrar pérdida de trabajo y contratos de entrada",
+      "days": "4-6",
+      "ids": [
+        "F01",
+        "F02",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09"
+      ],
+      "depends": "Base0; cada arreglo en cambio pequeño",
+      "deliverable": "Recuperación de producción, rate limiting, lecturas/borradores consistentes, notas/auditoría compatibles y fecha preservada.",
+      "exit": "Cada caso tiene regresión que fallaba antes y pasa después; replay conserva UUID y ningún dato se pierde al navegar o recibir409."
+    },
+    {
+      "id": "2",
+      "name": "Convertir calidad y despliegue en controles repetibles",
+      "days": "3-5",
+      "ids": [
+        "F03",
+        "F13",
+        "F14",
+        "F15"
+      ],
+      "depends": "0; pruebas de1 pueden incorporarse en paralelo",
+      "deliverable": "SQL Server Horarios, gate nativo I22/I23, recorrido UI/API/SQL pequeño, typecheck/lint/analyzers y tratamiento de dependencias.",
+      "exit": "CI confiable sin omitir SQL crítico. Build y scanner con resultados explícitos. Paquete sólo después de rollback/replay/limpieza correctos."
+    },
+    {
+      "id": "3",
+      "name": "Hacer el recorrido claro, consistente y atractivo",
+      "days": "4-6",
+      "ids": [
+        "F10",
+        "F11",
+        "F17",
+        "F18",
+        "F23"
+      ],
+      "depends": "1 y pruebas de comportamiento listas",
+      "deliverable": "Revisión readonly, shell y tokens ligeros, estados/acciones claros, Maps por alcance real, accesibilidad y responsividad.",
+      "exit": "320/390/768/1440/1920px, teclado y zoom200%; el usuario completa el flujo con datos ficticios en staging sin perder contexto/borradores."
+    },
+    {
+      "id": "4",
+      "name": "Optimizar lecturas con medición",
+      "days": "2-4",
+      "ids": [
+        "F12",
+        "F16"
+      ],
+      "depends": "2; línea base antes de cambiar consultas",
+      "deliverable": "Lecturas por lotes, filtros own en repositorio y viewmodels de UI; aviso comercial separado de revisión técnica.",
+      "exit": "25/100/500 pedidos medidos antes/después, consultas sin N+1 y ledger/aislamiento/resultados preservados."
+    },
+    {
+      "id": "5",
+      "name": "Refactorizar por responsabilidad y cerrar endurecimiento",
+      "days": "4-6",
+      "ids": [
+        "F21",
+        "F22",
+        "F24"
+      ],
+      "depends": "Regresión2 y recorrido3 estables",
+      "deliverable": "Primeras extracciones de endpoints/importaciones/catálogo, errores tipados internos, retención/permisos/cabeceras y correlación.",
+      "exit": "Contratos estables, extracciones revisables y pruebas verdes por corte. Restauración/recuperación ensayada en staging antes de cualquier cambio productivo."
+    }
+  ]
+}

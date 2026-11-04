@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I13 — Productos por tipo y tarjetas responsivas
 
 Autorizado el 1 de noviembre de 2026. El usuario reporta consolidación terminada y solicita reducir espacio desperdiciado y facilitar búsqueda/consulta de productos.

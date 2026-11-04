@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I12 — Copia, edición y reenvío de accesos activos
 
 Autorizado el 1 de noviembre de 2026. El usuario no necesita conservar los accesos anteriores: autoriza revocarlos todos y crear nuevos a demanda. No se ejecuta una revocación remota durante desarrollo; se aplicará al instalar la actualización nativa.

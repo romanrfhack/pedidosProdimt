@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I11 — Productos compartidos y precios por cliente con historial
 
 Autorizado el 1 de noviembre de 2026. Implementado, validado e instalado según reporte del usuario del 1 de noviembre; aceptación funcional pendiente. Rama `codex/i10-shared-products-prices`, PR #3 en borrador sobre I09. Se integra la base `9998e30ac8e912ae54d56274d8217229e5672944` con I09 instalado y modal de tokens I10. El primer checkpoint de productos/precios se llamó I10; este alcance queda renumerado como I11 para preservar la numeración y el trabajo concurrente del modal. No requiere aplicar el ZIP de modal I10 antes de I11.

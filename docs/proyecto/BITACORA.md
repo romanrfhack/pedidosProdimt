@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 2026-11-03 - Auditoría profunda y reconciliación documental
+
+Base de fuentes aa802e210d15c70784f79dea2580709166b843c7 (I23 preparado con RF1); instalado confirmado I22+RF1 y última historia reportada17. Se incorporó el reporte RF1 updated/completed y se distinguió el bloqueo SQL aislado posterior de I23. Comprobación pública actual de índice RF1 y salud correcta. Auditoría de seis áreas,24 hallazgos:22 acciones propuestas y dos contradicciones documentales corregidas. No se modificó aplicación, SQL, permisos o datos productivos ni se publicó GitHub. Resultados exactos y límites en [validación](../audits/2026-11-03/VALIDACION.md); siguiente prioridad [plan de consolidación](PLAN-CONSOLIDACION.md).
+
+El contenido siguiente conserva intentos y resultados históricos. Sus pendientes corresponden a cada fecha, no sustituyen el estado vigente.
+
 ## I23 revisión 3 — Fechas controladas en las pruebas de autorización
 
 El usuario aportó Texto pegado.txt: revisión2/add27bf2 y fuente286b8ac verificados; Python528,525 correctas/tres omitidas; restore y compilación .NET10 correctos; dominio5/5; aplicación445,442 correctas/tres fallidas409. Se detuvo en pruebas-backend antes de EF, paquete nativo, SCP/SSH y cambios de producción. El registro no acredita despliegue ni ejecución SQL operativa.

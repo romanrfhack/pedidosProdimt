@@ -1,4 +1,6 @@
-# Plan integral vigente
+# Plan integral de producto y antecedentes
+
+Prioridad actual: consolidar lo existente antes de nuevas funciones según [PLAN-CONSOLIDACION](PLAN-CONSOLIDACION.md). Para versiones y entrega usar [ESTADO](ESTADO.md); las secciones fechadas siguientes conservan decisiones y pendientes originales.
 
 Fecha de referencia: 24 de octubre de 2026.
 

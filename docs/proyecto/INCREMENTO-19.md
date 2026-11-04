@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I19 — Producción por máquina y asignación a pedidos
 
 Autorizado el 2 de noviembre de 2026, America/Mexico_City. El usuario aprueba el rediseño de `/admin/operacion` y amplía el alcance para registrar producción física y distribuirla entre pedidos concretos. La implementación integra las ramas paralelas I16 e I18 sobre el diseño I17; no se encadenan sus instaladores históricos.

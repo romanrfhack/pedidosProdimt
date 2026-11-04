@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I08 — Configuración del cliente y calendario semanal
 
 Autorizado el 31 de octubre de 2026. Implementado, validado en CI y empaquetado; despliegue pendiente. Código be3995fdce6948ff00f44edd6025a1da1899887c; [CI de cierre](https://github.com/romanrfhack/pedidosProdimt/actions/runs/41217210669) con cuatro jobs correctos: 79 E2E, 206 Python, 267 .NET, 31 SQL Server y smoke Production.

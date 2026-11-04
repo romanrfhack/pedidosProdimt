@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I05 — Cambiar contraseña propia
 
 Autorizado por el usuario después de recuperar acceso; el alta ejecutada confirma login y consulta administrativa HTTP 200.

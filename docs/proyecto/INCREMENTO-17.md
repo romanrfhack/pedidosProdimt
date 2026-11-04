@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I17 — Clientes pendientes con tarjetas responsivas
 
 Autorizado el 2 de noviembre de 2026. El usuario solicita aprovechar el espacio de PC de forma similar al catálogo de clientes I15 y adaptar tarjetas/columnas al ancho disponible.

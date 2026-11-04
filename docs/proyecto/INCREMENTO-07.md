@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I07 — Captura rápida de pedidos
 
 Autorizado el 28 de octubre de 2026. Implementado, validado y desplegado por el usuario en el VPS el 30 de octubre de 2026. Aceptación en navegador pendiente.

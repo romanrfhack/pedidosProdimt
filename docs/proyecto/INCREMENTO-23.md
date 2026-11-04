@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I23 — Horarios y solicitudes pendientes sobre Reparto I22
 
 Decisiones de negocio del 2 de noviembre e integración autorizada el 3 de noviembre de 2026. Integra la rama de horarios con Reparto I22 y sus correcciones. Base de despliegue: backend `delivery-0cfe3ef511d8`; frontend I22 del mismo nombre o RF1 `delivery-flow-426c360e1365`, 17 migraciones exactas. Preparado sin acceso SSH directo al VPS.

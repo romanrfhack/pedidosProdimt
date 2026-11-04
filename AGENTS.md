@@ -1,8 +1,12 @@
 # AGENTS.md — PRODIMT Pedidos
 
-## Alcance vigente desde 2026-10-24
+## Prioridad de consolidación (3 de noviembre de 2026)
 
-El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md` y `docs/proyecto/{ESTADO,PLAN,DECISIONES,INCREMENTO-01,INCREMENTO-02,INCREMENTO-03,INCREMENTO-04,INCREMENTO-05,INCREMENTO-06,INCREMENTO-07,INCREMENTO-08,INCREMENTO-09,INCREMENTO-10,INCREMENTO-11,INCREMENTO-12}.md`; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y comprobar que el trabajo se guardó en el remoto.
+La auditoría solicitada por el usuario reconcilia documentación con las fuentes I23 aa802 y el instalado I22+RF1; no declara I23 desplegado. Priorizar el plan de consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar SQLite/SQL Server/UI mock en la evidencia. Esta entrega de auditoría no modifica aplicación, migraciones ni producción. Los capítulos de fase inicial que siguen son históricos donde un incremento autorizado los amplía.
+
+## Alcance autorizado por incrementos
+
+El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md`, `docs/README.md` y `docs/proyecto/{ESTADO,MATRIZ-FUNCIONAL,ARQUITECTURA-ACTUAL,PLAN-CONSOLIDACION,DECISIONES}.md`, después el contrato del módulo afectado; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y preservar el trabajo por el mecanismo autorizado. La publicación GitHub conserva su antecedente independiente pendiente; no forzar un push para satisfacer una regla histórica.
 
 I01 permite unidades explícitas, perfiles aprobables/versionados, preferencia de máquina por cliente-producto, datos internos de entrega/cobro y consulta de demanda por máquina/ruta. No registra todavía producción física, entregas, cobros ni WhatsApp real. Los datos reales del piloto y las instrucciones de acceso a locales nunca se publican en este repositorio público. La ausencia de iconos es desconocida, no false. Una X en un renglón de producto no cancela todo el pedido del cliente.
 

@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I10 — Tokens de acceso en modal responsivo
 
 Autorizado por el usuario el 1 de noviembre de 2026 al revisar I09 instalado. El formulario de tokens ocupa una columna de 290 px y exige demasiado desplazamiento en PC.

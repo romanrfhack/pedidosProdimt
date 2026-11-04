@@ -1,3 +1,5 @@
+> Propuesta histórica, no descripción del código actual. Consultar [ARQUITECTURA-ACTUAL](proyecto/ARQUITECTURA-ACTUAL.md) para dependencias, componentes y SOLID verificados.
+
 # 05 — Arquitectura propuesta
 
 ## Enfoque general

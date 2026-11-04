@@ -1,0 +1,370 @@
+# Archivo histórico: README.md
+
+Copia de la base `aa802e2`, preservada durante la auditoría del 3 de noviembre de 2026. Las afirmaciones de estado corresponden a sus fechas originales. El estado vigente está en [ESTADO](../ESTADO.md); esta copia no es una instrucción de instalación. Sólo se adaptaron enlaces relativos al cambiar de carpeta.
+
+---
+
+# PRODIMT — Pedidos y operación
+
+## Reparto RF1 — Conexión con Pedidos
+
+Reparto aparece para el personal autenticado según sus permisos; una guía explica qué falta si no hay acceso. Pedidos muestra la preparación y enlaza revisión/reparto conservando la fecha. Gestión guía la configuración de chofer, ruta, vuelta y partidas; no crea movimientos automáticamente. [Alcance RF1](../INCREMENTO-22-RF1.md) y [validación y límites](../../validation/2026-11-03-delivery-flow.md). Actualización sólo frontend sobre I22 exacto; rechaza otros releases para preservar cambios paralelos.
+
+## Mi reparto I22 — Despliegue con validación previa automática
+
+`/reparto` permite al Repartidor - Camioneta operar sólo sus rutas/vueltas y registrar conteo, carga, entregas parciales y observaciones. `/admin/reparto` administra asignaciones, saldos, ubicaciones, transferencias, devoluciones y correcciones auditadas, sin modificar el pedido original. [Contrato y configuración](../INCREMENTO-22.md), [validación ejecutada y pendientes](../../validation/2026-11-02-driver-van-deliveries.md).
+
+Código/builds y 436 pruebas .NET correctos. El usuario autoriza desplegar: la revisión 4 conserva los roles personalizados, crea Repartidor - Camioneta (sistema) y ejecuta pruebas SQL/HTTP y SQL exacto en bases temporales antes de cambiar producción, usando runtime .NET10 sin SDK/Docker. La aceptación de navegador será posterior. [Despliegue y preservación del rol existente](../../validation/2026-11-03-driver-van-role-preservation.md). Instalación confirmada por el reporte v4: 17 migraciones, backend/frontend verificados y repetición already_current sin cambios. Conserva I16/I18/I19/I21. [Resultado y aceptación pendiente](../../validation/2026-11-03-driver-van-installed.md).
+
+## Producción I19
+
+`/admin/operacion` incorpora resumen por máquina, filtros combinables, asignación diaria de máquina, registro de lotes físicos en kg y asignación de su saldo a pedidos concretos. La configuración distingue «No requiere máquina» de pendiente; los primeros quedan fuera de producción. Se integran I16/I18 sin encadenar sus paquetes históricos, preservando productos adicionales, permisos y diseño I17. Alcance, saldos, instalación y validación: [`docs/proyecto/INCREMENTO-19.md`](../INCREMENTO-19.md). Instalación remota pendiente; las pruebas locales no acreditan despliegue.
+
+## Administración de seguridad I18
+
+El incremento autorizado I18 añade gestión de usuarios, roles, permisos, asignación multirrol y concesiones directas aditivas. Los permisos efectivos se verifican en servidor por petición; retirar un origen conserva permisos recibidos por otro. Ruta prevista `/admin/seguridad`, con interfaz responsive y control de gestión `security.manage`. Contrato, compatibilidad, actualización nativa y estado de validación: [`docs/proyecto/INCREMENTO-18.md`](../INCREMENTO-18.md). Implementación local completa; validación SQL/CI y entrega en curso, sin despliegue remoto.
+
+> **Continuidad actual (octubre de 2026):** empezar en [CONTINUAR.md](../../../CONTINUAR.md), consultar [estado](../ESTADO.md), [plan integral](../PLAN.md) y [decisiones](../DECISIONES.md). El contenido de mayo que sigue es antecedente y no describe por sí solo el alcance vigente.
+
+Fecha: 2026-05-27  
+Versión documental: 0.2
+
+Este paquete contiene la documentación inicial para construir la aplicación de pedidos de PRODIMT con enfoque **mobile first**.
+
+## Objetivo del proyecto
+
+Sustituir gradualmente el flujo manual actual de pedidos por WhatsApp, llamadas, mensajes en grupo y captura en Excel por un sistema donde cada cliente pueda confirmar, editar o marcar que no pedirá desde el celular, y donde PRODIMT pueda consultar los pedidos sin depender de transcribir cientos de mensajes.
+
+## Definiciones operativas confirmadas
+
+- `x/X` en el Excel significa **no pidió**.
+- La hora límite inicial es **10:00 a.m.**.
+- Un pedido después de la hora límite se marca como **tardío** y queda sujeto a decisión administrativa.
+- Si un cliente intenta hacer más de un pedido en el mismo día, el nuevo pedido o cambio debe quedar sujeto a decisión administrativa.
+- `Mostrador` no es cliente externo; es un **canal de venta interno**.
+- La columna E de las hojas diarias representa el **número de máquina** que atenderá el pedido.
+- El cliente no debe ver la máquina asignada.
+- El catálogo de cliente debe permitir registrar una **hora o ventana deseada de entrega** como dato opcional.
+- La Fase 1 se concentra en capturar pedidos de clientes; las vistas de producción, embarques y repartidores quedan para fases posteriores.
+
+## Documentos incluidos
+
+- `docs/00-contexto-y-objetivo.md`: contexto operativo y objetivo del sistema.
+- `docs/01-analisis-excel-actual.md`: hallazgos principales del archivo Excel actual.
+- `docs/02-alcance-y-etapas.md`: alcance inicial, fuera de alcance y fases.
+- `docs/03-requerimientos-funcionales.md`: requerimientos funcionales base.
+- `docs/04-requerimientos-plus.md`: funcionalidades de valor agregado.
+- `docs/05-arquitectura-propuesta.md`: arquitectura general propuesta.
+- `docs/06-modelo-datos-inicial.md`: modelo conceptual inicial.
+- `docs/07-backlog-mvp.md`: backlog inicial para la primera versión útil.
+- `docs/08-contexto-para-codex.md`: instrucciones de continuidad para Codex.
+- `docs/09-preguntas-abiertas.md`: dudas abiertas y decisiones ya resueltas.
+- `docs/10-decisiones-operativas-confirmadas.md`: decisiones de negocio confirmadas por PRODIMT.
+- `docs/11-reglas-de-negocio-fase-1.md`: reglas de negocio base para captura.
+- `docs/12-flujos-fase-1.md`: flujos funcionales de la primera fase.
+- `docs/13-estado-implementacion-inicial.md`: estado de implementacion y validaciones.
+- `docs/14-persistencia-ef-core-sql-server.md`: persistencia EF Core y SQL Server.
+- `docs/15-integracion-frontend-api-fase-1.md`: integracion Angular/API.
+- `docs/16-validacion-sql-server-local.md`: validacion contra SQL Server local.
+- `docs/17-auditoria-persistente-fase-1.md`: auditoria persistente de Fase 1.
+- `docs/18-autenticacion-piloto-fase-1.md`: autenticacion piloto con JWT para cliente y admin.
+- `docs/19-administracion-operativa-fase-1.md`: administracion operativa minima de Fase 1.
+- `docs/20-catalogos-internos-fase-1.md`: catalogos internos de Fase 1.
+- `docs/21-carga-masiva-controlada-fase-1.md`: carga masiva controlada por CSV.
+- `docs/22-piloto-carga-inicial-desde-excel-depurado.md`: procedimiento para muestra real depurada.
+- `docs/adrs/`: decisiones arquitectónicas.
+- `docs/reference/`: archivos de apoyo extraídos o derivados del Excel.
+
+## Estado actual
+
+- Ya existe estructura técnica inicial de backend, frontend y pruebas.
+- Ya existe autenticacion piloto de Fase 1 con JWT Bearer para clientes por token y administracion por login demo.
+- Esta documentación define el alcance base para iniciar el repositorio.
+- El Excel actual se usó como referencia para entender captura, moldes, clientes, máquinas y vistas derivadas.
+- La primera meta de desarrollo debe ser capturar pedidos correctamente, no reemplazar todos los reportes de producción desde el día uno.
+
+## Comandos reales
+
+### Backend
+
+```bash
+dotnet restore src/Prodimt.Pedidos.sln
+dotnet build src/Prodimt.Pedidos.sln
+dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
+```
+
+La API usa EF Core + SQL Server por defecto. La cadena local de ejemplo esta en `src/Prodimt.Pedidos.Api/appsettings.Development.json`:
+
+```text
+Server=localhost,1433;Database=ProdimtPedidos;User Id=sa;Password=CHANGE_ME_LOCAL_ONLY;TrustServerCertificate=True
+```
+
+`CHANGE_ME_LOCAL_ONLY` debe reemplazarse solo en configuracion local o variables de entorno. No agregar credenciales reales al repositorio.
+
+Endpoints iniciales:
+
+- `GET http://127.0.0.1:5088/health`
+- `GET http://127.0.0.1:5088/health/db`
+- `POST http://127.0.0.1:5088/api/auth/customer-token`
+- `POST http://127.0.0.1:5088/api/auth/admin/login`
+- `GET http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/today` requiere JWT de cliente.
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/submit` requiere JWT de cliente.
+- `POST http://127.0.0.1:5088/api/customer-orders/11111111-1111-1111-1111-111111111111/no-order` requiere JWT de cliente.
+- `GET http://127.0.0.1:5088/api/admin/orders/today` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/orders/pending-review` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}` requiere JWT admin y devuelve detalle con lineas y maquina interna.
+- `GET http://127.0.0.1:5088/api/admin/orders/{orderId}/audit` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/orders/{orderId}/review` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/customers/pending-orders?date=YYYY-MM-DD` requiere JWT admin.
+- `GET http://127.0.0.1:5088/api/admin/customers/{customerId}/order-template` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/submit` requiere JWT admin.
+- `POST http://127.0.0.1:5088/api/admin/customers/{customerId}/orders/no-order` requiere JWT admin.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/customers...` requiere JWT admin y administra clientes, frecuentes, maquinas asignadas y tokens.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/products...` requiere JWT admin y administra productos/moldes.
+- `GET/POST/PUT/PATCH http://127.0.0.1:5088/api/admin/machines...` requiere JWT admin y administra maquinas.
+- `GET/POST/PATCH http://127.0.0.1:5088/api/admin/users...` requiere JWT admin y administra usuarios admin basicos.
+- `GET http://127.0.0.1:5088/api/admin/import/templates` requiere JWT admin y lista plantillas CSV.
+- `POST http://127.0.0.1:5088/api/admin/import/{importType}/validate` requiere JWT admin y valida CSV sin modificar base.
+- `POST http://127.0.0.1:5088/api/admin/import/{importType}/apply` requiere JWT admin, revalida y aplica CSV si no hay errores bloqueantes.
+
+`/health` y `/health/db` quedan publicos en Fase 1. `/health/db` solo informa disponibilidad de base y no expone datos sensibles.
+
+Autenticacion local de desarrollo:
+
+```bash
+export Authentication__Jwt__SigningKey='development-only-change-this-local-key-with-at-least-32-chars'
+# Alternativa equivalente:
+export PRODIMT_JWT_SIGNING_KEY='development-only-change-this-local-key-with-at-least-32-chars'
+```
+
+En `Development`, si no hay clave configurada se usa una clave demo versionada en `appsettings.Development.json`. No usarla en produccion.
+
+Seed demo solo Development:
+
+- Admin: `admin` / `prodimt-admin-demo`.
+- Cliente Gran Takito: token `demo-customer-token`.
+
+Ejemplo login admin:
+
+```bash
+curl -s http://127.0.0.1:5088/api/auth/admin/login \
+  -H 'content-type: application/json' \
+  -d '{"userName":"admin","password":"prodimt-admin-demo"}'
+```
+
+Ejemplo login cliente:
+
+```bash
+curl -s http://127.0.0.1:5088/api/auth/customer-token \
+  -H 'content-type: application/json' \
+  -d '{"token":"demo-customer-token"}'
+```
+
+Si no hay SQL Server local disponible y solo se quiere levantar la API demo sin persistencia real:
+
+```bash
+Persistence__Provider=InMemory dotnet run --project src/Prodimt.Pedidos.Api/Prodimt.Pedidos.Api.csproj --urls http://127.0.0.1:5088
+```
+
+### EF Core
+
+La migracion inicial ya existe en `src/Prodimt.Pedidos.Infrastructure/Persistence/Migrations`.
+El repositorio usa tool manifest local para `dotnet-ef`:
+
+```bash
+dotnet tool restore
+dotnet tool run dotnet-ef --version
+```
+
+### SQL Server local con Docker
+
+Se agrego una configuracion Docker Compose para desarrollo local:
+
+```bash
+cp infra/dev/.env.example infra/dev/.env
+# Editar infra/dev/.env y reemplazar PRODIMT_SQL_SA_PASSWORD por una contrasena local fuerte.
+bash scripts/dev/start-sqlserver.sh
+bash scripts/dev/update-database.sh
+bash scripts/dev/run-api-sqlserver.sh
+```
+
+La API expone un health check de base:
+
+```bash
+curl http://127.0.0.1:5088/health/db
+```
+
+El smoke test real de Fase 1 se ejecuta contra la API real ya levantada:
+
+```bash
+bash scripts/dev/smoke-fase1.sh
+```
+
+Este smoke usa datos demo y crea pedidos locales. Si se requiere una corrida limpia, reiniciar la base local de desarrollo.
+
+Reset local controlado con reseed de desarrollo:
+
+```bash
+bash scripts/dev/reset-database.sh --confirm
+```
+
+Aplicar migraciones a SQL Server local:
+
+```bash
+dotnet tool run dotnet-ef database update --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api
+```
+
+Crear una nueva migracion:
+
+```bash
+dotnet tool run dotnet-ef migrations add AddOrderAuditLogs --project src/Prodimt.Pedidos.Infrastructure --startup-project src/Prodimt.Pedidos.Api --output-dir Persistence/Migrations
+```
+
+La migracion de autenticacion piloto se creo como `AddPilotAuthentication`.
+La migracion de catalogos internos se creo como `AddCatalogManagementSupport`.
+La migracion de codigos externos para importacion controlada se creo como `AddCatalogExternalCodesAndImportSupport`.
+
+Los datos semilla de desarrollo se aplican al iniciar la API en `Development` cuando `DevelopmentSeed:Enabled` es `true`. Incluyen clientes demo, productos, maquinas, canales, productos frecuentes, asignaciones internas de maquina, admin demo y token demo de cliente.
+La auditoria persistente de pedidos se guarda en `OrderAuditLogs` y se consulta desde el endpoint administrativo protegido `GET /api/admin/orders/{orderId}/audit`.
+La auditoria de catalogos se guarda en `AuditLogs` para cambios relevantes de clientes, productos, maquinas, productos frecuentes, asignaciones, tokens y usuarios admin.
+La operacion administrativa basica permite ver detalle con lineas, consultar clientes pendientes, capturar pedidos por llamada, registrar `NoOrder` administrativo y aceptar con cambios de entrega o cantidades existentes.
+El CRUD interno de catalogos esta documentado en `docs/20-catalogos-internos-fase-1.md`.
+
+### Carga masiva controlada
+
+La importacion de Fase 1 usa CSV controlado con flujo `validate`/`apply`; no importa directamente el `.xlsm` operativo ni tokens planos de cliente.
+
+Plantillas y ejemplos demo:
+
+- `docs/import-templates/customers.csv`
+- `docs/import-templates/products.csv`
+- `docs/import-templates/customer-frequent-products.csv`
+- `docs/import-templates/machines.csv`
+- `docs/import-templates/customer-machine-assignments.csv`
+- `docs/import-templates/examples/*.csv`
+
+Tipos soportados:
+
+- `customers`
+- `products`
+- `customer-frequent-products`
+- `machines`
+- `customer-machine-assignments`
+
+El body esperado por `validate` y `apply` es JSON:
+
+```json
+{
+  "content": "externalCode,name,...",
+  "fileName": "customers.csv"
+}
+```
+
+`validate` acepta opcionalmente `referenceContents` para validacion de carpeta; esto permite validar relaciones que apuntan a clientes/productos/maquinas definidos en otros CSV de la misma carpeta. `apply` ignora referencias y revalida contra SQL Server en cada paso.
+
+El limite inicial es 2 MB por CSV. `apply` es stateless: vuelve a validar el contenido recibido y solo guarda cambios si no hay errores. Los cambios aplicados se registran en `AuditLogs`.
+
+Carga de carpeta para muestra piloto depurada:
+
+```bash
+mkdir -p data/local-imports/pilot-sample
+bash scripts/dev/validate-import-folder.sh data/local-imports/pilot-sample
+bash scripts/dev/apply-import-folder.sh data/local-imports/pilot-sample --confirm
+```
+
+Orden de carpeta:
+
+1. `products.csv`
+2. `machines.csv`
+3. `customers.csv`
+4. `customer-frequent-products.csv`
+5. `customer-machine-assignments.csv`
+
+Los scripts usan `PRODIMT_API_BASE_URL` o `http://127.0.0.1:5088` por default, y se autentican con `PRODIMT_ADMIN_USERNAME` / `PRODIMT_ADMIN_PASSWORD`. Si no existen, usan defaults de `Development`: `admin` / `prodimt-admin-demo`.
+
+Reportes locales:
+
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-validation-YYYYMMDD-HHMMSS.md`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.json`
+- `data/local-imports/reports/import-apply-YYYYMMDD-HHMMSS.md`
+
+`data/local-imports/`, `*.real.csv` y `*.private.csv` estan ignorados por git. No commitear CSV reales, el Excel `.xlsm`, reportes locales, tokens, passwords ni datos sensibles.
+
+Smoke especifico de carpeta:
+
+```bash
+bash scripts/dev/smoke-import-folder.sh
+```
+
+### Frontend
+
+```bash
+cd apps/prodimt-pedidos-web
+npm install
+npm run start -- --host 127.0.0.1 --port 4200
+```
+
+El frontend lee la API desde `apps/prodimt-pedidos-web/src/environments/environment.ts`:
+
+```ts
+export const environment = {
+  apiBaseUrl: 'http://127.0.0.1:5088',
+  demoCustomerId: '11111111-1111-1111-1111-111111111111',
+  demoCustomerToken: 'demo-customer-token',
+  demoAdminUserName: 'admin',
+  demoAdminPassword: 'prodimt-admin-demo'
+};
+```
+
+Para desarrollo local normal, levantar primero la API en `http://127.0.0.1:5088` y despues Angular en `http://127.0.0.1:4200`.
+Los envios reales (`submit`, `no-order`, revision admin) no simulan exito si la API falla.
+La pantalla cliente acepta `http://127.0.0.1:4200/cliente?token=demo-customer-token`.
+La pantalla administrativa de carga masiva esta en `http://127.0.0.1:4200/admin/importacion` y requiere sesion admin.
+
+### Pruebas
+
+```bash
+dotnet test src/Prodimt.Pedidos.sln
+cd apps/prodimt-pedidos-web
+npm run build
+cd ../../tests/e2e
+npm install
+npm test
+```
+
+Playwright usa un mock API local controlado en `http://127.0.0.1:5088`, con auth mockeada, y levanta Angular en `http://127.0.0.1:4210` para no depender de SQL Server durante E2E basico. Si ya hay una API real ocupando `5088`, detenerla antes de correr `cd tests/e2e && npm test`.
+El smoke real autenticado valida detalle administrativo, clientes pendientes, `NoOrder` administrativo, captura administrativa, segundo pedido pendiente, `AcceptedWithChanges` con cambios persistidos y auditoria de cambios.
+Tambien valida alta de cliente/producto/maquina, configuracion de producto frecuente, creacion/revocacion de token, login con token creado, bloqueo de token revocado y rechazo de catalogos con JWT de cliente.
+Tambien valida importacion CSV de clientes, productos, productos frecuentes, maquinas, asignaciones internas, auditoria de importacion y rechazo de importacion con JWT de cliente.
+El smoke de carpeta valida los scripts `validate-import-folder` y `apply-import-folder`, genera reportes locales ignorados por git, confirma que Customer JWT no accede a importacion y que cliente no ve maquina.
+
+## Estado de implementación
+
+Ver `docs/13-estado-implementacion-inicial.md`.
+Ver tambien `docs/14-persistencia-ef-core-sql-server.md`.
+Ver tambien `docs/15-integracion-frontend-api-fase-1.md`.
+Ver tambien `docs/16-validacion-sql-server-local.md`.
+Ver tambien `docs/17-auditoria-persistente-fase-1.md`.
+Ver tambien `docs/18-autenticacion-piloto-fase-1.md`.
+Ver tambien `docs/19-administracion-operativa-fase-1.md`.
+Ver tambien `docs/20-catalogos-internos-fase-1.md`.
+Ver tambien `docs/21-carga-masiva-controlada-fase-1.md`.
+Ver tambien `docs/22-piloto-carga-inicial-desde-excel-depurado.md`.
+
+## Regla de continuidad para Codex
+
+Antes de crear o modificar código, Codex debe leer:
+
+1. `docs/08-contexto-para-codex.md`
+2. `docs/10-decisiones-operativas-confirmadas.md`
+3. `docs/11-reglas-de-negocio-fase-1.md`
+4. `docs/12-flujos-fase-1.md`
+5. `docs/02-alcance-y-etapas.md`
+6. `docs/03-requerimientos-funcionales.md`
+7. `docs/06-modelo-datos-inicial.md`
+8. `docs/07-backlog-mvp.md`
+
+## Continuación I22 — Horarios y confirmación
+
+Ver [INCREMENTO-22](../INCREMENTO-22.md) y su [validación](../../validation/2026-11-02-ordering-schedules.md). Prioridad de hora cliente/ruta, solicitudes pendientes con acceso limitado, recepción hasta las 18:00 y siguiente día hábil excluyendo martes. El paquete se entrega para instalación; no acredita despliegue.

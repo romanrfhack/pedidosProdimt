@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I14 — Plantilla simplificada del mensaje de acceso
 
 Autorizado el 1 de noviembre de 2026 después de revisar con el usuario la limitación del enlace en un mensaje normal de WhatsApp.

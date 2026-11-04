@@ -1,3 +1,5 @@
+> Referencia de una etapa anterior. Para implementación, versiones y próximos pasos usar el [índice vigente](README.md), el [estado](proyecto/ESTADO.md) y los contratos ampliados. Este documento no autoriza una instalación inicial sobre el sistema actualmente en operación.
+
 # 12 — Flujos Fase 1
 
 ## Flujo A — Cliente confirma pedido sugerido

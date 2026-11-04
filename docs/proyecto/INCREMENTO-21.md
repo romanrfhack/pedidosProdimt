@@ -1,3 +1,5 @@
+> Contrato del incremento y evidencia de su fecha. La instalación/aceptación vigente se consulta en [ESTADO](ESTADO.md); los pendientes antiguos de este documento no sustituyen esa evidencia.
+
 # I21 — Pedidos con tarjetas responsivas, filtros y colores
 
 Autorizado el 2 de noviembre de 2026, America/Mexico_City. El usuario solicita una pestaña Pedidos similar al catálogo de clientes actualizado, con filtros y colores de los pedidos del día.
