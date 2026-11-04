@@ -64,7 +64,10 @@ public sealed class PilotAuthenticationService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
+        // Bound untrusted inputs before a database lookup or expensive password verification.
+        // 1024 retains the same legacy-password envelope as the current-password change flow.
+        if (string.IsNullOrWhiteSpace(request.UserName) || request.UserName.Length > 120 ||
+            string.IsNullOrWhiteSpace(request.Password) || request.Password.Length > 1024)
         {
             throw new AuthenticationFailedException("Credenciales administrativas invalidas.");
         }

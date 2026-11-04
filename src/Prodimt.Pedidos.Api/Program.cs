@@ -80,6 +80,7 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         }));
 });
+builder.Services.AddAdminLoginRateLimiting();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -310,6 +311,7 @@ auth.MapPost("/admin/login", async (
     }
 })
 .WithName("LoginAdmin")
+.RequireAdminLoginRateLimiting()
 .AllowAnonymous();
 
 var customerOrders = app.MapGroup("/api/customer-orders")
