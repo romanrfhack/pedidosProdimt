@@ -99,7 +99,7 @@ fieldset { border:0; margin:0; padding:0; min-width:0; }
 .config-machines .review-actions { display:grid; grid-template-columns:1fr 1fr; }
 .config-machines .review-actions button { font-size:.74rem; min-width:0; padding:7px; white-space:nowrap; }
 @media (min-width:1200px) {
-  .config-page { padding:10px; gap:6px; }
+  .config-page { padding:8px 10px; gap:6px; }
   .config-page > .page-title .eyebrow { display:none; }
   .config-page .customer-card { grid-template-columns:minmax(230px,1fr) minmax(220px,1fr) auto; }
   .config-page .customer-meta { grid-column:1; grid-row:2; align-self:center; }

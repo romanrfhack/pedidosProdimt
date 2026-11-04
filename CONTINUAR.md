@@ -18,11 +18,19 @@ Leer [ESTADO](docs/proyecto/ESTADO.md), [MATRIZ](docs/proyecto/MATRIZ-FUNCIONAL.
 
 Chromium ya inicia en el WSL del usuario. Después del [pase inicial de 79 correctas, una fallida y 160 no ejecutadas](docs/validation/2026-11-04-c1-browser-wsl.md), el candidato R2 `e9ef18b73e534602df41a1df0fc221586a715e74` ejecutó los 240 casos: **231 correctos, nueve fallidos, cero omitidos y cero inestables**. El diagnóstico completo permitió separar un defecto real de revisión, selectores exactos de reparto y un incumplimiento de altura de configuración I08. La [revisión R3](docs/validation/2026-11-04-c1-browser-r3.md) registra las correcciones y los controles focales. **Todavía no se ha conectado al VPS ni desplegado C1.**
 
+La repetición canónica de R3 completó los 240 casos: **239 correctos, uno
+fallido, cero omitidos y cero inestables**. El único fallo fue una altura de
+770 px frente al máximo de 769 en 1366×768; el wrapper se detuvo antes de
+SCP/SSH. [R4](docs/validation/2026-11-04-c1-browser-r4.md) añade holgura sólo al
+padding vertical de escritorio, sin elevar el límite ni ocultar controles; los
+cuatro viewports focales pasan. Falta fijar el nuevo SHA, reconstruir el paquete
+y ejecutar el gate completo de ese SHA. C1 continúa sin desplegar.
+
 ## Siguiente trabajo
 
 1. F03 resuelto por corrector y reporte I23; preservar guardas e incorporar la evidencia.
 2. Preservar la validación nativa previa: 499 pruebas .NET y **101/101 SQL Server** correctas, incluidas las cuatro regresiones nuevas de auditoría; cero fallos y omisiones, SQL Server 2022 Developer `16.0.4205.1`. Se conserva el primer pase 94/101 y la corrección de sus siete fixtures históricas. Modelo EF sin diferencias pendientes. Python R3: **585 casos, 581 correctos, cuatro omisiones históricas y cero fallos**. **Gate SQL exacto 18→19 y validador portátil 7/7 correctos en SQL Server real**: preservación de 33 tablas, metadata/permisos, Unicode, rollback/replay, rechazo de downgrade con pérdida y limpieza de las bases UUID. R3 no modifica backend ni SQL. El VPS repetirá ambos controles antes de cambios operativos.
-3. Cerrar R3: ya pasan **47/47 componentes y 16/16 casos focales de navegador**, incluidos los nueve fallos originales; tipado E2E correcto. Falta ejecutar el script canónico, incluido build, sobre el commit final limpio y obtener 240/240. La evidencia automatizada posterior al commit se adjuntará al paquete como `BROWSER_C1_VALIDACION.json` y `.md`, vinculada al mismo SHA. Después ejecutar desde WSL `PRODIMT_Desplegar_C1_WSL.sh`: repite navegador completo con API simulada, siete pruebas EF/HTTP SQL y SQL exacto en bases temporales antes de cambios operativos. El wrapper conserva `--prepare-only` y `--validate-only`; la opción predeterminada aplica sólo tras los gates. No omitir pruebas ni sustituir el gate por el diagnóstico o por el adjunto.
+3. Cerrar R4: preservar los resultados R3 y el gate 239/240 que detectó el margen vertical. Ya pasan **47/47 componentes, los 16 casos focales R3 y los cuatro viewports focales R4**. Fijar el nuevo commit limpio, reconstruir frontend/paquete y ejecutar el script canónico para obtener 240/240. La evidencia posterior al commit se adjuntará como `BROWSER_C1_VALIDACION.json` y `.md`, vinculada al mismo SHA. Después ejecutar desde WSL `PRODIMT_Desplegar_C1_WSL.sh`: repite navegador completo con API simulada, siete pruebas EF/HTTP SQL y SQL exacto en bases temporales antes de cambios operativos. El wrapper conserva `--prepare-only` y `--validate-only`; la opción predeterminada aplica sólo tras los gates. No omitir pruebas ni sustituir el gate por el diagnóstico o por un adjunto de otro SHA.
 4. Registrar el JSON del VPS: se espera `updated/completed`, 19 migraciones, salud/backend/frontend y preservación correctos, `recovery_pending=false`. Hasta recibirlo, conservar I23 como último despliegue confirmado. Si falla después de DDL, repetir el mismo paquete para recuperación hacia delante; no volver al instalador I23.
 5. Después, completar cobertura SQL de Horarios y el recorrido UI/API/SQL de F13/F14; pulido visual, optimización medida y refactors por responsabilidad permanecen en su fase separada.
 

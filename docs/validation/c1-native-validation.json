@@ -97,12 +97,27 @@
         "maxFailures": 0,
         "productionTouched": false
       },
+      "latestCanonicalAttempt": {
+        "sourceCommit": "7a67d7a913f0a22a93df63a7e6edb580f1eff92d",
+        "environment": "User WSL Ubuntu24.04",
+        "collected": 240,
+        "passed": 239,
+        "failed": 1,
+        "skipped": 0,
+        "flaky": 0,
+        "notRun": 0,
+        "reportSha256": "778dce71613e9b4309539ffcadc250d938317d4af6d3402aa5e817b181d4dd1c",
+        "issue": "1366x768 configuration document measured 770px against the retained 769px maximum",
+        "scpOrSshReached": false,
+        "productionTouched": false
+      },
       "correction": {
-        "candidateRevision": 3,
+        "candidateRevision": 4,
         "frontendChanged": true,
         "backendChanged": false,
         "sqlChanged": false,
         "browserFocalCasesPassed": 16,
+        "r4FocalViewportsPassed": 4,
         "componentsPassed": 47,
         "strictTypecheck": "passed",
         "completeSuiteRequired": true,
@@ -140,10 +155,10 @@
         ],
         "desktopLayout1366": {
           "viewportHeight": 768,
-          "beforeScrollHeight": 809,
+          "beforeScrollHeight": 770,
           "afterScrollHeight": 768,
           "thresholdKept": 769,
-          "mainBottom": 765.03125,
+          "mainBottom": 766.390625,
           "allOutsideListActionsInViewport": true,
           "weekCheckboxesInViewport": 7
         }

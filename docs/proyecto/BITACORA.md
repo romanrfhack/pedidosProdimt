@@ -873,3 +873,23 @@ Entrega independiente verificada y guardada: PRODIMT_Instalar_I12_v2.py, 38,208 
 ## 4 de noviembre de 2026 — C1, navegador WSL y expectativa heredada
 
 Dependencias Chromium instaladas por el usuario. Candidato e769: 79 correctas, una fallida, 160 no ejecutadas; sin scp/SSH/despliegue. customer-next-order buscaba «cambiarlo» y el aviso vigente desde I23 usa «cambiarla». Se corrige sólo el selector y se conserva visibilidad, cantidades, cero envíos y responsive. Runner ejecutará todos los casos y emitirá diagnóstico separado sin autorizar instalación. [Detalle](../validation/2026-11-04-c1-browser-wsl.md). Aceptación de las 240 pruebas y despliegue pendientes; binarios/SQL permanecen idénticos.
+
+## 4 de noviembre de 2026 — C1 R4, margen vertical detectado por el gate
+
+- ZIP R3 verificado por SHA y bundle `7a67d7a`; wrapper canónico ejecutado una
+  sola vez después de descargar Node 24.22.1 con hash fijado. Dependencias,
+  build Angular, 47 componentes y typecheck correctos.
+- Playwright: 240 colectados, **239 correctos, uno fallido, cero omitidos y cero
+  inestables**. Reporte SHA-256
+  `778dce71613e9b4309539ffcadc250d938317d4af6d3402aa5e817b181d4dd1c`.
+  El wrapper se detuvo antes de SCP/SSH; sin SQL, respaldo, migración, reinicio
+  o cambio productivo.
+- Único fallo: configuración 1366×768 con documento de 770 px frente al máximo
+  769. R4 reduce sólo el padding vertical de escritorio de 10 a 8 px, sin
+  cambiar el límite, ocultar overflow o retirar controles.
+- Repetición focal: 4/4 viewports correctos; 1366×768 queda en 768 px y todas
+  las acciones/casillas permanecen completas. Log privado fuera del checkout,
+  SHA-256 `1c4ac41b70c4b5a4520eab92f1c64fcc7733d231ad24ac8bd47dfd7ccb4d98e3`.
+- Pendiente fijar el nuevo commit, reconstruir el frontend/paquete y ejecutar
+  el gate completo del nuevo SHA. C1 continúa sin desplegar; I23/18 migraciones
+  sigue siendo la última instalación confirmada.

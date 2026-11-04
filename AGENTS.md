@@ -12,6 +12,14 @@ El usuario ya puede iniciar Chromium. El candidato e769 obtuvo 79 pruebas correc
 
 La [revisión R3](docs/validation/2026-11-04-c1-browser-r3.md) corrige el aislamiento real de errores auxiliares de revisión, cinco selectores exactos de reparto y el espaciado de configuración de escritorio. Componentes: 47/47; navegador focal: 16/16, incluidos los nueve fallos originales; tipado E2E correcto; Python: 585 casos, 581 correctos y cuatro omisiones históricas. El pase completo del commit final sigue pendiente. Su resultado se adjuntará después de comprobarlo como `BROWSER_C1_VALIDACION.json` y `.md`, sin sustituir el gate obligatorio WSL de 240 correctas ni las validaciones SQL del instalador. C1 continúa sin desplegar; I23 con 18 migraciones es la última instalación confirmada.
 
+La repetición canónica posterior sobre R3 ejecutó los 240 casos y obtuvo
+**239 correctos, uno fallido, cero omitidos y cero inestables**; el wrapper se
+detuvo antes de SCP/SSH. La [revisión R4](docs/validation/2026-11-04-c1-browser-r4.md)
+registra un margen vertical de un píxel en 1366×768 y reduce sólo el padding de
+escritorio de configuración, sin cambiar límites ni ocultar contenido. Los
+cuatro viewports focales pasan. R4 requiere nuevo commit, paquete y gate
+completo; C1 sigue sin desplegar.
+
 ## Alcance autorizado por incrementos
 
 El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md`, `docs/README.md` y `docs/proyecto/{ESTADO,MATRIZ-FUNCIONAL,ARQUITECTURA-ACTUAL,PLAN-CONSOLIDACION,DECISIONES}.md`, después el contrato del módulo afectado; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y preservar el trabajo por el mecanismo autorizado. La publicación GitHub conserva su antecedente independiente pendiente; no forzar un push para satisfacer una regla histórica.
