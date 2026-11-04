@@ -6,18 +6,28 @@ Autorización: el usuario solicita continuar con implementación/despliegue el 3
 
 El instalador de horarios I22 admitía backend I19 y frontend I19/I21, con 16 migraciones. El bundle actualizado de reparto documenta instalación y repetición saludable de `delivery-0cfe3ef511d8`, migración 17 AddDeliveryOperations. Son dos desarrollos paralelos con la misma numeración. El fallo original se produce antes de cambios. Ampliar la lista de releases en el instalador viejo sobrescribiría la aplicación de reparto.
 
+## Revisión2: reproducción y corrección del fallo de preparación
+
+La ejecución del usuario de la fuente10c419c se detuvo en pruebas-python con dos fallos y un error de test_resume_native.py. No alcanzó restore/build ni SCP/SSH. Reproducción exacta bajo umask077: test_reviewed_snapshot_and_complete_stage y los dos recorridos de recuperación fallan por resume_staged_directory_mode_unexpected.
+
+El runner protegía archivos mediante umask077, mientras la fixture esperaba que mkdir(mode0755) produjera0755. La máscara dejaba0700. Se corrige exclusivamente la construcción de las carpetas sintéticas con chmod explícito0755. Se mantienen los controles reales de modo, propietario, enlaces, bytes y recuperación; no se cambian permisos de producción ni se relaja la máscara.
+
+Después de corregir: suite508 completa pasa con máscaras022 y077 (504 correctas/cuatro omitidas). Después de integrar RF1 actual426c360e: suite528 bajo077,524 correctas/cuatro omitidas; Angular integrado compila. Los cuatro omitidos corresponden a condiciones del entorno; no se presentan como aprobados. Backend/SQL real siguen pendientes del runner y del VPS.
+
+RF1 se entregó después de la primera versión de I23. La revisión2 conserva la guía de acceso, preparar reparto desde Pedidos, fecha y protección de corrección. Se admiten sólo los frontends I22 delivery-0cfe3ef511d8 o RF1 delivery-flow-426c360e1365 con el backend I22 exacto y las mismas17 migraciones. Cambiar los pines sin integrar la web habría sobrescrito RF1.
+
 ## Implementación
 
 - Merge de las dos ramas, conservando todos los cambios de reparto y sus correcciones de herramientas.
 - Horarios permanece como migración 20261103030000_AddOrderingSchedules, posterior a AddDeliveryOperations. Snapshot y Designer final incluyen ambos modelos; migraciones históricas intactas.
-- I23 sólo admite delivery-0cfe3ef511d8 en ambos componentes y las 17 identidades exactas. No basta el número de migraciones.
+- I23v2 sólo admite backend delivery-0cfe3ef511d8 con frontend I22 del mismo nombre o RF1 delivery-flow-426c360e1365 y las 17 identidades exactas. No basta el número de migraciones.
 - Prioridad cliente→ruta→10:00, borrar restaura herencia, corte18:00 y martes inhábil; solicitudes pendientes excluidas de producción/reparto hasta aceptación.
 - Instalador nuevo separado, sin alterar los instaladores ya entregados. Conserva el rol personalizado y canónico de reparto y sus asignaciones. Huellas completas de seguridad/reparto, incluyendo revisión de seguridad y claves primarias reales.
 - SQL de horarios revisado, transacción única con historial/grants. Ejecución condicional compilada dinámicamente para permitir repetición y evitar resolución prematura de columnas nuevas. El SQL raw permanece validado antes de esa transformación.
 - Antes de stage/stop: tres casos EF/HTTP de reparto con los mismos cuatro ensamblados de aplicación y prueba SQL exacta aislada (rollback/repetición/permisos/conservación/limpieza). Las bases admitidas para la prueba se generan internamente con prefijos y UUID restringidos.
 - Antes del DDL operativo: snapshot privado y BACKUP COPY_ONLY/CHECKSUM + RESTORE VERIFYONLY. Sin restauración SQL automática. Si ya migró y falla activación, conservar servicio detenido/marcador y recuperar con el mismo paquete.
 
-## Validación realmente ejecutada aquí
+## Antecedente: validación de la revisión1 con máscara022
 
 - Compilación Angular de producción correcta sobre la unión. Se usaron las dependencias locales cuyo package-lock coincide byte a byte. Avisos existentes de presupuestos CSS, sin errores de compilación.
 - Suite Python completa: 508 casos, 504 correctos y cuatro omitidos por condiciones de entorno. Incluye 13 regresiones nuevas sobre releases/historial exactos, respaldo antes de DDL, conservación de reparto/seguridad, binarios de validación idénticos, limpieza aislada, corrupción del paquete y fallo previo a stage/stop.

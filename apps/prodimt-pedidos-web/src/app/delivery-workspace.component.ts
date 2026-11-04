@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DeliveryApiService, DeliveryAssignment, DeliveryDashboard, DeliveryInstructions, DeliveryLine, DeliveryOrder,
   DeliveryPendingCommand, DeliveryRoute, DeliveryTrip, safeDeliveryMapsUrl } from './delivery-api.service';
@@ -22,7 +22,7 @@ interface DeliveryEditor {
 interface DeliveryStop { orderId: string; customerName: string; position: number | null; assignments: DeliveryAssignment[]; }
 
 @Component({
-  selector: 'app-delivery-workspace', imports: [FormsModule],
+  selector: 'app-delivery-workspace', imports: [FormsModule, RouterLink],
   templateUrl: './delivery-workspace.component.html',
   styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css']
 })
@@ -159,6 +159,11 @@ export class DeliveryWorkspaceComponent {
       && (!editor?.order?.routeCode || trip.routeCode.toUpperCase() === editor.order.routeCode.toUpperCase()));
   }
   protected get activeRoutes(): DeliveryRoute[] { return (this.dashboard?.routes ?? []).filter(route => route.isActive); }
+  protected get openTripsCount(): number { return (this.dashboard?.trips ?? []).filter(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed').length; }
+  protected get assignedLineCount(): number { return (this.dashboard?.trips ?? []).reduce((total, trip) => total + trip.assignments.filter(line => line.status !== 'Released').length, 0); }
+  protected hasAssignmentTarget(order: DeliveryOrder): boolean {
+    return !!order.routeCode && (this.dashboard?.trips ?? []).some(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed' && trip.routeCode.toUpperCase() === order.routeCode?.toUpperCase());
+  }
   protected get quantityLimit(): number {
     const assignment = this.editor?.assignment;
     if (this.editor?.kind === 'load' && assignment) return Math.min(assignment.countedQuantity ?? 0, Math.max(0, assignment.assignedQuantity - assignment.releasedQuantity));

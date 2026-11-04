@@ -1,5 +1,13 @@
 # Continuar PRODIMT
 
+## I23 revisión 2 — Pruebas portables bajo umask077 y RF1 conservado
+
+El usuario ejecutó la entrega inicial: SHA correcto y fuente10c419c recuperada; se detuvo en pruebas-python antes de restaurar/compilar/copiar/SSH. Se reprodujeron exactamente dos fallos y un error en test_resume_native.py al usar el umask077 del runner. mkdir(mode0755) estaba sujeto a la máscara y construía fixtures0700. Se fijan explícitamente los modos de los directorios sintéticos terminados; no cambia ni se relaja el verificador de producción y el runner conserva umask077.
+
+Se recuperó el bundle RF1 actual426c360e y se integró su frontend para conservar acceso/guía/resumen de preparación y fecha. I23v2 admite sólo backend delivery-0cfe3ef511d8 con frontend I22 o delivery-flow-426c360e1365, siempre17 identidades exactas; añade sólo horarios18. No se afirma instalación RF1 por el directorio del prompt del usuario.
+
+Validación: la suite508 original corregida pasa con umask022 y077; tras integrar RF1, suite528 (524 correctas/cuatro omitidas) y Angular de producción correctos. Nueva prueba de las dos parejas exactas y rechazo de RF1 desconocido. SDK .NET y SSH siguen ausentes aquí: backend, EF/SQL real y despliegue continúan como condiciones a ejecutar desde WSL/VPS. Conservar salida/ para reintentos; descargar el ZIP actualizado con su nuevo SHA. No repetir I22/RF1 ni cambiar permisos de carpetas reales para resolver este error.
+
 ## I23 — Horarios sobre Reparto I22: fuente integrada y preparación de despliegue
 
 El usuario autoriza implementar/desplegar después de `previous_release_not_supported` en el paquete antiguo de horarios. Se recuperaron las versiones actuales de ambos bundles. El I22 de horarios esperaba I19/I21 y no incluía reparto; aceptar el nuevo nombre de release sin integrar binarios perdería esa función. Se integra sobre I22 Reparto, conservando su instalación documentada `delivery-0cfe3ef511d8`, 17 migraciones.
@@ -9,6 +17,14 @@ I23 admite exclusivamente esa pareja backend/frontend e historial exacto, añade
 El entorno actual carece de SDK .NET y no tiene ruta SSH al VPS; la descarga del SDK también está bloqueada. Compilación Angular correcta; Python y limitaciones en docs/validation/2026-11-03-schedules-on-delivery.md. No afirmar compilación backend ni despliegue I23. Se entrega un runner WSL que prepara .NET10 en carpeta propia sólo si falta, exige pruebas backend y comprobación del modelo EF, genera un paquete nativo de fuente fija y reutiliza el mismo paquete en reintentos. Frontend de producción compilado incluido, sin necesitar Node en WSL. Antes de cambios operativos ejecuta tres pruebas SQL/HTTP portátiles y SQL exacto aislado, comprueba limpieza y después respaldo operativo verificado. Pendientes ejecución del runner y JSON real `updated/completed`, migraciones18 y salud/frontend.
 
 La publicación GitHub sigue pendiente; fuente y validación se conservan en bundle autosuficiente. No repetir los instaladores I22 antiguos ni pedir al usuario contraseñas en el chat.
+
+## RF1 — Integración Pedidos/Reparto validada localmente
+
+El usuario ya capturó pedidos y pide completar el acceso al flujo. La captura muestra ocho por revisar, quince NoOrder y ninguno registrado/aceptado; además no aparece reparto en la navegación de esa cuenta. Se implementó acceso visible para personal: gestión, reparto propio o guía autenticada según permisos efectivos; resumen y enlaces con fecha desde Pedidos; revisión con fecha; lista de preparación y mensajes accionables en gestión. Ninguna lectura crea rutas, vueltas, reservas o entregas, ni aprueba pedidos o concede roles.
+
+RF1 cambia sólo frontend sobre I22 exacto `delivery-0cfe3ef511d8`. La consulta pública del índice coincidió con el payload I22; salud/BD200 y cuatro endpoints protegidos401. No mezclar con I23 Horarios/Confirmación del trabajo paralelo: una base cambiada debe bloquearse y requiere integración común. No se reejecuta la migración17. Build Angular correcto (494.67kB inicial); 90 pruebas Python de reparto correctas, incluidas20 RF1. Once nuevas pruebas E2E más once existentes se colectaron y tiparon; el intento anterior de20 casos abortó al iniciar Chromium por socket EPERM antes de ejecutar assertions. No hay validación visual ejecutada. Se protege la corrección abierta ante navegación, conservando salida de sesión explícita. Ver `docs/proyecto/INCREMENTO-22-RF1.md` y evidencia RF1.
+
+Se prepara `PRODIMT_Reparto_Flujo_RF1.zip`, con instalador exclusivo del frontend, pines exactos, snapshot privado y activación/reversión atómica; sin SQL o reinicio de la API. Las fuentes continúan en el bundle autosuficiente existente, sin publicar GitHub. La instalación RF1 y la aceptación real siguen pendientes del reporte del usuario.
 
 ## I22 instalado — Migración 17, salud y repetición verificadas
 

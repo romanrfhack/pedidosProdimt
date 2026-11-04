@@ -22,7 +22,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261103-ordering-schedules-on-delivery-install1'
+REVISION = '20261103-ordering-schedules-on-delivery-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -35,7 +35,8 @@ SQL_BACKUPS = Path('/var/opt/mssql/backup')
 I12_BACKEND = 'access-tokens-65560ca3cf98'
 I16_RELEASE = 'customer-products-b68982a14d1b'
 I18_RELEASE = 'identity-c49df453de9d'
-PREVIOUS_PAIRS = (('delivery-0cfe3ef511d8', 'delivery-0cfe3ef511d8'),)
+PREVIOUS_PAIRS = (('delivery-0cfe3ef511d8', 'delivery-0cfe3ef511d8'),
+                  ('delivery-0cfe3ef511d8', 'delivery-flow-426c360e1365'))
 DELIVERY_MIGRATION = '20261103020000_AddDeliveryOperations'
 SETUP_MIGRATION = '20261102152307_AddCustomerProductSetup'
 IDENTITY_MIGRATION = '20261102235000_AddSecurityAdministration'

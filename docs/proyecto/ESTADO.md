@@ -1,10 +1,26 @@
 # Estado del proyecto
 
+## I23 revisión 2 — Pruebas portables bajo umask077 y RF1 conservado
+
+El usuario ejecutó la entrega inicial: SHA correcto y fuente10c419c recuperada; se detuvo en pruebas-python antes de restaurar/compilar/copiar/SSH. Se reprodujeron exactamente dos fallos y un error en test_resume_native.py al usar el umask077 del runner. mkdir(mode0755) estaba sujeto a la máscara y construía fixtures0700. Se fijan explícitamente los modos de los directorios sintéticos terminados; no cambia ni se relaja el verificador de producción y el runner conserva umask077.
+
+Se recuperó el bundle RF1 actual426c360e y se integró su frontend para conservar acceso/guía/resumen de preparación y fecha. I23v2 admite sólo backend delivery-0cfe3ef511d8 con frontend I22 o delivery-flow-426c360e1365, siempre17 identidades exactas; añade sólo horarios18. No se afirma instalación RF1 por el directorio del prompt del usuario.
+
+Validación: la suite508 original corregida pasa con umask022 y077; tras integrar RF1, suite528 (524 correctas/cuatro omitidas) y Angular de producción correctos. Nueva prueba de las dos parejas exactas y rechazo de RF1 desconocido. SDK .NET y SSH siguen ausentes aquí: backend, EF/SQL real y despliegue continúan como condiciones a ejecutar desde WSL/VPS. Conservar salida/ para reintentos; descargar el ZIP actualizado con su nuevo SHA. No repetir I22/RF1 ni cambiar permisos de carpetas reales para resolver este error.
+
 ## I23 — Fuente integrada, pendiente de compilar backend/aplicar desde WSL
 
 El usuario autoriza continuar implementación/despliegue tras el rechazo del paquete paralelo de horarios I22. Unión preparada con Reparto I22 y base estricta `delivery-0cfe3ef511d8`, migraciones17→18. Web compilada correctamente; Python508,504 correctas/cuatro omitidas. Backend no compilado aquí por ausencia de SDK y descarga bloqueada; Chromium no inicia por restricción de sockets. SSH al VPS sin ruta; no se modificó producción.
 
 Runner WSL entregable: exige compilación/pruebas backend y coherencia EF antes de copiar; reutiliza el paquete generado en reintentos. Pruebas EF/HTTP y SQL exacto aislados con limpieza antes de stage/stop, respaldo verificado antes de DDL y huellas completas de reparto/seguridad. Último despliegue confirmado permanece I22 Reparto hasta recibir JSON real de I23. Detalles en ../validation/2026-11-03-schedules-on-delivery.md.
+
+## RF1 — Integración Pedidos/Reparto validada localmente
+
+El usuario ya capturó pedidos y pide completar el acceso al flujo. La captura muestra ocho por revisar, quince NoOrder y ninguno registrado/aceptado; además no aparece reparto en la navegación de esa cuenta. Se implementó acceso visible para personal: gestión, reparto propio o guía autenticada según permisos efectivos; resumen y enlaces con fecha desde Pedidos; revisión con fecha; lista de preparación y mensajes accionables en gestión. Ninguna lectura crea rutas, vueltas, reservas o entregas, ni aprueba pedidos o concede roles.
+
+RF1 cambia sólo frontend sobre I22 exacto `delivery-0cfe3ef511d8`. La consulta pública del índice coincidió con el payload I22; salud/BD200 y cuatro endpoints protegidos401. No mezclar con I23 Horarios/Confirmación del trabajo paralelo: una base cambiada debe bloquearse y requiere integración común. No se reejecuta la migración17. Build Angular correcto (494.67kB inicial); 90 pruebas Python de reparto correctas, incluidas20 RF1. Once nuevas pruebas E2E más once existentes se colectaron y tiparon; el intento anterior de20 casos abortó al iniciar Chromium por socket EPERM antes de ejecutar assertions. No hay validación visual ejecutada. Se protege la corrección abierta ante navegación, conservando salida de sesión explícita. Ver `docs/proyecto/INCREMENTO-22-RF1.md` y evidencia RF1.
+
+Se prepara `PRODIMT_Reparto_Flujo_RF1.zip`, con instalador exclusivo del frontend, pines exactos, snapshot privado y activación/reversión atómica; sin SQL o reinicio de la API. Las fuentes continúan en el bundle autosuficiente existente, sin publicar GitHub. La instalación RF1 y la aceptación real siguen pendientes del reporte del usuario.
 
 ## I22 instalado — Migración 17, salud y repetición verificadas
 

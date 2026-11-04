@@ -3,6 +3,7 @@ import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { AdminDecisionApiValue } from './customer-orders-api.service';
 import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } from './order-data.service';
 
@@ -166,6 +167,7 @@ export class AdminPendingComponent {
   protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
 
   private readonly http = inject(HttpClient);
   protected notification: { message: string; whatsAppUrl: string | null } | null = null;
@@ -189,7 +191,7 @@ export class AdminPendingComponent {
   protected selectedAuditOrderId: string | null = null;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
-  protected serviceDate = businessDateToday();
+  protected serviceDate = this.route.snapshot.queryParamMap.get('date') || businessDateToday();
 
   constructor() {
     this.load();

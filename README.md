@@ -1,5 +1,9 @@
 # PRODIMT — Pedidos y operación
 
+## Reparto RF1 — Conexión con Pedidos
+
+Reparto aparece para el personal autenticado según sus permisos; una guía explica qué falta si no hay acceso. Pedidos muestra la preparación y enlaza revisión/reparto conservando la fecha. Gestión guía la configuración de chofer, ruta, vuelta y partidas; no crea movimientos automáticamente. [Alcance RF1](docs/proyecto/INCREMENTO-22-RF1.md) y [validación y límites](docs/validation/2026-11-03-delivery-flow.md). Actualización sólo frontend sobre I22 exacto; rechaza otros releases para preservar cambios paralelos.
+
 ## Mi reparto I22 — Despliegue con validación previa automática
 
 `/reparto` permite al Repartidor - Camioneta operar sólo sus rutas/vueltas y registrar conteo, carga, entregas parciales y observaciones. `/admin/reparto` administra asignaciones, saldos, ubicaciones, transferencias, devoluciones y correcciones auditadas, sin modificar el pedido original. [Contrato y configuración](docs/proyecto/INCREMENTO-22.md), [validación ejecutada y pendientes](docs/validation/2026-11-02-driver-van-deliveries.md).

@@ -28,12 +28,21 @@
   </div>
   <details class="orders-help"><summary>¿Cómo registrar un cambio en un pedido?</summary><p>Si el cliente modifica un pedido, abre su detalle y usa «Corregir pedido». Por ejemplo, 15 kg más 5 kg se corrigen a un total de 20 kg con motivo. Una captura separada requiere revisión.</p></details>
   @if (correcting) { <p class="notice">Los filtros y la actualización automática están pausados mientras corriges el pedido.</p> }
+  @if (correcting && navigationBlocked) { <p class="notice" role="alert" data-testid="orders-navigation-blocked">Guarda o cancela la corrección antes de cambiar de pantalla.</p> }
   @if (refreshError) { <div class="alert warning" role="alert">{{ refreshError }} Los datos visibles pueden estar desactualizados.</div> }
   @if (isLoading) { <div class="notice">Cargando pedidos...</div> }
   @if (errorMessage) { <div class="alert error" role="alert">{{ errorMessage }}</div> }
   @if (resultMessage) { <div class="alert success" role="status">{{ resultMessage }}</div> }
 
   @if (!isLoading && !errorMessage) {
+    <section class="orders-delivery stack" aria-label="Preparar reparto" data-testid="orders-delivery-summary">
+      <div class="orders-delivery-heading"><h3>Preparar reparto</h3><span>Fecha de servicio {{ serviceDate }}</span></div>
+      <dl class="orders-delivery-counts"><div><dt>Registrados / aceptados</dt><dd data-testid="delivery-eligible-count">{{ deliveryEligibleCount }}</dd></div><div><dt>Por revisar</dt><dd data-testid="delivery-review-count">{{ filterCount('review') }}</dd></div><div><dt>No pide</dt><dd data-testid="delivery-no-order-count">{{ filterCount('noOrder') }}</dd></div></dl>
+      <p>Los pedidos registrados o aceptados pueden prepararse para reparto con ruta y unidad confirmadas. Los pedidos por revisar necesitan una decisión administrativa; «No pide» no genera una entrega. Estos estados son distintos de los permisos de tu cuenta.</p>
+      @if (!access.any(['delivery.manage','delivery.read.own','delivery.operate.own'])) { <p>Tu cuenta no tiene acceso a reparto. Consulta cómo habilitarlo con el responsable de accesos.</p> }
+      <div class="orders-delivery-actions"><a class="secondary" [routerLink]="correcting ? null : deliveryPath" [queryParams]="{ date: serviceDate }" [attr.aria-disabled]="correcting ? 'true' : null" [tabIndex]="correcting ? -1 : 0">{{ deliveryLabel }}</a>@if (filterCount('review') && access.has('orders.review')) { <a class="secondary" [routerLink]="correcting ? null : '/admin/pendientes'" [queryParams]="{ date: serviceDate }" [attr.aria-disabled]="correcting ? 'true' : null" [tabIndex]="correcting ? -1 : 0">Revisar pedidos</a> }</div>
+      @if (correcting) { <small>Guarda o cancela la corrección antes de cambiar de pantalla.</small> }
+    </section>
     @if (orders.length === 0) {
       <div class="notice">No hay pedidos registrados para esta fecha.</div>
     } @else if (visibleOrders.length === 0) {
@@ -93,7 +102,7 @@
                     </div>
                     <p><strong>Importe del pedido: {{ detail.hasUnpricedLines || detail.totalAmount == null ? 'Pendiente de precio' : priceText(detail.totalAmount) + ' MXN' }}</strong></p>
                     <div class="review-actions">
-                      @if (canCorrect(detail)) { <button type="button" class="secondary" (click)="correcting = true" [disabled]="correcting">Corregir pedido</button> }
+                      @if (canCorrect(detail)) { <button type="button" class="secondary" (click)="startCorrection()" [disabled]="correcting">Corregir pedido</button> }
                       <button type="button" class="secondary" (click)="loadAudit(detail.id)" [disabled]="loadingAudit || correcting">Ver historial</button>
                     </div>
                     @if (correcting) {

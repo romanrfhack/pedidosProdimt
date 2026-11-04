@@ -1,6 +1,6 @@
 # I23 — Horarios y solicitudes pendientes sobre Reparto I22
 
-Decisiones de negocio del 2 de noviembre e integración autorizada el 3 de noviembre de 2026. Integra la rama de horarios con Reparto I22 y sus correcciones. Base de despliegue: backend/frontend `delivery-0cfe3ef511d8`, 17 migraciones. Preparado sin acceso SSH directo al VPS.
+Decisiones de negocio del 2 de noviembre e integración autorizada el 3 de noviembre de 2026. Integra la rama de horarios con Reparto I22 y sus correcciones. Base de despliegue: backend `delivery-0cfe3ef511d8`; frontend I22 del mismo nombre o RF1 `delivery-flow-426c360e1365`, 17 migraciones exactas. Preparado sin acceso SSH directo al VPS.
 
 ## Reglas confirmadas
 
@@ -33,7 +33,7 @@ Los endpoints legados `/submit` de cliente también respetan horario efectivo y 
 
 ## Paquete nativo
 
-Acepta sólo `delivery-0cfe3ef511d8` en backend y frontend, con las 17 identidades exactas. El resultado contiene 18. Preserva el esquema, los permisos y las huellas completas de datos de reparto y seguridad. No basta cambiar el nombre admitido en el instalador anterior: los ensamblados y la web se integraron.
+Acepta sólo backend `delivery-0cfe3ef511d8` con frontend I22 del mismo nombre o RF1 `delivery-flow-426c360e1365`, con las 17 identidades exactas. La revisión2 incluye las fuentes RF1 y fija permisos explícitos de fixtures, conservando umask077 y los controles productivos. El resultado contiene 18. Preserva el esquema, los permisos y las huellas completas de datos de reparto y seguridad. No basta cambiar el nombre admitido en el instalador anterior: los ensamblados y la web se integraron.
 
 Lectura por defecto. `--apply` solicita credenciales SQL existentes en entrada oculta, ejecuta tres pruebas EF/HTTP y el SQL exacto en bases temporales con limpieza verificada antes de cambios operativos. Crea snapshot privado, detiene sólo PRODIMT y exige `BACKUP COPY_ONLY,CHECKSUM` con `RESTORE VERIFYONLY` antes de migrar. DDL, permisos mínimos e historial comparten transacción. Se preservan claves, tokens, seguridad y precios. Un fallo después del DDL conserva marcador y servicio detenido; el mismo paquete reanuda hacia adelante. No restaura SQL automáticamente.
 

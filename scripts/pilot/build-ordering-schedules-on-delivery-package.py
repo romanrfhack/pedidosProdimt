@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PRODUCTION_MIGRATION = '20261103010000_AddProductionAllocation'
 MIGRATION = '20261103030000_AddOrderingSchedules'
 FEATURE = 'ordering-schedules-on-delivery-v1'
-PREVIOUS_PAIRS = (('delivery-0cfe3ef511d8','delivery-0cfe3ef511d8'),)
+PREVIOUS_PAIRS = (('delivery-0cfe3ef511d8','delivery-0cfe3ef511d8'),
+                  ('delivery-0cfe3ef511d8','delivery-flow-426c360e1365'))
 DELIVERY_MIGRATION = '20261103020000_AddDeliveryOperations'
 SETUP_MIGRATION = '20261102152307_AddCustomerProductSetup'
 IDENTITY_MIGRATION = '20261102235000_AddSecurityAdministration'
@@ -155,7 +156,7 @@ def build(backend, frontend, migration, output, source, setup_migration, identit
            or files['backend/' + name] != files['validation/' + name] for name in installer.VALIDATED_ASSEMBLIES):
         raise ValueError('validation_application_binary_mismatch')
     scripts = b''.join(raw for name, raw in files.items() if name.startswith('frontend/') and name.endswith('.js'))
-    if any(marker not in scripts for marker in (b'apiBaseUrl:""', b'/access-tokens', b'/reveal', b'/prices', b'/security', b'directPermissionIds', b'roleIds', b'/product-setups', b'/additional-products', b'/operations/production', b'requiresMachine', b'/ordering-schedules', b'orderingWindow', b'delivery.read.own', b'delivery.manage', b'/delivery')):
+    if any(marker not in scripts for marker in (b'apiBaseUrl:""', b'/access-tokens', b'/reveal', b'/prices', b'/security', b'directPermissionIds', b'roleIds', b'/product-setups', b'/additional-products', b'/operations/production', b'requiresMachine', b'/ordering-schedules', b'orderingWindow', b'delivery.read.own', b'delivery.manage', b'/delivery', b'/personal/reparto', b'Preparar reparto')):
         raise ValueError('frontend_feature_or_same_origin_missing')
     manifest = dict(feature=FEATURE, sourceCommit=source, migration=MIGRATION, migrationsBefore=17, migrationsAfter=18,
                     migrationIds=[SETUP_MIGRATION, IDENTITY_MIGRATION, PRODUCTION_MIGRATION, DELIVERY_MIGRATION, MIGRATION], previousPairs=[list(pair) for pair in PREVIOUS_PAIRS],
@@ -168,8 +169,9 @@ def build(backend, frontend, migration, output, source, setup_migration, identit
     script = template.replace('REPLACE_SOURCE_COMMIT', source).replace('REPLACE_PAYLOAD_SHA256', digest(payload))
     readme = """PRODIMT I23 — Horarios y confirmación sobre I22 Reparto instalado
 
-Base exacta backend y frontend delivery-0cfe3ef511d8, 17 migraciones.
-Incluye aplicación integrada de horarios+reparto; añade sólo AddOrderingSchedules (18).
+Backend exacto delivery-0cfe3ef511d8 y frontend I22 delivery-0cfe3ef511d8 o
+RF1 delivery-flow-426c360e1365, 17 migraciones exactas.
+Incluye horarios+reparto+RF1; añade sólo AddOrderingSchedules (18).
 No ejecutar instaladores históricos para conseguir esta integración.
 
 Verificar SHA256SUMS.txt. Copiar PRODIMT_Instalar_I23.py y el payload a /root.

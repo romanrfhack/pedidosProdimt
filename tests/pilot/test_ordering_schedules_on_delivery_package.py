@@ -42,9 +42,9 @@ class SchedulesOnDeliveryTests(unittest.TestCase):
         value.inspector = type('Inventory', (), {'SQL_MIGRATIONS': 'history'})
         return value
 
-    def test_only_deployed_delivery_pair_is_supported(self):
-        self.assertEqual(installer.PREVIOUS_PAIRS, (('delivery-0cfe3ef511d8', 'delivery-0cfe3ef511d8'),))
-        pairs = [installer.PREVIOUS_PAIRS[0], ('production-d3a11420b202', 'orders-catalog-867df56de3bb'), ('delivery-unknown', 'delivery-unknown')]
+    def test_only_known_delivery_and_rf1_pairs_are_supported(self):
+        self.assertEqual(installer.PREVIOUS_PAIRS, (('delivery-0cfe3ef511d8', 'delivery-0cfe3ef511d8'), ('delivery-0cfe3ef511d8', 'delivery-flow-426c360e1365')))
+        pairs = list(installer.PREVIOUS_PAIRS) + [('production-d3a11420b202', 'orders-catalog-867df56de3bb'), ('delivery-unknown', 'delivery-unknown'), ('delivery-0cfe3ef511d8', 'delivery-flow-unknown')]
         for pair in pairs:
             with tempfile.TemporaryDirectory() as folder:
                 root = Path(folder)
@@ -58,7 +58,7 @@ class SchedulesOnDeliveryTests(unittest.TestCase):
                     i.process = Mock(side_effect=installer.InstallError('accepted'))
                     with self.assertRaises(installer.InstallError) as error:
                         i.preflight()
-                    self.assertEqual(str(error.exception), 'accepted' if pair == pairs[0] else 'previous_release_not_supported')
+                    self.assertEqual(str(error.exception), 'accepted' if pair in installer.PREVIOUS_PAIRS else 'previous_release_not_supported')
                     self.assertFalse(i.stop_requested)
                     self.assertFalse(i.state['changes_made'])
 
@@ -195,7 +195,7 @@ class SchedulesOnDeliveryTests(unittest.TestCase):
                 (verification/Path(name).name).write_text('{}')
             (frontend/'index.html').write_text('<html></html>')
             (frontend/'3rdpartylicenses.txt').write_text('Synthetic notices')
-            (frontend/'main.js').write_text('apiBaseUrl:"" /access-tokens /reveal /prices /security directPermissionIds roleIds /product-setups /additional-products /operations/production requiresMachine /ordering-schedules orderingWindow delivery.read.own delivery.manage /delivery')
+            (frontend/'main.js').write_text('apiBaseUrl:"" /access-tokens /reveal /prices /security directPermissionIds roleIds /product-setups /additional-products /operations/production requiresMachine /ordering-schedules orderingWindow delivery.read.own delivery.manage /delivery /personal/reparto Preparar reparto')
             schedule, identity, production, base = [root/name for name in ('schedule.sql','identity.sql','production.sql','baseline.sql')]
             schedule.write_text(previous.sql()); identity.write_text(historical.identity_fixture.migration())
             production.write_text(historical.production_sql()); base.write_text(baseline())
