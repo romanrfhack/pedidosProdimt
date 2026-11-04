@@ -1,5 +1,15 @@
 # Estado del proyecto
 
+## I23 — Corrector SQL nativo v3 sobre el payload ya construido
+
+El usuario confirmó transferencia correcta e inspección planned/completed, salud y base17 exacta. La aplicación se detuvo antes de snapshot/stage/stop en isolated-exact-sql-validation con validation_expected_rollback_not_observed. Antes pasaron las tres pruebas EF/HTTP portátiles y su limpieza. changes_made, database_migrations_run, migrations_may_have_changed y service_restarted=false. No se confirma I23 desplegado.
+
+El registro anterior no conserva el número SQL original: no permite atribuir la causa exacta a SQL207, permisos o transporte. La revisión detectó que el normalizador compilaba cinco instrucciones DDL/historial juntas, incluida la comprobación de una columna recién añadida. Se ejecutan ahora por separado, sin cambiar textos, orden, guarda ni transacción. El ensayo exige THROW51023 con marcador único, inspecciona stdout y stderr y rechaza otros errores; después verifica reversión real de historial/esquema/huellas. Se agregan números SQL y fase al JSON, sin mensajes privados.
+
+El nuevo helper se carga en memoria desde una copia revisada sólo si coincide el hash del helper anterior364e0fa2 o el actualff305043. No se reescribe el ZIP. Exportación pequeña para fuente binaria aa802e2 y payload f56edb2c: no recompilar ni volver a transferir18MB. El corrector repite todos los controles previos y respaldo verificado antes de operar. Las guardas del rol personalizado, claves, tokens, producción/reparto y recuperación permanecen.
+
+Validación local: Python533 (529 correctas/cuatro omitidas), incluidas18 regresiones focalizadas; comparación exacta de las cinco instrucciones, un único BEGIN/COMMIT, detección51023 por ambos streams, rechazo de207/éxito sin error, overlay por SHA y limpieza. No hay SQL Server, SDK o SSH disponibles aquí. El ensayo real del SQL corregido sigue siendo obligatorio en el VPS. Evidencia en docs/validation/2026-11-03-schedules-sql-correction.md; fuente por bundle autosuficiente, sin publicación GitHub.
+
 ## I23 revisión 3 — Fechas controladas en las pruebas de autorización
 
 El usuario aportó Texto pegado.txt: revisión2/add27bf2 y fuente286b8ac verificados; Python528,525 correctas/tres omitidas; restore y compilación .NET10 correctos; dominio5/5; aplicación445,442 correctas/tres fallidas409. Se detuvo en pruebas-backend antes de EF, paquete nativo, SCP/SSH y cambios de producción. El registro no acredita despliegue ni ejecución SQL operativa.

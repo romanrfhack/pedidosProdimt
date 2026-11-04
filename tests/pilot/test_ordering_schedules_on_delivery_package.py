@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import tempfile
+import types
 import unittest
 import zipfile
 from pathlib import Path
@@ -78,6 +79,13 @@ class SchedulesOnDeliveryTests(unittest.TestCase):
         self.assertNotIn('SecurityRoles', text)
         self.assertIn("IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory", text)
         self.assertIn("EXEC(N'ALTER TABLE [Customers]", text)
+        self.assertEqual(text.count("EXEC(N'"), 5)
+        self.assertEqual(text.count('BEGIN TRANSACTION;'), 1)
+        self.assertEqual(text.count('COMMIT;'), 1)
+        import re
+        executed = [part.replace("''", "'") for part in re.findall(r"EXEC\(N'((?:''|[^'])*)'\);", text)]
+        original = previous.sql().removeprefix('BEGIN TRANSACTION;\n').removesuffix('COMMIT;\nGO\n\n')
+        self.assertEqual(executed, [part.strip()+';' for part in original.split(';') if part.strip()])
         self.assertLess(text.index(installer.SCHEDULE_GRANTS), text.index('COMMIT;'))
         for text in (previous.sql().replace('COMMIT;', 'DROP TABLE dbo.DeliveryEvents; COMMIT;'), previous.sql().replace(installer.MIGRATION, installer.DELIVERY_MIGRATION)):
             with self.assertRaises(installer.InstallError):
@@ -254,6 +262,44 @@ class SchedulesOnDeliveryTests(unittest.TestCase):
             with self.assertRaisesRegex(validation.ValidationFailure,'validation_database_cleanup_failed') as error:
                 validation.validate_exact_sql(supports(),operations,schema,'tool','server','user','password','',{},lambda _: {},BrokenBaseline)
             self.assertTrue(validation.generated_name(error.exception.cleanup_database))
+
+    def test_overlay_accepts_only_the_reviewed_old_or_current_validation_helper(self):
+        import subprocess
+        legacy = subprocess.check_output(['git','show','aa802e2:scripts/pilot/validate-ordering-schedules-sql.py'],cwd=ROOT)
+        current = (ROOT/'scripts/pilot/validate-ordering-schedules-sql.py').read_bytes()
+        self.assertEqual(installer.adapt_ordering_validation_source(legacy), current)
+        self.assertEqual(installer.adapt_ordering_validation_source(current), current)
+        with self.assertRaisesRegex(installer.InstallError,'ordering_validation_helper_unexpected'):
+            installer.adapt_ordering_validation_source(legacy+b'unknown edit')
+
+    def probe(self, stdout, stderr, code=1):
+        transport = validation.Transport('/tool','server','user','private-credential','',{},lambda _: {},'ProdimtI23Validation_'+'a'*32)
+        transport.phase = 'rollback-probe'
+        response = types.SimpleNamespace(returncode=code,stdout=stdout,stderr=stderr)
+        with patch.object(validation.subprocess,'run',return_value=response):
+            return transport.run(transport.database,'synthetic rollback probe',expected_failure=True)
+
+    def test_expected_sql_error_and_marker_can_arrive_on_either_output_stream(self):
+        message = 'Msg 51023, Level 16, State 1, Line 1\n'+validation.ROLLBACK_MARKER+'\n'
+        for stdout,stderr in ((message,''),('',message),(validation.ROLLBACK_MARKER+'\n','Msg 51023, Level 16, State 1\n')):
+            with self.subTest(stderr=bool(stderr)):
+                self.assertEqual(self.probe(stdout,stderr),'')
+
+    def test_marker_alone_or_success_exit_does_not_prove_expected_rollback(self):
+        for output,code in ((validation.ROLLBACK_MARKER,1),('Msg 51023, Level 16\n'+validation.ROLLBACK_MARKER,0)):
+            with self.assertRaisesRegex(validation.ValidationFailure,'validation_expected_rollback_not_observed'):
+                self.probe(output,'',code)
+
+    def test_earlier_sql_failure_is_reported_without_private_messages(self):
+        with self.assertRaises(validation.ValidationFailure) as result:
+            self.probe('',"Msg 207, Level 16, State 1\nprivate-table-or-user-value\n")
+        self.assertEqual(result.exception.sql_error_numbers,(207,))
+        self.assertEqual(result.exception.phase,'rollback-probe')
+        self.assertNotIn('private-table-or-user-value',str(result.exception))
+
+    def test_unrelated_failure_cannot_hide_behind_the_expected_error_and_marker(self):
+        with self.assertRaises(validation.ValidationFailure):
+            self.probe('Msg 51023, Level 16\n'+validation.ROLLBACK_MARKER,'Msg 207, Level 16\n')
 
 if __name__ == '__main__':
     unittest.main()
