@@ -570,6 +570,36 @@ public sealed class AdminCatalogServiceTests
         Assert.Equal(2, profile.Items.Count);
     }
 
+    [Theory]
+    [InlineData(9)]
+    [InlineData(20)]
+    public async Task OrderingProfile_LargeAuditPreservesEveryProductAndVersion(int count)
+    {
+        await using var fixture = await CatalogFixture.CreateAsync();
+        var items = new List<UpdateCustomerFrequentProductItemRequest>();
+        for (var i = 0; i < count; i++)
+        {
+            var product = await fixture.Products.CreateAsync(new($"Producto sintético {i}", null, "kg"), AdminActor, default);
+            items.Add(new(product.Id, i + 1, i + 1, true, null, i + 1, "kg", ((char)('A' + i)).ToString(), false));
+        }
+        await fixture.Customers.ReplaceFrequentProductsAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            new(items, true, 0), AdminActor, default);
+        fixture.DbContext.ChangeTracker.Clear();
+        var profile = await fixture.Customers.GetOrderingProfileAsync(DevelopmentSeedIds.GranTakitoCustomerId, default);
+        Assert.Equal(1, profile.OrderingProfileVersion);
+        Assert.Equal(count, profile.Items.Count);
+        var audit = await fixture.DbContext.AuditLogs.SingleAsync(x => x.EntityId == DevelopmentSeedIds.GranTakitoCustomerId.ToString()
+            && x.EventType == "CustomerFrequentProductsUpdated");
+        Assert.True(audit.MetadataJson!.Length > 2000);
+        using var metadata = JsonDocument.Parse(audit.MetadataJson);
+        Assert.Equal(items.Select(x => x.ProductId), metadata.RootElement.GetProperty("productIds").EnumerateArray().Select(x => x.GetGuid()));
+        Assert.Equal(count, metadata.RootElement.GetProperty("captureAliases").GetArrayLength());
+        Assert.Equal(count, metadata.RootElement.GetProperty("machineInheritance").GetArrayLength());
+        Assert.Equal(1, metadata.RootElement.GetProperty("orderingProfileVersion").GetInt32());
+        Assert.Null(fixture.DbContext.Model.FindEntityType(typeof(Prodimt.Pedidos.Domain.Entities.AuditLog))!
+            .FindProperty("MetadataJson")!.GetMaxLength());
+    }
+
     private sealed class CatalogFixture : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;

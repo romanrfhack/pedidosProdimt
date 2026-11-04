@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Infrastructure.Persistence.Configurations;
 
@@ -23,10 +24,10 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(60);
 
         builder.Property(x => x.DeliveryNotes)
-            .HasMaxLength(500);
+            .HasMaxLength(OrderNoteLimits.Delivery);
 
         builder.Property(x => x.InternalNotes)
-            .HasMaxLength(1000);
+            .HasMaxLength(OrderNoteLimits.Internal);
 
         builder.Property(x => x.CustomerNameSnapshot).HasMaxLength(200);
         builder.Property(x => x.RouteCode).HasMaxLength(80);

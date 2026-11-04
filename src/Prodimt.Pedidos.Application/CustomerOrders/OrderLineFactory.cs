@@ -1,5 +1,6 @@
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Application.CustomerOrders;
 
@@ -29,7 +30,7 @@ internal static class OrderLineFactory
             throw new ArgumentException("Captura al menos una cantidad o usa No pedir hoy.");
         if (positiveLines.Select(x => x.ProductId).Distinct().Count() != positiveLines.Length)
             throw new ArgumentException("El producto se repite en el pedido; captura una sola cantidad por producto.");
-        if (positiveLines.Any(x => x.Notes?.Length > 500))
+        if (positiveLines.Any(x => x.Notes?.Length > OrderNoteLimits.Line))
             throw new ArgumentException("La nota de una linea no puede exceder 500 caracteres.");
 
         var productLookup = (await products.GetByIdsAsync(positiveLines.Select(x => x.ProductId), cancellationToken)).ToDictionary(x => x.Id);

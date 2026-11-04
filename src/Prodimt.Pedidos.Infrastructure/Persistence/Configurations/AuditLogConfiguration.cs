@@ -32,8 +32,9 @@ public sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
             .HasMaxLength(500)
             .IsRequired();
 
-        builder.Property(x => x.MetadataJson)
-            .HasMaxLength(2000);
+        // Profile and security audits contain complete collections. Keeping their
+        // JSON unbounded here maps to nvarchar(max) on SQL Server without losing evidence.
+        builder.Property(x => x.MetadataJson);
 
         builder.HasIndex(x => new { x.EntityType, x.EntityId, x.OccurredAt });
         builder.HasIndex(x => x.EventType);

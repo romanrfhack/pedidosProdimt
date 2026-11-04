@@ -112,6 +112,7 @@ public sealed class AdminOrderService(
         ArgumentNullException.ThrowIfNull(request);
 
         var submissionClock = receivedClock ?? dateTimeProvider;
+        OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
         var serviceDate = request.ServiceDate ?? submissionClock.Today;
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
@@ -158,6 +159,7 @@ public sealed class AdminOrderService(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        OrderNoteLimits.Validate(null, request.InternalNotes);
         var received = request.AutoDeliveryDate ? DeliveryDatePolicy.Capture(dateTimeProvider) : dateTimeProvider;
         var serviceDate = request.AutoDeliveryDate
             ? DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received)
@@ -214,6 +216,7 @@ public sealed class AdminOrderService(
         AdminActorContext? actor = null)
     {
         ArgumentNullException.ThrowIfNull(request);
+        OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
 
         var order = await GetRequiredOrderAsync(orderId, cancellationToken);
 
@@ -331,7 +334,7 @@ public sealed class AdminOrderService(
                     throw new ArgumentOutOfRangeException(nameof(request), "Las cantidades ajustadas deben ser positivas y tener hasta dos decimales.");
                 if (!order.Lines.Any(x => x.Id == adjustment.OrderLineId))
                     throw new ArgumentException("La linea de pedido a ajustar no existe.", nameof(request));
-                if (adjustment.Notes?.Length > 500)
+                if (adjustment.Notes?.Length > OrderNoteLimits.Line)
                     throw new ArgumentException("La nota de una linea no puede exceder 500 caracteres.", nameof(request));
             }
         }
@@ -591,9 +594,13 @@ public sealed class AdminOrderService(
 
     private static string FormatChangeSummary(IReadOnlyList<AdminOrderChangeSummary> changes)
     {
-        return changes.Count == 0
-            ? "sin cambios detallados enviados"
-            : string.Join(", ", changes.Select(change => change.Field));
+        if (changes.Count == 0) return "sin cambios detallados enviados";
+        var fields = string.Join(", ", changes.Select(change => change.Field));
+        // Leave room for both event prefixes within Summary's 500-character
+        // column. Full before/after values remain in MetadataJson, never truncated.
+        return fields.Length <= 350
+            ? fields
+            : $"{changes.Count} campos modificados; detalle completo en metadatos";
     }
 
     private static string ToMetadataJson(object metadata)

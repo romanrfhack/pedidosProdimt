@@ -96,8 +96,7 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("MetadataJson")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("datetimeoffset");
@@ -206,8 +205,9 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Customers", t =>
                         {
-                            t.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
                             t.HasCheckConstraint("CK_Customers_AutomaticConfirmationCutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'");
+
+                            t.HasCheckConstraint("CK_Customers_RestDaysMask", "[RestDaysMask] BETWEEN 0 AND 127");
                         });
                 });
 
@@ -1427,7 +1427,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.HasKey("RouteCode");
 
-                    b.ToTable("RouteOrderSchedules", null, t => t.HasCheckConstraint("CK_RouteOrderSchedules_Cutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'"));
+                    b.ToTable("RouteOrderSchedules", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RouteOrderSchedules_Cutoff", "[AutomaticConfirmationCutoff] IS NULL OR [AutomaticConfirmationCutoff] < '18:00:00'");
+                        });
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.SalesChannel", b =>

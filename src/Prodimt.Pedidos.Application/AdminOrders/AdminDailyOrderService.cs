@@ -9,6 +9,7 @@ using Prodimt.Pedidos.Application.AdminImports;
 using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 using Prodimt.Pedidos.Domain.Enums;
 
 namespace Prodimt.Pedidos.Application.AdminOrders;
@@ -97,7 +98,7 @@ public sealed class AdminDailyOrderService(
             throw new ArgumentException("Indica el motivo de la correccion (hasta 1000 caracteres).");
         if (request.Lines is null || request.Lines.Count == 0 || request.Lines.Count > 200 || request.Lines.Any(x => x is null) ||
             request.Lines.Select(x => x.ProductId).Distinct().Count() != request.Lines.Count ||
-            request.Lines.Any(x => x.Quantity <= 0 || x.Quantity > 9999999999999999.99m || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > 500))
+            request.Lines.Any(x => x.Quantity <= 0 || x.Quantity > 9999999999999999.99m || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > OrderNoteLimits.Line))
             throw new ArgumentException("La correccion requiere productos unicos con cantidades positivas de hasta dos decimales y notas de hasta 500 caracteres.");
         var hash = Hash(new { orderId, request.ExpectedVersion, reason = request.Reason.Trim(),
             lines = request.Lines.OrderBy(x => x.ProductId).ToArray() });

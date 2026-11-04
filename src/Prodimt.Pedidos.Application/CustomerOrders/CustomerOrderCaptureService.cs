@@ -6,6 +6,7 @@ using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Application.CustomerOrders;
 
@@ -59,8 +60,7 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
         if (quick && (request.Lines is not null || request.Text!.Length > 240)
             || !quick && (request.Lines is null || request.Lines.Count is 0 or > 200))
             throw new ArgumentException("Elige captura rápida o cantidades manuales, sin mezclar ambas entradas.");
-        if (request.DeliveryNotes?.Length > 500)
-            throw new ArgumentException("Las notas de entrega admiten hasta 500 caracteres.");
+        OrderNoteLimits.Validate(request.DeliveryNotes, null);
         // Date validation belongs inside the action: an already committed attempt must replay
         // its original result even if the response was lost immediately before the cutoff.
         var receipt = await operations.ExecuteAsync($"CUSTOMER-CAPTURE:{customerId:N}:{request.OperationId:N}",
@@ -175,7 +175,7 @@ public sealed class CustomerOrderCaptureService(ICustomerRepository customers, I
         IReadOnlyList<ManualOrderCaptureLine> lines)
     {
         if (lines.Any(x => x is null || x.Quantity <= 0 || x.Quantity > 9999999999999999.99m
-            || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > 500)
+            || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > OrderNoteLimits.Line)
             || lines.Select(x => x.ProductId).Distinct().Count() != lines.Count)
             throw new ArgumentException("Captura productos únicos con cantidades positivas de hasta dos decimales.");
         var available = profile.Items.Where(x => x.IsActive && x.ProductIsActive).ToDictionary(x => x.ProductId);

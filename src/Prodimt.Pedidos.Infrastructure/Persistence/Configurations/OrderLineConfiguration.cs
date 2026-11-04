@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Prodimt.Pedidos.Domain.Entities;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Infrastructure.Persistence.Configurations;
 
@@ -25,6 +26,6 @@ public sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLine>
         builder.HasOne<Machine>().WithMany().HasForeignKey(x => x.AssignedMachineId).OnDelete(DeleteBehavior.Restrict);
 
         builder.Property(x => x.Notes)
-            .HasMaxLength(500);
+            .HasMaxLength(OrderNoteLimits.Line);
     }
 }

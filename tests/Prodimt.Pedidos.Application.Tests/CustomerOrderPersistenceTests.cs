@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Prodimt.Pedidos.Application.Abstractions;
@@ -669,6 +670,131 @@ public sealed class CustomerOrderPersistenceTests
         Assert.Equal(2, plan.MachineDemand.Count);
         Assert.Equal(20, plan.MachineDemand.Single(x => x.ProductName == originalName).Quantity);
         Assert.Equal(5, plan.MachineDemand.Single(x => x.ProductName == "Variante renombrada").Quantity);
+    }
+
+    [Theory]
+    [InlineData("delivery", 500, true)]
+    [InlineData("delivery", 501, false)]
+    [InlineData("internal", 1000, true)]
+    [InlineData("internal", 1001, false)]
+    [InlineData("line", 500, true)]
+    [InlineData("line", 501, false)]
+    public async Task ReviewAsync_NoteLimitsValidateBeforeAnyMutation(string field, int length, bool valid)
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 11, 0, 0, TimeSpan.Zero));
+        var submitted = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), default);
+        var before = await fixture.AdminOrders.GetDetailAsync(submitted.OrderId, default);
+        var auditCount = await fixture.DbContext.OrderAuditLogs.CountAsync();
+        var noticeCount = await fixture.DbContext.OrderChangeNotices.CountAsync();
+        var note = new string('ñ', length);
+        var command = new ReviewOrderRequest(AdminDecision.AcceptedWithChanges,
+            field == "internal" ? note : "Cambio revisado",
+            RequestedDeliveryTime: new TimeOnly(13, 0),
+            DeliveryNotes: field == "delivery" ? note : "Nueva entrega",
+            LineAdjustments: [new(before.Lines[0].OrderLineId, 25, field == "line" ? note : "Cambio")],
+            ExpectedVersion: before.Version);
+        if (valid)
+        {
+            await fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default);
+            fixture.DbContext.ChangeTracker.Clear();
+            var saved = await fixture.DbContext.Orders.Include(x => x.Lines).SingleAsync(x => x.Id == submitted.OrderId);
+            Assert.Equal(OrderStatus.Accepted, saved.Status);
+            Assert.Equal(note, field switch { "delivery" => saved.DeliveryNotes, "internal" => saved.InternalNotes, _ => saved.Lines.First().Notes });
+            Assert.Equal(25, saved.Lines.First().Quantity);
+            return;
+        }
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default));
+        Assert.Contains(field switch { "delivery" => "entrega", "internal" => "internas", _ => "linea" }, error.Message);
+        var tracked = await fixture.DbContext.Orders.Include(x => x.Lines).SingleAsync(x => x.Id == submitted.OrderId);
+        Assert.Equal(OrderStatus.PendingAdminReview, tracked.Status);
+        Assert.Equal(before.Version, tracked.Version);
+        Assert.Equal(before.DeliveryNotes, tracked.DeliveryNotes);
+        Assert.Null(tracked.InternalNotes);
+        Assert.Equal(before.RequestedDeliveryTime, tracked.RequestedDeliveryTime);
+        Assert.Equal(20, tracked.Lines.First().Quantity);
+        Assert.Equal(auditCount, await fixture.DbContext.OrderAuditLogs.CountAsync());
+        Assert.Equal(noticeCount, await fixture.DbContext.OrderChangeNotices.CountAsync());
+        Assert.False(fixture.DbContext.ChangeTracker.HasChanges());
+    }
+
+    [Theory]
+    [InlineData(AdminDecision.Accepted)]
+    [InlineData(AdminDecision.Rejected)]
+    public async Task ReviewAsync_AllDecisionsRejectOversizedNotesBeforeStateChange(AdminDecision decision)
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 11, 0, 0, TimeSpan.Zero));
+        var submitted = await fixture.CustomerOrders.SubmitAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            CreateSubmitRequest(DevelopmentSeedIds.ProductNineAndHalfId, 20), default);
+        await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(submitted.OrderId,
+            new(decision, new string('ñ', 1001)), default));
+        Assert.Equal(OrderStatus.PendingAdminReview, (await fixture.DbContext.Orders.SingleAsync(x => x.Id == submitted.OrderId)).Status);
+        Assert.False(fixture.DbContext.ChangeTracker.HasChanges());
+    }
+
+    [Theory]
+    [InlineData("delivery")]
+    [InlineData("internal")]
+    [InlineData("no-order")]
+    public async Task AdminCapture_OversizedNotesDoNotCreateOrdersOrAudit(string field)
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 9, 0, 0, TimeSpan.Zero));
+        var orders = await fixture.DbContext.Orders.CountAsync();
+        var audit = await fixture.DbContext.OrderAuditLogs.CountAsync();
+        if (field == "no-order")
+            await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.MarkNoOrderAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+                new(new string('ñ', 1001)), null, default));
+        else
+            await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.SubmitCustomerOrderAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+                new([new(DevelopmentSeedIds.ProductNineAndHalfId, 20, null)], null, null, null,
+                    field == "delivery" ? new string('ñ', 501) : null,
+                    field == "internal" ? new string('ñ', 1001) : null), null, default));
+        Assert.Equal(orders, await fixture.DbContext.Orders.CountAsync());
+        Assert.Equal(audit, await fixture.DbContext.OrderAuditLogs.CountAsync());
+        Assert.False(fixture.DbContext.ChangeTracker.HasChanges());
+    }
+
+    [Fact]
+    public async Task ReviewAsync_ManyChangedLinesKeepsSummaryBoundedAndCompleteEvidence()
+    {
+        await using var fixture = await SqliteFixture.CreateAsync(new DateTimeOffset(2026, 5, 27, 11, 0, 0, TimeSpan.Zero));
+        var products = Enumerable.Range(1, 20).Select(i =>
+        {
+            var product = Product.Create($"Producto sintético {i}", null);
+            product.SetUnitCode("kg");
+            return product;
+        }).ToArray();
+        fixture.DbContext.Products.AddRange(products);
+        await fixture.DbContext.SaveChangesAsync();
+        var submitted = await fixture.AdminOrders.SubmitCustomerOrderAsync(DevelopmentSeedIds.GranTakitoCustomerId,
+            new(products.Select(x => new AdminSubmitCustomerOrderLineRequest(x.Id, 1, null)).ToArray(), null, null, null, null, null), null, default);
+        var before = await fixture.AdminOrders.GetDetailAsync(submitted.OrderId, default);
+        var lineNote = new string('ñ', 500);
+        var internalNote = new string('ñ', 1000);
+        await fixture.AdminOrders.ReviewAsync(submitted.OrderId,
+            new(AdminDecision.AcceptedWithChanges, internalNote, DeliveryNotes: "Entregar mañana",
+                LineAdjustments: before.Lines.Select(x => new ReviewOrderLineAdjustmentRequest(x.OrderLineId, 2, lineNote)).ToArray()), default);
+        var events = await fixture.DbContext.OrderAuditLogs.Where(x => x.OrderId == submitted.OrderId
+            && (x.EventType == OrderAuditEventType.AdminDecisionRecorded || x.EventType == OrderAuditEventType.AdminOrderChanged)).ToArrayAsync();
+        Assert.Equal(2, events.Length);
+        Assert.All(events, x => Assert.True(x.Summary.Length <= 500));
+        foreach (var entry in events)
+        {
+            using var metadata = JsonDocument.Parse(entry.MetadataJson!);
+            var changes = metadata.RootElement.GetProperty("changes").EnumerateArray().ToArray();
+            Assert.Equal(41, changes.Length);
+            foreach (var line in before.Lines)
+            {
+                var note = changes.Single(x => x.GetProperty("field").GetString() == $"line:{line.OrderLineId}:notes");
+                Assert.Equal(lineNote, note.GetProperty("newValue").GetString());
+                Assert.Equal(JsonValueKind.Null, note.GetProperty("oldValue").ValueKind);
+                var quantity = changes.Single(x => x.GetProperty("field").GetString() == $"line:{line.OrderLineId}:quantity");
+                Assert.Equal("1", quantity.GetProperty("oldValue").GetString());
+                Assert.Equal("2", quantity.GetProperty("newValue").GetString());
+            }
+            if (entry.EventType == OrderAuditEventType.AdminDecisionRecorded)
+                Assert.Equal(internalNote, metadata.RootElement.GetProperty("internalNotes").GetString());
+        }
     }
 
     private sealed class MutableDateTimeProvider(DateTimeOffset now) : IDateTimeProvider

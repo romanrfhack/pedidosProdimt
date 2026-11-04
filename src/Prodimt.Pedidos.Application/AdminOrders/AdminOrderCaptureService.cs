@@ -6,6 +6,7 @@ using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
+using Prodimt.Pedidos.Domain.Services;
 
 namespace Prodimt.Pedidos.Application.AdminOrders;
 
@@ -52,8 +53,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
         if (quick && (request.Lines is not null || request.Text!.Length > 240)
             || !quick && (request.Lines is null || request.Lines.Count is 0 or > 200))
             throw new ArgumentException("Elige captura rápida o cantidades manuales, sin mezclar ambas entradas.");
-        if (request.DeliveryNotes?.Length > 500 || request.InternalNotes?.Length > 1000)
-            throw new ArgumentException("Las notas de entrega admiten hasta 500 caracteres y las internas hasta 1000.");
+        OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
         if (request.AutoDeliveryDate && (request.ExpectedDeliveryDate is null || request.ExpectedDeliveryDate == DateOnly.MinValue))
             throw new ArgumentException("Confirma la fecha de entrega mostrada antes de guardar.");
         // Use the observed date in the receipt hash, and validate current cutoff only
@@ -89,7 +89,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                 {
                     var lines = request.Lines!;
                     if (lines.Any(x => x is null || x.Quantity <= 0 || x.Quantity > 9999999999999999.99m
-                        || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > 500)
+                        || decimal.Round(x.Quantity, 2) != x.Quantity || x.Notes?.Length > OrderNoteLimits.Line)
                         || lines.Select(x => x.ProductId).Distinct().Count() != lines.Count)
                         throw new ArgumentException("Captura productos únicos con cantidades positivas de hasta dos decimales.");
                     var available = profile.Items.Where(x => x.IsActive && x.ProductIsActive).ToDictionary(x => x.ProductId);
