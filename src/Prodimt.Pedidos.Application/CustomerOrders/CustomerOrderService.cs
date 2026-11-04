@@ -89,11 +89,17 @@ public sealed class CustomerOrderService(
 
     public async Task<CustomerOrderResponse> MarkNoOrderAsync(Guid customerId, CancellationToken cancellationToken)
     {
+        // This legacy contract means "today"; it must never silently target a
+        // closed day or roll forward to a date the customer did not confirm.
+        // Capture before repository waits, just like the /next contract.
+        var received = DeliveryDatePolicy.Capture(dateTimeProvider);
+        if (DeliveryDatePolicy.GetDate(received.Now) != received.Today)
+            throw new CustomerOrderConflictException("La recepción para hoy terminó. Abre Mi próximo pedido y confirma el siguiente día hábil.");
         var customer = await GetRequiredCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.Customer, cancellationToken);
-        var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken);
+        var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, received.Today, cancellationToken);
 
-        if (await orders.HasActiveCustomerOrderAsync(customerId, dateTimeProvider.Today, cancellationToken))
+        if (await orders.HasActiveCustomerOrderAsync(customerId, received.Today, cancellationToken))
         {
             throw new CustomerOrderConflictException("Ya existe un pedido para hoy; no se puede marcar No pedir hoy.");
         }
@@ -101,13 +107,13 @@ public sealed class CustomerOrderService(
         if (latestOrder?.Status is OrderStatus.NoOrder)
             return MapCustomerResponse(latestOrder);
 
-        var existingCount = await orders.CountCustomerOrdersAsync(customerId, dateTimeProvider.Today, cancellationToken);
+        var existingCount = await orders.CountCustomerOrdersAsync(customerId, received.Today, cancellationToken);
 
         var order = Order.CreateNoOrder(
             customer.Id,
             channel.Id,
-            dateTimeProvider.Today,
-            dateTimeProvider.Now,
+            received.Today,
+            received.Now,
             existingCount + 1,
             customer);
 
