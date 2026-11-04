@@ -77,10 +77,14 @@ class NativeResumeTests(unittest.TestCase):
             (source / name).chmod(0o600)
         for part, stage in self.updater.new.items():
             stage.mkdir(mode=0o755)
+            # mkdir's requested mode is filtered by the caller's umask. These
+            # fixtures model completed release directories with an exact mode.
+            stage.chmod(0o755)
             for name, data in self.updater.payload['files'].items():
                 if name.startswith(part + '/'):
                     target = stage / name[len(part) + 1:]
                     target.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+                    target.parent.chmod(0o755)
                     target.write_bytes(data)
                     target.chmod(0o644)
         # Keep modes, inode/link counts and bytes real. Translate only fixture
