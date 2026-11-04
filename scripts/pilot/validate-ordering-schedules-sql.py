@@ -27,14 +27,21 @@ ROLLBACK_MARKER = 'PRODIMT_I23_EXPECTED_ROLLBACK'
 
 
 class ValidationFailure(Exception):
-    def __init__(self, issue, cleanup_database=None):
+    def __init__(self, issue, cleanup_database=None, sql_error_numbers=(), phase=None):
         super().__init__(issue)
         self.cleanup_database = cleanup_database
+        self.sql_error_numbers = tuple(sql_error_numbers)
+        self.phase = phase
 
 
 def require(condition, issue):
     if not condition:
         raise ValidationFailure(issue)
+
+
+def error_numbers(output):
+    return tuple(sorted({int(value) for value in re.findall(r'(?im)^\s*Msg\s+(\d{1,10})\b', output)
+                         if 0 < int(value) <= 2147483647}))[:8]
 
 
 def validate_baseline(sql):
@@ -72,10 +79,17 @@ class Transport:
         except (OSError, subprocess.TimeoutExpired, UnicodeError):
             raise ValidationFailure('validation_sql_transport_failed') from None
         if expected_failure:
-            require(result.returncode != 0 and ROLLBACK_MARKER in result.stdout,
-                    'validation_expected_rollback_not_observed')
+            output = (result.stdout or '') + '\n' + (result.stderr or '')
+            numbers = error_numbers(output)
+            if not (result.returncode != 0 and 51023 in numbers
+                    and set(numbers) <= {51023, 3621} and ROLLBACK_MARKER in output):
+                raise ValidationFailure('validation_expected_rollback_not_observed',
+                    sql_error_numbers=numbers, phase=getattr(self, 'phase', None))
             return ''
-        require(result.returncode == 0, 'validation_sql_operation_failed')
+        if result.returncode != 0:
+            raise ValidationFailure('validation_sql_operation_failed',
+                sql_error_numbers=error_numbers((result.stdout or '') + '\n' + (result.stderr or '')),
+                phase=getattr(self, 'phase', None))
         return result.stdout
 
     def query(self, query, as_application=False):
@@ -120,8 +134,11 @@ def validate_exact_sql(files, installer, schema, tool, server, login, password, 
     expected_before = [{'MigrationId': value} for value in BASE_IDS]
     try:
         attempted = True
+        transport.phase = 'create-database'
         transport.run('master', 'CREATE DATABASE [' + database + '];', timeout=60)
+        transport.phase = 'baseline'
         transport.run(database, baseline, timeout=240)
+        transport.phase = 'baseline-permissions'
         transport.run(database, 'CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n'
             'ALTER ROLE [db_datareader] ADD MEMBER [prodimt_pedidos_app];\n'
             'ALTER ROLE [db_datawriter] ADD MEMBER [prodimt_pedidos_app];\n' + installer.DELIVERY_GRANTS)
@@ -132,13 +149,17 @@ def validate_exact_sql(files, installer, schema, tool, server, login, password, 
         delivery = transport.query(installer.DELIVERY_FINGERPRINT)
         ending = 'COMMIT;\nGO\n\n'
         require(upgrade.endswith(ending), 'validation_upgrade_commit_unexpected')
-        rollback = upgrade.removesuffix(ending) + "SELECT N'" + ROLLBACK_MARKER + "';\nTHROW 51023, 'I23 expected test rollback', 1;\nGO\n"
+        rollback = (upgrade.removesuffix(ending) + "SELECT N'" + ROLLBACK_MARKER +
+                    "';\nGO\n\nTHROW 51023, '" + ROLLBACK_MARKER + "', 1;\nGO\n")
+        transport.phase = 'rollback-probe'
         transport.run(database, rollback, timeout=180, expected_failure=True)
+        transport.phase = 'rollback-verification'
         require(transport.query(history_query()) == expected_before
                 and transport.query(installer.SCHEDULE_SHAPE) == empty_schedule
                 and transport.query(installer.SECURITY_FINGERPRINT) == security
                 and transport.query(installer.DELIVERY_FINGERPRINT) == delivery,
                 'validation_transaction_rollback_failed')
+        transport.phase = 'upgrade'
         transport.run(database, upgrade, timeout=180)
         expected_after = expected_before + [{'MigrationId': MIGRATION}]
         require(transport.query(history_query()) == expected_after, 'validation_upgrade_history_mismatch')
@@ -149,15 +170,16 @@ def validate_exact_sql(files, installer, schema, tool, server, login, password, 
         require(transport.query(installer.DELIVERY_SQL_PERMISSIONS, as_application=True) == installer.EXPECTED_DELIVERY_PERMISSIONS,
                 'validation_delivery_permissions_changed')
         require(schema.matches(transport.query(schema.schema_query(True)), contract), 'validation_delivery_schema_changed')
+        transport.phase = 'replay'
         transport.run(database, upgrade, timeout=180)
         require(transport.query(history_query()) == expected_after
                 and transport.query(installer.SECURITY_FINGERPRINT) == security
                 and transport.query(installer.DELIVERY_FINGERPRINT) == delivery,
                 'validation_upgrade_replay_changed_data')
     except ValidationFailure as error:
-        issue = str(error)
+        issue = error
     except Exception:
-        issue = 'validation_sql_unexpected_failure'
+        issue = ValidationFailure('validation_sql_unexpected_failure')
     finally:
         if attempted:
             try:
@@ -168,6 +190,6 @@ def validate_exact_sql(files, installer, schema, tool, server, login, password, 
     if not cleanup:
         raise ValidationFailure('validation_database_cleanup_failed', database)
     if issue:
-        raise ValidationFailure(issue)
+        raise issue
     return dict(status='passed', exactSql=True, strictMetadata=True, applicationPermissions=True,
                 rollbackVerified=True, replayVerified=True, deliveryPreserved=True, cleanupVerified=True)

@@ -5,6 +5,7 @@ Read-only unless --apply is supplied. Verified SQL backup precedes all DDL;
 exact migration identities, environment and token keys remain guarded.
 """
 import argparse
+import base64
 from datetime import datetime, timezone
 import fcntl
 import hashlib
@@ -21,8 +22,9 @@ import sys
 import types
 import uuid
 import zipfile
+import zlib
 
-REVISION = '20261103-ordering-schedules-on-delivery-install2'
+REVISION = '20261103-ordering-schedules-on-delivery-install3'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 ROOT = Path('/var/www/prodimt-pedidos')
@@ -184,7 +186,23 @@ def validate_migration_sql(sql):
         'schedule_migration_unexpected')
 
 
+LEGACY_VALIDATION_HELPER_SHA256 = '364e0fa2f2c4a1347c1559f083abbbf3b28578ee1a8cd5045ba7744c2375ac95'
+CURRENT_VALIDATION_HELPER_SHA256 = 'ff305043f8eac63da5428f48e684889ae00f5f23f5214431fa9910bfcd30383f'
+# Reviewed source lives in validate-ordering-schedules-sql.py. The compressed
+# copy permits a hash-bound correction without rebuilding the existing payload.
+VALIDATION_HELPER_OVERLAY = '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'
+
+
+def adapt_ordering_validation_source(raw):
+    if sha(raw) == LEGACY_VALIDATION_HELPER_SHA256:
+        raw = zlib.decompress(base64.b64decode(VALIDATION_HELPER_OVERLAY, validate=True))
+    require(sha(raw) == CURRENT_VALIDATION_HELPER_SHA256, 'ordering_validation_helper_unexpected')
+    return raw
+
+
 def module(name, raw):
+    if name in ('i23_sql_validation', 'i23_exact_sql_validation'):
+        raw = adapt_ordering_validation_source(raw)
     result = types.ModuleType(name)
     exec(compile(raw, name, 'exec'), result.__dict__)
     return result
@@ -317,9 +335,19 @@ def migration_sql_for_sqlcmd(files, migration):
         ending = 'COMMIT;\nGO\n\n'
         body = sql.removeprefix('BEGIN TRANSACTION;\n').removesuffix(ending)
         require(not re.search(r'(?im)^\s*GO\s*$', body), 'schedule_delta_batch_unexpected')
-        escaped = body.replace("'", "''")
+        statements = [part.strip() for part in body.split(';') if part.strip()]
+        heads = ('ALTER TABLE [Customers] ADD [AutomaticConfirmationCutoff]',
+                 'ALTER TABLE [Customers] ADD [OrderingScheduleVersion]',
+                 'ALTER TABLE [Customers] ADD CONSTRAINT [CK_Customers_AutomaticConfirmationCutoff]',
+                 'CREATE TABLE [RouteOrderSchedules]', 'INSERT INTO [__EFMigrationsHistory]')
+        require(len(statements) == len(heads) and all(statement.startswith(head)
+                for statement, head in zip(statements, heads)), 'schedule_delta_statements_unexpected')
+        # Compile each reviewed statement after the preceding DDL has executed.
+        # The outer transaction and single history guard still cover all five.
+        executions = ''.join("EXEC(N'" + (statement + ';').replace("'", "''") + "');\n"
+                             for statement in statements)
         return ("BEGIN TRANSACTION;\nIF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId=N'" +
-                MIGRATION + "')\nBEGIN\nEXEC(N'" + escaped + "');\nEND;\nGO\n\n" +
+                MIGRATION + "')\nBEGIN\n" + executions + "END;\nGO\n\n" +
                 SCHEDULE_GRANTS + '\nCOMMIT;\nGO\n\n')
     else:
         raise InstallError('migration_not_supported')
@@ -648,6 +676,9 @@ def make_installer(package):
             except validation.ValidationFailure as error:
                 if error.cleanup_database:
                     self.state['validation_database_cleanup_required'] = error.cleanup_database
+                self.state['validation_sql_error_numbers'] = list(error.sql_error_numbers)
+                if error.phase:
+                    self.state['validation_sql_phase'] = error.phase
                 raise InstallError(str(error)) from None
             self.state.update(exact_sql_validation=result, isolated_validation_verified=True,
                               validation_databases_cleaned=True)

@@ -8,19 +8,19 @@ Leer [ESTADO](docs/proyecto/ESTADO.md), [MATRIZ](docs/proyecto/MATRIZ-FUNCIONAL.
 
 ## Base y entorno conocidos
 
-- Base auditada: `aa802e210d15c70784f79dea2580709166b843c7`, I23 revisión 3, incluye código RF1. Bundle conservado y checksums verificados.
-- Instalado por reporte: backend `delivery-0cfe3ef511d8`, frontend `delivery-flow-426c360e1365`; última historia SQL reportada 17. Fuente frontend RF1 `426c360e13656ac8c39442b2b492c15393e979b8`.
-- RF1 reportó `updated/completed`, salud/frontend correctos, sin migraciones ni reinicio. La comprobación pública actual confirma índice RF1 y salud/BD.
-- I23 propone migración 18. El último intento reportado falló en `isolated-exact-sql-validation / validation_expected_rollback_not_observed`, antes de cambios operativos. No se confirma instalación I23 ni causa SQL exacta.
-- La rama de auditoría sólo cambia documentación. No reconstruir un instalador como efecto de esta tarea.
+- Aplicación instalada: `aa802e210d15c70784f79dea2580709166b843c7`, I23 integrado con RF1.
+- Backend/frontend: `ordering-schedules-i23-aa802e210d15`; 18 migraciones. Reporte `updated/completed` del usuario con SQL exacto, rollback/replay, permisos, limpieza y salud correctos.
+- Integrados corrector `8621e964` y cierre `d8e1db45`, conservando la documentación de auditoría `aee17c7`.
+- Ver [evidencia I23](docs/validation/2026-11-03-schedules-installed.md). No repetir instaladores ni confundir aceptación visual con instalación.
+- El usuario autoriza comenzar las correcciones y documentar cada hallazgo atendido. C1 trabaja sobre esta base; los cambios nuevos no se consideran desplegados.
 
 ## Siguiente trabajo propuesto
 
-1. Diagnosticar el gate SQL I23 conservando sus controles, rollback/replay, limpieza y respaldo.
+1. F03 resuelto por corrector y reporte I23; preservar guardas e incorporar la evidencia.
 2. Primera entrega de consolidación: recuperación de producción ante respuesta incierta, límite de login y corrección de races/borradores/fecha/entradas. Cada caso con regresión.
 3. Completar cobertura SQL de Horarios y un recorrido UI/API/SQL; después pulido visual y optimización medida, luego refactors por responsabilidad.
 
-El plan contiene dependencias y aceptación; no se autorizan nuevas funciones por inferencia. Las correcciones de código siguen propuestas en esta entrega.
+El plan contiene dependencias y aceptación; no se autorizan nuevas funciones por inferencia. Las correcciones de código están autorizadas; registrar pruebas y pendientes por hallazgo.
 
 ## Límites y preservación
 

@@ -7,14 +7,14 @@ Corte documental: 3 de noviembre de 2026, Ciudad de México. Un estado de instal
 | Concepto | Evidencia / resultado |
 |---|---|
 | Fuentes auditadas | `aa802e210d15c70784f79dea2580709166b843c7` (I23 revisión 3, integra RF1), bundle verificado |
-| Backend instalado confirmado | `delivery-0cfe3ef511d8` (I22) |
-| Frontend instalado confirmado | `delivery-flow-426c360e1365` (RF1), fuente `426c360e13656ac8c39442b2b492c15393e979b8` |
-| Historia SQL conocida | 17 migraciones en último control reportado; esta auditoría no consulta SQL productivo |
-| I23 | Código preparado, migración 18 propuesta; último intento reportado detenido en SQL aislado antes de cambios |
-| Comprobación pública | Índice coincide con RF1; HTTP 200 y `/health/db` devuelve `reachable` |
+| Backend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23) |
+| Frontend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23 integrado con RF1) |
+| Historia SQL conocida | 18 migraciones en el reporte I23; sin consulta SQL productiva desde este agente |
+| I23 | Instalado: `updated/completed`, SQL exacto, rollback/replay, permisos y limpieza verificados según reporte del usuario |
+| Comprobación pública | El índice RF1 fue comprobado antes del cierre I23; no representa el release actual |
 | Aceptación funcional | No consta validación completa de usuarios, ruta real, vueltas y entregas; sigue pendiente |
 
-I23 incluye horarios, martes inhábil y solicitudes restringidas de enlaces identificables vencidos. Esas reglas no deben describirse como ya instaladas en el backend I22. El último error conocido es `validation_expected_rollback_not_observed`; no hay evidencia que autorice quitar la guarda ni afirmar la causa del SQL.
+I23 está confirmado por [reporte del VPS](../validation/2026-11-03-schedules-installed.md), recibido después del corte de auditoría. El corrector `8621e964` y el cierre `d8e1db45` se integran sin cambiar la aplicación instalada aa802. El bloqueo F03 queda resuelto en ese entorno; permanece pendiente automatizar la cobertura CI específica F13. Aceptación de navegador pendiente.
 
 ## Módulos y alcance
 
@@ -25,12 +25,12 @@ I23 incluye horarios, martes inhábil y solicitudes restringidas de enlaces iden
 | Producción I19 | Lotes/asignaciones físicas implementados | Incorporada en I22 | Recuperación de envío incierto y medición |
 | Reparto I22 | Rutas/vueltas, reservas, parciales, custodia, bitácora | I22 confirmado; RF1 mejora acceso/preparación | Configuración/aceptación reales y hallazgos de lectura/contexto |
 | Reparto RF1 | Guía, acceso visible, panel y guardas | Confirmado por `updated/completed` | Validar accesos efectivos y recorrido del chofer |
-| Horarios/solicitudes I23 | Implementado en aa802 | No confirmado; gate aislado bloqueado | Diagnóstico y validación SQL/HTTP específica |
+| Horarios/solicitudes I23 | Implementado en aa802 | I23 confirmado | Validación SQL/HTTP funcional específica y aceptación |
 | Cobros/facturas/foto/firma/envases/offline | No implementado como módulo operativo | No aplica | Futuro alcance, excluido de consolidación |
 
 ## Calidad y trabajo actual
 
-[Auditoría](../audits/2026-11-03/AUDITORIA.md): 24 hallazgos, 22 acciones pendientes y dos contradicciones documentales resueltas. Tres P1 abiertos: reintento de producción, límite de login y bloqueo de validación I23. No se confirmó P0 ni un compromiso de seguridad.
+[Auditoría](../audits/2026-11-03/AUDITORIA.md): 24 hallazgos, 22 acciones pendientes y dos contradicciones documentales resueltas. El bloqueo P1 F03 se cierra con evidencia posterior; las correcciones de producción y login se abordan en C1. No se confirmó P0 ni un compromiso de seguridad.
 
 Las comprobaciones ejecutadas y sus límites están únicamente en [VALIDACION](../audits/2026-11-03/VALIDACION.md). Mantener separados Domain/Application, SQL Server, navegador con API simulada, recorrido real y aceptación humana. No sustituir evidencia de una fase por otra.
 

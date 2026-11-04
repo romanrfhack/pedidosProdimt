@@ -1,5 +1,24 @@
 # Bitácora de trabajo
 
+## I23 instalado — 3 de noviembre de 2026
+
+El reporte del usuario confirma instalador nativo v3 `updated/completed`, migraciones17→18, tres pruebas EF/HTTP correctas y SQL exacto con rollback, reaplicación, permisos y limpieza verificados. Snapshot y respaldo SQL verificado reportados; servicio reiniciado, salud y frontend correctos; `recovery_pending=false`. Conteos, precios, tokens, clave efectiva, permisos y reparto conservados conforme los controles del instalador. Sin cambio de contraseña, rotación de clave, revocación de tokens ni restauración automática SQL.
+
+Aplicación instalada `aa802e210d15c70784f79dea2580709166b843c7`, ambos releases `ordering-schedules-i23-aa802e210d15`; corrector de herramientas8621e964 sobre el payload ya construido. Evidencia y resumen JSON en `docs/validation/2026-11-03-schedules-installed.{md,json}`. Este cierre sustituye los pendientes históricos de compilación/SQL/despliegue que siguen abajo; no se hizo verificación SSH independiente ni aceptación de navegador desde este agente.
+
+No repetir instaladores. Siguiente: Ctrl+F5 con capturas resueltas, revisar `/admin/horarios` y `/admin/pendientes` y comprobar continuidad de Reparto. La aceptación visual y operativa permanece pendiente; no se operaron datos reales ni se enviaron mensajes. Este cierre sólo documenta el resultado, con fuente por bundle autosuficiente y publicación GitHub todavía pendiente por separado.
+
+## I23 — Corrector SQL nativo v3 sobre el payload ya construido
+
+El usuario confirmó transferencia correcta e inspección planned/completed, salud y base17 exacta. La aplicación se detuvo antes de snapshot/stage/stop en isolated-exact-sql-validation con validation_expected_rollback_not_observed. Antes pasaron las tres pruebas EF/HTTP portátiles y su limpieza. changes_made, database_migrations_run, migrations_may_have_changed y service_restarted=false. No se confirma I23 desplegado.
+
+El registro anterior no conserva el número SQL original: no permite atribuir la causa exacta a SQL207, permisos o transporte. La revisión detectó que el normalizador compilaba cinco instrucciones DDL/historial juntas, incluida la comprobación de una columna recién añadida. Se ejecutan ahora por separado, sin cambiar textos, orden, guarda ni transacción. El ensayo exige THROW51023 con marcador único, inspecciona stdout y stderr y rechaza otros errores; después verifica reversión real de historial/esquema/huellas. Se agregan números SQL y fase al JSON, sin mensajes privados.
+
+El nuevo helper se carga en memoria desde una copia revisada sólo si coincide el hash del helper anterior364e0fa2 o el actualff305043. No se reescribe el ZIP. Exportación pequeña para fuente binaria aa802e2 y payload f56edb2c: no recompilar ni volver a transferir18MB. El corrector repite todos los controles previos y respaldo verificado antes de operar. Las guardas del rol personalizado, claves, tokens, producción/reparto y recuperación permanecen.
+
+Validación local: Python533 (529 correctas/cuatro omitidas), incluidas18 regresiones focalizadas; comparación exacta de las cinco instrucciones, un único BEGIN/COMMIT, detección51023 por ambos streams, rechazo de207/éxito sin error, overlay por SHA y limpieza. No hay SQL Server, SDK o SSH disponibles aquí. El ensayo real del SQL corregido sigue siendo obligatorio en el VPS. Evidencia en docs/validation/2026-11-03-schedules-sql-correction.md; fuente por bundle autosuficiente, sin publicación GitHub.
+
+
 ## 2026-11-03 - Auditoría profunda y reconciliación documental
 
 Base de fuentes aa802e210d15c70784f79dea2580709166b843c7 (I23 preparado con RF1); instalado confirmado I22+RF1 y última historia reportada17. Se incorporó el reporte RF1 updated/completed y se distinguió el bloqueo SQL aislado posterior de I23. Comprobación pública actual de índice RF1 y salud correcta. Auditoría de seis áreas,24 hallazgos:22 acciones propuestas y dos contradicciones documentales corregidas. No se modificó aplicación, SQL, permisos o datos productivos ni se publicó GitHub. Resultados exactos y límites en [validación](../audits/2026-11-03/VALIDACION.md); siguiente prioridad [plan de consolidación](PLAN-CONSOLIDACION.md).
