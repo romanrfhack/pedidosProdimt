@@ -10,12 +10,13 @@ Sistema de captura de pedidos, catálogos y precios, revisión, producción por 
 - [Arquitectura actual y SOLID](docs/proyecto/ARQUITECTURA-ACTUAL.md).
 - [Auditoría profunda](docs/audits/2026-11-03/AUDITORIA.md) y [plan de consolidación](docs/proyecto/PLAN-CONSOLIDACION.md).
 - [Índice documental](docs/README.md), [decisiones](docs/proyecto/DECISIONES.md) y [bitácora](docs/proyecto/BITACORA.md).
+- [Candidato nativo C1 y validación del 4 de noviembre](docs/validation/2026-11-04-c1-native.md): gates WSL/SQL y límites de evidencia.
 
 ## Estado de entrega conocido
 
 La aplicación instalada confirmada es `aa802e210d15c70784f79dea2580709166b843c7` (I23 integrado con RF1), con backend y frontend `ordering-schedules-i23-aa802e210d15` y 18 migraciones. [Evidencia del reporte del VPS](docs/validation/2026-11-03-schedules-installed.md). La aceptación visual/operativa sigue pendiente.
 
-Primera entrega de [correcciones C1](docs/corrections/C1.md) sobre esa base, con regresión y seguimiento por hallazgo. Los cambios C1 no están desplegados. La ampliación del historial F06 añade una migración y requiere su propio paquete/gate SQL; no reutilizar el instalador I23 para C1. La auditoría original se conserva como corte histórico.
+Primera entrega de [correcciones C1](docs/corrections/C1.md) sobre esa base, con regresión y seguimiento por hallazgo. **C1 no está desplegado.** El candidato integrado está preparado con instalador propio: exige navegador completo del mismo commit en WSL y validaciones EF/HTTP más SQL exacto en bases temporales antes de respaldo y migración 18→19. La [evidencia nativa](docs/validation/2026-11-04-c1-native.md) separa lo ejecutado de los gates todavía pendientes. No reutilizar el instalador I23 ni aplicar SQL manualmente. La auditoría original se conserva como corte histórico.
 
 I16/productos, I18/seguridad, I19/producción e I21/Pedidos están incorporados en la base integrada I22. No se deben encadenar sus instaladores históricos.
 

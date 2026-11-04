@@ -13,6 +13,9 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
     public override void Customize(ModelBuilder builder, DbContext context)
     {
         base.Customize(builder, context);
+        builder.Entity<Customer>().Ignore(x => x.AutomaticConfirmationCutoff);
+        builder.Entity<Customer>().Ignore(x => x.OrderingScheduleVersion);
+        builder.Ignore<RouteOrderSchedule>();
         var product = builder.Entity<Product>();
         foreach (var fk in product.Metadata.GetForeignKeys().Where(x => x.Properties.Any(p => p.Name == nameof(Product.MergedIntoProductId))).ToArray())
             product.Metadata.RemoveForeignKey(fk);
@@ -43,6 +46,18 @@ public sealed class LegacyCaptureModelCustomizer(ModelCustomizerDependencies dep
         builder.Ignore<CustomerProductSetupRequest>(); builder.Ignore<CustomerProductSetupOrder>();
         builder.Ignore<ProductionBatch>(); builder.Ignore<ProductionAllocation>();
     }
+}
+
+// The pinned eleven-migration API fixture has no route schedule table. It uses
+// the existing default window and cannot write later I23 scheduling configuration.
+public sealed class LegacyOrderingScheduleRepository : IOrderingScheduleRepository
+{
+    public Task<IReadOnlyList<RouteOrderSchedule>> GetAllAsync(CancellationToken token)
+        => Task.FromResult<IReadOnlyList<RouteOrderSchedule>>([]);
+    public Task<RouteOrderSchedule?> GetAsync(string routeCode, CancellationToken token)
+        => Task.FromResult<RouteOrderSchedule?>(null);
+    public Task AddAsync(RouteOrderSchedule schedule, CancellationToken token) => throw new NotSupportedException();
+    public Task SaveChangesAsync(CancellationToken token) => throw new NotSupportedException();
 }
 
 // Historical repair fixtures have no I16 tables. New-product writes stay disabled

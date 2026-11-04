@@ -10,6 +10,8 @@
 
 Seguimiento de correcciones autorizado: [C1](corrections/C1.md), con evidencia por hallazgo y límites de validación.
 
+Preparación y validación del instalador propio: [candidato nativo C1 del 4 de noviembre](validation/2026-11-04-c1-native.md). El último despliegue confirmado sigue siendo I23; preparar un paquete no acredita su instalación.
+
 ## Contratos y antecedentes
 
 - `proyecto/INCREMENTO-*.md` define contratos y decisiones del incremento correspondiente. Su sección de entrega refleja la fecha en que se redactó; para estado actual usar ESTADO.

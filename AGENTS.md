@@ -1,10 +1,10 @@
 # AGENTS.md — PRODIMT Pedidos
 
-## Prioridad de consolidación (3 de noviembre de 2026)
+## Prioridad de consolidación (4 de noviembre de 2026)
 
-El usuario autorizó comenzar las correcciones de la auditoría y documentar cada hallazgo corregido. [C1](docs/corrections/C1.md) registra implementación, regresión y pendientes. La aplicación I23 `aa802e2` está instalada según reporte posterior del usuario: ambos releases `ordering-schedules-i23-aa802e210d15`, 18 migraciones; corrector SQL `8621e964`, cierre `d8e1db45`. El merge `cbc34aa` incorpora esa evidencia y conserva la auditoría. Los estados anteriores I22+RF1/I23 bloqueado son históricos.
+El usuario autorizó las correcciones, las pruebas pendientes y el despliegue de C1, sin requerir otra confirmación. [C1](docs/corrections/C1.md) registra cada hallazgo; la [preparación nativa del 4 de noviembre](docs/validation/2026-11-04-c1-native.md) distingue candidato, pruebas y despliegue. La aplicación instalada confirmada continúa en I23 `aa802e2`: ambos releases `ordering-schedules-i23-aa802e210d15`, 18 migraciones; corrector SQL `8621e964`, cierre `d8e1db45`. El merge `cbc34aa` conserva esa evidencia y la auditoría. No hay reporte de instalación C1.
 
-Priorizar consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar InMemory/SQLite/SQL Server/UI mock en la evidencia. C1 no está desplegado: cualquier migración nueva requiere SQL exacto, respaldo y paquete con base I23 propia; nunca cambiar el pin de un instalador antiguo para forzarlo. Los capítulos de fase inicial que siguen son históricos donde un incremento autorizado los amplía.
+Priorizar consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar InMemory/SQLite/SQL Server/UI mock en la evidencia. El candidato C1 incluye instalador propio sobre I23: el wrapper WSL exige navegador completo del mismo commit (240 casos, API simulada, sin omisiones) antes de transferir/aplicar; el VPS exige siete casos EF/HTTP con SQL Server y SQL exacto 18→19 en bases temporales, limpieza y respaldo verificado antes de DDL operativo. Un candidato preparado no acredita esos gates ni despliegue. No omitir gates ni cambiar pines de instaladores históricos. Después de DDL, recuperar hacia delante con el mismo paquete; no restaurar automáticamente ni truncar historia. Los capítulos iniciales que siguen son históricos donde un incremento autorizado los amplía.
 
 ## Alcance autorizado por incrementos
 

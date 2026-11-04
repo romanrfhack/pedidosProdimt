@@ -1,0 +1,178 @@
+{
+  "schema": "prodimt.c1.native-readiness.v1",
+  "date": "2026-11-04",
+  "timezone": "America/Mexico_City",
+  "baselineSource": "aa802e210d15c70784f79dea2580709166b843c7",
+  "baselineRelease": "ordering-schedules-i23-aa802e210d15",
+  "baselineMigrationCount": 18,
+  "preparedMigration": "20261104041928_ExpandAuditMetadata",
+  "targetMigrationCount": 19,
+  "productionChanges": false,
+  "deployed": false,
+  "githubPublished": false,
+  "humanAccepted": false,
+  "sourceProvenance": "Exact sourceCommit is recorded in source.json and manifest.json of the native package.",
+  "environment": {
+    "sdk": "10.0.403",
+    "efCore": "10.0.8",
+    "node": "24.22.1",
+    "sqlServer": "16.0.4205.1 Developer",
+    "sqlData": "synthetic, isolated UUID databases"
+  },
+  "checks": {
+    "dotnet": {
+      "passed": 499,
+      "failed": 0,
+      "skipped": 0,
+      "sqlServerIncluded": false
+    },
+    "components": {
+      "passed": 42,
+      "failed": 0,
+      "dom": false
+    },
+    "angular": {
+      "build": "passed",
+      "existingCssWarnings": 6
+    },
+    "e2eTypecheck": {
+      "status": "passed"
+    },
+    "sqlServerInitial": {
+      "total": 101,
+      "passed": 94,
+      "failed": 7,
+      "skipped": 0,
+      "issue": "historical fixtures used current model against old schema"
+    },
+    "sqlServerFinal": {
+      "total": 101,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 0,
+      "newAuditMetadataCasesPassed": 4
+    },
+    "python": {
+      "total": 580,
+      "passed": 576,
+      "skipped": 4,
+      "failed": 0,
+      "newDeploymentCases": 47,
+      "skipReasons": [
+        "3 historical root ownership fixtures",
+        "systemd 255 parser oracle unavailable"
+      ]
+    },
+    "efModel": {
+      "pendingChanges": false
+    },
+    "browser": {
+      "status": "blocked_environment",
+      "collected": 240,
+      "assertionsExecuted": false,
+      "api": "mock",
+      "issue": "Chromium Unix socket EPERM before page creation",
+      "requiredOnWsl": {
+        "passed": 240,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      }
+    },
+    "nativePortable": {
+      "status": "passed",
+      "summary": {
+        "schema": "prodimt.consolidation.c1.validation.v1",
+        "status": "passed",
+        "passed": 7,
+        "expected": 7,
+        "cleanupVerified": true
+      },
+      "generatedDatabaseCount": 2,
+      "independentCleanupVerified": true,
+      "issue": null
+    },
+    "exactSql": {
+      "schema": "prodimt.consolidation.c1.sql-validation.v1",
+      "status": "passed",
+      "exactSql": true,
+      "strictMetadata": true,
+      "applicationPermissions": true,
+      "preservationVerified": true,
+      "unicodeAuditVerified": true,
+      "lossyDowngradeRejected": true,
+      "safeDowngradeVerified": true,
+      "rollbackVerified": true,
+      "replayVerified": true,
+      "cleanupVerified": true
+    },
+    "publicHealth": {
+      "status": "ok",
+      "database": "reachable",
+      "releaseIdentified": false
+    }
+  },
+  "deploymentPolicy": {
+    "candidateOnly": true,
+    "browserGateMandatory": true,
+    "repeatNativeSqlGatesOnDestination": true,
+    "verifiedBackupBeforeDdl": true,
+    "forwardRecoveryAfterDdl": true,
+    "businessTablesPreserved": 33
+  },
+  "logs": {
+    "dotnet-tests.log": {
+      "bytes": 2084,
+      "sha256": "0ff12dca9863d206df06771a2d97e5bc14dee61bf168e7e2b70628d57af8c4d9"
+    },
+    "sqlserver-tests.log": {
+      "bytes": 34775,
+      "sha256": "f615d1c87de091feb7ca35b80356aeca8fd81413d641ecb363c61a95bd47babe"
+    },
+    "sqlserver-tests-final.log": {
+      "bytes": 2897,
+      "sha256": "c9d810c0df3538e72240518b50ab5d24059f0392c02c3a127f31bda4c3b09903"
+    },
+    "python-all-final.log": {
+      "bytes": 693,
+      "sha256": "ffcf25c567af88c870cc6ae2f1bb327f1eedd3d995adb73c72a8ffea869a5a95"
+    },
+    "ef-model.log": {
+      "bytes": 65,
+      "sha256": "815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c"
+    },
+    "public-health.json": {
+      "bytes": 38,
+      "sha256": "f3f5daf811bbe42a89f36585ba8de660dbb114966e1e1354bb8d52166af69088"
+    },
+    "browser/summary.json": {
+      "bytes": 2344,
+      "sha256": "7c9a692a1d57ee3c3cfb800056c6ba50df281090a79d1b84cfec08616ec2b494"
+    },
+    "browser/angular-build.log": {
+      "bytes": 4523,
+      "sha256": "f95c0daf51d00865e28f829b4def56adeca47a30d46e24e335b50f45682c4588"
+    },
+    "c1-exact-sql.json": {
+      "bytes": 811,
+      "sha256": "2224756b9d092310902e9273934435035fae94346d9d6a01afc615cd70d20cb5"
+    },
+    "c1-portable-sql.json": {
+      "bytes": 275,
+      "sha256": "6e8ee1218fbde7596e9e2e5167536eaf5e45014af078bd83bbafe49fa744db23"
+    },
+    "browser/component.log": {
+      "bytes": 4560,
+      "sha256": "8b8dd7f07e30bbdb4f7521872d8de2c6b3e07dae2f36f17ee5c836bb01660688"
+    },
+    "browser/e2e-typecheck.log": {
+      "bytes": 233,
+      "sha256": "89aa6b78e9708f855addbf8c3a7cab362f2e68bd5a9dbbaeb47eb8471b4b1bc3"
+    }
+  },
+  "normalizedSqlSha256": {
+    "validation-baseline.sql": "d3f82d0209fe87492aa2c6a1957c10092d94901b4c041fc577729e73b87974e0",
+    "migrations-c1.sql": "551d7a65fccae9eeca8d8caf4bc8d491e75fc6b33f0014d36c5de0469a307f8b",
+    "rollback-c1.sql": "f6e6ce6c2a2c4bacece8be525558516834ffe852b495a0ef82559ffcf7051980"
+  }
+}

@@ -15,6 +15,7 @@ internal static partial class ValidationRunner
 {
     private const string ConnectionVariable = "PRODIMT_SQL_TEST_CONNECTION";
     private const string Protocol = "prodimt.delivery.validation.v1";
+    private const string ConsolidationProtocol = "prodimt.consolidation.c1.validation.v1";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public static async Task<int> Main(string[] args)
@@ -22,8 +23,10 @@ internal static partial class ValidationRunner
         var output = Console.Out;
         var error = Console.Error;
         var passed = new List<string>();
+        var generatedDatabases = new HashSet<string>(StringComparer.Ordinal);
+        var consolidation = args is ["--validate-c1"];
         var cleanupVerified = false;
-        var expected = args is ["--self-test"] ? 1 : 3;
+        var expected = args is ["--self-test"] ? 1 : consolidation ? 7 : 3;
         string? issue = null;
         string? normalizedConnection = null;
         SqlServerFixture? fixture = null;
@@ -34,9 +37,17 @@ internal static partial class ValidationRunner
         // Only the fixed protocol below is permitted out of this child process.
         Console.SetOut(TextWriter.Null);
         Console.SetError(TextWriter.Null);
+        void TrackDatabase(string name)
+        {
+            if (!GeneratedDatabase().IsMatch(name) || !generatedDatabases.Add(name))
+                throw new ValidationFailure("isolated_database_name_invalid");
+            output.WriteLine("DATABASE " + name);
+            output.Flush();
+        }
+        SqlServerFixture.DisposableDatabaseCreating += TrackDatabase;
         try
         {
-            if (args is not (["--validate"] or ["--self-test"]))
+            if (args is not (["--validate"] or ["--validate-c1"] or ["--self-test"]))
                 throw new ValidationFailure("invalid_arguments");
 
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
@@ -55,8 +66,6 @@ internal static partial class ValidationRunner
                 fixture = new SqlServerFixture();
                 // This generated, non-business identifier lets the supervising
                 // installer clean up even if it must terminate a timed-out child.
-                output.WriteLine("DATABASE " + fixture.DisposableDatabaseName);
-                output.Flush();
                 phase = "initialize_isolated_database_failed";
                 await fixture.InitializeAsync();
                 var cases = new DeliveryManagementSqlTests(fixture);
@@ -72,12 +81,33 @@ internal static partial class ValidationRunner
                 phase = "revoked_management_replay_failed";
                 await cases.RevokedManagementPermissionCannotReplayAnEarlierCommandForAnotherDriver();
                 passed.Add("revoked_management_replay");
+
+                if (consolidation)
+                {
+                    var audit = new AuditMetadataSqlTests(fixture);
+                    phase = "large_profile_audit_9_failed";
+                    await audit.LargeProfileAudit_PreservesEveryProductAndRollsBackOnAuditFailure(9);
+                    passed.Add("large_profile_audit_9");
+
+                    phase = "large_profile_audit_20_failed";
+                    await audit.LargeProfileAudit_PreservesEveryProductAndRollsBackOnAuditFailure(20);
+                    passed.Add("large_profile_audit_20");
+
+                    phase = "unicode_audit_roundtrip_failed";
+                    await audit.ExpandedAuditColumn_RoundTripsUnicodeWithoutTruncation();
+                    passed.Add("unicode_audit_roundtrip");
+
+                    phase = "audit_migration_preservation_failed";
+                    await audit.AuditMigration_PreservesExistingRowsAndRefusesLossyDowngrade();
+                    passed.Add("audit_migration_preservation");
+                }
             }
         }
         catch (ValidationFailure failure) { issue = failure.Code; }
         catch (Exception) { issue = phase; }
         finally
         {
+            SqlServerFixture.DisposableDatabaseCreating -= TrackDatabase;
             if (fixture is not null && normalizedConnection is not null)
             {
                 // Attempt fixture cleanup, then independently prove absence.
@@ -86,8 +116,13 @@ internal static partial class ValidationRunner
                 catch (Exception) { /* The independent cleanup below is authoritative. */ }
                 try
                 {
-                    await CleanupGeneratedDatabaseAsync(normalizedConnection, fixture.DisposableDatabaseName);
-                    cleanupVerified = true;
+                    cleanupVerified = generatedDatabases.Count > 0;
+                    foreach (var database in generatedDatabases)
+                    {
+                        try { await CleanupGeneratedDatabaseAsync(normalizedConnection, database); }
+                        catch (Exception) { cleanupVerified = false; }
+                    }
+                    if (!cleanupVerified) issue = "isolated_database_cleanup_failed";
                 }
                 catch (Exception)
                 {
@@ -110,13 +145,14 @@ internal static partial class ValidationRunner
         if (!success) output.WriteLine("FAIL " + (issue ?? "validation_incomplete"));
         output.WriteLine(JsonSerializer.Serialize(new
         {
-            schema = Protocol,
+            schema = consolidation ? ConsolidationProtocol : Protocol,
             status = success ? "passed" : "failed",
             passed = passed.Count,
             expected,
             cleanupVerified,
             cleanupDatabase = !cleanupVerified && fixture is not null && GeneratedDatabase().IsMatch(fixture.DisposableDatabaseName)
                 ? fixture.DisposableDatabaseName : null,
+            cleanupDatabases = consolidation && !cleanupVerified ? generatedDatabases.ToArray() : null,
             issue = success ? null : issue ?? "validation_incomplete"
         }, Json));
         return success ? 0 : 1;

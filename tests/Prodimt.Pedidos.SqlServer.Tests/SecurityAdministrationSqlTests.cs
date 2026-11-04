@@ -225,13 +225,29 @@ public sealed class SecurityAdministrationSqlTests : IAsyncLifetime
             await old.GetService<IMigrator>().MigrateAsync(I12);
             var active = Guid.NewGuid(); var inactive = Guid.NewGuid(); var tokenId = Guid.NewGuid();
             var customer = Customer.Create("Synthetic retained customer", null, null, null, null, null, SqlServerFixture.Now);
-            old.Customers.Add(customer);
             var token = CustomerAccessToken.Create(customer.Id, "synthetic-retained-token-hash", "Synthetic retained access",
                 DateTimeOffset.UtcNow.AddDays(1), SqlServerFixture.Now, true);
             token.Id = tokenId; token.ProtectedToken = "synthetic-retained-ciphertext";
-            old.CustomerAccessTokens.Add(token);
-            var historical = Audit("SyntheticBeforeSecurity"); old.AuditLogs.Add(historical);
-            await old.SaveChangesAsync();
+            var historical = Audit("SyntheticBeforeSecurity");
+            // Seed only columns present in I12. The current EF Customer model also maps
+            // I23 schedule columns, so SaveChanges cannot represent this historical schema.
+            await old.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO dbo.Customers
+                    (Id,Name,PhoneNumber,IsActive,OrderingProfileVersion,IsOrderProfileApproved,RestDaysMask,CreatedAt,UpdatedAt)
+                VALUES
+                    ({customer.Id},{customer.Name},{customer.PhoneNumber},{customer.IsActive},{customer.OrderingProfileVersion},
+                     {customer.IsOrderProfileApproved},{customer.RestDaysMask},{customer.CreatedAt},{customer.UpdatedAt});
+                INSERT INTO dbo.CustomerAccessTokens
+                    (Id,CustomerId,TokenHash,DisplayName,IsActive,ExpiresAt,CreatedAt,IsReminderLink,MetadataVersion,ProtectedToken)
+                VALUES
+                    ({token.Id},{token.CustomerId},{token.TokenHash},{token.DisplayName},{token.IsActive},{token.ExpiresAt},
+                     {token.CreatedAt},{token.IsReminderLink},{token.MetadataVersion},{token.ProtectedToken});
+                INSERT INTO dbo.AuditLogs
+                    (Id,EntityType,EntityId,EventType,OccurredAt,ActorType,Summary)
+                VALUES
+                    ({historical.Id},{historical.EntityType},{historical.EntityId},{historical.EventType},
+                     {historical.OccurredAt},{(int)historical.ActorType},{historical.Summary});
+                """);
             await old.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO dbo.AdminUsers (Id,UserName,PasswordHash,DisplayName,IsActive,CreatedAt) VALUES ({active},N'synthetic-existing-active',N'synthetic-active-hash',N'Existing active',1,{SqlServerFixture.Now}),({inactive},N'synthetic-existing-inactive',N'synthetic-inactive-hash',N'Existing inactive',0,{SqlServerFixture.Now});");
             Assert.Equal(13, (await old.Database.GetAppliedMigrationsAsync()).Count());
             await old.GetService<IMigrator>().MigrateAsync(I18);

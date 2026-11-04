@@ -94,7 +94,13 @@ public sealed class NativeUpgradeSqlTests(SqlServerFixture fixture)
 
     private static async Task AssertPreservedDataAsync(PedidosDbContext db, Guid customerId, Guid adminId)
     {
-        var customer = Assert.Single(await db.Customers.AsNoTracking().ToArrayAsync());
+        // Query only fields in the twelve-migration target, as for AdminUsers below.
+        // Materializing the current Customer entity also selects later I23 columns.
+        var customer = Assert.Single(await db.Customers.AsNoTracking().Select(x => new
+        {
+            x.Id, x.RestDaysMask, x.Name, x.PhoneNumber, x.ExternalCode, x.IsActive,
+            x.CreatedAt, x.UpdatedAt, x.IsOrderProfileApproved, x.OrderingProfileVersion
+        }).ToArrayAsync());
         Assert.Equal(customerId, customer.Id);
         Assert.Equal(0, customer.RestDaysMask);
         Assert.Equal("Synthetic existing customer", customer.Name);

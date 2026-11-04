@@ -32,6 +32,9 @@ public sealed class SqlServerFixture : IAsyncLifetime
     // The portable deployment validator uses only this generated name to
     // independently verify cleanup after a lost CREATE or DROP response.
     public string DisposableDatabaseName => _databaseName;
+    // The portable supervisor records every UUID before CREATE, including a
+    // nested migration test, so timeout cleanup never relies on child finally.
+    public static event Action<string>? DisposableDatabaseCreating;
     private string _masterConnection = string.Empty;
     private bool _created;
     public string ConnectionString { get; private set; } = string.Empty;
@@ -53,6 +56,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
         builder.InitialCatalog = _databaseName;
         ConnectionString = builder.ConnectionString;
 
+        DisposableDatabaseCreating?.Invoke(_databaseName);
         await using (var connection = new SqlConnection(_masterConnection))
         {
             await connection.OpenAsync();
@@ -121,6 +125,45 @@ public sealed class SqlServerFixture : IAsyncLifetime
         return new TestCatalog(customer.Id, customer.ExternalCode!, product.Id, product.ExternalCode!, second.Id, second.ExternalCode!);
     }
 
+    public enum HistoricalCatalogSchema { SharedProductsI11, RecoverableAccessI12 }
+
+    public async Task<TestCatalog> CreateHistoricalCatalogAsync(HistoricalCatalogSchema schema)
+    {
+        var (migration, count) = schema switch
+        {
+            HistoricalCatalogSchema.SharedProductsI11 => ("20261101154618_AddSharedProductsAndCustomerPrices", 12),
+            HistoricalCatalogSchema.RecoverableAccessI12 => ("20261101190000_AddRecoverableCustomerAccessTokens", 13),
+            _ => throw new ArgumentOutOfRangeException(nameof(schema))
+        };
+        await using var db = CreateDbContext();
+        var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
+        Assert.Equal(count, applied.Length);
+        Assert.Equal(migration, applied[^1]);
+        var code = Guid.NewGuid().ToString("N");
+        var customerId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var secondId = Guid.NewGuid();
+        var customerCode = $"C-{code}";
+        var productCode = $"P-{code}";
+        var secondCode = $"Q-{code}";
+        // These fixtures intentionally stop before later Customer schedule and
+        // Product machine fields. Use only columns shared by the exact I11/I12 targets.
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO dbo.Customers
+                (Id,Name,PhoneNumber,IsActive,OrderingProfileVersion,IsOrderProfileApproved,RestDaysMask,
+                 CreatedAt,UpdatedAt,ExternalCode,RouteCode,RouteStopOrder,HasStoreKey,PaymentTermCode,InternalDeliveryInstructions)
+            VALUES
+                ({customerId},{"Synthetic client " + code},N'',1,0,0,0,{Now},{Now},{customerCode},
+                 N'SQL-TEST',1,1,N'cash_on_delivery',N'Synthetic delivery instruction');
+            INSERT INTO dbo.Products (Id,Name,UnitCode,ExternalCode,IsActive)
+            VALUES ({productId},{"Synthetic kg " + code},N'kg',{productCode},1),
+                   ({secondId},{"Synthetic package " + code},N'package',{secondCode},1);
+            """);
+        await transaction.CommitAsync();
+        return new TestCatalog(customerId, customerCode, productId, productCode, secondId, secondCode);
+    }
+
     public async Task DisposeAsync()
     {
         if (!_created) return;
@@ -177,6 +220,8 @@ public sealed class SqlServerFixture : IAsyncLifetime
                     services.AddScoped<Prodimt.Pedidos.Application.Security.ISecurityStore, LegacySecurityStore>();
                     services.RemoveAll<ICustomerProductSetupRepository>();
                     services.AddScoped<ICustomerProductSetupRepository, LegacyCustomerProductSetupRepository>();
+                    services.RemoveAll<IOrderingScheduleRepository>();
+                    services.AddScoped<IOrderingScheduleRepository, LegacyOrderingScheduleRepository>();
                 }
                 services.RemoveAll<IDateTimeProvider>();
                 services.AddSingleton<IDateTimeProvider, FixedClock>();
