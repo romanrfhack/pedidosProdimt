@@ -27,9 +27,10 @@
       "sqlServerIncluded": false
     },
     "components": {
-      "passed": 42,
+      "passed": 47,
       "failed": 0,
-      "dom": false
+      "dom": false,
+      "newNotificationCases": 5
     },
     "angular": {
       "build": "passed",
@@ -53,11 +54,11 @@
       "newAuditMetadataCasesPassed": 4
     },
     "python": {
-      "total": 581,
-      "passed": 577,
+      "total": 585,
+      "passed": 581,
       "skipped": 4,
       "failed": 0,
-      "newDeploymentCases": 48,
+      "newDeploymentCases": 52,
       "skipReasons": [
         "3 historical root ownership fixtures",
         "systemd 255 parser oracle unavailable"
@@ -67,11 +68,11 @@
       "pendingChanges": false
     },
     "browser": {
-      "status": "pending_corrected_candidate",
+      "status": "see_source_bound_package_browser_evidence",
       "collected": 240,
       "assertionsExecuted": true,
       "api": "mock",
-      "issue": "Chromium Unix socket EPERM before page creation",
+      "issue": "Revision2: secondary notification failure hid review list, select label locators, desktop layout overflow.",
       "requiredOnWsl": {
         "passed": 240,
         "failed": 0,
@@ -85,23 +86,67 @@
         "issue": "Chromium Unix socket EPERM before page creation"
       },
       "latestUserAttempt": {
-        "sourceCommit": "e7693ab67a656aeb61f05e0f87f4f148b5026d1b",
+        "sourceCommit": "e9ef18b73e534602df41a1df0fc221586a715e74",
         "environment": "User WSL Ubuntu24.04",
         "collected": 240,
-        "passed": 79,
-        "failed": 1,
-        "notRun": 160,
-        "maxFailures": 1,
-        "issue": "stale text expectation cambiarlo instead of cambiarla",
+        "passed": 231,
+        "failed": 9,
+        "skipped": 0,
+        "flaky": 0,
+        "notRun": 0,
+        "maxFailures": 0,
         "productionTouched": false
       },
       "correction": {
-        "file": "tests/e2e/specs/customer-next-order.spec.ts",
-        "applicationChanged": false,
-        "browserValidated": false,
-        "completeSuiteRequired": true,
+        "candidateRevision": 3,
+        "frontendChanged": true,
+        "backendChanged": false,
+        "sqlChanged": false,
+        "browserFocalCasesPassed": 16,
+        "componentsPassed": 47,
         "strictTypecheck": "passed",
-        "collection": 240
+        "completeSuiteRequired": true,
+        "completeSuiteEvidenceFile": "BROWSER_C1_VALIDACION.json",
+        "completeSuiteEvidenceSummary": "BROWSER_C1_VALIDACION.md",
+        "humanAccepted": false
+      },
+      "userAttempts": [
+        {
+          "sourceCommit": "e7693ab67a656aeb61f05e0f87f4f148b5026d1b",
+          "environment": "User WSL Ubuntu24.04",
+          "collected": 240,
+          "passed": 79,
+          "failed": 1,
+          "notRun": 160,
+          "maxFailures": 1,
+          "issue": "stale text expectation cambiarlo instead of cambiarla",
+          "productionTouched": false
+        }
+      ],
+      "localEnvironmentNow": {
+        "browser": "Chrome Headless Shell 148.0.7778.96",
+        "launch": "standard Playwright default; no policy changes",
+        "focalRuns": [
+          {
+            "file": "customer-workweek.spec.ts",
+            "passed": 8,
+            "failed": 0
+          },
+          {
+            "scope": "eight previous review/delivery failures",
+            "passed": 8,
+            "failed": 0
+          }
+        ],
+        "desktopLayout1366": {
+          "viewportHeight": 768,
+          "beforeScrollHeight": 809,
+          "afterScrollHeight": 768,
+          "thresholdKept": 769,
+          "mainBottom": 765.03125,
+          "allOutsideListActionsInViewport": true,
+          "weekCheckboxesInViewport": 7
+        }
       }
     },
     "nativePortable": {
@@ -219,6 +264,38 @@
     "e2e-collection-v2.log": {
       "bytes": 31555,
       "sha256": "b5514b52e5a20b5159894999127681068464702375892fb8d9fbafc3716ee3ed"
+    },
+    "notification-component-before.log": {
+      "bytes": 4498,
+      "sha256": "9dd5aa7191b56e920c988cdae63314dcec4a67e2338b23ffa59669eb27cc22c0"
+    },
+    "notification-components-all-after.log": {
+      "bytes": 4920,
+      "sha256": "cbc352adaf7429919ff78e1bc3032caa16c834aea655138a8a7e0345dda91aba"
+    },
+    "notification-date-busy-before.log": {
+      "bytes": 1084,
+      "sha256": "11a2165bbd7b05d8ab165852ae5832e046f5de1d608b064f25c62d937e3799a3"
+    },
+    "notification-mock-contract.log": {
+      "bytes": 169,
+      "sha256": "510a3bda3a1fef9320afcfcb1e043879901e9cee7167296e12a2447482b41cff"
+    },
+    "e2e-typecheck-r3.log": {
+      "bytes": 233,
+      "sha256": "89aa6b78e9708f855addbf8c3a7cab362f2e68bd5a9dbbaeb47eb8471b4b1bc3"
+    },
+    "python-all-r3.log": {
+      "bytes": 697,
+      "sha256": "e224100108ac51819b7eea16f0154f264c1205c62c0c0e8cf8b1dc60f7382fe5"
+    },
+    "browser-targeted-r3.json": {
+      "bytes": 10748,
+      "sha256": "0c906955969319744e4a48cb270492f9b34824ee4193ee0ae1150f10f8e32739"
+    },
+    "browser-summary-r3-tests.log": {
+      "bytes": 477,
+      "sha256": "f159b11f5aa62a6598739b88209b237e00bb76bafb7b702ce551fbb6359df826"
     }
   },
   "normalizedSqlSha256": {
@@ -227,10 +304,33 @@
     "rollback-c1.sql": "f6e6ce6c2a2c4bacece8be525558516834ffe852b495a0ef82559ffcf7051980"
   },
   "userEvidence": {
-    "name": "Texto pegado(2).txt",
-    "sha256": "3c0b57469338bfe17726a3d0a7886e8d7cda2d48da9ea3a695b129792b45a1c5",
-    "bytes": 22874
+    "name": "Texto pegado(3).txt",
+    "sha256": "b6d74e5292bb690fbdd2d89c0abe13a1e702e7a1825ede4dc98d62fcc5e7ba54",
+    "bytes": 11152
   },
   "applicationBinarySourceCommit": "e7693ab67a656aeb61f05e0f87f4f148b5026d1b",
-  "candidateRevision": 2
+  "candidateRevision": 3,
+  "candidateChanges": {
+    "applicationBackend": false,
+    "databaseMigration": false,
+    "frontend": [
+      "review notification error isolation and context",
+      "focused desktop configuration spacing"
+    ],
+    "testHarness": [
+      "notification contract mocks",
+      "combobox role locators",
+      "stronger viewport/decision checks"
+    ],
+    "packaging": [
+      "optional source-bound browser evidence, no gate bypass"
+    ]
+  },
+  "userEvidenceHistory": [
+    {
+      "name": "Texto pegado(2).txt",
+      "sha256": "3c0b57469338bfe17726a3d0a7886e8d7cda2d48da9ea3a695b129792b45a1c5",
+      "bytes": 22874
+    }
+  ]
 }

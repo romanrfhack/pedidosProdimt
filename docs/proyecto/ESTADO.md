@@ -10,14 +10,14 @@ Corte documental: 4 de noviembre de 2026, Ciudad de México. Un estado de instal
 | Backend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23) |
 | Frontend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23 integrado con RF1) |
 | Historia SQL conocida | 18 migraciones en el reporte I23; sin consulta SQL productiva desde este agente |
-| C1 | Candidato nativo integrado preparado para WSL; nueva ejecución de 499 pruebas .NET, 42 componentes, 101 SQL Server y 577 Python correctos (cuatro omisiones históricas); build/typecheck/modelo EF, validador portátil 7/7 y gate SQL exacto 18→19 correctos. Navegador WSL y despliegue pendientes; VPS repetirá sus controles SQL |
+| C1 | Candidato R3 en validación. Base técnica previa: 499 pruebas .NET, 101 SQL Server, validador portátil 7/7 y SQL exacto 18→19 correctos. R2 WSL: 231 correctas y nueve fallidas de 240. R3: 47/47 componentes, 16/16 casos focales y tipado E2E correctos; Python 581 correctas y cuatro omisiones de 585. Script canónico y navegador completo del commit final pendientes. C1 sin desplegar |
 | I23 | Instalado: `updated/completed`, SQL exacto, rollback/replay, permisos y limpieza verificados según reporte del usuario |
 | Comprobación pública | El 4 de noviembre `/health/db` devuelve `status: ok`, `database: reachable`. Acredita salud actual, no identifica release ni confirma C1 |
 | Aceptación funcional | No consta validación completa de usuarios, ruta real, vueltas y entregas; sigue pendiente |
 
 I23 está confirmado por [reporte del VPS](../validation/2026-11-03-schedules-installed.md), recibido después del corte de auditoría. El corrector `8621e964` y el cierre `d8e1db45` se integran sin cambiar la aplicación instalada aa802. El bloqueo F03 queda resuelto en ese entorno; permanece pendiente automatizar la cobertura CI específica F13. Aceptación de navegador pendiente.
 
-**C1 no está desplegado.** La [preparación nativa del 4 de noviembre](../validation/2026-11-04-c1-native.md) registra el candidato sobre I23, los gates obligatorios y sus límites. Chromium local aborta antes de assertions; el wrapper WSL exige los 240 casos del mismo commit con API simulada, sin omisiones, antes de aplicar. El primer pase SQL completo encontró siete fallos históricos de fixtures (94/101 correctas); las cuatro regresiones nuevas F06 pasaron. Se corrigieron las fixtures, sin relajar la aplicación, y la repetición completa dio **101/101 correctas, cero fallos y omisiones**, en SQL Server 2022 Developer `16.0.4205.1`. Se conserva también el pase inicial. La validación SQL temporal no acredita instalación en el VPS.
+**C1 no está desplegado.** La [preparación nativa del 4 de noviembre](../validation/2026-11-04-c1-native.md) registra el candidato sobre I23, los gates obligatorios y sus límites. Los primeros intentos locales de Chromium abortaban antes de assertions; la ejecución WSL posterior sí ejecutó los 240 casos. El wrapper exige 240 correctas del mismo commit con API simulada, sin omisiones, antes de aplicar. El primer pase SQL completo encontró siete fallos históricos de fixtures (94/101 correctas); las cuatro regresiones nuevas F06 pasaron. Se corrigieron las fixtures, sin relajar la aplicación, y la repetición completa dio **101/101 correctas, cero fallos y omisiones**, en SQL Server 2022 Developer `16.0.4205.1`. Se conserva también el pase inicial. La validación SQL temporal no acredita instalación en el VPS.
 
 El gate SQL exacto también pasó en SQL Server real: 18→19, metadata estricta,
 preservación de 33 tablas, Unicode/permisos de aplicación, rollback/replay,
@@ -31,7 +31,9 @@ candidato; no una operación sobre la base productiva ni una aceptación humana.
 
 ## Ejecución WSL posterior del candidato
 
-El usuario confirmó Chromium operativo: **79 correctas, una fallida y 160 no ejecutadas**. La prueba esperaba un texto anterior al vigente desde I23; se corrige únicamente su selector y se habilita diagnóstico completo sin detenerse al primer fallo. [Evidencia y segunda revisión](../validation/2026-11-04-c1-browser-wsl.md). Las 240 correctas siguen siendo obligatorias; C1 no está desplegado.
+El usuario confirmó Chromium operativo: **79 correctas, una fallida y 160 no ejecutadas** en el primer pase. La prueba esperaba un texto anterior al vigente desde I23; la [segunda revisión](../validation/2026-11-04-c1-browser-wsl.md) corrigió sólo ese selector y permitió recoger todos los fallos.
+
+El pase completo de R2 `e9ef18b73e534602df41a1df0fc221586a715e74` dio **231 correctas, nueve fallidas, cero omitidas y cero inestables**. La [revisión R3](../validation/2026-11-04-c1-browser-r3.md) corrige el error auxiliar que ocultaba pendientes tras una revisión, cinco selectores exactos de reparto y dos espaciados de escritorio de configuración. Se comprobaron **47/47 componentes, 16/16 casos focales de navegador y tipado E2E correcto**; los nueve fallos originales están cubiertos por esos casos focales. Python: **585 casos, 581 correctos y cuatro omisiones históricas**, cero fallos. El script canónico, incluido build, y la ejecución completa del commit final siguen pendientes; sus resultados se adjuntarán al paquete como `BROWSER_C1_VALIDACION.json` y `.md`. Las 240 correctas y la repetición WSL siguen siendo obligatorias; C1 no está desplegado.
 
 ## Módulos y alcance
 

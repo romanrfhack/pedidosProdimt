@@ -39,6 +39,13 @@ interface ChangeLineForm {
           <small>El mensaje se abre para tu revisión. Abrirlo no confirma que se haya enviado. Proponer otra fecha tampoco registra un pedido nuevo.</small>
         </section>
       }
+      @if (notificationLoading) { <p class="notice" role="status">Preparando aviso al cliente…</p> }
+      @if (notificationErrorMessage) {
+        <section class="notice stack" data-testid="decision-notification-error" aria-label="Aviso al cliente pendiente">
+          <p class="alert warning" role="alert">La decisión se guardó. No pudimos preparar el aviso al cliente: {{ notificationErrorMessage }}</p>
+          <button type="button" class="secondary" (click)="retryNotification()" [disabled]="notificationLoading">Reintentar preparar aviso</button>
+        </section>
+      }
       @if (isLoading) {
         <div class="notice">Cargando pendientes...</div>
       }
@@ -77,21 +84,21 @@ interface ChangeLineForm {
                   <button
                     type="button"
                     class="primary compact"
-                    [disabled]="reviewingOrderId === order.id"
+                    [disabled]="!!reviewingOrderId"
                     (click)="review(order, 'Accepted')">
                     Aceptar
                   </button>
                   <button
                     type="button"
                     class="secondary compact"
-                    [disabled]="reviewingOrderId === order.id"
+                    [disabled]="!!reviewingOrderId"
                     (click)="startAcceptedWithChanges(order)">
                     Ver detalle / ajustar
                   </button>
                   <button
                     type="button"
                     class="secondary compact"
-                    [disabled]="reviewingOrderId === order.id"
+                    [disabled]="!!reviewingOrderId"
                     (click)="review(order, 'Rejected')">
                     Rechazar
                   </button>
@@ -130,7 +137,7 @@ interface ChangeLineForm {
                       }
                     </div>
                     <div class="review-actions">
-                      <button type="submit" class="primary compact" [disabled]="reviewingOrderId === order.id">
+                      <button type="submit" class="primary compact" [disabled]="!!reviewingOrderId">
                         Aceptar con cambios
                       </button>
                       <button type="button" class="secondary compact" (click)="cancelChanges()">Cancelar</button>
@@ -184,11 +191,47 @@ export class AdminPendingComponent {
 
   private readonly http = inject(HttpClient);
   protected notification: { message: string; whatsAppUrl: string | null } | null = null;
+  protected notificationErrorMessage: string | null = null;
+  protected notificationLoading = false;
+  private notificationOrderId: string | null = null;
+  private notificationGeneration = 0;
+  private notificationSubscription: Subscription | null = null;
   private prepareNotification(id: string): void {
-    this.http.get<{ message: string; whatsAppUrl: string | null }>(environment.apiBaseUrl + '/api/admin/orders/' + id + '/notification').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: result => { this.notification = result; this.changeDetector.detectChanges(); },
-      error: e => { this.errorMessage = this.formatError(e, 'Se guardó la decisión, pero no pudimos preparar el aviso.'); this.changeDetector.detectChanges(); }
+    this.resetNotification();
+    this.notificationOrderId = id;
+    this.retryNotification();
+  }
+  protected retryNotification(): void {
+    const id = this.notificationOrderId;
+    if (!id || this.notificationLoading || this.destroyRef.destroyed) return;
+    const generation = ++this.notificationGeneration;
+    const date = this.serviceDate;
+    this.notificationErrorMessage = null;
+    this.notificationLoading = true;
+    const current = () => !this.destroyRef.destroyed && generation === this.notificationGeneration
+      && id === this.notificationOrderId && date === this.serviceDate;
+    this.notificationSubscription = this.http.get<{ message: string; whatsAppUrl: string | null }>(environment.apiBaseUrl + '/api/admin/orders/' + id + '/notification').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: result => {
+        if (!current()) return;
+        this.notification = result; this.notificationLoading = false;
+        this.changeDetector.detectChanges();
+      },
+      error: e => {
+        if (!current()) return;
+        this.notificationErrorMessage = this.formatError(e, 'El servicio de avisos no está disponible.');
+        this.notificationLoading = false;
+        this.changeDetector.detectChanges();
+      }
     });
+  }
+  private resetNotification(): void {
+    this.notificationGeneration++;
+    this.notificationSubscription?.unsubscribe();
+    this.notificationSubscription = null;
+    this.notificationOrderId = null;
+    this.notification = null;
+    this.notificationErrorMessage = null;
+    this.notificationLoading = false;
   }
   protected orders: AdminOrder[] = [];
   protected auditEvents: AdminOrderAuditEvent[] = [];
@@ -209,6 +252,7 @@ export class AdminPendingComponent {
 
   constructor() {
     this.destroyRef.onDestroy(() => {
+      this.resetNotification();
       this.resetAudit();
       this.cancelPendingLoad();
       this.cancelChangeLoad();
@@ -217,7 +261,8 @@ export class AdminPendingComponent {
   }
 
   protected changeDate(): void {
-    this.notification = null;
+    this.resetNotification();
+    this.reviewingOrderId = null;
     this.orders = [];
     this.resetAudit();
     this.cancelPendingLoad();
@@ -228,12 +273,16 @@ export class AdminPendingComponent {
   }
 
   protected review(order: AdminOrder, decision: AdminDecisionApiValue): void {
+    if (this.destroyRef.destroyed || this.reviewingOrderId) return;
+    const date = this.serviceDate;
+    this.resetNotification();
     this.errorMessage = null;
     this.resultMessage = null;
     this.reviewingOrderId = order.id;
 
     this.data.reviewOrder(order.id, decision).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
+        if (this.destroyRef.destroyed || date !== this.serviceDate) return;
         this.resultMessage = decision === 'Accepted'
           ? 'Pedido aceptado.'
           : 'No fue posible aceptar el pedido para esa fecha.';
@@ -241,6 +290,7 @@ export class AdminPendingComponent {
         this.load(false);
       },
       error: (error: unknown) => {
+        if (this.destroyRef.destroyed || date !== this.serviceDate) return;
         this.errorMessage = this.formatError(error, 'No se pudo guardar la decision administrativa.');
         this.reviewingOrderId = null;
         this.changeDetector.detectChanges();
@@ -250,7 +300,8 @@ export class AdminPendingComponent {
 
   protected startAcceptedWithChanges(order: AdminOrder): void {
     this.cancelChangeLoad();
-    if (this.destroyRef.destroyed || this.isLoading) return;
+    if (this.destroyRef.destroyed || this.isLoading || this.reviewingOrderId) return;
+    this.resetNotification();
     const generation = this.changeGeneration;
     const date = this.serviceDate;
     this.errorMessage = null;
@@ -284,12 +335,15 @@ export class AdminPendingComponent {
   }
 
   protected reviewWithChanges(order: AdminOrder): void {
+    if (this.destroyRef.destroyed || this.reviewingOrderId) return;
+    const date = this.serviceDate;
     if (this.changeLines.some((line) => Number(line.quantity) <= 0)) {
       this.errorMessage = 'Las cantidades ajustadas deben ser mayores a cero.';
       this.changeDetector.detectChanges();
       return;
     }
 
+    this.resetNotification();
     this.errorMessage = null;
     this.resultMessage = null;
     this.reviewingOrderId = order.id;
@@ -309,11 +363,13 @@ export class AdminPendingComponent {
       }))
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
+        if (this.destroyRef.destroyed || date !== this.serviceDate) return;
         this.resultMessage = 'Pedido aceptado con cambios.'; this.prepareNotification(order.id);
         this.cancelChanges();
         this.load(false);
       },
       error: (error: unknown) => {
+        if (this.destroyRef.destroyed || date !== this.serviceDate) return;
         this.errorMessage = this.formatError(error, 'No se pudo aceptar con cambios.');
         this.reviewingOrderId = null;
         this.changeDetector.detectChanges();

@@ -21,6 +21,8 @@ function fixture(t) {
   const audits = [];
   const lists = [];
   const otherReads = [];
+  const reviews = [];
+  const notifications = [];
   let renders = 0;
   const data = {
     loadPendingReviewOrders(serviceDate) {
@@ -37,11 +39,25 @@ function fixture(t) {
       const response = new Subject();
       otherReads.push(response);
       return response;
+    },
+    reviewOrder(id, decision) {
+      const response = new Subject();
+      reviews.push({ id, decision, response });
+      return response;
+    },
+    reviewOrderWithRequest(id, request) {
+      const response = new Subject();
+      reviews.push({ id, request, response });
+      return response;
     }
   };
   const injector = createEnvironmentInjector([
     { provide: OrderDataService, useValue: data },
-    { provide: HttpClient, useValue: {} },
+    { provide: HttpClient, useValue: { get(url) {
+      const response = new Subject();
+      notifications.push({ url, response });
+      return response;
+    } } },
     { provide: ChangeDetectorRef, useValue: { detectChanges() { renders++; } } },
     { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: new Map([['date', date]]) } } }
   ], null);
@@ -49,8 +65,110 @@ function fixture(t) {
   t.after(() => { if (!injector.destroyed) injector.destroy(); });
   lists[0].response.next([orderA, orderB]);
   lists[0].response.complete();
-  return { component, injector, audits, lists, otherReads, renders: () => renders };
+  return { component, injector, audits, lists, otherReads, reviews, notifications, renders: () => renders };
 }
+
+test('F04: un fallo del aviso conserva decisión y pendientes; reintenta sólo preparar el aviso', t => {
+  const { component, lists, reviews, notifications } = fixture(t);
+  component.review(orderA, 'Accepted');
+  component.review(orderB, 'Rejected');
+  component.reviewWithChanges(orderB);
+  reviews[0].response.next({});
+  lists[1].response.next([]);
+  notifications[0].response.error(new HttpErrorResponse({ status: 503, error: { error: 'Aviso no disponible.' } }));
+  assert.equal(component.resultMessage, 'Pedido aceptado.');
+  assert.equal(component.errorMessage, null, 'el fallo secundario no oculta la lista ya consultada');
+  assert.equal(reviews.length, 1, 'una decisión en vuelo bloquea otra decisión normal o con cambios');
+  assert.deepEqual(component.orders, []);
+  assert.equal(component.serviceDate, date);
+  assert.equal(component.notificationErrorMessage, 'Aviso no disponible.');
+  assert.equal(component.notificationLoading, false);
+  component.retryNotification();
+  component.retryNotification();
+  assert.equal(notifications.length, 2, 'un reintento en vuelo no se duplica');
+  assert.equal(notifications[1].url, notifications[0].url);
+  assert.equal(reviews.length, 1, 'no repite la aceptación');
+  const notice = { message: 'Pedido confirmado.', whatsAppUrl: null, proposedDate: null };
+  notifications[1].response.next(notice);
+  assert.deepEqual(component.notification, notice);
+  assert.equal(component.notificationErrorMessage, null);
+  assert.equal(component.notificationLoading, false);
+  assert.equal(component.resultMessage, 'Pedido aceptado.');
+  component.startAcceptedWithChanges(orderB);
+  assert.equal(component.notification, null, 'preparar otro pedido retira el aviso anterior');
+});
+
+test('F04: aceptar con cambios conserva el resultado cuando falla su aviso posterior', t => {
+  const { component, lists, reviews, notifications, otherReads } = fixture(t);
+  component.startAcceptedWithChanges(orderA);
+  otherReads[0].next(detail(orderA));
+  component.changeLines[0].quantity = 25;
+  component.reviewWithChanges(orderA);
+  reviews[0].response.next({});
+  notifications[0].response.error(new HttpErrorResponse({ status: 500 }));
+  lists[1].response.next([]);
+  assert.equal(reviews[0].request.decision, 'AcceptedWithChanges');
+  assert.equal(component.resultMessage, 'Pedido aceptado con cambios.');
+  assert.equal(component.errorMessage, null);
+  assert.ok(component.notificationErrorMessage);
+  assert.equal(component.changeDetail, null);
+  assert.deepEqual(component.orders, []);
+});
+
+test('F04: cambiar fecha cancela el aviso y su respuesta no repuebla el contexto anterior', t => {
+  const { component, reviews, notifications } = fixture(t);
+  component.review(orderA, 'Accepted');
+  reviews[0].response.next({});
+  component.serviceDate = '2026-11-04';
+  component.changeDate();
+  notifications[0].response.next({ message: 'Aviso tardío A', whatsAppUrl: null });
+  assert.equal(notifications[0].response.observed, false);
+  assert.equal(component.notification, null);
+  assert.equal(component.notificationErrorMessage, null);
+  assert.equal(component.notificationLoading, false);
+  component.retryNotification();
+  assert.equal(notifications.length, 1, 'no recupera un aviso perteneciente a otra fecha');
+});
+
+test('F04: una decisión que responde después del cambio de fecha no inicia aviso en el contexto nuevo', t => {
+  const { component, reviews, notifications, lists } = fixture(t);
+  component.review(orderA, 'Accepted');
+  component.serviceDate = '2026-11-04';
+  component.changeDate();
+  assert.equal(component.reviewingOrderId, null, 'la fecha nueva no conserva el bloqueo de la decisión anterior');
+  const nextOrder = { ...orderB, orderDate: component.serviceDate };
+  component.load();
+  lists[1].response.next([nextOrder]);
+  component.review(nextOrder, 'Accepted');
+  assert.equal(reviews.length, 2, 'permite revisar un pedido del contexto nuevo');
+  assert.equal(component.reviewingOrderId, orderB.id);
+  reviews[0].response.next({});
+  assert.equal(component.resultMessage, null);
+  assert.equal(component.errorMessage, null);
+  assert.equal(component.notification, null);
+  assert.equal(notifications.length, 0);
+  assert.equal(lists.length, 2, 'la respuesta tardía no consulta la cola usando una fecha diferente');
+  assert.equal(component.reviewingOrderId, orderB.id, 'la respuesta anterior no libera el bloqueo vigente');
+  reviews[1].response.next({});
+  assert.equal(component.resultMessage, 'Pedido aceptado.');
+  assert.equal(notifications.length, 1);
+  assert.match(notifications[0].url, /\/order-b\/notification$/);
+  assert.equal(lists[2].serviceDate, '2026-11-04');
+  lists[2].response.next([]);
+  assert.equal(component.reviewingOrderId, null);
+});
+
+test('F04: destruir la vista cancela la preparación del aviso y evita renders tardíos', t => {
+  const { component, injector, reviews, notifications, renders } = fixture(t);
+  component.review(orderA, 'Accepted');
+  reviews[0].response.next({});
+  injector.destroy();
+  const before = renders();
+  notifications[0].response.next({ message: 'Aviso tardío A', whatsAppUrl: null });
+  assert.equal(notifications[0].response.observed, false);
+  assert.equal(renders(), before);
+  assert.equal(component.notification, null);
+});
 
 test('F04: seleccionar B cancela A y nunca presenta sus eventos bajo B', t => {
   const { component, audits } = fixture(t);

@@ -8,7 +8,9 @@ Priorizar consolidación antes de nuevas funciones. Infraestructura, claves, cue
 
 ## Evidencia WSL posterior (4 de noviembre)
 
-El usuario ya puede iniciar Chromium: el candidato e769 obtuvo 79 pruebas correctas, una fallida por un selector textual heredado y 160 no ejecutadas. Ver [segunda revisión C1](docs/validation/2026-11-04-c1-browser-wsl.md). Se corrige el selector, se ejecutan todos los casos para diagnóstico y se mantiene el requisito de 240 correctas. No interpretar estos resultados como despliegue: el wrapper se detuvo antes del VPS.
+El usuario ya puede iniciar Chromium. El candidato e769 obtuvo 79 pruebas correctas, una fallida por un selector textual heredado y 160 no ejecutadas; la [segunda revisión C1](docs/validation/2026-11-04-c1-browser-wsl.md) conserva ese antecedente. La ejecución completa posterior de `e9ef18b73e534602df41a1df0fc221586a715e74` obtuvo **231 correctas, nueve fallidas, cero omitidas y cero inestables**. El wrapper se detuvo antes del VPS.
+
+La [revisión R3](docs/validation/2026-11-04-c1-browser-r3.md) corrige el aislamiento real de errores auxiliares de revisión, cinco selectores exactos de reparto y el espaciado de configuración de escritorio. Componentes: 47/47; navegador focal: 16/16, incluidos los nueve fallos originales; tipado E2E correcto; Python: 585 casos, 581 correctos y cuatro omisiones históricas. El pase completo del commit final sigue pendiente. Su resultado se adjuntará después de comprobarlo como `BROWSER_C1_VALIDACION.json` y `.md`, sin sustituir el gate obligatorio WSL de 240 correctas ni las validaciones SQL del instalador. C1 continúa sin desplegar; I23 con 18 migraciones es la última instalación confirmada.
 
 ## Alcance autorizado por incrementos
 

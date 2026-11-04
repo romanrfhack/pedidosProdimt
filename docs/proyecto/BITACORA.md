@@ -1,5 +1,17 @@
 # Bitácora de trabajo
 
+## 4 de noviembre de 2026 — C1 R3, nueve fallos diagnosticados y corregidos
+
+El usuario ejecutó los 240 casos de R2 `e9ef18b73e534602df41a1df0fc221586a715e74`: 231 correctos, nueve fallidos, cero omitidos y cero inestables. El wrapper terminó antes de SCP/SSH; I23 con 18 migraciones sigue siendo la instalación confirmada. Se conserva `Texto pegado(3).txt` y el historial R1/R2.
+
+Cuatro fallos de revisión revelaron un mock sin GET de aviso y un defecto real: ese error auxiliar ocultaba la cola después de guardar la decisión. Se aísla el error visible con reintento exclusivo de GET, se conserva un único POST y se protegen generaciones, fecha, destrucción y bloqueo de decisiones. Cinco nuevas regresiones elevan los componentes a 47/47; cuatro de cinco fallan contra la versión anterior y otra contraprueba reproduce el bloqueo retenido al cambiar fecha.
+
+Cuatro fallos de reparto se corrigen mediante cinco selectores `combobox` de nombre exacto, incluido uno latente, sin alterar producto, ARIA, assertions o tiempos. El noveno fallo reproduce desbordamiento real de configuración I08: 797 px en WSL y 809 en reproducción local frente a máximo 769. Dos ajustes de espaciado de escritorio dejan el documento en 768 px y el borde principal en 765.03125 px; se conservan fuentes, contenido y Tokens. Acciones y siete casillas se comprueban completas dentro del viewport; métricas/capturas internas no se incorporan al repositorio.
+
+Validación R3: 8/8 navegador focal de revisión/reparto y 8/8 de calendario/configuración, cubriendo los nueve fallos originales; cero omisiones. Tipado E2E correcto. Python: 585 casos, 581 correctos, cuatro omisiones históricas y cero fallos. Backend y SQL sin cambios. El build y la suite canónica de 240 del commit final limpio quedan pendientes de la ejecución posterior al commit.
+
+El constructor acepta evidencia aprobada completa del mismo commit y la adjunta como `BROWSER_C1_VALIDACION.json` y `.md` al ZIP exterior, sin referencia circular ni sustitución del gate WSL/instalador. No se declara 240/240 antes de comprobarlo. Sin despliegue ni publicación GitHub. [Evidencia R3 y siguiente paso](../validation/2026-11-04-c1-browser-r3.md).
+
 ## C1 — Correcciones autorizadas y regresiones (3 de noviembre de 2026)
 
 El usuario pidió comenzar las correcciones y documentar cada hallazgo atendido.

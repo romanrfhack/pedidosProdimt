@@ -227,6 +227,7 @@ const accessTokensBase = {
 
 let currentOrder = null;
 let pendingOrders = [pendingOrderBase];
+let reviewedOrders = new Map();
 let pendingCustomers = [...pendingCustomerBase];
 let catalogCustomers = [];
 let catalogProducts = [];
@@ -340,6 +341,7 @@ function resetState() {
   resetSecurityState();
   currentOrder = null;
   pendingOrders = [pendingOrderBase];
+  reviewedOrders = new Map();
   pendingCustomers = [...pendingCustomerBase];
   catalogCustomers = clone(catalogCustomersBase);
   catalogCustomers.push({ ...clone(catalogCustomersBase[1]), id: pendingCustomerBase[1].customerId, name: pendingCustomerBase[1].customerName });
@@ -833,6 +835,31 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  const decisionNotificationMatch = url.pathname.match(/^\/api\/admin\/orders\/([^/]+)\/notification$/);
+  if (request.method === 'GET' && decisionNotificationMatch) {
+    if (!requireAdminAccess(request, response)) return;
+    const id = decisionNotificationMatch[1];
+    const order = reviewedOrders.get(id) ?? (id === pendingOrderBase.orderId ? pendingOrderBase : null);
+    if (!order) { sendJson(response, 404, { error: 'El pedido no existe.' }); return; }
+    if (!['Accepted', 'Rejected'].includes(order.status)) {
+      sendJson(response, 400, { error: 'Primero registra la decisión del pedido.' }); return;
+    }
+    let proposedDate = null;
+    if (order.status === 'Rejected') {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date());
+      const next = new Date((order.orderDate > today ? order.orderDate : today) + 'T12:00:00Z');
+      do { next.setUTCDate(next.getUTCDate() + 1); } while (next.getUTCDay() === 2);
+      proposedDate = next.toISOString().slice(0, 10);
+    }
+    sendJson(response, 200, {
+      message: order.status === 'Accepted'
+        ? `Hola, ${order.customerName}. Tu pedido para el ${order.orderDate} ha quedado confirmado.${order.adminDecision === 'AcceptedWithChanges' ? ' Se confirmó con los ajustes registrados.' : ''}`
+        : `Hola, ${order.customerName}. No fue posible confirmar tu pedido para el ${order.orderDate}. Podemos revisar la fecha ${proposedDate}; esperamos tu respuesta antes de registrar otro pedido.`,
+      whatsAppUrl: null, proposedDate
+    });
+    return;
+  }
+
   const adminOrderDetailMatch = url.pathname.match(/^\/api\/admin\/orders\/([^/]+)$/);
   if (request.method === 'GET' && adminOrderDetailMatch) {
     if (!requireAdminAccess(request, response)) {
@@ -880,12 +907,14 @@ const server = http.createServer(async (request, response) => {
         ? 'AcceptedWithChanges'
         : 'Accepted';
     pendingOrders = [];
-    sendJson(response, 200, {
+    const reviewed = {
       ...pendingOrderBase,
       status: decision === 'Rejected' ? 'Rejected' : 'Accepted',
       requiresAdminReview: false,
       adminDecision: decision
-    });
+    };
+    reviewedOrders.set(url.pathname.split('/').at(-2), reviewed);
+    sendJson(response, 200, reviewed);
     return;
   }
 

@@ -174,8 +174,21 @@ test('admin abre detalle de pedido y ve lineas', async ({ page }) => {
 });
 
 test('admin muestra pendientes y acepta pedido con refresco', async ({ page }) => {
+  let notificationReads = 0;
+  let reviewWrites = 0;
+  await page.route('**/api/admin/orders/*/notification', route => {
+    notificationReads++;
+    return notificationReads === 1
+      ? route.fulfill({ status: 503, json: { error: 'Aviso temporalmente no disponible.' } })
+      : route.fallback();
+  });
+  page.on('request', request => {
+    if (request.method() === 'POST' && /\/api\/admin\/orders\/[^/]+\/review$/.test(new URL(request.url()).pathname)) reviewWrites++;
+  });
   await loginAdmin(page);
   await page.goto('/admin/pendientes');
+  const pending = page.getByTestId('admin-pending');
+  const serviceDate = await pending.getByLabel('Fecha de servicio', { exact: true }).inputValue();
 
   await expect(page.getByRole('heading', { name: 'Pedidos por confirmar' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Aceptar' })).toBeVisible();
@@ -186,12 +199,26 @@ test('admin muestra pendientes y acepta pedido con refresco', async ({ page }) =
   await page.getByRole('button', { name: 'Aceptar' }).click();
 
   await expect(page.getByText('Pedido aceptado.')).toBeVisible();
+  const notificationError = page.getByTestId('decision-notification-error');
+  await expect(notificationError).toContainText('La decisión se guardó.');
+  await expect(notificationError).toContainText('Aviso temporalmente no disponible.');
   await expect(page.getByText('No hay pedidos pendientes de revision.')).toBeVisible();
+  await expect(pending.locator('.admin-row')).toHaveCount(0);
+  await expect(pending.getByLabel('Fecha de servicio', { exact: true })).toHaveValue(serviceDate);
+  await notificationError.getByRole('button', { name: 'Reintentar preparar aviso', exact: true }).click();
+  await expect(page.getByTestId('decision-whatsapp-draft')).toContainText('ha quedado confirmado');
+  await expect(notificationError).toHaveCount(0);
+  await expect(page.getByText('Pedido aceptado.')).toBeVisible();
+  await expect(page.getByText('No hay pedidos pendientes de revision.')).toBeVisible();
+  expect(notificationReads).toBe(2);
+  expect(reviewWrites).toBe(1);
 });
 
 test('admin puede aceptar pendiente con cambios', async ({ page }) => {
   await loginAdmin(page);
   await page.goto('/admin/pendientes');
+  const pending = page.getByTestId('admin-pending');
+  const serviceDate = await pending.getByLabel('Fecha de servicio', { exact: true }).inputValue();
 
   await page.getByRole('button', { name: 'Ver detalle / ajustar', exact: true }).click();
   await expect(page.getByText('Aceptar con cambios').first()).toBeVisible();
@@ -202,6 +229,9 @@ test('admin puede aceptar pendiente con cambios', async ({ page }) => {
 
   await expect(page.getByText('Pedido aceptado con cambios.')).toBeVisible();
   await expect(page.getByText('No hay pedidos pendientes de revision.')).toBeVisible();
+  await expect(pending.locator('.admin-row')).toHaveCount(0);
+  await expect(pending.getByLabel('Fecha de servicio', { exact: true })).toHaveValue(serviceDate);
+  await expect(page.getByTestId('decision-whatsapp-draft')).toContainText('Se confirmó con los ajustes registrados.');
 });
 
 test('admin ve clientes pendientes y puede marcar No pedir hoy', async ({ page }) => {

@@ -209,6 +209,9 @@ test('pendientes de otra fecha se pueden consultar y aceptar', async ({ page }) 
   await page.getByRole('button', { name: 'Aceptar', exact: true }).click();
   await expect(page.getByText('Pedido aceptado.')).toBeVisible();
   await expect(page.getByText('No hay pedidos pendientes de revision.')).toBeVisible();
+  await expect(page.getByTestId('admin-pending').locator('.admin-row')).toHaveCount(0);
+  await expect(page.getByLabel('Fecha de servicio', { exact: true })).toHaveValue('2026-10-23');
+  await expect(page.getByTestId('decision-whatsapp-draft')).toContainText('ha quedado confirmado');
 });
 
 test('corrección conserva nombre y unidad históricos cuando cambia el catálogo', async ({ page }) => {

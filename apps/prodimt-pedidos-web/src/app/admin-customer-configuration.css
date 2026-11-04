@@ -99,7 +99,7 @@ fieldset { border:0; margin:0; padding:0; min-width:0; }
 .config-machines .review-actions { display:grid; grid-template-columns:1fr 1fr; }
 .config-machines .review-actions button { font-size:.74rem; min-width:0; padding:7px; white-space:nowrap; }
 @media (min-width:1200px) {
-  .config-page { padding:14px; gap:10px; }
+  .config-page { padding:10px; gap:6px; }
   .config-page > .page-title .eyebrow { display:none; }
   .config-page .customer-card { grid-template-columns:minmax(230px,1fr) minmax(220px,1fr) auto; }
   .config-page .customer-meta { grid-column:1; grid-row:2; align-self:center; }
@@ -111,4 +111,7 @@ fieldset { border:0; margin:0; padding:0; min-width:0; }
 .product-label-heading { display:flex; align-items:center; justify-content:space-between; gap:5px; color:#59717e; font-size:.73rem; min-height:18px; }
 .profile-product-select { display:grid; gap:5px; min-width:0; }
 .profile-unit .unit-prefix { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
-@media (min-width:1200px) { .config-products.stack { gap:8px; } }
+@media (min-width:1200px) {
+  .config-products.stack { gap:8px; }
+  .config-page .config-products.stack { padding:10px; gap:4px; }
+}

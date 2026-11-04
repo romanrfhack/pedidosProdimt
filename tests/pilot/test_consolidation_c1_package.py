@@ -138,12 +138,92 @@ class ConsolidationC1PackageTests(unittest.TestCase):
             path.write_text(text)
         return backend, frontend, portable, up, down, base
 
-    def build_fixture(self, root, inputs=None, output='package.zip'):
+    def build_fixture(self, root, inputs=None, output='package.zip', browser_evidence=None):
         inputs = inputs or self.inputs(root)
         with patch.object(builder, 'validate_source'), patch.object(builder, 'source_bundle', return_value=b'synthetic-git-bundle'), \
              patch.object(builder, 'normalize_baseline', side_effect=lambda value: value):
-            result = builder.build(*inputs, root / output, 'a' * 40)
+            result = builder.build(*inputs, root / output, 'a' * 40, browser_evidence)
         return result, root / output
+
+    def browser_evidence(self, **changes):
+        gate = dict(schema='prodimt.c1.browser-gate.v1', status='passed', sourceCommit='a' * 40,
+                    api='mock', sqlServerIncluded=False, humanAcceptance=False, suite='all',
+                    expectedCases=240, collected=240, passed=240, failed=0, skipped=0, flaky=0,
+                    exitCode=0, reportSha256='b' * 64,
+                    recordedAtUtc='2026-11-04T20:00:00.000Z', nodeVersion='v24.0.0',
+                    completedStages=['npm-web', 'npm-e2e', 'angular-build', 'components', 'typecheck', 'browser-suite'],
+                    lastStage='completed')
+        return gate | changes
+
+    def test_same_source_pass_evidence_is_identical_outer_documentation_without_payload_changes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            inputs = self.inputs(root)
+            evidence = root / 'gate.json'
+            raw = (json.dumps(self.browser_evidence(), indent=2) + '\n').encode()
+            evidence.write_bytes(raw)
+            plain_result, plain_path = self.build_fixture(root, inputs)
+            documented_result, documented_path = self.build_fixture(root, inputs, 'documented.zip', evidence)
+            self.assertFalse(plain_result['browserEvidenceIncluded'])
+            self.assertTrue(documented_result['browserEvidenceIncluded'])
+            self.assertFalse(documented_result['deployed'])
+            self.assertTrue(documented_result['browserGateRequired'])
+            self.assertEqual(plain_result['payloadSha256'], documented_result['payloadSha256'])
+            with zipfile.ZipFile(plain_path) as plain, zipfile.ZipFile(documented_path) as documented:
+                self.assertEqual(plain.read(builder.PREFIX + 'prodimt-consolidation-c1-payload.zip'),
+                                 documented.read(builder.PREFIX + 'prodimt-consolidation-c1-payload.zip'))
+                self.assertEqual(plain.read(builder.PREFIX + 'PRODIMT_Instalar_C1.py'),
+                                 documented.read(builder.PREFIX + 'PRODIMT_Instalar_C1.py'))
+                self.assertEqual(plain.read(builder.PREFIX + 'PRODIMT_Desplegar_C1_WSL.sh'),
+                                 documented.read(builder.PREFIX + 'PRODIMT_Desplegar_C1_WSL.sh'))
+                self.assertEqual(documented.read(builder.PREFIX + 'BROWSER_C1_VALIDACION.json'), raw)
+                summary = documented.read(builder.PREFIX + 'BROWSER_C1_VALIDACION.md').decode()
+                self.assertIn('a' * 40, summary)
+                self.assertIn('240 de 240', summary)
+                self.assertIn('no incluye SQL Server, aceptación humana ni despliegue', summary)
+                sums = documented.read(builder.PREFIX + 'SHA256SUMS.txt').decode().splitlines()
+                for name in ('BROWSER_C1_VALIDACION.json', 'BROWSER_C1_VALIDACION.md'):
+                    self.assertIn(builder.digest(documented.read(builder.PREFIX + name)) + '  ' + name, sums)
+
+    def test_browser_evidence_rejects_other_sources_failed_partial_or_different_persistence(self):
+        changes = (
+            dict(sourceCommit='c' * 40), dict(schema='other.v1'), dict(status='failed'),
+            dict(api='real'), dict(suite='focal'), dict(expectedCases=239), dict(collected=239),
+            dict(passed=239), dict(failed=1), dict(skipped=1), dict(flaky=1), dict(exitCode=1),
+            dict(sqlServerIncluded=True), dict(humanAcceptance=True), dict(reportSha256='bad'),
+            dict(failed=False), dict(exitCode=False), dict(passed=240.0), dict(skipped='0'),
+            dict(unexpectedPrivateField='must-not-be-packaged'),
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'gate.json'
+            for change in changes:
+                path.write_text(json.dumps(self.browser_evidence(**change)))
+                with self.subTest(change=change), self.assertRaisesRegex(ValueError, 'browser_evidence_incomplete_or_source_mismatch'):
+                    builder.read_browser_evidence(path, 'a' * 40)
+
+    def test_browser_evidence_rejects_duplicate_fields_malformed_json_and_symlinks(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            path = root / 'gate.json'
+            for raw in (b'{"status":"failed","status":"passed"}', b'{"unknown":NaN}', b'not-json', b'\xff'):
+                path.write_bytes(raw)
+                with self.subTest(raw=raw), self.assertRaisesRegex(ValueError, 'browser_evidence_unrecognized'):
+                    builder.read_browser_evidence(path, 'a' * 40)
+            path.write_text(json.dumps(self.browser_evidence()))
+            linked = root / 'linked.json'
+            linked.symlink_to(path)
+            with self.assertRaisesRegex(ValueError, 'browser_evidence_file_unexpected'):
+                builder.read_browser_evidence(linked, 'a' * 40)
+
+    def test_invalid_browser_evidence_cannot_produce_a_package(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            inputs = self.inputs(root)
+            evidence = root / 'gate.json'
+            evidence.write_text(json.dumps(self.browser_evidence(skipped=1)))
+            with self.assertRaisesRegex(ValueError, 'browser_evidence_incomplete_or_source_mismatch'):
+                self.build_fixture(root, inputs, browser_evidence=evidence)
+            self.assertFalse((root / 'package.zip').exists())
 
     def test_export_pins_own_payload_exact_baseline_and_source_and_is_deterministic(self):
         with tempfile.TemporaryDirectory() as folder:

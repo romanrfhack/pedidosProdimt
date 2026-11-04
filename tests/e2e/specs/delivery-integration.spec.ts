@@ -56,6 +56,14 @@ async function integrationFixture(page: Page, permissions: string[]) {
     order.status = body.decision === 'Rejected' ? 'Rejected' : 'Accepted';
     return route.fulfill({ json: rows().find(row => row.orderId === order.orderId) });
   });
+  await page.route('**/api/admin/orders/*/notification', route => {
+    const id = new URL(route.request().url()).pathname.split('/').at(-2);
+    const order = state.orders.find(item => item.orderId === id);
+    if (!order) return route.fulfill({ status: 404, json: { error: 'El pedido no existe.' } });
+    if (order.status !== 'Accepted') return route.fulfill({ status: 400, json: { error: 'Primero registra la decisión del pedido.' } });
+    return route.fulfill({ json: { message: `Hola, ${order.customerName}. Tu pedido para el ${deliveryDate} ha quedado confirmado.`,
+      whatsAppUrl: null, proposedDate: null } });
+  });
   // Production API exposes only eligible orders. Keep that response contract here;
   // server-side eligibility and authorization are covered by backend tests.
   await page.route('**/api/admin/delivery?*', route => {
@@ -205,13 +213,13 @@ test('preparar reparto distingue falta de conductores, ruta, vuelta y asignacion
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Código de ruta', { exact: true }).fill('A');
   await dialog.getByLabel('Nombre de la ruta', { exact: true }).fill('Ruta A de ejemplo');
-  await dialog.getByLabel('Repartidor habitual', { exact: true }).selectOption(driverId);
+  await dialog.getByRole('combobox', { name: 'Repartidor habitual', exact: true }).selectOption(driverId);
   await dialog.getByRole('button', { name: 'Guardar ruta', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(checklist.getByTestId('delivery-setup-routes')).toHaveAttribute('data-complete', 'true');
   await page.setViewportSize({ width: 768, height: 960 });
   await checklist.getByRole('button', { name: 'Crear recorrido', exact: true }).click();
-  await dialog.getByLabel('Repartidor de esta vuelta', { exact: true }).selectOption(driverId);
+  await dialog.getByRole('combobox', { name: 'Repartidor de esta vuelta', exact: true }).selectOption(driverId);
   await dialog.getByRole('button', { name: 'Crear vuelta', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(checklist.getByTestId('delivery-setup-trips')).toHaveAttribute('data-complete', 'true');
@@ -241,6 +249,9 @@ test('revisión conserva fecha y sólo un pedido aceptado pasa a pendientes de r
   expect(state.reads.some(read => read.path.endsWith('/pending-review') && read.date === deliveryDate)).toBe(true);
   await page.getByRole('button', { name: 'Aceptar', exact: true }).click();
   await expect(page.getByText('No hay pedidos pendientes de revision.', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('admin-pending').locator('.admin-row')).toHaveCount(0);
+  await expect(page.getByLabel('Fecha de servicio', { exact: true })).toHaveValue(deliveryDate);
+  await expect(page.getByTestId('decision-whatsapp-draft')).toContainText('ha quedado confirmado');
   expect(state.reviews).toHaveLength(1); expect(state.reviews[0].body.decision).toBe('Accepted');
   await page.goBack(); await expect(prepareOrders(page).getByTestId('delivery-eligible-count')).toHaveText('3');
   await expect(prepareOrders(page).getByTestId('delivery-review-count')).toHaveText('0');

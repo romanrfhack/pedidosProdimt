@@ -222,8 +222,63 @@ def collect_runtime(files, part, directory):
         files[part + '/' + name] = raw
 
 
-def build(backend, frontend, validation, migration, rollback, baseline_migration, output, source):
+def read_browser_evidence(path, source):
+    """Accept only a complete same-source browser result as documentation.
+
+    It remains outside the native payload. Neither this input nor its summary
+    is used to bypass the WSL rerun or the installer's normal browser gate.
+    """
+    if not path.is_file() or path.is_symlink():
+        raise ValueError('browser_evidence_file_unexpected')
+    raw = path.read_bytes()
+    if not 0 < len(raw) <= 65536:
+        raise ValueError('browser_evidence_size_unexpected')
+    def object_without_duplicates(pairs):
+        value = {}
+        for key, child in pairs:
+            if key in value:
+                raise ValueError('browser_evidence_duplicate_field')
+            value[key] = child
+        return value
+    def reject_constant(_):
+        raise ValueError('browser_evidence_nonfinite_number')
+    try:
+        gate = json.loads(raw.decode('utf-8'), object_pairs_hook=object_without_duplicates,
+                          parse_constant=reject_constant)
+    except (ValueError, UnicodeError):
+        raise ValueError('browser_evidence_unrecognized') from None
+    expected = dict(schema='prodimt.c1.browser-gate.v1', status='passed', sourceCommit=source,
+                    api='mock', suite='all', expectedCases=240, collected=240, passed=240,
+                    failed=0, skipped=0, flaky=0, exitCode=0,
+                    sqlServerIncluded=False, humanAcceptance=False)
+    optional = {'recordedAtUtc', 'nodeVersion', 'completedStages', 'lastStage'}
+    if not isinstance(gate, dict) or not set(expected) | {'reportSha256'} <= set(gate) \
+            or not set(gate) <= set(expected) | optional | {'reportSha256'} \
+            or any(type(gate[key]) is not type(value) or gate[key] != value for key, value in expected.items()) \
+            or not isinstance(gate['reportSha256'], str) or not re.fullmatch(r'[a-f0-9]{64}', gate['reportSha256']):
+        raise ValueError('browser_evidence_incomplete_or_source_mismatch')
+    if any(key in gate and (not isinstance(gate[key], str) or len(gate[key]) > 128)
+           for key in ('recordedAtUtc', 'nodeVersion', 'lastStage')) \
+            or ('completedStages' in gate and (not isinstance(gate['completedStages'], list)
+                or len(gate['completedStages']) > 16
+                or any(not isinstance(value, str) or len(value) > 64 for value in gate['completedStages']))):
+        raise ValueError('browser_evidence_metadata_unrecognized')
+    summary = ("# C1 · Evidencia de navegador previa al empaquetado\n\n"
+               "Fuente comprobada: `" + source + "`.\n\n"
+               "Angular real con API simulada: **240 de 240 casos correctos**, "
+               "cero fallos, omisiones o casos inestables; salida 0.\n\n"
+               "SHA-256 del reporte de Playwright: `" + gate['reportSha256'] + "`. "
+               "El JSON original se conserva en `BROWSER_C1_VALIDACION.json`; "
+               "`SHA256SUMS.txt` vincula ambos archivos al paquete.\n\n"
+               "Esta evidencia no incluye SQL Server, aceptación humana ni despliegue. "
+               "La preparación WSL vuelve a ejecutar el navegador antes de instalar; "
+               "el instalador conserva sus gates de navegador y SQL.\n")
+    return raw, summary.encode()
+
+
+def build(backend, frontend, validation, migration, rollback, baseline_migration, output, source, browser_evidence=None):
     validate_source(source)
+    browser_documents = read_browser_evidence(browser_evidence, source) if browser_evidence is not None else None
     pilot = ROOT / 'scripts/pilot'
     installer = helper('c1_build_installer', pilot / 'install-consolidation-c1.py')
     validator = helper('c1_build_sql', pilot / 'validate-consolidation-c1-sql.py')
@@ -273,6 +328,8 @@ def build(backend, frontend, validation, migration, rollback, baseline_migration
                                        deployed=False), sort_keys=True, indent=2).encode(),
         'LEEME.txt': README.encode(),
     }
+    if browser_documents is not None:
+        bundle['BROWSER_C1_VALIDACION.json'], bundle['BROWSER_C1_VALIDACION.md'] = browser_documents
     bundle['SHA256SUMS.txt'] = ''.join(f'{digest(raw)}  {name}\n' for name, raw in sorted(bundle.items())).encode()
     # Re-check after collecting to avoid packaging a source changed during the build.
     validate_source(source)
@@ -281,7 +338,8 @@ def build(backend, frontend, validation, migration, rollback, baseline_migration
     return dict(sourceCommit=source, baselineSource=BASELINE_SOURCE,
                 sha256=digest(output.read_bytes()), payloadSha256=digest(payload),
                 bytes=output.stat().st_size, files=len(files), migration=MIGRATION,
-                deployed=False, browserGateRequired=True, isolatedSqlGateRequired=True)
+                deployed=False, browserGateRequired=True, isolatedSqlGateRequired=True,
+                browserEvidenceIncluded=browser_documents is not None)
 
 
 README = """PRODIMT — C1: instalación integrada sobre I23 confirmado
@@ -299,6 +357,10 @@ con API simulada del mismo commit antes de transferir/instalar. Estas pruebas no
 sustituyen los siete casos EF/HTTP con SQL Server ni el gate SQL exacto, que el
 instalador ejecuta en bases temporales UUID antes de detener PRODIMT.
 No usar instaladores históricos ni ejecutar los archivos SQL manualmente.
+
+Si el paquete contiene BROWSER_C1_VALIDACION.json y su resumen Markdown, documentan
+las 240 pruebas previas sobre el mismo commit con API simulada. No acreditan SQL,
+aceptación humana ni despliegue, y no sustituyen la repetición obligatoria en WSL.
 
 El instalador pide las credenciales SQL de forma oculta. Verifica respaldo
 COPY_ONLY/CHECKSUM y RESTORE VERIFYONLY antes de cualquier DDL operativo.
@@ -318,9 +380,10 @@ def main():
     for name in ('backend', 'frontend', 'validation', 'migration', 'rollback', 'baseline-migration', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--source', required=True)
+    parser.add_argument('--browser-evidence', type=Path)
     args = parser.parse_args()
     print(json.dumps(build(args.backend, args.frontend, args.validation, args.migration, args.rollback,
-                           args.baseline_migration, args.output, args.source), indent=2))
+                           args.baseline_migration, args.output, args.source, args.browser_evidence), indent=2))
 
 
 if __name__ == '__main__':

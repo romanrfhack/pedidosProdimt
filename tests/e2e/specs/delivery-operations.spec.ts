@@ -33,7 +33,7 @@ test('entrega parcial conserva pedido de 50, carga de 25, entrega de 20 y saldo 
   await expect(dialog.getByRole('alert')).toContainText(/motivo|diferencia/i);
   expect(state.writes).toHaveLength(0);
   await dialog.getByLabel('Motivo de la diferencia', { exact: true }).fill('El cliente recibió menos.');
-  await dialog.getByLabel('Producto cargado que no se entregó', { exact: true }).selectOption('in-vehicle');
+  await dialog.getByRole('combobox', { name: 'Producto cargado que no se entregó', exact: true }).selectOption('in-vehicle');
   await dialog.getByLabel('Observaciones', { exact: true }).fill('No pagó; se dejó una caja.');
   await dialog.getByRole('button', { name: 'Guardar entrega', exact: true }).click();
   await expect(dialog).toHaveCount(0);
@@ -97,7 +97,7 @@ test('intento con entrega de cero conserva mercancía y muestra No entregado', a
   const dialog = await openDelivery(page);
   await dialog.getByLabel('Cantidad (kg)', { exact: true }).fill('0');
   await dialog.getByLabel('Motivo de la diferencia', { exact: true }).fill('Cliente ausente; se conserva la carga.');
-  await dialog.getByLabel('Producto cargado que no se entregó', { exact: true }).selectOption('in-vehicle');
+  await dialog.getByRole('combobox', { name: 'Producto cargado que no se entregó', exact: true }).selectOption('in-vehicle');
   await dialog.getByRole('button', { name: 'Guardar entrega', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   expect(state.trip.assignments[0].deliveredQuantity).toBe(0);
@@ -168,7 +168,7 @@ test('gestión reserva sólo la cantidad indicada para una vuelta', async ({ pag
   const state = deliveryFixture(); state.setPermissions(['delivery.manage']); await board(page, state, true);
   await page.getByRole('button', { name: /Asignar a vuelta.*Cliente Reparto Uno.*Tortilla demo/ }).click();
   const dialog = activeDialog(page);
-  await dialog.getByLabel('Vuelta de destino', { exact: true }).selectOption(secondDeliveryTripId);
+  await dialog.getByRole('combobox', { name: 'Vuelta de destino', exact: true }).selectOption(secondDeliveryTripId);
   await dialog.getByLabel('Cantidad a asignar (kg)', { exact: true }).fill('15');
   await dialog.getByRole('button', { name: 'Confirmar asignación', exact: true }).click();
   await expect(dialog).toHaveCount(0);

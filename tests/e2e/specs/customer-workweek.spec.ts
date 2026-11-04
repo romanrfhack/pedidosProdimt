@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
 const apiBase='http://127.0.0.1:5088';
 const id='11111111-1111-1111-1111-111111111111';
@@ -109,12 +110,26 @@ for(const viewport of [{width:1366,height:768},{width:1920,height:1080},{width:7
     await expect(config.getByTestId('profile-product')).toHaveCount(3);
     await expect(week.getByRole('checkbox')).toHaveCount(7);
     await expect(config.getByRole('button',{name:'Guardar frecuentes',exact:true})).toBeVisible();
+    const layout=await page.evaluate(()=>({
+      viewport:{width:innerWidth,height:innerHeight},
+      document:{width:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight},
+      sections:Array.from(document.querySelectorAll('.app-shell__header, .app-shell__main, .config-page, .customer-card-top, .customer-card > .review-actions, .config-layout, .config-products, .config-week, .config-machines, .config-access, .profile-sequence, .profile-footer'))
+        .map(element=>({selector:element.className,bounds:element.getBoundingClientRect().toJSON()})),
+      controls:Array.from(document.querySelectorAll('.config-page button, .config-page input, .config-page select'))
+        .map(element=>({name:element.getAttribute('aria-label')||element.textContent?.trim()||element.getAttribute('name'),bounds:element.getBoundingClientRect().toJSON()}))
+    }));
+    const layoutPath=test.info().outputPath(`configuration-layout-${viewport.width}.json`);
+    await writeFile(layoutPath,JSON.stringify(layout,null,2));
+    await test.info().attach(`configuration-layout-${viewport.width}`,{path:layoutPath,contentType:'application/json'});
+    await page.screenshot({path:test.info().outputPath(`configuration-${viewport.width}.png`),fullPage:true});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
     if(viewport.width>=1200) {
       const main=await page.locator('.app-shell__main').boundingBox();
       expect(main!.width).toBeGreaterThan(viewport.width-20);
       expect(await page.evaluate(()=>document.documentElement.scrollHeight)).toBeLessThanOrEqual(viewport.height+1);
+      const actions=page.locator('.config-products > .profile-sequence button, .config-products > .profile-footer button, .config-week button, .config-machines > .review-actions button, .config-access, .customer-card > .review-actions button');
+      for(const action of await actions.all()) await expect(action).toBeInViewport({ratio:1});
+      for(const checkbox of await week.getByRole('checkbox').all()) await expect(checkbox).toBeInViewport({ratio:1});
     }
-    await page.screenshot({path:test.info().outputPath(`configuration-${viewport.width}.png`),fullPage:true});
   });
 }
