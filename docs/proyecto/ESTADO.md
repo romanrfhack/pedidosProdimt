@@ -10,7 +10,7 @@ Corte documental: 4 de noviembre de 2026, Ciudad de México. Un estado de instal
 | Backend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23) |
 | Frontend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23 integrado con RF1) |
 | Historia SQL conocida | 18 migraciones en el reporte I23; sin consulta SQL productiva desde este agente |
-| C1 | Candidato R4 en validación. Base técnica previa: 499 pruebas .NET, 101 SQL Server, validador portátil 7/7 y SQL exacto 18→19 correctos. R2 WSL: 231/240. Gate R3: 239/240, un margen vertical de escritorio y sin conexión al VPS. R4: cuatro viewports focales correctos; conserva 47/47 componentes, 16/16 focales R3 y tipado E2E. Nuevo commit, paquete y gate 240/240 pendientes. C1 sin desplegar |
+| C1 | R4 pasó 240/240, pero falló el preflight VPS sin cambios: esperaba AuditLogs1100 y la identidad real I23 tiene1111. R5 corrige entrega y recuperación para preservar1111; 74/74 controles C1 y 607 Python (604 correctos, tres omisiones root, cero fallos). Gates navegador de la nueva fuente y SQL corregido/destino pendientes. [Evidencia R5](../validation/2026-11-04-c1-r5-permissions.md). C1 sin desplegar |
 | I23 | Instalado: `updated/completed`, SQL exacto, rollback/replay, permisos y limpieza verificados según reporte del usuario |
 | Comprobación pública | El 4 de noviembre `/health/db` devuelve `status: ok`, `database: reachable`. Acredita salud actual, no identifica release ni confirma C1 |
 | Aceptación funcional | No consta validación completa de usuarios, ruta real, vueltas y entregas; sigue pendiente |
@@ -29,7 +29,7 @@ El validador portátil también pasó **7/7 casos EF/HTTP con SQL Server real**
 y verificó la limpieza de sus dos bases UUID. Es una validación aislada del
 candidato; no una operación sobre la base productiva ni una aceptación humana.
 
-## Ejecución WSL posterior del candidato
+## Historial de ejecución WSL hasta la preparación R4
 
 El usuario confirmó Chromium operativo: **79 correctas, una fallida y 160 no ejecutadas** en el primer pase. La prueba esperaba un texto anterior al vigente desde I23; la [segunda revisión](../validation/2026-11-04-c1-browser-wsl.md) corrigió sólo ese selector y permitió recoger todos los fallos.
 

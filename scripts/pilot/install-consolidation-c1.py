@@ -26,7 +26,7 @@ import types
 import uuid
 import zipfile
 
-REVISION = '20261104-consolidation-c1-install1'
+REVISION = '20261104-consolidation-c1-install2'
 EXPECTED_SOURCE = 'REPLACE_SOURCE_COMMIT'
 EXPECTED_PAYLOAD_SHA256 = 'REPLACE_PAYLOAD_SHA256'
 BASELINE_SOURCE = 'aa802e210d15c70784f79dea2580709166b843c7'
@@ -229,12 +229,13 @@ def make_installer(package):
             self.new = {part: ROOT / part / 'releases' / ('consolidation-c1-' + EXPECTED_SOURCE[:12]) for part in ('backend', 'frontend')}
             self.stop_requested = False
             self.recovery = None
+            self.audit_permissions_before = None
             self.marker = BACKUPS / 'consolidation-c1-pending.json'
             self.state = dict(revision=REVISION, status='planned', phase='read-only-preflight', changes_made=False,
                 database_migrations_run=False, migrations_may_have_changed=False, database_automatically_restored=False,
                 password_changed=False, service_restarted=False, health_verified=False, frontend_verified=False,
                 secret_values_printed=False, encryption_key_created=False, encryption_key_rotated=False,
-                tokens_revoked=False)
+                tokens_revoked=False, source_commit=EXPECTED_SOURCE)
 
         def stage(self):
             for part, target in self.new.items():
@@ -280,11 +281,77 @@ def make_installer(package):
             require(snapshot.stat().st_mode & 0o7777 == 0o700, 'recovery_snapshot_mode_invalid')
             require(tuple(value.get('previous', [])) in PREVIOUS_PAIRS and value.get('historyBefore') in known[:-1], 'recovery_base_invalid')
             require(private(snapshot / 'api.env') == regular(ENV_FILE), 'recovery_environment_changed')
+            self.audit_permissions_before = self.read_audit_reference(snapshot, value)
             return value
 
+        def audit_reference_record(self):
+            require(type(self.audit_permissions_before) is tuple and self.audit_permissions_before == (1, 1, 1, 1)
+                    and all(type(bit) is int for bit in self.audit_permissions_before), 'audit_reference_invalid')
+            return dict(schema='prodimt.c1.audit-reference.v1', source=EXPECTED_SOURCE,
+                payload=EXPECTED_PAYLOAD_SHA256, baselineSource=BASELINE_SOURCE,
+                historyBefore=validation.BASE_IDS, previous=list(PREVIOUS_PAIRS[0]),
+                auditPermissions=dict(zip(validation.EXPECTED_AUDIT_PERMISSIONS, self.audit_permissions_before)))
+
+        def read_audit_reference(self, snapshot, marker=None):
+            # private() enforces root ownership, 0600, no symlink and one hard link.
+            try:
+                raw = private(snapshot / 'audit-permissions.json')
+                value = json.loads(raw)
+            except (OSError, ValueError, UnicodeError):
+                raise InstallError('audit_reference_missing_or_invalid') from None
+            require(type(value) is dict and set(value) == {'schema', 'source', 'payload', 'baselineSource',
+                'historyBefore', 'previous', 'auditPermissions'}
+                and value.get('schema') == 'prodimt.c1.audit-reference.v1'
+                and value.get('source') == EXPECTED_SOURCE and value.get('payload') == EXPECTED_PAYLOAD_SHA256
+                and value.get('baselineSource') == BASELINE_SOURCE and value.get('historyBefore') == validation.BASE_IDS
+                and value.get('previous') == list(PREVIOUS_PAIRS[0])
+                and validation.audit_permissions_valid(value.get('auditPermissions')), 'audit_reference_invalid')
+            if marker is not None:
+                require(marker.get('source') == EXPECTED_SOURCE and marker.get('payload') == EXPECTED_PAYLOAD_SHA256
+                    and marker.get('snapshot') == str(snapshot)
+                    and validation.audit_permissions_valid(marker.get('auditPermissions'))
+                    and marker['auditPermissions'] == value['auditPermissions']
+                    and marker.get('auditReferenceSha256') == sha(raw), 'audit_reference_marker_mismatch')
+            return validation.audit_permissions_tuple(value['auditPermissions'])
+
+        def persist_audit_reference(self):
+            path = self.snapshot / 'audit-permissions.json'
+            require(not path.exists() and not path.is_symlink(), 'audit_reference_already_exists')
+            value = self.audit_reference_record()
+            temporary = self.snapshot / ('.audit-permissions-' + uuid.uuid4().hex)
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            try:
+                with os.fdopen(fd, 'w') as stream:
+                    json.dump(value, stream, sort_keys=True)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                # Atomic, exclusive publication: never replace prior evidence.
+                os.link(temporary, path, follow_symlinks=False)
+            finally:
+                temporary.unlink(missing_ok=True)
+            directory_fd = os.open(self.snapshot, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+
+        def verify_audit_reference(self):
+            marker = self.recovery
+            if self.marker.exists() or self.marker.is_symlink():
+                marker = json.loads(private(self.marker))
+            reference = self.read_audit_reference(self.snapshot, marker)
+            require(reference == self.audit_permissions_before, 'audit_reference_changed')
+
+        def preserved_app_permissions(self, ids):
+            self.verify_audit_reference()
+            self.app_permissions(ids)
+
         def write_marker(self):
+            self.verify_audit_reference()
             value = dict(source=EXPECTED_SOURCE, payload=EXPECTED_PAYLOAD_SHA256, snapshot=str(self.snapshot),
                          previous=[self.old[part].name for part in ('backend', 'frontend')], historyBefore=self.history_before, browserGateSha256=self.browser_gate_sha256,
+                         auditPermissions=self.audit_reference_record()['auditPermissions'],
+                         auditReferenceSha256=sha(private(self.snapshot / 'audit-permissions.json')),
                          migrationVerified=self.state.get('migrated_schema_verified') is True
                          or bool(self.recovery and self.recovery.get('migrationVerified') is True))
             temporary = self.marker.with_name('.consolidation-c1-pending-' + uuid.uuid4().hex)
@@ -322,9 +389,21 @@ def make_installer(package):
                     (security.SECURITY_PERMISSIONS, security.EXPECTED_SECURITY_PERMISSIONS, 'security_permissions_unexpected'),
                     (schedules.PRODUCTION_SQL_PERMISSIONS, schedules.EXPECTED_PRODUCTION_PERMISSIONS, 'production_permissions_unexpected'),
                     (delivery.DELIVERY_SQL_PERMISSIONS, delivery.EXPECTED_DELIVERY_PERMISSIONS, 'delivery_permissions_unexpected'),
-                    (schedules.SCHEDULE_PERMISSIONS, schedules.EXPECTED_SCHEDULE_PERMISSIONS, 'ordering_schedule_permissions_unexpected'),
-                    (validation.AUDIT_PERMISSIONS, validation.EXPECTED_AUDIT_PERMISSIONS, 'audit_permissions_unexpected')):
+                    (schedules.SCHEDULE_PERMISSIONS, schedules.EXPECTED_SCHEDULE_PERMISSIONS, 'ordering_schedule_permissions_unexpected')):
                 require(read(query) == expected, issue)
+            observed = read(validation.AUDIT_PERMISSIONS)
+            if not validation.audit_permissions_valid(observed):
+                # Never serialize unrecognized values, fields, argv or configuration.
+                safe = {key: (observed[key] if type(observed) is dict and type(observed.get(key)) is int
+                    and observed[key] in (0, 1) else 'invalid_or_missing') for key in validation.EXPECTED_AUDIT_PERMISSIONS}
+                self.state['audit_permissions_diagnostic'] = dict(expected=validation.EXPECTED_AUDIT_PERMISSIONS,
+                    observed=safe, phase=self.state['phase'], source_commit=EXPECTED_SOURCE)
+                raise InstallError('audit_permissions_unexpected')
+            profile = validation.audit_permissions_tuple(observed)
+            require(self.audit_permissions_before is None or profile == self.audit_permissions_before,
+                    'audit_permissions_changed')
+            self.state['audit_permissions_contract_verified'] = True
+            return profile
 
         def preflight(self):
             for name in ('production-pending.json', 'delivery-pending.json', 'ordering-schedules-pending.json', 'ordering-schedules-i23-pending.json'):
@@ -390,7 +469,10 @@ def make_installer(package):
                 expected = migrations if own else migrations[:-1]
                 require(ids == expected, 'release_and_migration_history_disagree')
                 self.history_before = ids
-            self.app_permissions(ids)
+            observed_permissions = self.app_permissions(ids)
+            if not self.recovery and not own:
+                require(ids == validation.BASE_IDS, 'audit_baseline_requires_exact_i23')
+                self.audit_permissions_before = observed_permissions
             self.original_dll = regular(self.old['backend'] / 'Prodimt.Pedidos.Api.dll')
             self.overrides = {}
             for name in ('appsettings.json', 'appsettings.Production.json'):
@@ -419,7 +501,9 @@ def make_installer(package):
                     self.verify_stage('backend')
                     self.verify_stage('frontend')
                     self.health(True)
-                    self.state.update(status='already_current', phase='completed', frontend_verified=True, tokens_preserved=True, migrations_after=19)
+                    self.state.update(status='already_current', phase='completed', frontend_verified=True,
+                        tokens_preserved=True, migrations_after=19, migrated_schema_verified=True,
+                        recovery_pending=False, audit_permissions_historical_comparison=False)
 
         def verify_schema(self):
             ids = self.schemas(self.sql_json, strict=True)
@@ -447,12 +531,12 @@ def make_installer(package):
         def backup_and_migrate(self):
             ids = self.schemas(self.sql_json, strict=True)
             require(ids == self.state['migration_ids_before'], 'database_changed_during_staging')
+            self.preserved_app_permissions(ids)
             if self.recovery and self.recovery.get('migrationVerified') is True:
                 # The C1 process may already have accepted legitimate writes before a health failure.
                 # Preservation was durably verified before first activation; do not compare later
                 # business state to that historical snapshot or run DDL again.
                 require(ids == migrations and self.verify_schema() == 19, 'verified_recovery_schema_changed')
-                self.app_permissions(migrations)
                 self.record_migration_verified()
                 self.state['migration_recovery_already_verified'] = True
                 return
@@ -473,17 +557,19 @@ def make_installer(package):
             require(self.state.get('verified_database_backup'), 'verified_database_backup_required')
             require(regular(ENV_FILE) == self.environment and token.environment_key(self.environment) == self.token_encryption_key,
                     'configuration_changed_before_migration')
+            self.preserved_app_permissions(ids)
             if MIGRATION not in ids:
                 self.state.update(database_migrations_run=True, migrations_may_have_changed=True)
                 self.sql_run(files['migrations-c1.sql'].decode('utf-8-sig'), timeout=180)
             require(self.history(self.sql_json) == migrations and self.verify_schema() == 19, 'migrated_schema_unexpected')
+            self.preserved_app_permissions(migrations)
             require(self.preservation() == before, 'existing_business_data_changed')
-            self.app_permissions(migrations)
             self.record_migration_verified()
 
         def record_migration_verified(self):
             self.state.update(migrations_after=19, migrated_schema_verified=True, existing_data_counts_preserved=True,
-                audit_metadata_preserved=True, price_history_append_only_verified=True, tokens_preserved=True,
+                audit_metadata_preserved=True, audit_permissions_preserved=True,
+                price_history_append_only_verified=True, tokens_preserved=True,
                 security_permissions_verified=True, production_permissions_verified=True, delivery_permissions_verified=True,
                 ordering_schedule_permissions_verified=True, existing_delivery_preserved=True)
 
@@ -495,6 +581,15 @@ def make_installer(package):
 
         def health(self, new):
             super().health(new)
+            code, body = self.http('/health')
+            require(code == 200 and json.loads(body).get('status') == 'ok', 'health_endpoint_failed')
+            ids = self.schemas(lambda query: self.inspector.query_sql(self.sql_tool, self.fields, query))
+            require(ids == (migrations if new else validation.BASE_IDS), 'health_schema_unexpected')
+            if self.audit_permissions_before is None:
+                # Healthy already_current: fixed contract, no invented historical baseline.
+                self.app_permissions(ids)
+            else:
+                self.preserved_app_permissions(ids)
             if new:
                 require(self.http('/api/admin/ordering-schedules')[0] == 401 and self.http('/api/admin/security')[0] == 401 and self.http('/api/admin/security/me')[0] == 401 and self.http('/api/admin/operations/production/')[0] == 401
                         and self.http('/api/admin/delivery')[0] == 401 and self.http('/api/delivery')[0] == 401,
@@ -530,9 +625,12 @@ def make_installer(package):
                 if getattr(error, 'phase', None):
                     self.state['validation_sql_phase'] = error.phase
                 raise InstallError(str(error)) from None
-            require(isinstance(result, dict) and result.get('status') == 'passed' and all(
+            require(isinstance(result, dict) and result.get('schema') == validation.SCHEMA
+                    and result.get('status') == 'passed' and all(
                 result.get(key) is True for key in ('exactSql', 'rollbackVerified', 'replayVerified',
-                    'applicationPermissions', 'preservationVerified', 'cleanupVerified')), 'exact_sql_validation_incomplete')
+                    'applicationPermissions', 'auditPermissionsPreserved', 'preservationVerified', 'cleanupVerified',
+                    'strictMetadata', 'unicodeAuditVerified', 'lossyDowngradeRejected', 'safeDowngradeVerified'))
+                    and validation.audit_permissions_valid(result.get('auditPermissionsBefore')), 'exact_sql_validation_incomplete')
             self.state.update(exact_sql_validation=result, isolated_validation_verified=True, validation_databases_cleaned=True)
 
         def verify_browser_gate(self):
@@ -571,6 +669,7 @@ def make_installer(package):
             self.state['phase'] = 'sql-admin-authentication'
             self.authenticate_admin()
             self.validate_before_apply()
+            self.state['phase'] = 'private-snapshot-and-stage'
             if not self.recovery:
                 self.snapshot = BACKUPS / ('consolidation-c1-update-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:12])
                 self.snapshot.mkdir(mode=0o700)
@@ -581,6 +680,7 @@ def make_installer(package):
                     (self.snapshot / name.split('/', 1)[1]).write_bytes(raw)
                 for path in self.snapshot.iterdir():
                     path.chmod(0o600)
+                self.persist_audit_reference()
             self.state.update(changes_made=True, private_snapshot=str(self.snapshot))
             self.stage()
             if not self.recovery:
@@ -588,6 +688,7 @@ def make_installer(package):
                 self.process(self.old['backend'])
             require(regular(ENV_FILE) == self.environment and regular(self.old['backend'] / 'Prodimt.Pedidos.Api.dll') == self.original_dll
                     and all(regular(self.old['backend'] / name.split('/', 1)[1]) == raw for name, raw in self.overrides.items()), 'configuration_or_backend_changed_during_staging')
+            self.preserved_app_permissions(self.state['migration_ids_before'])
             self.write_marker()
             self.state['phase'] = 'stop-prodimt-api'
             self.stop_requested = True
@@ -617,13 +718,28 @@ def make_installer(package):
             self.state['rollback_service_stopped'] = True
             try:
                 safe = self.schemas(self.sql_json, strict=True) == self.history_before and not self.recovery
+                if safe:
+                    self.preserved_app_permissions(self.history_before)
             except (Exception, KeyboardInterrupt):
                 safe = False
             if not safe:
                 self.state.update(recovery_manual_required=True, recovery_pending=True, application_stopped_for_security=True,
                                   database_automatically_restored=False)
                 return
-            super().rollback()
+            try:
+                self.switch(self.old)
+                runtime.command(['systemctl', 'start', SERVICE], timeout=45)
+                self.health(False)
+            except (Exception, KeyboardInterrupt):
+                stopped = False
+                try:
+                    runtime.command(['systemctl', 'stop', SERVICE], timeout=45)
+                    stopped = True
+                except (Exception, KeyboardInterrupt):
+                    self.state['rollback_blocked_service_stop'] = True
+                self.state.update(recovery_manual_required=True, recovery_pending=True,
+                    application_stopped_for_security=stopped, database_automatically_restored=False)
+                return
             self.marker.unlink(missing_ok=True)
             self.state.update(previous_health_verified=True, recovery_pending=False, service_restarted=True)
 

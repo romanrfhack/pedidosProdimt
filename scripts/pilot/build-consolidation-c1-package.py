@@ -348,9 +348,15 @@ Este es un candidato sujeto a validación, no evidencia de despliegue.
 Base exacta backend/frontend ordering-schedules-i23-aa802e210d15 y 18 migraciones.
 Incluye las correcciones C1, Reparto/RF1 y Horarios I23; amplía sólo la columna
 AuditLogs.MetadataJson mediante ExpandAuditMetadata (migración 19).
+El contrato de este despliegue conserva AuditLogs=1111 de I23 confirmado;
+no endurece permisos ni acredita auditoría append-only. F24 sigue separado.
 
 Desde WSL, verificar SHA256SUMS.txt y ejecutar:
   bash PRODIMT_Desplegar_C1_WSL.sh
+Si sólo se interrumpió SCP/SSH después del gate completo del MISMO paquete:
+  bash PRODIMT_Desplegar_C1_WSL.sh --resume-from-transfer RUTA_A_RESULTADOS
+La continuación vuelve a verificar paquete, fuente, reporte completo y gate;
+el instalador mantiene preflight, SQL aislado, respaldo y controles de aplicación.
 
 La preparación recupera la fuente exacta del bundle y exige pruebas de navegador
 con API simulada del mismo commit antes de transferir/instalar. Estas pruebas no

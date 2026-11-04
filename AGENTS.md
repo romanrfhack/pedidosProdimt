@@ -1,5 +1,18 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## Continuidad R5 posterior al preflight R4
+
+El VPS rechazó R4 `4080152f4fd3ba25f94f3ec3e03bd929feda9b3d` en sólo lectura:
+`audit_permissions_unexpected`, sin cambios, migración ni reinicio. El diagnóstico
+confirmado por el usuario acredita I23 exacto/18 migraciones y AuditLogs=1111.
+R5 corrige sólo entrega/pruebas/documentación: exige y preserva ese perfil entero
+exacto, con referencia privada durable vinculada a fuente/payload antes de stop/DDL.
+No ejecutar permisos SQL operativos ni adelantar F24. [Causa y pruebas R5](docs/validation/2026-11-04-c1-r5-permissions.md).
+Navegador y SQL de R5 necesitan evidencia de su propia fuente; los pases R4 no
+autorizan otra fuente. I23 sigue siendo la última instalación confirmada hasta
+un resultado verificable del destino. Los apartados previos siguientes conservan
+su fecha y no sustituyen esta evidencia posterior. No publicar/push a GitHub.
+
 ## Prioridad de consolidación (4 de noviembre de 2026)
 
 El usuario autorizó las correcciones, las pruebas pendientes y el despliegue de C1, sin requerir otra confirmación. [C1](docs/corrections/C1.md) registra cada hallazgo; la [preparación nativa del 4 de noviembre](docs/validation/2026-11-04-c1-native.md) distingue candidato, pruebas y despliegue. La aplicación instalada confirmada continúa en I23 `aa802e2`: ambos releases `ordering-schedules-i23-aa802e210d15`, 18 migraciones; corrector SQL `8621e964`, cierre `d8e1db45`. El merge `cbc34aa` conserva esa evidencia y la auditoría. No hay reporte de instalación C1.

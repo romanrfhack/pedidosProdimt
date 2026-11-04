@@ -893,3 +893,33 @@ Dependencias Chromium instaladas por el usuario. Candidato e769: 79 correctas, u
 - Pendiente fijar el nuevo commit, reconstruir el frontend/paquete y ejecutar
   el gate completo del nuevo SHA. C1 continúa sin desplegar; I23/18 migraciones
   sigue siendo la última instalación confirmada.
+
+## 4 de noviembre de 2026 — C1 R5, bloqueo de permisos R4
+
+R4 4080152 pasó240/240 en dos ejecuciones, pero el preflight real del VPS falló
+sin cambios por audit_permissions_unexpected. El diagnóstico del usuario confirmó
+I23 exacto,18 migraciones, releases ordering-schedules-i23-aa802e210d15 y
+AuditLogs1111, frente al1100 exigido por una fixture con DENY artificial.
+El reporte del segundo gate es46de425f49dc2eaf1b09a6a136dbce9ba7ff2f2e90b73bc3be4b597d178a7241.
+Transferencia posterior completada; no se aplicó C1, respaldo, DDL ni SQL temporal VPS.
+
+R5 se trabaja en clon aislado del bundle local verificado; preserva las copias R4,
+trabajo previo e I23 instalado. Corrige herramientas de entrega, tests y documentos:
+perfil1111 entero exacto, referencia privada durable vinculada a fuente/payload,
+comprobaciones de preservación en stage/DDL/salud/recuperación y bloqueo del rollback
+si los permisos cambian o no pueden comprobarse. No se ejecutan permisos SQL
+operativos ni se cambia backend/frontend/validador .NET/migraciones. F24 continúa
+separado; conservar1111 no convierte AuditLogs en append-only.
+
+Regresión sobre R4 reproduce el fallo. C1 Python:74/74; suite completa607 casos,
+604 correctos, tres omisiones históricas root y cero fallos. SQL exacto simulado
+comprueba la observación previa y las cinco transiciones; SQL Server real no está
+disponible localmente y deberá repetirse en el VPS. Entrada R4:557/557 archivos
+verificados y471 blobs de fuentes relevantes iguales para reutilizar los binarios
+sin afirmar recompilación. El wrapper puede continuar desde transferencia sólo
+con gate/reporte/hashes del mismo paquete, manteniendo preflight y gates remotos.
+
+SSH directo del agente falla por socket Operation not permitted. El navegador R5
+requiere el SHA nuevo limpio; sus resultados y los artefactos posteriores se
+registrarán fuera del checkout para evitar referencias circulares. C1 sigue sin
+instalación confirmada y no hay publicación GitHub. [Detalle](../validation/2026-11-04-c1-r5-permissions.md).

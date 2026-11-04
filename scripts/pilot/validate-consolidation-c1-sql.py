@@ -37,7 +37,19 @@ EXPECTED_AUDIT_SHAPE_AFTER = dict(EXPECTED_AUDIT_SHAPE_BEFORE, max_length=-1)
 AUDIT_PERMISSIONS = 'SELECT ' + ','.join(
     "HAS_PERMS_BY_NAME(N'dbo.AuditLogs',N'OBJECT',N'" + name + "') AS [" + name + ']'
     for name in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')) + ' FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;'
-EXPECTED_AUDIT_PERMISSIONS = dict(SELECT=1, INSERT=1, UPDATE=0, DELETE=0)
+# Confirmed installed I23, not the artificial append-only fixture used by R4.
+# F24 hardening is a separate delivery. C1 preserves this exact historical profile.
+EXPECTED_AUDIT_PERMISSIONS = dict(SELECT=1, INSERT=1, UPDATE=1, DELETE=1)
+
+
+def audit_permissions_valid(value):
+    return (type(value) is dict and set(value) == set(EXPECTED_AUDIT_PERMISSIONS)
+            and all(type(bit) is int and bit == 1 for bit in value.values()))
+
+
+def audit_permissions_tuple(value):
+    require(audit_permissions_valid(value), 'validation_application_permissions_mismatch')
+    return tuple(value[key] for key in EXPECTED_AUDIT_PERMISSIONS)
 
 # All 33 business tables in baseline 18. PK ordering makes the digest independent
 # of row scan order. The history table is checked separately, with exact IDs.
@@ -238,8 +250,14 @@ def validate_exact_sql(files, tool, server, login, password, options, clean_envi
         transport.phase = 'baseline-permissions-and-data'
         transport.run(database, 'CREATE USER [prodimt_pedidos_app] WITHOUT LOGIN;\n'
             'ALTER ROLE [db_datareader] ADD MEMBER [prodimt_pedidos_app];\n'
-            'ALTER ROLE [db_datawriter] ADD MEMBER [prodimt_pedidos_app];\n'
-            'DENY UPDATE,DELETE ON dbo.AuditLogs TO [prodimt_pedidos_app];\n' + SEED_SQL)
+            'ALTER ROLE [db_datawriter] ADD MEMBER [prodimt_pedidos_app];\n' + SEED_SQL)
+        # Capture before any migration, under the disposable application's identity.
+        # Re-check against this immutable observation at every transition, including
+        # a rejected downgrade and transactional rollback (never recapture after DDL).
+        audit_before = audit_permissions_tuple(transport.query(AUDIT_PERMISSIONS, as_application=True))
+        def permissions_preserved():
+            require(audit_permissions_tuple(transport.query(AUDIT_PERMISSIONS, as_application=True)) == audit_before,
+                    'validation_application_permissions_mismatch')
         before = transport.query(PRESERVATION_QUERY)
         require(isinstance(before, dict) and set(before) == set(TABLE_KEYS)
                 and all(re.fullmatch(r'[a-fA-F0-9]{64}', value or '') for value in before.values()),
@@ -253,14 +271,14 @@ def validate_exact_sql(files, tool, server, login, password, options, clean_envi
         require(transport.query(history_query()) == expected_before
                 and transport.query(AUDIT_SHAPE) == EXPECTED_AUDIT_SHAPE_BEFORE
                 and transport.query(PRESERVATION_QUERY) == before, 'validation_transaction_rollback_failed')
+        permissions_preserved()
         transport.phase = 'upgrade'
         transport.run(database, upgrade)
         require(transport.query(history_query()) == expected_after
                 and transport.query(AUDIT_SHAPE) == EXPECTED_AUDIT_SHAPE_AFTER,
                 'validation_upgraded_schema_mismatch')
         require(transport.query(PRESERVATION_QUERY) == before, 'validation_upgrade_changed_existing_data')
-        require(transport.query(AUDIT_PERMISSIONS, as_application=True) == EXPECTED_AUDIT_PERMISSIONS,
-                'validation_application_permissions_mismatch')
+        permissions_preserved()
         transport.phase = 'application-unicode-audit'
         transport.run(database, "EXECUTE AS USER=N'" + APPLICATION_USER + "';\n" + LONG_INSERT_SQL + '\nREVERT;')
         require(transport.query(LONG_QUERY, as_application=True) == {
@@ -272,6 +290,7 @@ def validate_exact_sql(files, tool, server, login, password, options, clean_envi
         require(transport.query(history_query()) == expected_after
                 and transport.query(AUDIT_SHAPE) == EXPECTED_AUDIT_SHAPE_AFTER
                 and transport.query(PRESERVATION_QUERY) == with_long, 'validation_lossy_downgrade_changed_data')
+        permissions_preserved()
         transport.phase = 'safe-downgrade'
         # Only this synthetic UUID row in this disposable database is removed.
         transport.run(database, LONG_DELETE_SQL)
@@ -279,14 +298,15 @@ def validate_exact_sql(files, tool, server, login, password, options, clean_envi
         require(transport.query(history_query()) == expected_before
                 and transport.query(AUDIT_SHAPE) == EXPECTED_AUDIT_SHAPE_BEFORE
                 and transport.query(PRESERVATION_QUERY) == before, 'validation_safe_downgrade_changed_data')
+        permissions_preserved()
         transport.phase = 'upgrade-and-replay'
         transport.run(database, upgrade)
         transport.run(database, upgrade)
         require(transport.query(history_query()) == expected_after
                 and transport.query(AUDIT_SHAPE) == EXPECTED_AUDIT_SHAPE_AFTER
-                and transport.query(PRESERVATION_QUERY) == before
-                and transport.query(AUDIT_PERMISSIONS, as_application=True) == EXPECTED_AUDIT_PERMISSIONS,
+                and transport.query(PRESERVATION_QUERY) == before,
                 'validation_upgrade_replay_changed_data')
+        permissions_preserved()
     except ValidationFailure as error:
         if error.phase is None:
             error.phase = getattr(transport, 'phase', None)
@@ -305,6 +325,7 @@ def validate_exact_sql(files, tool, server, login, password, options, clean_envi
     if issue:
         raise issue
     return dict(schema=SCHEMA, status='passed', exactSql=True, strictMetadata=True,
-        applicationPermissions=True, preservationVerified=True, unicodeAuditVerified=True,
+        applicationPermissions=True, auditPermissionsBefore=dict(zip(EXPECTED_AUDIT_PERMISSIONS, audit_before)),
+        auditPermissionsPreserved=True, preservationVerified=True, unicodeAuditVerified=True,
         lossyDowngradeRejected=True, safeDowngradeVerified=True, rollbackVerified=True,
         replayVerified=True, cleanupVerified=True)

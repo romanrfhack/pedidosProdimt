@@ -1,6 +1,41 @@
 # Continuar PRODIMT
 
-## Prioridad actual
+## Prioridad vigente: R5, compatibilidad con el I23 real
+
+R4 `4080152f4fd3ba25f94f3ec3e03bd929feda9b3d` pasó 240/240 en WSL,
+pero el VPS lo rechazó en preflight por exigir AuditLogs=1100. El diagnóstico
+de lectura del usuario confirmó **1111**, 18 migraciones y ambos releases
+`ordering-schedules-i23-aa802e210d15`; no hubo cambios, respaldo, DDL ni reinicio.
+El reporte del segundo gate R4 es `46de425f49dc2eaf1b09a6a136dbce9ba7ff2f2e90b73bc3be4b597d178a7241`,
+distinto del primer pase adjunto. [Detalle y contrato R5](docs/validation/2026-11-04-c1-r5-permissions.md).
+
+R5 exige el perfil fijo 1111, conserva los demás controles y persiste la referencia
+inmutable antes de detener/migrar. Recuperación y rollback comprueban esa referencia;
+la recuperación con migración ya verificada no repite DDL ni compara escrituras
+legítimas nuevas con el snapshot antiguo. `already_current` comprueba fuente,
+binarios, esquema19, permisos y salud sin inventar una comparación histórica.
+No se modifica backend/frontend/.NET/SQL publicado ni se endurecen permisos.
+F24 sigue separado: **1111 permite UPDATE/DELETE; no es append-only**.
+
+Python observado: **74/74 controles C1**, suite completa **607 casos: 604 correctos,
+tres omisiones de fixtures históricas que requieren root, cero fallos**. No hay
+SQL Server/sqlcmd/Docker local aprobado en esta sesión. SSH directo aborta con
+`socket: Operation not permitted`; no se ha observado ningún cambio remoto R5.
+Los resultados de navegador posteriores al commit y los hashes del paquete se
+guardan fuera del checkout en `REPORTE_C1_PARA_CHATGPT.txt`,
+`RESUMEN_C1_PARA_CHATGPT.json` y `evidencias-r5/`. No convertir pendientes en pases.
+
+Construir con el constructor desde esta rama canónica y fuente limpia. Se permite
+reutilizar binarios R4 verificados sólo por igualdad de los 471 blobs relevantes
+y de los 557 archivos del manifiesto original; la trazabilidad externa identifica
+los archivos reutilizados y declara `recompiled=false`. Ejecutar el wrapper R5;
+si el gate completo pasó y sólo se cortó la conexión, usar su nueva opción
+`--resume-from-transfer DIRECTORIO_RESULTADOS` del mismo paquete. Nunca reutilizar
+un gate R4 ni mezclar instaladores/payloads. VPS debe repetir portátil7/7 y SQL
+exacto corregido en bases UUID antes del respaldo y DDL operativos. Tras DDL,
+repetir exactamente ese paquete para recuperación hacia delante.
+
+## Antecedentes de preparación C1, anteriores al preflight R4
 
 El usuario autorizó continuar las pruebas pendientes y el despliegue de C1. C1 consolida reintentos, acceso administrativo, historial, borradores y validación de entradas. Estado por hallazgo: [C1](docs/corrections/C1.md); controles y evidencia del candidato: [preparación nativa del 4 de noviembre](docs/validation/2026-11-04-c1-native.md). **C1 no está desplegado**; no se modificaron cuentas, claves ni datos productivos.
 

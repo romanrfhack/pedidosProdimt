@@ -5,11 +5,13 @@ umask 077
 
 usage() {
   cat <<'TXT'
-Uso: bash PRODIMT_Desplegar_C1_WSL.sh [--validate-only | --prepare-only]
+Uso: bash PRODIMT_Desplegar_C1_WSL.sh [--validate-only | --prepare-only | --resume-from-transfer DIRECTORIO_RESULTADOS]
 
 Sin opciones: navegador local completo y, si pasa, preflight/SQL/respaldo/despliegue.
 --validate-only: navegador local y pruebas SQL aisladas del VPS; sin despliegue.
 --prepare-only: sólo navegador local; no conecta al VPS.
+--resume-from-transfer: reutiliza únicamente el gate completo del MISMO paquete;
+  verifica reporte, fuente y hashes antes de repetir SCP y los controles del VPS.
 Requiere WSL/Linux, git, python3, curl, tar, sha256sum, ssh y scp.
 Node 24 se utiliza si existe; de lo contrario se descarga una copia local verificada.
 Chromium requiere sus bibliotecas del sistema instaladas. No se ejecuta sudo.
@@ -19,15 +21,19 @@ TXT
 }
 
 mode=apply
+resume_results=''
 case "${1:-}" in
   '') ;;
   --validate-only) mode=validate ;;
   --prepare-only) mode=prepare ;;
+  --resume-from-transfer)
+    [[ $# == 2 ]] || { usage >&2; exit 2; }
+    resume_results=$(cd -- "$2" && pwd -P) ;;
   --help|-h) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
 esac
-if (( $# > 1 )); then usage >&2; exit 2; fi
-for tool in git python3 curl tar sha256sum ssh scp; do
+if (( $# > 1 )) && [[ -z "$resume_results" ]]; then usage >&2; exit 2; fi
+for tool in git python3 curl tar sha256sum ssh scp cmp; do
   command -v "$tool" >/dev/null || { printf 'Falta la herramienta: %s\n' "$tool" >&2; exit 2; }
 done
 package_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -47,9 +53,20 @@ if [[ ! "$ssh_target" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*$
   printf 'PRODIMT_SSH_TARGET no es usuario@servidor válido.\n' >&2
   exit 2
 fi
+if [[ -n "$resume_results" ]]; then
+  [[ "$resume_results" == "$package_dir/resultados-c1/"* ]] || {
+    printf 'Los resultados deben pertenecer a este paquete.\n' >&2; exit 2;
+  }
+  results=$resume_results
+  cmp --silent SHA256SUMS.txt "$results/package-SHA256SUMS.txt" || {
+    printf 'El paquete difiere del validado en esos resultados.\n' >&2; exit 2;
+  }
+  gate="$results/prodimt-c1-browser-gate.json"
+else
 work=$(mktemp -d "${TMPDIR:-/tmp}/prodimt-c1-XXXXXXXX")
 results="$package_dir/resultados-c1/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p -- "$results"
+cp -- SHA256SUMS.txt "$results/package-SHA256SUMS.txt"
 gate="$results/prodimt-c1-browser-gate.json"
 printf 'Fuentes temporales: %s\nResultados: %s\n' "$work" "$results"
 git clone --quiet --branch codex/consolidacion-c1 "$package_dir/PRODIMT_C1.bundle" "$work/fuente"
@@ -76,16 +93,29 @@ printf 'Ejecutando navegador sobre el commit %s.\n' "$source_commit"
 BUILD_C1_BROWSER_GATE_JSON="$gate" \
   bash "$work/fuente/tests/e2e/run-c1-browser-gate.sh" --source "$source_commit" \
   2>&1 | tee "$results/navegador.log"
+fi
 # Do not trust only the child exit status: bind its successful evidence to this source.
-python3 - "$gate" "$source_commit" <<'PY'
-import json,sys
+python3 - "$gate" "$source_commit" "$results/playwright.json" <<'PY'
+import hashlib,json,sys
+from pathlib import Path
 with open(sys.argv[1],encoding='utf-8') as stream:
     gate=json.load(stream)
 expected={'schema':'prodimt.c1.browser-gate.v1','status':'passed',
           'sourceCommit':sys.argv[2],'api':'mock','passed':240,'failed':0,
-          'skipped':0,'flaky':0,'collected':240}
-if any(gate.get(key)!=value for key,value in expected.items()):
+          'skipped':0,'flaky':0,'collected':240,'suite':'all','expectedCases':240,
+          'exitCode':0,'sqlServerIncluded':False,'humanAcceptance':False}
+if any(type(gate.get(key)) is not type(value) or gate[key]!=value for key,value in expected.items()):
     raise SystemExit('El gate de navegador no cumple la validación completa de esta fuente.')
+raw=Path(sys.argv[3]).read_bytes()
+report=json.loads(raw)
+def count(suites):
+    return sum(sum(len(spec.get('tests',[])) for spec in suite.get('specs',[]))
+               + count(suite.get('suites',[])) for suite in suites)
+if (gate.get('reportSha256')!=hashlib.sha256(raw).hexdigest() or count(report.get('suites',[]))!=240
+    or any(type(report.get('stats',{}).get(key)) is not int or report['stats'][key]!=value
+           for key,value in {'expected':240,'unexpected':0,'skipped':0,'flaky':0}.items())
+    or report.get('errors',[])):
+    raise SystemExit('El reporte completo no corresponde al gate de este paquete.')
 print('Navegador completo verificado; evidencia ligada a la fuente del paquete.')
 PY
 if [[ "$mode" == prepare ]]; then

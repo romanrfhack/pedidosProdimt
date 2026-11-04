@@ -38,6 +38,11 @@ class SyntheticSql:
         self.changed_data = self.bad_unicode = self.lossy_downgrade = self.safe_downgrade_bad = False
         self.reverse_table_collation = False
         self.omit_empty_fingerprints = False
+        # Independent historical db_datareader/db_datawriter fixture, not the
+        # constant whose correctness these tests must detect.
+        self.audit_permissions = dict(SELECT=1, INSERT=1, UPDATE=1, DELETE=1)
+        self.permission_drift_phase = None
+        self.permission_observations = []
 
     def factory(self, tool, server, login, password, options, clean_environment, parse_output, database):
         self.database = database
@@ -97,7 +102,11 @@ class SyntheticSql:
         if query == validation.AUDIT_PERMISSIONS:
             if not as_application:
                 raise AssertionError('Audit permissions must be inspected as application identity')
-            return dict(validation.EXPECTED_AUDIT_PERMISSIONS, UPDATE=int(self.permissions_bad))
+            observed = self.audit_permissions.copy()
+            if self.permissions_bad or self.phase == self.permission_drift_phase:
+                observed['UPDATE'] = 0
+            self.permission_observations.append((self.phase, observed.copy()))
+            return observed
         if query == validation.LONG_QUERY:
             if not as_application:
                 raise AssertionError('Long data must be read by application identity')
@@ -124,6 +133,36 @@ class ConsolidationC1SqlValidationTests(unittest.TestCase):
         self.assertEqual([failure[0] for _, _, failure in fake.calls if failure], [51025, 51024])
         self.assertEqual(sum(sql == fake.files['migrations-c1.sql'].decode() for _, sql, _ in fake.calls), 3)
         self.assertFalse(any('ProdimtPedidos' in sql or 'RESTORE' in sql for _, sql, _ in fake.calls))
+        self.assertEqual([phase for phase, _ in fake.permission_observations], [
+            'baseline-permissions-and-data', 'rollback-verification', 'upgrade',
+            'reject-lossy-downgrade', 'safe-downgrade', 'upgrade-and-replay'])
+        self.assertTrue(all(bits == dict(SELECT=1, INSERT=1, UPDATE=1, DELETE=1)
+                            for _, bits in fake.permission_observations))
+        self.assertFalse(any('DENY' in sql.upper() for _, sql, _ in fake.calls))
+
+    def test_permissions_drift_at_every_transition_blocks_and_cleans_database(self):
+        for phase in ('baseline-permissions-and-data', 'rollback-verification', 'upgrade',
+                      'reject-lossy-downgrade', 'safe-downgrade', 'upgrade-and-replay'):
+            with self.subTest(phase=phase):
+                fake = SyntheticSql()
+                fake.permission_drift_phase = phase
+                with self.assertRaisesRegex(validation.ValidationFailure, 'validation_application_permissions_mismatch'):
+                    self.gate(fake)
+                self.assertFalse(fake.exists)
+
+    def test_only_exact_integer_1111_is_a_valid_contract(self):
+        import itertools
+        for bits in itertools.product((0, 1), repeat=4):
+            self.assertEqual(validation.audit_permissions_valid(dict(zip(('SELECT', 'INSERT', 'UPDATE', 'DELETE'), bits))),
+                             bits == (1, 1, 1, 1))
+        for bad in (None, [], {}, dict(SELECT=1, INSERT=1, UPDATE=1),
+                    dict(SELECT=1, INSERT=1, UPDATE=1, DELETE=1, extra=1)):
+            self.assertFalse(validation.audit_permissions_valid(bad))
+        for key in ('SELECT', 'INSERT', 'UPDATE', 'DELETE'):
+            for bad in (None, True, False, '1', '0', 1.0, -1, 2, [], {}):
+                value = dict(SELECT=1, INSERT=1, UPDATE=1, DELETE=1)
+                value[key] = bad
+                self.assertFalse(validation.audit_permissions_valid(value))
 
     def test_uncertain_create_response_still_cleans_only_generated_database(self):
         fake = SyntheticSql()
