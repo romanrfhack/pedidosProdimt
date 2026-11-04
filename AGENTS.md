@@ -6,6 +6,10 @@ El usuario autorizó las correcciones, las pruebas pendientes y el despliegue de
 
 Priorizar consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar InMemory/SQLite/SQL Server/UI mock en la evidencia. El candidato C1 incluye instalador propio sobre I23: el wrapper WSL exige navegador completo del mismo commit (240 casos, API simulada, sin omisiones) antes de transferir/aplicar; el VPS exige siete casos EF/HTTP con SQL Server y SQL exacto 18→19 en bases temporales, limpieza y respaldo verificado antes de DDL operativo. Un candidato preparado no acredita esos gates ni despliegue. No omitir gates ni cambiar pines de instaladores históricos. Después de DDL, recuperar hacia delante con el mismo paquete; no restaurar automáticamente ni truncar historia. Los capítulos iniciales que siguen son históricos donde un incremento autorizado los amplía.
 
+## Evidencia WSL posterior (4 de noviembre)
+
+El usuario ya puede iniciar Chromium: el candidato e769 obtuvo 79 pruebas correctas, una fallida por un selector textual heredado y 160 no ejecutadas. Ver [segunda revisión C1](docs/validation/2026-11-04-c1-browser-wsl.md). Se corrige el selector, se ejecutan todos los casos para diagnóstico y se mantiene el requisito de 240 correctas. No interpretar estos resultados como despliegue: el wrapper se detuvo antes del VPS.
+
 ## Alcance autorizado por incrementos
 
 El usuario autorizó el plan integral, I01, I02, la instalación/ensayo I03 y el ajuste operativo I04. Leer primero `CONTINUAR.md`, `docs/README.md` y `docs/proyecto/{ESTADO,MATRIZ-FUNCIONAL,ARQUITECTURA-ACTUAL,PLAN-CONSOLIDACION,DECISIONES}.md`, después el contrato del módulo afectado; estos documentos prevalecen sobre el alcance histórico de mayo que sigue abajo. Cada sesión debe actualizar estado y bitácora y preservar el trabajo por el mecanismo autorizado. La publicación GitHub conserva su antecedente independiente pendiente; no forzar un push para satisfacer una regla histórica.

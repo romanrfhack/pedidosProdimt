@@ -215,7 +215,9 @@ test('pedido existente muestra detalle y contacto, con portal adaptable a 360px'
   await page.setViewportSize({ width: 360, height: 800 });
   const state = await mockPortal(page, { existing: true }); await enter(page);
   await expect(page.getByTestId('customer-current-order')).toContainText('14 kg');
-  await expect(page.getByText(/Si necesitas cambiarlo, comunícate con PRODIMT/)).toBeVisible();
+  await expect(page.getByTestId('customer-current-order').getByText(
+    'Ya recibimos tu captura para esta fecha. Si necesitas cambiarla, comunícate con PRODIMT.', { exact: true }
+  )).toBeVisible();
   await expect(page.getByTestId('customer-capture')).toHaveCount(0);
   expect(state.captures).toHaveLength(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

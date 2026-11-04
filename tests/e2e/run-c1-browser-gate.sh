@@ -17,6 +17,7 @@ gate_path="${BUILD_C1_BROWSER_GATE_JSON:-$e2e_root/playwright-report/c1-browser-
 gate_path="$(node -e 'console.log(require("node:path").resolve(process.argv[1]))' "$gate_path")"
 evidence_root="$(dirname -- "$gate_path")"
 report_path="$evidence_root/playwright.json"
+summary_path="$evidence_root/diagnostico-resumen.json"
 source_commit=''
 stage='preflight'
 completed_stages=''
@@ -24,7 +25,7 @@ current_log=''
 
 mkdir -p -- "$evidence_root"
 # Remove stale evidence before any check. A failed rerun can never reuse a pass.
-rm -f -- "$gate_path" "$report_path"
+rm -f -- "$gate_path" "$report_path" "$summary_path"
 
 write_gate() {
   node - "$gate_path" "$source_commit" "$1" "$stage" "$report_path" "$2" "$completed_stages" <<'NODE'
@@ -77,9 +78,14 @@ on_exit() {
   if (( result != 0 )); then
     write_gate failed "$result" || true
     printf 'C1 browser gate failed during %s (exit %s).\n' "$stage" "$result" >&2
-    if [[ -n "$current_log" && -f "$current_log" ]]; then
+    local summarized=false
+    if [[ -f "$report_path" ]] && node "$e2e_root/summarize-c1-browser.mjs" "$report_path" "$summary_path" >&2; then
+      summarized=true
+    fi
+    if [[ -n "$current_log" && -f "$current_log" && "$summarized" != true ]]; then
       tail -50 -- "$current_log" >&2
     fi
+    if [[ -n "$current_log" ]]; then printf 'Full log: %s\n' "$current_log" >&2; fi
     printf 'Evidence: %s\n' "$gate_path" >&2
   fi
 }
@@ -131,10 +137,11 @@ fi
 stage='browser-suite'
 current_log="$evidence_root/browser-suite.log"
 printf 'C1: browser-suite (all 240 cases, synthetic HTTP API)\n'
+printf 'La suite completa puede tardar varios minutos; el resumen aparecerá al terminar.\n'
 (
   cd -- "$e2e_root"
   PLAYWRIGHT_JSON_OUTPUT_FILE="$report_path" node node_modules/playwright/cli.js test \
-    --workers=1 --max-failures=1 --reporter=json
+    --workers=1 --max-failures=0 --reporter=json
 ) > "$current_log" 2>&1
 completed_stages="${completed_stages:+$completed_stages,}browser-suite"
 

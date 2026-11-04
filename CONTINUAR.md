@@ -14,6 +14,10 @@ Leer [ESTADO](docs/proyecto/ESTADO.md), [MATRIZ](docs/proyecto/MATRIZ-FUNCIONAL.
 - Ver [evidencia I23](docs/validation/2026-11-03-schedules-installed.md). No repetir instaladores ni confundir aceptación visual con instalación.
 - El usuario autoriza comenzar las correcciones y documentar cada hallazgo atendido. C1 trabaja sobre esta base; los cambios nuevos no se consideran desplegados.
 
+## Resultado WSL posterior
+
+Chromium ya inicia en el WSL del usuario: 79 pruebas pasaron, una falló por una expectativa textual antigua y 160 no se ejecutaron por el límite al primer fallo. La expectativa se corrigió sin cambios de aplicación; el candidato siguiente ejecuta los 240 casos y resume todos los fallos, conservando el gate estricto. Ver [resultado WSL y segunda revisión](docs/validation/2026-11-04-c1-browser-wsl.md). **Todavía no se ha conectado al VPS ni desplegado C1.**
+
 ## Siguiente trabajo
 
 1. F03 resuelto por corrector y reporte I23; preservar guardas e incorporar la evidencia.

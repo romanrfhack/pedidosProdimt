@@ -29,6 +29,10 @@ El validador portátil también pasó **7/7 casos EF/HTTP con SQL Server real**
 y verificó la limpieza de sus dos bases UUID. Es una validación aislada del
 candidato; no una operación sobre la base productiva ni una aceptación humana.
 
+## Ejecución WSL posterior del candidato
+
+El usuario confirmó Chromium operativo: **79 correctas, una fallida y 160 no ejecutadas**. La prueba esperaba un texto anterior al vigente desde I23; se corrige únicamente su selector y se habilita diagnóstico completo sin detenerse al primer fallo. [Evidencia y segunda revisión](../validation/2026-11-04-c1-browser-wsl.md). Las 240 correctas siguen siendo obligatorias; C1 no está desplegado.
+
 ## Módulos y alcance
 
 | Módulo | Código disponible | Instalación conocida | Pendiente |
