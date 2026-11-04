@@ -1,9 +1,11 @@
 import { environment } from '../environments/environment';
 import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AdminDecisionApiValue } from './customer-orders-api.service';
 import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } from './order-data.service';
 
@@ -104,11 +106,11 @@ interface ChangeLineForm {
                     </label>
                     <label>
                       <span>Notas de entrega</span>
-                      <input name="deliveryNotes" [(ngModel)]="deliveryNotes">
+                      <input name="deliveryNotes" maxlength="500" [(ngModel)]="deliveryNotes">
                     </label>
                     <label>
                       <span>Notas internas</span>
-                      <input name="internalNotes" [(ngModel)]="internalNotes">
+                      <input name="internalNotes" maxlength="1000" [(ngModel)]="internalNotes">
                     </label>
                     <div class="line-list">
                       @for (line of changeLines; track line.orderLineId) {
@@ -137,8 +139,12 @@ interface ChangeLineForm {
                 }
 
                 @if (selectedAuditOrderId === order.id) {
-                  <div class="audit-list">
-                    @if (auditEvents.length === 0) {
+                  <div class="audit-list" [attr.aria-busy]="loadingAuditOrderId === order.id">
+                    @if (loadingAuditOrderId === order.id) {
+                      <small role="status">Cargando auditoría...</small>
+                    } @else if (auditErrorMessage) {
+                      <small role="alert">{{ auditErrorMessage }}</small>
+                    } @else if (auditEvents.length === 0) {
                       <small>No hay eventos de auditoria para mostrar.</small>
                     } @else {
                       @for (event of auditEvents; track event.id) {
@@ -168,11 +174,16 @@ export class AdminPendingComponent {
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+  private auditSubscription: Subscription | null = null;
+  private auditGeneration = 0;
+  private pendingSubscription: Subscription | null = null;
+  private pendingGeneration = 0;
 
   private readonly http = inject(HttpClient);
   protected notification: { message: string; whatsAppUrl: string | null } | null = null;
   private prepareNotification(id: string): void {
-    this.http.get<{ message: string; whatsAppUrl: string | null }>(environment.apiBaseUrl + '/api/admin/orders/' + id + '/notification').subscribe({
+    this.http.get<{ message: string; whatsAppUrl: string | null }>(environment.apiBaseUrl + '/api/admin/orders/' + id + '/notification').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: result => { this.notification = result; this.changeDetector.detectChanges(); },
       error: e => { this.errorMessage = this.formatError(e, 'Se guardó la decisión, pero no pudimos preparar el aviso.'); this.changeDetector.detectChanges(); }
     });
@@ -189,19 +200,25 @@ export class AdminPendingComponent {
   protected loadingAuditOrderId: string | null = null;
   protected loadingChangesOrderId: string | null = null;
   protected selectedAuditOrderId: string | null = null;
+  protected auditErrorMessage: string | null = null;
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
   protected serviceDate = this.route.snapshot.queryParamMap.get('date') || businessDateToday();
 
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.resetAudit();
+      this.cancelPendingLoad();
+    });
     this.load();
   }
 
   protected changeDate(): void {
     this.notification = null;
     this.orders = [];
-    this.auditEvents = [];
-    this.selectedAuditOrderId = null;
+    this.resetAudit();
+    this.cancelPendingLoad();
+    this.isLoading = false;
     this.errorMessage = null;
     this.resultMessage = null;
     this.cancelChanges();
@@ -212,7 +229,7 @@ export class AdminPendingComponent {
     this.resultMessage = null;
     this.reviewingOrderId = order.id;
 
-    this.data.reviewOrder(order.id, decision).subscribe({
+    this.data.reviewOrder(order.id, decision).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.resultMessage = decision === 'Accepted'
           ? 'Pedido aceptado.'
@@ -233,7 +250,7 @@ export class AdminPendingComponent {
     this.resultMessage = null;
     this.loadingChangesOrderId = order.id;
 
-    this.data.loadOrderDetail(order.id).subscribe({
+    this.data.loadOrderDetail(order.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (detail) => {
         this.changeDetail = detail;
         this.changeLines = detail.lines.map((line) => ({
@@ -281,7 +298,7 @@ export class AdminPendingComponent {
         quantity: Number(line.quantity),
         notes: this.emptyToNull(line.notes)
       }))
-    }).subscribe({
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.resultMessage = 'Pedido aceptado con cambios.'; this.prepareNotification(order.id);
         this.cancelChanges();
@@ -304,18 +321,23 @@ export class AdminPendingComponent {
   }
 
   protected loadAudit(order: AdminOrder): void {
-    this.errorMessage = null;
+    this.resetAudit();
+    if (this.destroyRef.destroyed || this.isLoading) return;
+    const generation = this.auditGeneration;
+    const date = this.serviceDate;
     this.loadingAuditOrderId = order.id;
     this.selectedAuditOrderId = order.id;
 
-    this.data.loadOrderAudit(order.id).subscribe({
+    this.auditSubscription = this.data.loadOrderAudit(order.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (events) => {
+        if (!this.isCurrentAudit(generation, order.id, date)) return;
         this.auditEvents = events;
         this.loadingAuditOrderId = null;
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
-        this.errorMessage = this.formatError(error, 'No se pudo cargar la auditoria.');
+        if (!this.isCurrentAudit(generation, order.id, date)) return;
+        this.auditErrorMessage = this.formatError(error, 'No se pudo cargar la auditoria.');
         this.loadingAuditOrderId = null;
         this.changeDetector.detectChanges();
       }
@@ -323,17 +345,21 @@ export class AdminPendingComponent {
   }
 
   protected load(showLoading = true): void {
-    if (!this.serviceDate) return;
+    this.resetAudit();
+    this.cancelPendingLoad();
+    if (this.destroyRef.destroyed || !this.serviceDate) return;
+    const generation = this.pendingGeneration;
+    const date = this.serviceDate;
     this.errorMessage = null;
     if (showLoading) {
       this.isLoading = true;
     }
 
-    this.data.loadPendingReviewOrders(this.serviceDate).subscribe({
+    this.pendingSubscription = this.data.loadPendingReviewOrders(date).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (orders) => {
+        if (this.destroyRef.destroyed || generation !== this.pendingGeneration || date !== this.serviceDate) return;
         this.orders = orders;
-        this.auditEvents = [];
-        this.selectedAuditOrderId = null;
+        this.resetAudit();
         this.isLoading = false;
         this.reviewingOrderId = null;
         this.loadingAuditOrderId = null;
@@ -341,6 +367,7 @@ export class AdminPendingComponent {
         this.changeDetector.detectChanges();
       },
       error: (error: unknown) => {
+        if (this.destroyRef.destroyed || generation !== this.pendingGeneration || date !== this.serviceDate) return;
         this.errorMessage = this.formatError(error, 'No se pudieron cargar los pendientes de revision.');
         this.isLoading = false;
         this.reviewingOrderId = null;
@@ -349,6 +376,27 @@ export class AdminPendingComponent {
         this.changeDetector.detectChanges();
       }
     });
+  }
+
+  private resetAudit(): void {
+    this.auditGeneration++;
+    this.auditSubscription?.unsubscribe();
+    this.auditSubscription = null;
+    this.auditEvents = [];
+    this.selectedAuditOrderId = null;
+    this.loadingAuditOrderId = null;
+    this.auditErrorMessage = null;
+  }
+
+  private isCurrentAudit(generation: number, orderId: string, date: string): boolean {
+    return !this.destroyRef.destroyed && generation === this.auditGeneration
+      && this.selectedAuditOrderId === orderId && this.serviceDate === date;
+  }
+
+  private cancelPendingLoad(): void {
+    this.pendingGeneration++;
+    this.pendingSubscription?.unsubscribe();
+    this.pendingSubscription = null;
   }
 
   private emptyToNull(value: string | null): string | null {
