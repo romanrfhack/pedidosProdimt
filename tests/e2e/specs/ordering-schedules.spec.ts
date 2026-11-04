@@ -48,3 +48,81 @@ test('borrar horario cliente restaura herencia ruta',async({page})=>{
  await page.getByRole('link',{name:'Horarios',exact:true}).click();await expect(page.getByRole('heading',{name:'Horarios de pedidos'})).toBeVisible();await page.getByLabel('Hora particular del cliente').fill('');await page.getByRole('button',{name:'Guardar cliente'}).click();
  await expect(page.getByRole('status')).toContainText('Horario guardado');expect(updates[0]).toEqual({cutoff:null,expectedVersion:1});await expect(page.getByText(/Sin horario particular: 10:00/)).toBeVisible();
 });
+
+async function openScheduleAdmin(page: Page) {
+ await page.goto('/admin/login');
+ await page.getByRole('button',{name:'Entrar'}).click();
+ await expect(page.getByRole('heading',{name:'Pedidos de hoy'})).toBeVisible();
+ await page.getByRole('link',{name:'Horarios',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Horarios de pedidos'})).toBeVisible();
+}
+
+test('horarios conserva dos borradores y bloquea guardado mientras recupera versiones',async({page})=>{
+ const secondId='11111111-1111-1111-1111-111111111112';
+ const schedules={routes:[{routeCode:'R1',cutoff:'10:00:00',version:1}],customers:[
+  {customerId,customerName:'Cliente A',routeCode:'R1',cutoff:'09:00:00',version:1},
+  {customerId:secondId,customerName:'Cliente B',routeCode:'R1',cutoff:'11:00:00',version:1}
+ ]};
+ const updates:any[]=[];let reads=0;let releaseRefresh:()=>void=()=>{};
+ const delayedRefresh=new Promise<void>(resolve=>{releaseRefresh=resolve;});
+ await page.route(/\/api\/admin\/ordering-schedules/,async route=>{
+  const request=route.request();
+  if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+  if(request.method()==='GET'){
+   reads++;if(reads===2)await delayedRefresh;
+   return route.fulfill({headers,json:schedules});
+  }
+  const body=request.postDataJSON();updates.push(body);
+  schedules.customers[0].cutoff=body.cutoff;schedules.customers[0].version++;
+  await route.fulfill({status:204,headers});
+ });
+ await openScheduleAdmin(page);
+ const first=page.getByTestId('schedule-customer-'+customerId);
+ const second=page.getByTestId('schedule-customer-'+secondId);
+ await first.getByLabel('Hora particular del cliente').fill('08:00');
+ await second.getByLabel('Hora particular del cliente').fill('07:30');
+ await first.getByRole('button',{name:'Guardar cliente',exact:true}).click();
+ await expect.poll(()=>reads).toBe(2);
+ await expect(second.getByRole('button',{name:'Guardar cliente',exact:true})).toBeDisabled();
+ await expect(second.getByLabel('Hora particular del cliente')).toBeDisabled();
+ await page.getByLabel('Buscar cliente o ruta').fill('Cliente B');
+ releaseRefresh();
+ await expect(second.getByLabel('Hora particular del cliente')).toBeEnabled();
+ await expect(second.getByLabel('Hora particular del cliente')).toHaveValue('07:30');
+ await expect(page.getByLabel('Buscar cliente o ruta')).toHaveValue('Cliente B');
+ await expect(second.getByText('Cambios sin guardar')).toBeVisible();
+ expect(updates).toEqual([{cutoff:'08:00:00',expectedVersion:1}]);
+});
+
+test('horarios conserva borrador ante 409 y sólo cambia versión tras elección explícita',async({page})=>{
+ const schedules={routes:[{routeCode:'R1',cutoff:'10:00:00',version:1}],customers:[
+  {customerId,customerName:'Cliente A',routeCode:'R1',cutoff:'09:00:00',version:1}
+ ]};
+ const updates:any[]=[];
+ await page.route(/\/api\/admin\/ordering-schedules/,async route=>{
+  const request=route.request();
+  if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
+  if(request.method()==='GET')return route.fulfill({headers,json:schedules});
+  const body=request.postDataJSON();updates.push(body);
+  if(updates.length===1){
+   schedules.customers[0].cutoff='12:00:00';schedules.customers[0].version=2;
+   return route.fulfill({status:409,headers,json:{error:'El horario del cliente cambió. Actualiza antes de guardar.'}});
+  }
+  schedules.customers[0].cutoff=body.cutoff;schedules.customers[0].version++;
+  return route.fulfill({status:204,headers});
+ });
+ await openScheduleAdmin(page);
+ const card=page.getByTestId('schedule-customer-'+customerId);
+ await card.getByLabel('Hora particular del cliente').fill('08:00');
+ await card.getByRole('button',{name:'Guardar cliente',exact:true}).click();
+ await expect(card.getByRole('status')).toContainText('Actual: 12:00');
+ await expect(card.getByLabel('Hora particular del cliente')).toHaveValue('08:00');
+ await expect(card.getByRole('button',{name:'Guardar cliente',exact:true})).toBeDisabled();
+ expect(updates).toHaveLength(1);
+ await card.getByRole('button',{name:'Conservar mi cambio sobre la versión actual'}).click();
+ await card.getByRole('button',{name:'Guardar cliente',exact:true}).click();
+ await expect.poll(()=>updates.length).toBe(2);
+ expect(updates[1]).toEqual({cutoff:'08:00:00',expectedVersion:2});
+ await expect(card.getByLabel('Hora particular del cliente')).toBeEnabled();
+ await expect(card.getByText('Cambios sin guardar')).toHaveCount(0);
+});
