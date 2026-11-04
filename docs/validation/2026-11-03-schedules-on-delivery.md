@@ -6,6 +6,16 @@ Autorización: el usuario solicita continuar con implementación/despliegue el 3
 
 El instalador de horarios I22 admitía backend I19 y frontend I19/I21, con 16 migraciones. El bundle actualizado de reparto documenta instalación y repetición saludable de `delivery-0cfe3ef511d8`, migración 17 AddDeliveryOperations. Son dos desarrollos paralelos con la misma numeración. El fallo original se produce antes de cambios. Ampliar la lista de releases en el instalador viejo sobrescribiría la aplicación de reparto.
 
+## Revisión3 — Fechas controladas en las pruebas de autorización
+
+El usuario aportó Texto pegado.txt: revisión2/add27bf2 y fuente286b8ac verificados; Python528,525 correctas/tres omitidas; restore y compilación .NET10 correctos; dominio5/5; aplicación445,442 correctas/tres fallidas409. Se detuvo en pruebas-backend antes de EF, paquete nativo, SCP/SSH y cambios de producción. El registro no acredita despliegue ni ejecución SQL operativa.
+
+Las tres pruebas fallidas (auditoría, detalle y revisión concurrente) creaban su pedido mediante /submit y dependían del reloj real. La regla nueva del servicio devuelve409 para hoy cuando el día de negocio es martes o ya pasó18:00. Se fija sólo el reloj de CustomerOrderService en esas tres fixtures a lunes2-nov09:00 CDMX; JWT, autenticación y validación de sesión conservan su reloj real. No se toca el servicio productivo ni sus restricciones.
+
+Se añaden cinco casos HTTP para lunes09:00,17:59:59,18:00, martes09:00 y miércoles09:00, con expectativas200/409 y validación del mensaje mediante JSON. La factory compartida conserva constructor/configuración; la sustitución de servicio es local a cada fixture derivada.
+
+Comprobado aquí: Python528,524 correctas/cuatro omitidas con umask077; diferencias productivas src/ y árbol frontend vacías respecto a286b8ac. No se dispone de SDK .NET ni ruta SSH; las tres correcciones y los cinco casos nuevos no se presentan como ejecutados. El runner mantiene todas las pruebas, guardas, umask077 y validación EF/SQL antes de desplegar. Fuente/frontend/payload con hashes; reemplazar ZIP por revisión3 y compartir salida. La web integrada validada de revisión2 se conserva sin recompilar.
+
 ## Revisión2: reproducción y corrección del fallo de preparación
 
 La ejecución del usuario de la fuente10c419c se detuvo en pruebas-python con dos fallos y un error de test_resume_native.py. No alcanzó restore/build ni SCP/SSH. Reproducción exacta bajo umask077: test_reviewed_snapshot_and_complete_stage y los dos recorridos de recuperación fallan por resume_staged_directory_mode_unexpected.

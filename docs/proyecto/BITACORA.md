@@ -1,5 +1,15 @@
 # Bitácora de trabajo
 
+## I23 revisión 3 — Fechas controladas en las pruebas de autorización
+
+El usuario aportó Texto pegado.txt: revisión2/add27bf2 y fuente286b8ac verificados; Python528,525 correctas/tres omitidas; restore y compilación .NET10 correctos; dominio5/5; aplicación445,442 correctas/tres fallidas409. Se detuvo en pruebas-backend antes de EF, paquete nativo, SCP/SSH y cambios de producción. El registro no acredita despliegue ni ejecución SQL operativa.
+
+Las tres pruebas fallidas (auditoría, detalle y revisión concurrente) creaban su pedido mediante /submit y dependían del reloj real. La regla nueva del servicio devuelve409 para hoy cuando el día de negocio es martes o ya pasó18:00. Se fija sólo el reloj de CustomerOrderService en esas tres fixtures a lunes2-nov09:00 CDMX; JWT, autenticación y validación de sesión conservan su reloj real. No se toca el servicio productivo ni sus restricciones.
+
+Se añaden cinco casos HTTP para lunes09:00,17:59:59,18:00, martes09:00 y miércoles09:00, con expectativas200/409 y validación del mensaje mediante JSON. La factory compartida conserva constructor/configuración; la sustitución de servicio es local a cada fixture derivada.
+
+Comprobado aquí: Python528,524 correctas/cuatro omitidas con umask077; diferencias productivas src/ y árbol frontend vacías respecto a286b8ac. No se dispone de SDK .NET ni ruta SSH; las tres correcciones y los cinco casos nuevos no se presentan como ejecutados. El runner mantiene todas las pruebas, guardas, umask077 y validación EF/SQL antes de desplegar. Fuente/frontend/payload con hashes; reemplazar ZIP por revisión3 y compartir salida. La web integrada validada de revisión2 se conserva sin recompilar.
+
 ## I23 revisión 2 — Pruebas portables bajo umask077 y RF1 conservado
 
 El usuario ejecutó la entrega inicial: SHA correcto y fuente10c419c recuperada; se detuvo en pruebas-python antes de restaurar/compilar/copiar/SSH. Se reprodujeron exactamente dos fallos y un error en test_resume_native.py al usar el umask077 del runner. mkdir(mode0755) estaba sujeto a la máscara y construía fixtures0700. Se fijan explícitamente los modos de los directorios sintéticos terminados; no cambia ni se relaja el verificador de producción y el runner conserva umask077.

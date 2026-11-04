@@ -4,7 +4,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Infrastructure.Authentication;
@@ -14,6 +17,8 @@ namespace Prodimt.Pedidos.Application.Tests;
 
 public sealed class AuthApiAuthorizationTests
 {
+    private static readonly DateTimeOffset LegacyCaptureTestNow = new(2026, 11, 2, 9, 0, 0, TimeSpan.FromHours(-6));
+
     [Fact]
     public async Task CustomerEndpoint_RejectsRequestWithoutToken()
     {
@@ -82,7 +87,8 @@ public sealed class AuthApiAuthorizationTests
     [Fact]
     public async Task AuditEndpoint_RequiresAdminToken()
     {
-        await using var factory = new AuthApiFactory();
+        await using var parent = new AuthApiFactory();
+        await using var factory = WithLegacyCaptureClock(parent, LegacyCaptureTestNow);
         using var client = factory.CreateClient();
         await SetCustomerBearerAsync(client);
 
@@ -110,7 +116,8 @@ public sealed class AuthApiAuthorizationTests
     [Fact]
     public async Task AdminOrderDetailEndpoint_RequiresAdminTokenAndReturnsLines()
     {
-        await using var factory = new AuthApiFactory();
+        await using var parent = new AuthApiFactory();
+        await using var factory = WithLegacyCaptureClock(parent, LegacyCaptureTestNow);
         using var client = factory.CreateClient();
         await SetCustomerBearerAsync(client);
 
@@ -264,7 +271,8 @@ public sealed class AuthApiAuthorizationTests
     [Fact]
     public async Task AdminReview_StaleVersionAndRepeatedDecisionReturnConflict()
     {
-        await using var factory = new AuthApiFactory();
+        await using var parent = new AuthApiFactory();
+        await using var factory = WithLegacyCaptureClock(parent, LegacyCaptureTestNow);
         using var client = factory.CreateClient();
         await SetCustomerBearerAsync(client);
         var request = new SubmitCustomerOrderRequest(
@@ -279,6 +287,46 @@ public sealed class AuthApiAuthorizationTests
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
         var repeated = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Rejected", expectedVersion = 1 });
         Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("2026-11-02T15:00:00Z", HttpStatusCode.OK)]
+    [InlineData("2026-11-02T23:59:59Z", HttpStatusCode.OK)]
+    [InlineData("2026-11-03T00:00:00Z", HttpStatusCode.Conflict)]
+    [InlineData("2026-11-03T15:00:00Z", HttpStatusCode.Conflict)]
+    [InlineData("2026-11-04T15:00:00Z", HttpStatusCode.OK)]
+    public async Task LegacyCustomerSubmit_EnforcesBusinessDateWithoutChangingAuthenticationClock(
+        string receivedAt, HttpStatusCode expected)
+    {
+        await using var parent = new AuthApiFactory();
+        await using var factory = WithLegacyCaptureClock(parent, DateTimeOffset.Parse(receivedAt));
+        using var client = factory.CreateClient();
+        await SetCustomerBearerAsync(client);
+        var response = await client.PostAsJsonAsync(
+            $"/api/customer-orders/{DevelopmentSeedIds.GranTakitoCustomerId}/submit",
+            new SubmitCustomerOrderRequest(
+                [new SubmitCustomerOrderLineRequest(DevelopmentSeedIds.ProductNineAndHalfId, 1, null)]));
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.Conflict)
+        {
+            var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("siguiente día hábil", body.GetProperty("error").GetString());
+        }
+    }
+
+    private static WebApplicationFactory<Program> WithLegacyCaptureClock(AuthApiFactory parent, DateTimeOffset now)
+        => parent.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            // Only the legacy order service uses a fixed business date. JWT
+            // issuance, expiration and session validation retain their real clock.
+            services.AddScoped<CustomerOrderService>(provider =>
+                ActivatorUtilities.CreateInstance<CustomerOrderService>(provider, new LegacyCaptureClock(now)));
+        }));
+
+    private sealed record LegacyCaptureClock(DateTimeOffset Now) : IDateTimeProvider
+    {
+        public DateOnly Today => DeliveryDatePolicy.LocalDate(Now);
+        public TimeOnly LocalTimeOfDay => DeliveryDatePolicy.LocalTime(Now);
     }
 
     private static async Task SetCustomerBearerAsync(HttpClient client)

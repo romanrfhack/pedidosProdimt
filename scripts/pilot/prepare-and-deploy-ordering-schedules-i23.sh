@@ -15,7 +15,7 @@ trap 'i23_rc=$?; printf "Se detuvo en %s (código %s). Conserva la carpeta y com
 for i23_tool in python3 git sha256sum; do command -v "$i23_tool" >/dev/null; done
 cd "$i23_root"
 sha256sum --quiet -c SHA256SUMS.txt
-printf 'PRODIMT I23 revisión 2: Horarios + Reparto RF1; pruebas con umask 077.\n'
+printf 'PRODIMT I23 revisión 3: Horarios + Reparto RF1; pruebas de autorización con fecha controlada.\n'
 i23_source="$(cat SOURCE_COMMIT.txt)"
 [[ "$i23_source" =~ ^[a-f0-9]{40}$ ]]
 i23_output="$i23_root/salida"
