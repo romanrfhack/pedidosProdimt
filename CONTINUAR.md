@@ -2,7 +2,7 @@
 
 ## Prioridad actual
 
-El usuario pidió auditar profundamente código/documentación y proponer un plan para consolidar eficiencia, aspecto visual, SOLID y calidad antes de nuevas funciones. Esta entrega reconcilia documentación y registra hallazgos; no modifica aplicación, migraciones, roles o datos productivos.
+El usuario autorizó comenzar las correcciones y actualizar documentación por hallazgo. C1 consolida reintentos, acceso administrativo, historial, borradores y validación de entradas. Estado detallado: [C1](docs/corrections/C1.md). Los cambios nuevos no están desplegados; no se modificaron cuentas, claves ni datos productivos.
 
 Leer [ESTADO](docs/proyecto/ESTADO.md), [MATRIZ](docs/proyecto/MATRIZ-FUNCIONAL.md), [AUDITORÍA](docs/audits/2026-11-03/AUDITORIA.md) y [PLAN-CONSOLIDACIÓN](docs/proyecto/PLAN-CONSOLIDACION.md). Para arquitectura usar [ARQUITECTURA-ACTUAL](docs/proyecto/ARQUITECTURA-ACTUAL.md); no una propuesta inicial como descripción de código existente.
 
@@ -17,7 +17,7 @@ Leer [ESTADO](docs/proyecto/ESTADO.md), [MATRIZ](docs/proyecto/MATRIZ-FUNCIONAL.
 ## Siguiente trabajo propuesto
 
 1. F03 resuelto por corrector y reporte I23; preservar guardas e incorporar la evidencia.
-2. Primera entrega de consolidación: recuperación de producción ante respuesta incierta, límite de login y corrección de races/borradores/fecha/entradas. Cada caso con regresión.
+2. C1 implementado y validado localmente: 499 pruebas .NET, 42 componentes, 529 Python correctas (cuatro omitidas), Angular/typecheck y modelo EF correctos. Ver registros por hallazgo; validar SQL 18→19 y navegador antes de preparar la entrega nativa integrada.
 3. Completar cobertura SQL de Horarios y un recorrido UI/API/SQL; después pulido visual y optimización medida, luego refactors por responsabilidad.
 
 El plan contiene dependencias y aceptación; no se autorizan nuevas funciones por inferencia. Las correcciones de código están autorizadas; registrar pruebas y pendientes por hallazgo.

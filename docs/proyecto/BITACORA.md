@@ -1,5 +1,26 @@
 # Bitácora de trabajo
 
+## C1 — Correcciones autorizadas y regresiones (3 de noviembre de 2026)
+
+El usuario pidió comenzar las correcciones y documentar cada hallazgo atendido.
+Se incorporó el cierre I23 posterior a la auditoría: aplicación aa802, herramientas
+8621e964, 18 migraciones, `updated/completed`; F03 resuelto por reporte del usuario.
+
+C1 implementa recuperación durable de producción y semántica aditiva de 409,
+límite de login, contexto de historial/detalle editable, preservación de borradores
+de horarios, límites de notas, columna de auditoría ampliada y fecha de revisión.
+NoOrder legado y los controles de pruebas avanzan parcialmente sin romper contratos.
+Cada cambio, prueba y límite consta en [C1](../corrections/C1.md). Las contrapruebas
+reproducen los defectos de referencia; no se sustituyen por tests que copian el código.
+
+Pase integrado: .NET 499/499, Node/Angular sin DOM 42/42, Python 529 correctas y
+cuatro omisiones de 533; build Angular y typecheck completos correctos. Chromium
+no inicia por EPERM; SQL Server nativo no está disponible. Migración aditiva
+`20261104041928_ExpandAuditMetadata` preparada; exige gate nuevo 18→19 y paquete
+C1, no el instalador I23. No se desplegó ni se tocaron datos/cuentas/claves reales.
+Fuentes por bundle autosuficiente, sin publicación GitHub.
+
+
 ## I23 instalado — 3 de noviembre de 2026
 
 El reporte del usuario confirma instalador nativo v3 `updated/completed`, migraciones17→18, tres pruebas EF/HTTP correctas y SQL exacto con rollback, reaplicación, permisos y limpieza verificados. Snapshot y respaldo SQL verificado reportados; servicio reiniciado, salud y frontend correctos; `recovery_pending=false`. Conteos, precios, tokens, clave efectiva, permisos y reparto conservados conforme los controles del instalador. Sin cambio de contraseña, rotación de clave, revocación de tokens ni restauración automática SQL.

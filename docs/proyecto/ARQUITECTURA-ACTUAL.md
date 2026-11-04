@@ -35,7 +35,7 @@ No se encontró MediatR ni NgRx como parte del diseño actual. Los casos de uso 
 - Pedido comercial: líneas con identidad, unidad y precio snapshot; adicional y corrección son diferentes.
 - Producción: lotes físicos y asignación diaria a líneas, con saldo y reversión explícita.
 - Reparto: ruta/vuelta, reserva por línea y eventos de conteo/carga/entrega. Custodia conserva cantidades que no se entregaron; no libera carga silenciosamente.
-- Lecturas no crean estados. Commands críticos usan transacciones, versión y recibos de operación durables; el frontend de Operación aún debe recuperar esa identidad tras navegar.
+- Lecturas no crean estados. Commands críticos usan transacciones, versión y recibos de operación durables; C1 añade recuperación de esa identidad tras navegar; su despliegue está pendiente.
 - Autorización: permisos efectivos por petición y alcance propio del chofer; menú/guardas no sustituyen el servidor. Tokens recuperables con AES-GCM y clave externa.
 - Historial de cantidades/ubicación/instrucciones se conserva por snapshot. Resolver una divergencia exige alcance explícito, no leer silenciosamente el valor actual del cliente.
 
@@ -44,3 +44,16 @@ No se encontró MediatR ni NgRx como parte del diseño actual. Los casos de uso 
 Empezar por una extracción con razón de cambio clara y aceptación observable. Conservar DTOs/URLs/strings públicos, transacciones y semántica. Añadir pruebas de arquitectura para las referencias y regresiones del caso de uso. Optimizar lecturas mediante lotes/proyecciones; no paralelizar un mismo DbContext ni reducir aislamiento del ledger como atajo.
 
 Medidas observadas: `AdminImportService` 2265 líneas, `Program` 1164 y `AdminCatalogsComponent` 953 (sin contar migraciones generadas). No se impone un máximo de líneas: la aceptación es independencia de responsabilidades y pruebas claras.
+
+## Correcciones C1 sobre esta arquitectura
+
+Se conserva la dirección de dependencias. `ProductionCommandStore` separa la
+persistencia/validación del reintento de su presentación Angular; la vista usa
+comandos tipados y el servidor conserva los recibos transaccionales.
+`AdminLoginRateLimiting` agrupa política/opciones del acceso administrativo en
+el borde API, con cambios mínimos de composición. `OrderNoteLimits` centraliza
+límites del dominio compartidos por validación y mapping EF. La disposición de
+reintento en conflictos es un campo aditivo; no se interpretan textos de error.
+
+Estas extracciones acotadas mejoran cohesión sin introducir nuevos frameworks.
+No sustituyen los refactors F21/F22 pendientes. [Correcciones y pruebas](../corrections/C1.md).

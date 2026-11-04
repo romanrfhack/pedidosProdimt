@@ -1,0 +1,109 @@
+{
+  "batch": "C1",
+  "date": "2026-11-03",
+  "timezone": "America/Mexico_City",
+  "applicationBaseline": "aa802e210d15c70784f79dea2580709166b843c7",
+  "integratedBaseline": "cbc34aa",
+  "installedMigrationCount": 18,
+  "preparedMigration": "20261104041928_ExpandAuditMetadata",
+  "productionChanges": false,
+  "deployed": false,
+  "githubPublished": false,
+  "checks": {
+    "dotnet": {
+      "configuration": "Release",
+      "domainPassed": 5,
+      "applicationPassed": 494,
+      "totalPassed": 499,
+      "failed": 0,
+      "skipped": 0,
+      "sqlServerIncluded": false
+    },
+    "component": {
+      "runtime": "Node24",
+      "realAngularTypescript": true,
+      "dom": false,
+      "passed": 42,
+      "failed": 0
+    },
+    "python": {
+      "total": 533,
+      "passed": 529,
+      "skipped": 4,
+      "failed": 0
+    },
+    "angular": {
+      "build": "passed",
+      "initialBytesReported": "499.06 kB",
+      "initialTransferReported": "129.46 kB",
+      "existingCssWarnings": 6,
+      "budgetRaised": false
+    },
+    "e2e": {
+      "strictTypecheck": "passed",
+      "collected": 240,
+      "files": 24,
+      "executedBrowserAssertions": false,
+      "browserBlock": "Chromium socket EPERM before assertions"
+    },
+    "efModel": {
+      "pendingModelChanges": false
+    },
+    "sqlServer": {
+      "projectBuild": "passed",
+      "existingWarnings": 3,
+      "newCasesCompiled": 4,
+      "executed": false,
+      "exactUpgradeScriptGenerated": true,
+      "exactUpgradeScriptExecuted": false
+    },
+    "regressionCountercheck": {
+      "F01": "old component failed missing recovered pending command",
+      "F04": "old audit A/B and editable detail A/B regressions failed",
+      "F05": "old schedule saving state/drafts regression failed",
+      "F08": "baseline cbc34aa: 2 failed (200 instead of 409), 4 passed; fixed included in 499 passing"
+    }
+  },
+  "logs": {
+    "c1-dotnet-tests.log": {
+      "sha256": "a42d2cedd87154a061dcbf58ab0b4411ef47e3e5c96314192454c65a197a1472",
+      "bytes": 1713
+    },
+    "c1-python-tests.log": {
+      "sha256": "9202afe629d780cf350cc22fa6042cbe17a07f849815eb1353ee5041745a0ab7",
+      "bytes": 645
+    },
+    "c1-components.log": {
+      "sha256": "2bcc622afe3c47deadc9f7a36ca4e22fa4eb27c93963f318ceadcdf22d7ce245",
+      "bytes": 4562
+    },
+    "c1-angular-build.log": {
+      "sha256": "4bcaef78297408236eeb6b8d0b93d8e5a98b73c5afe378631dc426d135f6b3ba",
+      "bytes": 4524
+    },
+    "c1-e2e-typecheck.log": {
+      "sha256": "89aa6b78e9708f855addbf8c3a7cab362f2e68bd5a9dbbaeb47eb8471b4b1bc3",
+      "bytes": 233
+    },
+    "c1-e2e-list.log": {
+      "sha256": "7559e04c4b83ae165acd905e468340d62cce38b2cad9456412e9e1adafcfca84",
+      "bytes": 31714
+    },
+    "c1-ef-model.log": {
+      "sha256": "815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c",
+      "bytes": 65
+    },
+    "c1-sql-project-build.log": {
+      "sha256": "d46e9120862fff7a2e2740656c07152ee7e7a0054ec7e58d5bbbabd84ec1e22d",
+      "bytes": 4076
+    },
+    "c1-browser-attempt.log": {
+      "sha256": "78b160b84148d5691bb2512534323273ccd3ff24da73f4e903962e8b606edc4a",
+      "bytes": 7832
+    },
+    "c1-f08-before.log": {
+      "sha256": "10a66b5c2941f9e0d8efae9b307e315ed2d21c8d0c9f4c771cf1bdcde100fc97",
+      "bytes": 4247
+    }
+  }
+}

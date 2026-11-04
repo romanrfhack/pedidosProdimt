@@ -2,7 +2,9 @@
 
 ## Prioridad de consolidación (3 de noviembre de 2026)
 
-La auditoría solicitada por el usuario reconcilia documentación con las fuentes I23 aa802 y el instalado I22+RF1; no declara I23 desplegado. Priorizar el plan de consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar SQLite/SQL Server/UI mock en la evidencia. Esta entrega de auditoría no modifica aplicación, migraciones ni producción. Los capítulos de fase inicial que siguen son históricos donde un incremento autorizado los amplía.
+El usuario autorizó comenzar las correcciones de la auditoría y documentar cada hallazgo corregido. [C1](docs/corrections/C1.md) registra implementación, regresión y pendientes. La aplicación I23 `aa802e2` está instalada según reporte posterior del usuario: ambos releases `ordering-schedules-i23-aa802e210d15`, 18 migraciones; corrector SQL `8621e964`, cierre `d8e1db45`. El merge `cbc34aa` incorpora esa evidencia y conserva la auditoría. Los estados anteriores I22+RF1/I23 bloqueado son históricos.
+
+Priorizar consolidación antes de nuevas funciones. Infraestructura, claves, cuentas y datos existentes se preservan. Mantener separados implementado, compilado, probado, instalado y aceptado; nombrar InMemory/SQLite/SQL Server/UI mock en la evidencia. C1 no está desplegado: cualquier migración nueva requiere SQL exacto, respaldo y paquete con base I23 propia; nunca cambiar el pin de un instalador antiguo para forzarlo. Los capítulos de fase inicial que siguen son históricos donde un incremento autorizado los amplía.
 
 ## Alcance autorizado por incrementos
 

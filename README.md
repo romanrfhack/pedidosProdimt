@@ -13,9 +13,9 @@ Sistema de captura de pedidos, catálogos y precios, revisión, producción por 
 
 ## Estado de entrega conocido
 
-La fuente auditada es `aa802e210d15c70784f79dea2580709166b843c7` (I23 preparado, incluye RF1). El entorno confirmado conserva backend I22 `delivery-0cfe3ef511d8` y frontend RF1 `delivery-flow-426c360e1365`; las 17 migraciones corresponden al último control reportado. El índice público continúa coincidiendo con RF1 y la salud/BD responden correctamente.
+La aplicación instalada confirmada es `aa802e210d15c70784f79dea2580709166b843c7` (I23 integrado con RF1), con backend y frontend `ordering-schedules-i23-aa802e210d15` y 18 migraciones. [Evidencia del reporte del VPS](docs/validation/2026-11-03-schedules-installed.md). La aceptación visual/operativa sigue pendiente.
 
-I23 implementa horarios y solicitudes limitadas y propone la migración 18. El último intento reportado se detuvo en validación SQL aislada antes de cambiar producción. **Preparado no equivale a instalado.** La documentación reconciliada de esta auditoría no cambia la aplicación ni es un paquete de despliegue.
+Primera entrega de [correcciones C1](docs/corrections/C1.md) sobre esa base, con regresión y seguimiento por hallazgo. Los cambios C1 no están desplegados. La ampliación del historial F06 añade una migración y requiere su propio paquete/gate SQL; no reutilizar el instalador I23 para C1. La auditoría original se conserva como corte histórico.
 
 I16/productos, I18/seguridad, I19/producción e I21/Pedidos están incorporados en la base integrada I22. No se deben encadenar sus instaladores históricos.
 
@@ -29,7 +29,7 @@ I16/productos, I18/seguridad, I19/producción e I21/Pedidos están incorporados 
 | Operación | Lotes físicos, máquina y asignación al pedido | `/admin/operacion` |
 | Reparto | Ruta/vuelta, reservas por partida, conteo/carga/entrega y custodia | `/reparto`, `/admin/reparto` |
 | Seguridad | Usuarios, roles y permisos aditivos | `/admin/seguridad` |
-| Horarios | Herencia cliente/ruta y excepciones; sólo código I23 preparado | `/admin/horarios` |
+| Horarios | Herencia cliente/ruta y excepciones; I23 instalado | `/admin/horarios` |
 
 La visibilidad del menú no concede permisos: el servidor valida acceso vigente por petición. El rol canónico del chofer es `Repartidor - Camioneta (sistema)`; un rol personalizado de nombre similar conserva sus permisos y no recibe otros por coincidencia de nombre.
 

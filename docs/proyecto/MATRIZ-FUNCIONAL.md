@@ -12,8 +12,10 @@ Base auditada: `aa802e210d15c70784f79dea2580709166b843c7`. Instalación/aceptaci
 | Rutas/vueltas/reservas | DeliveryManagementService; DeliveryEndpoints; DeliveryWorkspace | DeliveryManagementServiceTests; SQL entre hosts; UI mock | I22 instalado | Configurar ruta/vuelta/partidas y validar usuario real |
 | Parciales/custodia/historia | Ledger y eventos Delivery; transferencia/devolución/cierre | Unit/SQL de reparto; escenario 50/25/20 | Implementado; validación SQL I22 informada | No reducir pedido ni liberar custodia por entregar menos |
 | Acceso/preparación RF1 | App routes; AdminToday; DeliveryOnboarding/Workspace | delivery-integration.spec; guardas; tests RF1 | RF1 actualizado y assets verificados | Aceptación visual/funcional aún no acreditada |
-| Horarios y solicitudes I23 | OrderSchedulingService; DeliveryDatePolicy; CustomerLinkAccessPolicy | OrderingScheduleTests en SQLite; browser mock; faltan HTTP SQL propios | Implementado en aa802; no instalado confirmado | F03/F05/F08/F13; migración 18 pendiente |
+| Horarios y solicitudes I23 | OrderSchedulingService; DeliveryDatePolicy; CustomerLinkAccessPolicy | OrderingScheduleTests en SQLite; browser mock; faltan HTTP SQL propios | I23 aa802 instalado por reporte del VPS | F05/F08/F13; F03 resuelto, migración 18 aplicada; C1 no desplegado |
 | Inducción/Maps/instrucciones | Campos de ficha cliente y snapshots por asignación | Pruebas de snapshots y URL Maps permitidas | Soporte implementado; fichas reales incompletas | No importar ni inventar ubicaciones históricas; F10/F11 |
 | Cobro/foto/firma/envases/offline | Modalidad de pago y notas, sin módulos operativos equivalentes | No hay cobertura que acredite módulos de estas operaciones | Fuera del alcance actual | Notas de impago/caja no son ledger financiero ni inventario |
 
 Los nombres de pruebas identifican cobertura disponible, no aseguran que se haya ejecutado en esta auditoría. [Resultados por entorno](../audits/2026-11-03/VALIDACION.md). Ningún conteo de build/tests sustituye aceptación de negocio.
+
+Seguimiento posterior a la auditoría: [correcciones C1](../corrections/C1.md). Las pruebas de la tabla son antecedentes; el registro C1 distingue correcciones locales de la versión instalada.

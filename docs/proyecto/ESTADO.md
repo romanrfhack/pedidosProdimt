@@ -10,6 +10,7 @@ Corte documental: 3 de noviembre de 2026, Ciudad de México. Un estado de instal
 | Backend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23) |
 | Frontend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23 integrado con RF1) |
 | Historia SQL conocida | 18 migraciones en el reporte I23; sin consulta SQL productiva desde este agente |
+| C1 | Fuente corregida localmente; 499 pruebas .NET y 42 componentes correctos. Migración 19 preparada; SQL/navegador/despliegue pendientes |
 | I23 | Instalado: `updated/completed`, SQL exacto, rollback/replay, permisos y limpieza verificados según reporte del usuario |
 | Comprobación pública | El índice RF1 fue comprobado antes del cierre I23; no representa el release actual |
 | Aceptación funcional | No consta validación completa de usuarios, ruta real, vueltas y entregas; sigue pendiente |
@@ -30,9 +31,9 @@ I23 está confirmado por [reporte del VPS](../validation/2026-11-03-schedules-in
 
 ## Calidad y trabajo actual
 
-[Auditoría](../audits/2026-11-03/AUDITORIA.md): 24 hallazgos, 22 acciones pendientes y dos contradicciones documentales resueltas. El bloqueo P1 F03 se cierra con evidencia posterior; las correcciones de producción y login se abordan en C1. No se confirmó P0 ni un compromiso de seguridad.
+[Auditoría original](../audits/2026-11-03/AUDITORIA.md): 24 hallazgos. [C1](../corrections/C1.md) corrige en código F01/F02/F04/F05/F07/F09, implementa F06 con aceptación SQL pendiente, atiende parcialmente F08/F14 y cierra F03 por evidencia posterior. F19/F20 ya estaban resueltos documentalmente. Los cambios C1 no están desplegados; quedan 12 hallazgos sin cambio y dos parciales, además de sus validaciones de aceptación. No se confirmó P0 ni un compromiso de seguridad.
 
-Las comprobaciones ejecutadas y sus límites están únicamente en [VALIDACION](../audits/2026-11-03/VALIDACION.md). Mantener separados Domain/Application, SQL Server, navegador con API simulada, recorrido real y aceptación humana. No sustituir evidencia de una fase por otra.
+Las comprobaciones originales están en [VALIDACION](../audits/2026-11-03/VALIDACION.md); la ejecución posterior y los límites de cada corrección están en [C1](../corrections/C1.md). Mantener separados Domain/Application, SQL Server, navegador con API simulada, recorrido real y aceptación humana. No sustituir evidencia de una fase por otra.
 
 La siguiente prioridad es el [plan de consolidación](PLAN-CONSOLIDACION.md), no añadir funciones. Se preservan contratos, transacciones, recibos, unidades e historia; no se recomienda reescritura.
 

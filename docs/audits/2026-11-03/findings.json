@@ -2,10 +2,10 @@
   "date": "2026-11-03",
   "timezone": "America/Mexico_City",
   "sourceCommit": "aa802e210d15c70784f79dea2580709166b843c7",
-  "installedBackend": "delivery-0cfe3ef511d8",
-  "installedFrontend": "delivery-flow-426c360e1365",
-  "knownMigrations": 17,
-  "preparedMigration": "20261103030000_AddOrderingSchedules",
+  "installedBackend": "ordering-schedules-i23-aa802e210d15",
+  "installedFrontend": "ordering-schedules-i23-aa802e210d15",
+  "knownMigrations": 18,
+  "preparedMigration": "20261104041928_ExpandAuditMetadata",
   "findings": [
     {
       "id": "F01",
@@ -22,7 +22,14 @@
       "acceptance": "Commit con respuesta perdida + navegación/recarga + reintento produce exactamente un lote o una asignación, según el comando; la referencia se conserva y no se reutiliza entre usuarios.",
       "phase": "1",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F01-F09.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F02",
@@ -39,7 +46,14 @@
       "acceptance": "HTTP aislado devuelve 429 al exceder la ventana, permite recuperación y login legítimo; no registra contraseñas ni tokens. Revocación y RBAC siguen correctos.",
       "phase": "1",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F02.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F03",
@@ -56,7 +70,14 @@
       "acceptance": "CI SQL nativo demuestra fallo intencionado y rollback, aplicación, replay, permisos y limpieza. Una falla previa explica su fase sin secretos. Sólo entonces puede prepararse otra entrega.",
       "phase": "0",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Resuelto por corrección y reporte de despliegue I23",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F03.md",
+        "deployed": true,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F04",
@@ -71,7 +92,14 @@
       "acceptance": "Respuestas invertidas, cambio de fecha y salida de vista no muestran historia ajena ni actualizan una vista destruida.",
       "phase": "1",
       "confidence": "Reproducido sin navegador",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F04.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F05",
@@ -87,7 +115,14 @@
       "acceptance": "Editar A+B y guardar A conserva B; GET lento no pisa cambios ni permite enviar una versión obsoleta.",
       "phase": "1",
       "confidence": "Reproducido sin navegador",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F05.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F06",
@@ -104,7 +139,14 @@
       "acceptance": "SQL Server guarda perfiles de 9/20 productos y Unicode con perfil, versión y auditoría atómicos; un fallo deliberado revierte todo.",
       "phase": "1",
       "confidence": "Contrato incompatible confirmado; SQL pendiente",
-      "status": "Pendiente"
+      "status": "Implementado; validación SQL y despliegue pendientes",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F06-F07.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F07",
@@ -121,7 +163,14 @@
       "acceptance": "Valores en límite guardan, límite+1 retorna 400 sin cambios parciales; el mensaje identifica el campo y conserva el borrador.",
       "phase": "1",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F06-F07.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F08",
@@ -138,7 +187,14 @@
       "acceptance": "HTTP antes/después de 18:00, lunes/martes, enlace activo/restringido y replay preservan la fecha confirmada y no reescriben historia.",
       "phase": "1",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Corregido parcialmente; pendiente completar alcance",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F08.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F09",
@@ -154,7 +210,14 @@
       "acceptance": "Consultar un día distinto y navegar a Revisión conserva exactamente el día del plan.",
       "phase": "1",
       "confidence": "Código confirmado; impacto condicionado",
-      "status": "Pendiente"
+      "status": "Corregido en código; no desplegado",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F01-F09.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F10",
@@ -239,7 +302,14 @@
       "acceptance": "Un comando documentado por nivel funciona en CI; typecheck global pasa; recorrido real cubre captura, revisión y parcial 50/25/20; SQL y navegador no se sustituyen por mocks.",
       "phase": "2",
       "confidence": "Ejecutado: typecheck global falla; navegador bloqueado",
-      "status": "Pendiente"
+      "status": "Corregido parcialmente; pendiente completar alcance",
+      "auditStatus": "Pendiente",
+      "correction": {
+        "batch": "C1",
+        "record": "docs/corrections/C1-F14.md",
+        "deployed": false,
+        "validation": "docs/corrections/C1-validation.json"
+      }
     },
     {
       "id": "F15",
@@ -496,5 +566,15 @@
       "deliverable": "Primeras extracciones de endpoints/importaciones/catálogo, errores tipados internos, retención/permisos/cabeceras y correlación.",
       "exit": "Contratos estables, extracciones revisables y pruebas verdes por corte. Restauración/recuperación ensayada en staging antes de cualquier cambio productivo."
     }
-  ]
+  ],
+  "auditSnapshot": {
+    "date": "2026-11-03",
+    "timezone": "America/Mexico_City",
+    "sourceCommit": "aa802e210d15c70784f79dea2580709166b843c7",
+    "installedBackend": "delivery-0cfe3ef511d8",
+    "installedFrontend": "delivery-flow-426c360e1365",
+    "knownMigrations": 17,
+    "preparedMigration": "20261103030000_AddOrderingSchedules"
+  },
+  "correctionTracking": "docs/corrections/C1.md"
 }

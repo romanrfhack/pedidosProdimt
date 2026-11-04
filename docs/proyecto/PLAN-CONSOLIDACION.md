@@ -2,6 +2,10 @@
 
 Prioridad: estabilizar y hacer claro lo existente antes de añadir funciones. Base y hallazgos: [auditoría](../audits/2026-11-03/AUDITORIA.md).
 
+## Avance C1
+
+El usuario autorizó comenzar las correcciones. [C1](../corrections/C1.md) conserva el seguimiento por hallazgo. F03 se resuelve con el corrector y reporte posterior I23 (18 migraciones); la aceptación de navegador y las nuevas correcciones siguen separadas. El orden siguiente se mantiene para el trabajo restante.
+
 ## Secuencia recomendada
 
 | Fase | Resultado | Esfuerzo orientativo | Dependencia |
@@ -65,7 +69,7 @@ Estimación de orden de magnitud:18-28 días de desarrollo, más validación ope
 
 ## Primera entrega propuesta
 
-Orden: resolver el diagnósticoF03; proteger producciónF01; limitar loginF02; corregir historia/fecha/borradoresF04/F05/F09 y validar entradas/auditoríaF06/F07. Añadir regresiones antes de extender el cambio. No migrar I23 mientras el gate nativo esté detenido. F08 requiere decidir compatibilidad del endpoint heredado sin retirarlo a ciegas.
+Orden: resolver el diagnósticoF03; proteger producciónF01; limitar loginF02; corregir historia/fecha/borradoresF04/F05/F09 y validar entradas/auditoríaF06/F07. Añadir regresiones antes de extender el cambio. El gate I23 ya pasó según reporte posterior; C1 exige un nuevo gate que contemple su migración aditiva, sin reutilizar el instalador I23. F08 requiere decidir compatibilidad del endpoint heredado sin retirarlo a ciegas.
 
 ## Criterios visuales y operativos
 

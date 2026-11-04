@@ -1,5 +1,7 @@
 # Auditoría profunda PRODIMT y reconciliación documental
 
+> Corte original sobre aa802 y la evidencia disponible al auditar. El reporte posterior confirma I23 instalado y cierra F03. Para correcciones y estado actual consultar [C1](../../corrections/C1.md) y [ESTADO](../../proyecto/ESTADO.md); las condiciones originales se conservan como trazabilidad.
+
 Fecha de corte: 3 de noviembre de 2026, Ciudad de México. Base de fuentes: `aa802e210d15c70784f79dea2580709166b843c7` (I23 revisión 3, incluye RF1).
 
 ## Dictamen

@@ -8,6 +8,8 @@
 4. [Arquitectura actual](proyecto/ARQUITECTURA-ACTUAL.md): dependencias verificadas y evaluación SOLID.
 5. [Auditoría](audits/2026-11-03/AUDITORIA.md), [validación](audits/2026-11-03/VALIDACION.md) y [plan de consolidación](proyecto/PLAN-CONSOLIDACION.md).
 
+Seguimiento de correcciones autorizado: [C1](corrections/C1.md), con evidencia por hallazgo y límites de validación.
+
 ## Contratos y antecedentes
 
 - `proyecto/INCREMENTO-*.md` define contratos y decisiones del incremento correspondiente. Su sección de entrega refleja la fecha en que se redactó; para estado actual usar ESTADO.
