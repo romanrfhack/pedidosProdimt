@@ -5,7 +5,8 @@
   "scripts": {
     "start": "ng serve",
     "build": "ng build",
-    "test": "ng test"
+    "test": "npm run test:component",
+    "test:component": "node --import ../../tests/component/register.mjs --test ../../tests/component/*.test.mjs"
   },
   "dependencies": {
     "@angular/common": "^21.2.25",

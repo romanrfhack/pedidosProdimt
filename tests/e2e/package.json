@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "typecheck": "node ../../apps/prodimt-pedidos-web/node_modules/typescript/bin/tsc --project tsconfig.json"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.60.0",
+    "@types/node": "24.19.2"
   }
 }
