@@ -201,7 +201,8 @@ def normalize_raw_token_baseline(sql):
 def collect_runtime(files, part, directory):
     if not directory.is_dir() or directory.is_symlink():
         raise ValueError('build_directory_invalid')
-    settings = (ROOT / 'src/Prodimt.Pedidos.Api/appsettings.json').read_bytes()
+    settings = {name: (ROOT / 'src/Prodimt.Pedidos.Api' / name).read_bytes()
+                for name in ('appsettings.json', 'appsettings.Production.json')}
     for path in sorted(directory.rglob('*')):
         if path.is_symlink():
             raise ValueError('build_symlink_not_allowed')
@@ -216,7 +217,7 @@ def collect_runtime(files, part, directory):
             continue
         raw = path.read_bytes()
         if part in ('backend', 'validation') and path.name.lower().startswith('appsettings') and path.suffix.lower() == '.json':
-            if name != 'appsettings.json' or raw != settings:
+            if name not in settings or raw != settings[name]:
                 raise ValueError('runtime_settings_not_source_template')
         files[part + '/' + name] = raw
 

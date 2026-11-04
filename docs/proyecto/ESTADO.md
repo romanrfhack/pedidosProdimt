@@ -10,7 +10,7 @@ Corte documental: 4 de noviembre de 2026, Ciudad de México. Un estado de instal
 | Backend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23) |
 | Frontend instalado confirmado | `ordering-schedules-i23-aa802e210d15` (I23 integrado con RF1) |
 | Historia SQL conocida | 18 migraciones en el reporte I23; sin consulta SQL productiva desde este agente |
-| C1 | Candidato nativo integrado preparado para WSL; nueva ejecución de 499 pruebas .NET, 42 componentes, 101 SQL Server y 576 Python correctos (cuatro omisiones históricas); build/typecheck/modelo EF, validador portátil 7/7 y gate SQL exacto 18→19 correctos. Navegador WSL y despliegue pendientes; VPS repetirá sus controles SQL |
+| C1 | Candidato nativo integrado preparado para WSL; nueva ejecución de 499 pruebas .NET, 42 componentes, 101 SQL Server y 577 Python correctos (cuatro omisiones históricas); build/typecheck/modelo EF, validador portátil 7/7 y gate SQL exacto 18→19 correctos. Navegador WSL y despliegue pendientes; VPS repetirá sus controles SQL |
 | I23 | Instalado: `updated/completed`, SQL exacto, rollback/replay, permisos y limpieza verificados según reporte del usuario |
 | Comprobación pública | El 4 de noviembre `/health/db` devuelve `status: ok`, `database: reachable`. Acredita salud actual, no identifica release ni confirma C1 |
 | Aceptación funcional | No consta validación completa de usuarios, ruta real, vueltas y entregas; sigue pendiente |

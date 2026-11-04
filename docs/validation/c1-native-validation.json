@@ -53,11 +53,11 @@
       "newAuditMetadataCasesPassed": 4
     },
     "python": {
-      "total": 580,
-      "passed": 576,
+      "total": 581,
+      "passed": 577,
       "skipped": 4,
       "failed": 0,
-      "newDeploymentCases": 47,
+      "newDeploymentCases": 48,
       "skipReasons": [
         "3 historical root ownership fixtures",
         "systemd 255 parser oracle unavailable"
@@ -134,8 +134,8 @@
       "sha256": "c9d810c0df3538e72240518b50ab5d24059f0392c02c3a127f31bda4c3b09903"
     },
     "python-all-final.log": {
-      "bytes": 693,
-      "sha256": "ffcf25c567af88c870cc6ae2f1bb327f1eedd3d995adb73c72a8ffea869a5a95"
+      "bytes": 694,
+      "sha256": "f641f1775bcee0f7e0e2105ef141acc24f7012cf97cca92fcaf7072a07af460b"
     },
     "ef-model.log": {
       "bytes": 65,
@@ -155,7 +155,7 @@
     },
     "c1-exact-sql.json": {
       "bytes": 811,
-      "sha256": "2224756b9d092310902e9273934435035fae94346d9d6a01afc615cd70d20cb5"
+      "sha256": "2249fb0572a438b453e3e8bac8dd14b541cab850ecb8d42c447a72c38f7588d8"
     },
     "c1-portable-sql.json": {
       "bytes": 275,
@@ -168,6 +168,14 @@
     "browser/e2e-typecheck.log": {
       "bytes": 233,
       "sha256": "89aa6b78e9708f855addbf8c3a7cab362f2e68bd5a9dbbaeb47eb8471b4b1bc3"
+    },
+    "package-tests-final.log": {
+      "bytes": 113,
+      "sha256": "b8d7ea2bbfa0f16024a04907922ec49c4ed99a93df5cd999eecd02a2232d6ab3"
+    },
+    "native-gates-final.log": {
+      "bytes": 1165,
+      "sha256": "12c69e359de8fff074d450c6f3438977a12321ed2d82a9f9c57e3015b9eb0bf9"
     }
   },
   "normalizedSqlSha256": {

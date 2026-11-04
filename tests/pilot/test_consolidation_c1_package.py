@@ -61,6 +61,18 @@ def fresh_token_sql():
 
 
 class ConsolidationC1PackageTests(unittest.TestCase):
+    def test_source_production_settings_are_allowed_without_accepting_local_overrides(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            template = (ROOT / 'src/Prodimt.Pedidos.Api/appsettings.Production.json').read_bytes()
+            (directory / 'appsettings.Production.json').write_bytes(template)
+            files = {}
+            builder.collect_runtime(files, 'backend', directory)
+            self.assertEqual(files, {'backend/appsettings.Production.json': template})
+            (directory / 'appsettings.Production.json').write_bytes(b'{"ConnectionStrings":{"db":"local-only"}}')
+            with self.assertRaisesRegex(ValueError, 'runtime_settings_not_source_template'):
+                builder.collect_runtime({}, 'backend', directory)
+
     def test_fresh_ef_baseline_splits_token_and_schedule_ddl_without_changing_statements(self):
         raw = (ROOT / 'tests/pilot/fixtures/i22-validation-baseline.sql').read_text(encoding='utf-8-sig')
         token_blocks = [match for match in re.finditer(r'(?ms)^BEGIN TRANSACTION;\n.*?^COMMIT;\nGO\n\n', raw)
