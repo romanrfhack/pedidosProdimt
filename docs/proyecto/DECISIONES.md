@@ -1,5 +1,15 @@
 # Decisiones vigentes
 
+C2, 4–5 de noviembre: entrega sólo tests/runners/CI/docs sobre R5 instalado.
+43 escenarios HTTP/SQL y tres navegador real compilados/colectados; ejecución
+pendiente por Docker/SQL Server ausentes. Ocho guardas .NET y cinco Python
+pasan; typecheck y Angular pasan. CI remoto y aceptación humana pendientes.
+[Detalle y límites](../corrections/C2.md). Producción conserva C1 R5; sin push.
+
+## 4 de noviembre de 2026 — C2
+
+C2 autorizado: F13 y recorrido real/comandos F14 sobre C1 R5 instalado; datos sintéticos, SQL UUID y loopback, identidad SQL de aplicación real, sin push. Sólo un defecto funcional demostrado justifica paquete e instalación C2.
+
 Las decisiones de esta lista completan y, cuando existe conflicto, sustituyen las reglas documentadas en mayo de 2026.
 
 | ID | Fecha | Decisión y fundamento |

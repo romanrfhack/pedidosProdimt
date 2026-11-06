@@ -20,6 +20,15 @@ internal static partial class ValidationRunner
 
     public static async Task<int> Main(string[] args)
     {
+        if (args is ["--probe-c2"]) return await C2Validation.Probe();
+        if (args is ["--list-c2"])
+        {
+            Console.WriteLine(JsonSerializer.Serialize(Prodimt.Pedidos.C2.Tests.C2Scenarios.Names));
+            return 0;
+        }
+        if (args is ["--validate-c2" or "--serve-c2", var configuration])
+            return await C2Validation.Run(args[0], configuration);
+
         var output = Console.Out;
         var error = Console.Error;
         var passed = new List<string>();

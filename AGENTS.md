@@ -1,5 +1,18 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## Estado posterior confirmado: C1 R5 instalado; C2 en trabajo
+
+La evidencia posterior del usuario y su log WSL confirman **C1 R5 instalado**:
+fuente `fdb81ea2f92011a74f2089642b5d3a9e46b26351`, backend/frontend
+`consolidation-c1-fdb81ea2f920`, historia SQL **19**, última
+`20261104041928_ExpandAuditMetadata`, AuditLogs **1111**,
+`updated/completed`, `mode=apply`, salud/frontend/esquema y preservación
+verificados, `recovery_pending=false`. [Procedencia y siete casos reales](docs/validation/2026-11-04-c1-r5-installed.md).
+La aceptación humana completa continúa pendiente. C2 trabaja aisladamente
+F13 (HTTP/SQL Horarios) y F14 (recorrido real/comandos); no hay instalación C2.
+No hacer push. Los apartados anteriores a esta evidencia son historia de su fecha.
+
+
 ## Continuidad R5 posterior al preflight R4
 
 El VPS rechazó R4 `4080152f4fd3ba25f94f3ec3e03bd929feda9b3d` en sólo lectura:

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
+    "test:real": "playwright test --config playwright.real.config.js",
     "typecheck": "node ../../apps/prodimt-pedidos-web/node_modules/typescript/bin/tsc --project tsconfig.json"
   },
   "devDependencies": {

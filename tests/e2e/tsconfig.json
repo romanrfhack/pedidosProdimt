@@ -9,5 +9,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["specs/**/*.ts", "*-fixture.ts"]
+  "include": ["specs/**/*.ts", "real/**/*.ts", "*-fixture.ts"]
 }

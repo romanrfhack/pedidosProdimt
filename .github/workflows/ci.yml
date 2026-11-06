@@ -136,6 +136,44 @@ jobs:
         if: always()
         run: docker rm --force prodimt-i02-sqlserver || true
 
+  c2-real:
+    name: C2 Horarios HTTP SQL and Angular real
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # Verify the installed R5 ancestry; never fetch GitHub main in the runner.
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            apps/prodimt-pedidos-web/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Install Chromium system dependencies
+        run: |
+          npm ci --prefix tests/e2e
+          node tests/e2e/node_modules/playwright/cli.js install-deps chromium
+      - name: Verify C2 orchestration guards
+        run: python3 -m unittest discover -s tests/pilot -p test_c2_orchestration.py -v
+      - name: Run the owned SQL Server and real browser journey, including cleanup
+        env:
+          C2_SOURCE_COMMIT: ${{ github.sha }}
+        run: python3 scripts/dev/validate-c2.py --source "$C2_SOURCE_COMMIT" --output "$RUNNER_TEMP/c2-evidence"
+      - name: Preserve sanitized C2 evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: c2-real-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/c2-evidence/
+          retention-days: 7
+          if-no-files-found: error
+
   frontend:
     name: Angular build and browser tests
     runs-on: ubuntu-24.04

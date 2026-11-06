@@ -10,6 +10,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../Prodimt.Pedidos.SqlServer.Tests/Prodimt.Pedidos.SqlServer.Tests.csproj" />
+    <ProjectReference Include="../Prodimt.Pedidos.C2.Tests/Prodimt.Pedidos.C2.Tests.csproj" />
   </ItemGroup>
   <!-- The API is loaded by TestServer, not launched as another executable.
        Test SDK references can otherwise contribute RID/non-RID copies of its

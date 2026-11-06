@@ -1,5 +1,15 @@
 # Bitácora de trabajo
 
+C2, 4–5 de noviembre: entrega sólo tests/runners/CI/docs sobre R5 instalado.
+43 escenarios HTTP/SQL y tres navegador real compilados/colectados; ejecución
+pendiente por Docker/SQL Server ausentes. Ocho guardas .NET y cinco Python
+pasan; typecheck y Angular pasan. CI remoto y aceptación humana pendientes.
+[Detalle y límites](../corrections/C2.md). Producción conserva C1 R5; sin push.
+
+## 4 de noviembre de 2026 — C2
+
+Inicio C2: HEAD limpio R5 fdb81ea2 comprobado, rama codex/consolidacion-c2 creada. Log local C1 cotejado con el reporte posterior del usuario: instalado/19/1111, aceptación humana pendiente. graphify y graphify-out no disponibles; no se regeneró un grafo inexistente.
+
 ## 4 de noviembre de 2026 — C1 R3, nueve fallos diagnosticados y corregidos
 
 El usuario ejecutó los 240 casos de R2 `e9ef18b73e534602df41a1df0fc221586a715e74`: 231 correctos, nueve fallidos, cero omitidos y cero inestables. El wrapper terminó antes de SCP/SSH; I23 con 18 migraciones sigue siendo la instalación confirmada. Se conserva `Texto pegado(3).txt` y el historial R1/R2.
