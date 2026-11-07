@@ -538,7 +538,7 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === 'GET' && url.pathname === '/api/admin/security/me') {
     if (!requireAdminAccess(request, response)) return;
-    sendJson(response, 200, { userId: securityState.users[0].id, permissions: securityPermissionKeys }); return;
+    sendJson(response, 200, { userId: securityState.users[0].id, permissions: securityPermissionKeys, isSystemAdministrator: true }); return;
   }
   if (request.method === 'GET' && url.pathname === '/api/admin/security') {
     if (!requireAdminAccess(request, response)) return;
@@ -1065,6 +1065,12 @@ const server = http.createServer(async (request, response) => {
     }
 
     sendJson(response, 200, catalogCustomers);
+    return;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/customers/routes') {
+    if (!requireAdminAccess(request, response)) return;
+    sendJson(response, 200, []);
     return;
   }
 

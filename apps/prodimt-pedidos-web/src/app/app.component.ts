@@ -20,7 +20,7 @@ import { AuthService } from './auth.service';
           @if (access.has('delivery.manage')) { <a routerLink="/admin/reparto" routerLinkActive="active">Reparto</a> }
           @else if (access.any(['delivery.read.own','delivery.operate.own'])) { <a routerLink="/reparto" routerLinkActive="active">Mi reparto</a> }
           @else { <a routerLink="/personal/reparto" routerLinkActive="active">Reparto</a> }
-          @if (access.has('orders.read')) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
+          @if (access.any(['orders.read', 'orders.capture'])) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
           @if (access.any(['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'])) { <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a> }
           @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Por confirmar</a> }
           @if (access.has('orders.capture')) { <a routerLink="/admin/clientes-pendientes" routerLinkActive="active">Pendientes</a> }

@@ -6,6 +6,8 @@ public interface ICustomerRepository
 {
     Task<IReadOnlyList<Customer>> GetAllAsync(CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<CustomerRouteAssignment>> GetRouteAssignmentsAsync(CancellationToken cancellationToken);
+
     Task<Customer?> GetByIdAsync(Guid customerId, CancellationToken cancellationToken);
 
     Task<Customer?> GetByIdForUpdateAsync(Guid customerId, CancellationToken cancellationToken);
@@ -44,3 +46,6 @@ public interface ICustomerRepository
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
+
+public sealed record CustomerRouteAssignment(Guid CustomerId, string CustomerName, string? RouteCode,
+    int? RouteStopOrder, DateTimeOffset UpdatedAt, bool IsActive);

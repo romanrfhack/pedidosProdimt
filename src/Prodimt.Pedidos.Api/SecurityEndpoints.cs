@@ -15,7 +15,8 @@ public static class SecurityEndpoints
         group.MapGet("/me", async (ClaimsPrincipal principal, SecurityService service, CancellationToken ct) =>
         {
             if (!Guid.TryParse(principal.FindFirstValue(ProdimtAuthClaims.UserId), out var userId)) return Results.Unauthorized();
-            return Results.Ok(new { userId, permissions = await service.GetPermissionsAsync(userId, ct) });
+            return Results.Ok(new { userId, permissions = await service.GetPermissionsAsync(userId, ct),
+                isSystemAdministrator = await service.IsSystemAdministratorAsync(userId, ct) });
         });
         group.MapPost("/users", (SaveSecurityUserRequest request, ClaimsPrincipal principal, SecurityService service, CancellationToken ct)
             => Execute(() => service.SaveUserAsync(null, request, Actor(principal), ct)));
@@ -38,6 +39,14 @@ public static class SecurityEndpoints
     }
     private static AdminActorContext Actor(ClaimsPrincipal user) => new(user.FindFirstValue(ProdimtAuthClaims.UserId),
         user.FindFirstValue(ProdimtAuthClaims.DisplayName) ?? user.Identity?.Name);
+
+    internal static async Task<AdminActorContext> GetOrderActorAsync(ClaimsPrincipal user, SecurityService service, CancellationToken ct)
+    {
+        var actor = Actor(user);
+        var isSystemAdministrator = Guid.TryParse(actor.ActorId, out var id) && await service.IsSystemAdministratorAsync(id, ct);
+        return actor with { IsSystemAdministrator = isSystemAdministrator };
+    }
+
     private static async Task<IResult> Execute<T>(Func<Task<T>> operation)
     {
         try { return Results.Ok(await operation()); }

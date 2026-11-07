@@ -53,6 +53,7 @@ builder.Services.AddScoped<Prodimt.Pedidos.Application.Delivery.DeliveryManageme
 builder.Services.AddScoped<OrderChangeNoticePublisher>();
 builder.Services.AddScoped<OrderChangeNoticeService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
+builder.Services.AddScoped<CustomerRouteAssignmentService>();
 builder.Services.AddScoped<AdminCustomerDayService>();
 builder.Services.AddScoped<AdminProductCatalogService>();
 builder.Services.AddScoped<CustomerProductPricingService>();
@@ -233,6 +234,7 @@ app.MapOrderCaptureEndpoints();
 app.MapCustomerOrderCaptureEndpoints();
 app.MapCustomerProductSetupEndpoints();
 app.MapCustomerReminderEndpoints();
+app.MapCustomerRouteAssignmentEndpoints();
 app.MapOrderingScheduleEndpoints();
 app.MapCustomerAccessTokenManagementEndpoints();
 
@@ -459,11 +461,17 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     ReviewOrderRequest request,
     ClaimsPrincipal user,
     AdminOrderService service,
+    SecurityService security,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, GetAdminActor(user)));
+        var actor = await SecurityEndpoints.GetOrderActorAsync(user, security, cancellationToken);
+        return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, actor));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: 403);
     }
     catch (CustomerOrderConflictException ex)
     {
@@ -541,6 +549,10 @@ adminCustomers.MapPut("/{customerId:guid}", async (
     try
     {
         return Results.Ok(await service.UpdateAsync(customerId, request, GetAdminActor(user), cancellationToken));
+    }
+    catch (CatalogConflictException ex)
+    {
+        return Results.Conflict(new { error = ex.Message, code = "CatalogChanged" });
     }
     catch (ArgumentException ex)
     {
@@ -783,11 +795,17 @@ adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
     AdminSubmitCustomerOrderRequest request,
     ClaimsPrincipal user,
     AdminOrderService service,
+    SecurityService security,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+        var actor = await SecurityEndpoints.GetOrderActorAsync(user, security, cancellationToken);
+        return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, actor, cancellationToken));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: 403);
     }
     catch (CustomerOrderConflictException ex)
     {
@@ -809,11 +827,17 @@ adminCustomers.MapPost("/{customerId:guid}/orders/no-order", async (
     AdminMarkNoOrderRequest request,
     ClaimsPrincipal user,
     AdminOrderService service,
+    SecurityService security,
     CancellationToken cancellationToken) =>
 {
     try
     {
-        return Results.Ok(await service.MarkNoOrderAsync(customerId, request, GetAdminActor(user), cancellationToken));
+        var actor = await SecurityEndpoints.GetOrderActorAsync(user, security, cancellationToken);
+        return Results.Ok(await service.MarkNoOrderAsync(customerId, request, actor, cancellationToken));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: 403);
     }
     catch (DeliveryDateChangedException ex)
     {

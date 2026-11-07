@@ -15,6 +15,8 @@ namespace Prodimt.Pedidos.Application.Tests;
 
 public sealed class CustomerOrderPersistenceTests
 {
+    private static readonly AdminActorContext Administrator = new("admin-1", "Admin Test", IsSystemAdministrator: true);
+
     [Fact]
     public async Task GetTodayAsync_IncludesCurrentOrderWhenCustomerAlreadyResponded()
     {
@@ -368,7 +370,7 @@ public sealed class CustomerOrderPersistenceTests
         var reviewed = await fixture.AdminOrders.ReviewAsync(
             response.OrderId,
             new ReviewOrderRequest(decision, InternalNotes: "Decision revisada por admin."),
-            CancellationToken.None);
+            CancellationToken.None, Administrator);
 
         var persisted = await fixture.DbContext.Orders.SingleAsync(x => x.Id == response.OrderId);
 
@@ -412,7 +414,7 @@ public sealed class CustomerOrderPersistenceTests
                     new ReviewOrderLineAdjustmentRequest(lineId, 25, "Cantidad ajustada.")
                 ]),
             CancellationToken.None,
-            new AdminActorContext("admin-1", "Admin Test"));
+            Administrator);
 
         var persisted = await fixture.DbContext.Orders
             .Include(x => x.Lines)
@@ -607,7 +609,7 @@ public sealed class CustomerOrderPersistenceTests
         var before = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
         await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(response.OrderId,
             new ReviewOrderRequest(AdminDecision.AcceptedWithChanges, null, DeliveryNotes: "No debe guardarse",
-                LineAdjustments: [new(Guid.NewGuid(), 5, null)]), CancellationToken.None));
+                LineAdjustments: [new(Guid.NewGuid(), 5, null)]), CancellationToken.None, Administrator));
         var after = await fixture.AdminOrders.GetDetailAsync(response.OrderId, CancellationToken.None);
         Assert.Equal(before.DeliveryNotes, after.DeliveryNotes); Assert.Equal(before.Status, after.Status);
     }
@@ -696,7 +698,7 @@ public sealed class CustomerOrderPersistenceTests
             ExpectedVersion: before.Version);
         if (valid)
         {
-            await fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default);
+            await fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default, Administrator);
             fixture.DbContext.ChangeTracker.Clear();
             var saved = await fixture.DbContext.Orders.Include(x => x.Lines).SingleAsync(x => x.Id == submitted.OrderId);
             Assert.Equal(OrderStatus.Accepted, saved.Status);
@@ -704,7 +706,7 @@ public sealed class CustomerOrderPersistenceTests
             Assert.Equal(25, saved.Lines.First().Quantity);
             return;
         }
-        var error = await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default));
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => fixture.AdminOrders.ReviewAsync(submitted.OrderId, command, default, Administrator));
         Assert.Contains(field switch { "delivery" => "entrega", "internal" => "internas", _ => "linea" }, error.Message);
         var tracked = await fixture.DbContext.Orders.Include(x => x.Lines).SingleAsync(x => x.Id == submitted.OrderId);
         Assert.Equal(OrderStatus.PendingAdminReview, tracked.Status);
@@ -773,7 +775,7 @@ public sealed class CustomerOrderPersistenceTests
         var internalNote = new string('ñ', 1000);
         await fixture.AdminOrders.ReviewAsync(submitted.OrderId,
             new(AdminDecision.AcceptedWithChanges, internalNote, DeliveryNotes: "Entregar mañana",
-                LineAdjustments: before.Lines.Select(x => new ReviewOrderLineAdjustmentRequest(x.OrderLineId, 2, lineNote)).ToArray()), default);
+                LineAdjustments: before.Lines.Select(x => new ReviewOrderLineAdjustmentRequest(x.OrderLineId, 2, lineNote)).ToArray()), default, Administrator);
         var events = await fixture.DbContext.OrderAuditLogs.Where(x => x.OrderId == submitted.OrderId
             && (x.EventType == OrderAuditEventType.AdminDecisionRecorded || x.EventType == OrderAuditEventType.AdminOrderChanged)).ToArrayAsync();
         Assert.Equal(2, events.Length);

@@ -398,6 +398,8 @@ async function mockOperationsPlan(page: Page) {
 }
 
 test('catálogo conserva desconocido, llave y cobro como campos independientes', async ({ page }) => {
+  let routes = [{ code: 'PILOTO-DEMO', name: 'Ruta piloto' }];
+  await page.route('**/api/admin/customers/routes', route => route.fulfill({ json: routes }));
   await loginAdmin(page);
   await page.goto('/admin/catalogos');
   await page.getByRole('button', { name: 'Nuevo cliente' }).click();
@@ -405,26 +407,35 @@ test('catálogo conserva desconocido, llave y cobro como campos independientes',
   await expect(form.getByLabel('Llave del local')).toHaveValue('0: null');
   await expect(form.getByLabel('Forma de cobro')).toHaveValue('0: null');
   await form.getByLabel('Nombre', { exact: true }).fill('Cliente Piloto Prueba');
-  await form.getByLabel('Código de ruta').fill('PILOTO-DEMO');
+  await form.getByLabel('Código de ruta').selectOption('PILOTO-DEMO');
   await form.getByLabel('Orden de visita').fill('3');
   await form.getByLabel('Llave del local').selectOption({ label: 'Tenemos llave' });
   await form.getByLabel('Forma de cobro').selectOption('cash_on_delivery');
   await form.getByLabel('Instrucciones internas de entrega').fill('Dejar en la barra de prueba.');
   const createdRequest = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith('/api/admin/customers'));
   await form.getByRole('button', { name: 'Crear cliente' }).click();
-  expect((await createdRequest).postDataJSON()).toMatchObject({
+  const created = await createdRequest;
+  expect(created.postDataJSON()).toMatchObject({
     routeCode: 'PILOTO-DEMO', routeStopOrder: 3, hasStoreKey: true,
     paymentTermCode: 'cash_on_delivery', internalDeliveryInstructions: 'Dejar en la barra de prueba.'
   });
+  const savedCustomer = await (await created.response())!.json();
   await expect(page.getByText('Cliente guardado.')).toBeVisible();
+  routes = [];
   const customer = page.locator('article').filter({ has: page.getByText('Cliente Piloto Prueba', { exact: true }) });
   await customer.getByRole('button', { name: 'Editar', exact: true }).click();
+  await expect(form.getByLabel('Código de ruta')).toBeEnabled();
+  await expect(form.getByLabel('Código de ruta')).toHaveValue('PILOTO-DEMO');
+  await expect(form.getByLabel('Código de ruta').locator('option:checked')).toHaveText('PILOTO-DEMO · Código guardado');
   await expect(form.getByLabel('Llave del local')).toHaveValue('1: true');
   await expect(form.getByLabel('Forma de cobro')).toHaveValue('cash_on_delivery');
   await form.getByLabel('Llave del local').selectOption({ label: 'Por confirmar' });
   const updatedRequest = page.waitForRequest((request) => request.method() === 'PUT' && /\/api\/admin\/customers\/[^/]+$/.test(request.url()));
   await form.getByRole('button', { name: 'Guardar cliente' }).click();
-  expect((await updatedRequest).postDataJSON()).toMatchObject({ hasStoreKey: null, paymentTermCode: 'cash_on_delivery' });
+  expect((await updatedRequest).postDataJSON()).toMatchObject({
+    hasStoreKey: null, paymentTermCode: 'cash_on_delivery', routeCode: 'PILOTO-DEMO', routeStopOrder: 3,
+    expectedUpdatedAt: savedCustomer.updatedAt
+  });
 });
 
 test('producto nuevo no presupone kilos y permite guardar docenas', async ({ page }) => {

@@ -6,6 +6,7 @@ public interface ISecurityStore
 {
     Task<SecurityData> ReadAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken);
+    Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken cancellationToken);
     Task<T> ExecuteAsync<T>(Guid expectedRevision, Func<SecurityData, T> mutation, CancellationToken cancellationToken);
 }
 

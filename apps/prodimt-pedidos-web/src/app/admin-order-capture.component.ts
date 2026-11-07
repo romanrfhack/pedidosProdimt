@@ -6,7 +6,8 @@ import { forkJoin, Subscription } from 'rxjs';
 import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from './admin-catalog-api.service';
 import { AdminOrder, AdminOrderTemplate, OrderDataService } from './order-data.service';
 import { CaptureOrderRequest, CapturePreview, OrderCaptureApiService } from './order-capture-api.service';
-import { unitLabel } from './operational-labels';
+import { businessDateToday, unitLabel } from './operational-labels';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AdditionalProduct, ProductSetupApiService } from './product-setup-api.service';
 import { AddOrderProductDialogComponent } from './add-order-product-dialog.component';
 import { OrderProductPicker } from './order-product-picker';
@@ -29,6 +30,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
   private readonly catalog = inject(AdminCatalogApiService);
   private readonly data = inject(OrderDataService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  protected readonly access = inject(EffectivePermissionsService);
   private readonly requests = new Subscription();
   private previewRequest: Subscription | null = null;
   private previewGeneration = 0;
@@ -61,6 +63,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
   }
   ngOnDestroy(): void { this.productPicker.close(); this.previewGeneration++; this.previewRequest?.unsubscribe(); this.requests.unsubscribe(); }
   protected get locked(): boolean { return this.saving || this.confirming || this.refreshing || this.uncertain; }
+  protected get historical(): boolean { return this.serviceDate < businessDateToday(); }
   protected get sequence() {
     return this.profile.items.filter(x => x.isActive && x.productIsActive !== false).slice()
       .sort((a, b) => (a.interpretationPosition ?? 999) - (b.interpretationPosition ?? 999));
@@ -128,6 +131,16 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
     this.additionalIds = new Set([...this.additionalIds].filter(x => x !== id)); this.attempt = null;
   }
 
+  protected selectQuantityOnFocus(input: HTMLInputElement): void {
+    const valueOnFocus = input.value;
+    // Select after the browser places the caret for the focus gesture.
+    requestAnimationFrame(() => {
+      if (input.ownerDocument.activeElement === input && input.value === valueOnFocus) {
+        input.select();
+      }
+    });
+  }
+
   protected changeMode(mode: 'quick' | 'manual'): void {
     if (this.locked || mode === this.mode) return;
     if (mode === 'quick' && this.additionalIds.size) { this.error = 'Conserva la captura manual para pedir los productos agregados, o quítalos antes de cambiar a captura rápida.'; return; }
@@ -181,7 +194,7 @@ export class AdminOrderCaptureComponent implements OnInit, OnDestroy {
         this.existingOrders = existing;
         if (existing.length && !this.separateDelivery) {
           this.saving = false; this.busy.emit(false);
-          this.error = 'Ya existe un pedido. Ábrelo para corregirlo o confirma que se trata de otra entrega independiente.';
+          this.error = 'Ya existe un pedido para este cliente y fecha. Confirma si se trata de otra entrega independiente.';
           this.changeDetector.detectChanges(); return;
         }
         this.attempt = {

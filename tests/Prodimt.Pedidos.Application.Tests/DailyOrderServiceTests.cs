@@ -17,13 +17,13 @@ public sealed class DailyOrderServiceTests
 {
     private const string Header = "externalOrderKey,serviceDate,customerExternalCode,action,productExternalCode,quantity,unitCode,notes";
     private static readonly CancellationToken Ct = CancellationToken.None;
-    private static readonly AdminActorContext Actor = new("admin-test", "Administrador de prueba");
+    private static readonly AdminActorContext Actor = new("admin-test", "Administrador de prueba", IsSystemAdministrator: true);
 
     [Fact]
     public async Task Preview_GroupsLinesAndPreservesUnits_WithoutWritingOrdersOrAudit()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var result = await fixture.Service.ValidateAsync(Request(
+        var result = await fixture.ValidateAsync(Request(
             "ORDER-1,2026-10-25,C-TEST,order,P-KG,15,kg,Primera variante",
             "ORDER-1,2026-10-25,C-TEST,order,P-PACK,2,package,Segunda variante"), Ct);
 
@@ -71,10 +71,10 @@ public sealed class DailyOrderServiceTests
     public async Task MixedActionsOrCustomersUnderOneSourceKey_AreNotMerged()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var mixedAction = await fixture.Service.ValidateAsync(Request(
+        var mixedAction = await fixture.ValidateAsync(Request(
             "ORDER-1,2026-10-25,C-TEST,order,P-KG,5,kg,",
             "ORDER-1,2026-10-25,C-TEST,no_order,,,,"), Ct);
-        var mixedCustomer = await fixture.Service.ValidateAsync(Request(
+        var mixedCustomer = await fixture.ValidateAsync(Request(
             "ORDER-1,2026-10-25,C-TEST,order,P-KG,5,kg,",
             "ORDER-1,2026-10-25,C-OTHER,order,P-PACK,2,package,"), Ct);
 
@@ -89,7 +89,7 @@ public sealed class DailyOrderServiceTests
     public async Task DuplicateProductInsideOrder_IsNotSilentlySummed()
     {
         await using var fixture = await Fixture.CreateAsync();
-        var result = await fixture.Service.ValidateAsync(Request(
+        var result = await fixture.ValidateAsync(Request(
             "ORDER-1,2026-10-25,C-TEST,order,P-KG,5,kg,",
             "ORDER-1,2026-10-25,C-TEST,order,P-KG,2,kg,"), Ct);
 
@@ -140,7 +140,7 @@ public sealed class DailyOrderServiceTests
         fixture.SetTime(new TimeOnly(10, 1));
         var request = Request("LATE-1,2026-10-24,C-TEST,order,P-KG,5,kg,");
 
-        var preview = await fixture.Service.ValidateAsync(request, Ct);
+        var preview = await fixture.ValidateAsync(request, Ct);
         Assert.True(preview.CanApply);
         Assert.Contains(preview.Warnings, x => x.Contains("tard", StringComparison.OrdinalIgnoreCase));
         var result = await fixture.Service.ApplyAsync(request, Actor, Ct);
@@ -154,10 +154,10 @@ public sealed class DailyOrderServiceTests
     }
 
     [Theory]
-    [InlineData(23, true)]
-    [InlineData(24, false)]
-    [InlineData(25, false)]
-    public async Task AdminCapture_EvaluatesCutoffAgainstServiceDate(int day, bool isLate)
+    [InlineData(23, OrderStatus.Accepted)]
+    [InlineData(24, OrderStatus.Submitted)]
+    [InlineData(25, OrderStatus.Submitted)]
+    public async Task AdminCapture_RegistersHistoricalOrdersWithoutReview(int day, OrderStatus status)
     {
         await using var fixture = await Fixture.CreateAsync();
         var serviceDate = new DateOnly(2026, 10, day);
@@ -165,9 +165,9 @@ public sealed class DailyOrderServiceTests
             new AdminSubmitCustomerOrderRequest([new(fixture.KgProduct.Id, 5, null)], null, null, null, null, null, serviceDate), Actor, Ct);
 
         Assert.Equal(serviceDate, result.OrderDate);
-        Assert.Equal(isLate, result.IsLate);
-        Assert.Equal(isLate, result.RequiresAdminReview);
-        Assert.Equal(isLate ? OrderStatus.PendingAdminReview : OrderStatus.Submitted, result.Status);
+        Assert.False(result.IsLate);
+        Assert.False(result.RequiresAdminReview);
+        Assert.Equal(status, result.Status);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public sealed class DailyOrderServiceTests
         await fixture.Service.ApplyAsync(Request("ORDER-1,2026-10-25,C-TEST,order,P-KG,15,kg,"), Actor, Ct);
         var changed = Request("ORDER-1,2026-10-25,C-TEST,order,P-KG,17,kg,") with { BatchKey = "BATCH-2" };
 
-        var preview = await fixture.Service.ValidateAsync(changed, Ct);
+        var preview = await fixture.ValidateAsync(changed, Ct);
         Assert.False(preview.CanApply);
         Assert.NotEmpty(preview.Errors);
         await Assert.ThrowsAsync<CustomerOrderConflictException>(() => fixture.Service.ApplyAsync(changed, Actor, Ct));
@@ -619,13 +619,14 @@ public sealed class DailyOrderServiceTests
     public async Task PendingCorrection_NotifiesOnlyWhenReviewAddsAuthorizedDemand(AdminDecision decision, int expectedCount)
     {
         await using var fixture = await Fixture.CreateAsync();
-        var imported = await fixture.Service.ApplyAsync(Request("LATE,2026-10-23,C-TEST,order,P-KG,15,kg,"), Actor, Ct);
+        fixture.SetTime(new TimeOnly(10, 1));
+        var imported = await fixture.Service.ApplyAsync(Request("LATE,2026-10-24,C-TEST,order,P-KG,15,kg,"), Actor, Ct);
         var orderId = imported.Orders.Single().OrderId!.Value;
         await fixture.Service.CorrectAsync(orderId, new("pending-correction", 1, "Corrige antes de aceptar",
             [new(fixture.KgProduct.Id, 20, null)]), Actor, Ct);
         Assert.Empty(await fixture.Db.OrderChangeNotices.ToArrayAsync());
         await fixture.AdminService.ReviewAsync(orderId, new(decision, InternalNotes: "Revisado", ExpectedVersion: 2), Ct, Actor);
-        var notices = (await fixture.NoticeService(fixture.Db).GetAsync(new(2026, 10, 23), null, null, true, Ct)).Changes;
+        var notices = (await fixture.NoticeService(fixture.Db).GetAsync(new(2026, 10, 24), null, null, true, Ct)).Changes;
         Assert.Equal(expectedCount, notices.Count);
         if (expectedCount == 1)
         {
@@ -635,6 +636,47 @@ public sealed class DailyOrderServiceTests
             Assert.Equal(0m, Assert.Single(notice.Lines).BeforeQuantity);
             Assert.Equal(20m, Assert.Single(notice.Lines).AfterQuantity);
         }
+    }
+
+    [Fact]
+    public async Task HistoricalCorrection_ClosesAnExistingAdministrativePendingOrderAndAuditsTheChange()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        fixture.SetTime(new TimeOnly(10, 1));
+        var date = new DateOnly(2026, 10, 24);
+        var order = await fixture.AdminService.SubmitCustomerOrderAsync(fixture.Customer.Id,
+            new([new(fixture.KgProduct.Id, 15, null)], null, null, null, null, null, date), Actor, Ct);
+        Assert.Equal(OrderStatus.PendingAdminReview, order.Status);
+
+        fixture.SetDate(date.AddDays(1));
+        var corrected = await fixture.Service.CorrectAsync(order.OrderId, new("HISTORICAL-1", 1,
+            "Cantidad realmente entregada", [new(fixture.KgProduct.Id, 20, null)]), Actor, Ct);
+
+        Assert.Equal(OrderStatus.Accepted, corrected.Status);
+        Assert.False(corrected.RequiresAdminReview);
+        Assert.Equal(20, Assert.Single(corrected.Lines).Quantity);
+        Assert.Empty(await fixture.AdminService.GetPendingReviewAsync(Ct, date));
+        var audit = await fixture.Db.OrderAuditLogs.SingleAsync(x => x.EventType == OrderAuditEventType.OrderCorrected);
+        Assert.Equal(Actor.ActorId, audit.ActorId);
+        using var metadata = JsonDocument.Parse(audit.MetadataJson!);
+        Assert.True(metadata.RootElement.GetProperty("closeHistoricalReview").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HistoricalImport_RequiresSystemAdministratorAndDoesNotQueueReview()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var request = Request("HISTORICAL-1,2026-10-23,C-TEST,order,P-KG,15,kg,");
+        var staff = Actor with { IsSystemAdministrator = false };
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.ApplyAsync(request, staff, Ct));
+        Assert.Empty(await fixture.Db.Orders.ToArrayAsync());
+        Assert.Equal(0, await fixture.OperationCountAsync());
+
+        var result = await fixture.Service.ApplyAsync(request, Actor, Ct);
+        Assert.True(result.Applied);
+        var order = await fixture.Db.Orders.SingleAsync();
+        Assert.Equal(OrderStatus.Accepted, order.Status);
+        Assert.False(order.RequiresAdminReview);
     }
 
     [Fact]
@@ -683,6 +725,9 @@ public sealed class DailyOrderServiceTests
             new EfCustomerRepository(Db), new EfProductRepository(Db), new EfMachineRepository(Db), new EfSalesChannelRepository(Db), clock,
             new Prodimt.Pedidos.Application.AdminOperations.OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(Db), new EfMachineRepository(Db), new EfCustomerRepository(Db)));
         public void SetTime(TimeOnly value) => clock.Time = value;
+        public void SetDate(DateOnly value) => clock.Today = value;
+        public Task<DailyOrderImportResponse> ValidateAsync(DailyOrderImportRequest request, CancellationToken token)
+            => Service.ValidateAsync(request, token, Actor);
         public PedidosDbContext NewContext() => new(options);
         public AdminDailyOrderService NewService(PedidosDbContext db) => new(new EfOrderRepository(db),
             new EfOrderAuditLogRepository(db), new EfCustomerRepository(db), new EfProductRepository(db),
@@ -749,8 +794,8 @@ public sealed class DailyOrderServiceTests
     private sealed class Clock : IDateTimeProvider
     {
         public TimeOnly Time { get; set; } = new(9, 0);
-        public DateTimeOffset Now => new(2026, 10, 24, Time.Hour, Time.Minute, Time.Second, TimeSpan.FromHours(-6));
-        public DateOnly Today => new(2026, 10, 24);
+        public DateTimeOffset Now => new(Today, Time, TimeSpan.FromHours(-6));
+        public DateOnly Today { get; set; } = new(2026, 10, 24);
         public TimeOnly LocalTimeOfDay => Time;
     }
 }

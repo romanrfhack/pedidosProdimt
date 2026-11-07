@@ -39,6 +39,12 @@ export interface UpsertAdminCustomerApiRequest {
   paymentTermCode: PaymentTermCode | null;
   internalDeliveryInstructions: string | null;
   restDays?: number[] | null;
+  expectedUpdatedAt?: string;
+}
+
+export interface AdminCustomerRouteApiResponse {
+  code: string;
+  name: string;
 }
 
 export interface AdminProductCatalogApiResponse {
@@ -179,6 +185,10 @@ export class AdminCatalogApiService {
 
   getCustomers(): Observable<AdminCustomerCatalogApiResponse[]> {
     return this.http.get<AdminCustomerCatalogApiResponse[]>(`${this.apiBaseUrl}/api/admin/customers`);
+  }
+
+  getCustomerRoutes(): Observable<AdminCustomerRouteApiResponse[]> {
+    return this.http.get<AdminCustomerRouteApiResponse[]>(`${this.apiBaseUrl}/api/admin/customers/routes`);
   }
 
   updateCustomerPhone(customerId: string, phoneNumber: string): Observable<void> {

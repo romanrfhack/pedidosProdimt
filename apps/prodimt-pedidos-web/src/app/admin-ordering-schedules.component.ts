@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnDestroy, inject, signal } from '@angular/core';
 import { Subject, Subscription, takeUntil } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../environments/environment';
@@ -11,29 +11,38 @@ interface SavedSchedule { key: string; cutoff: string | null; expectedVersion: n
 @Component({
  selector: 'app-ordering-schedules', imports: [FormsModule],
  template: `
- <section class="page stack schedules-page" data-testid="ordering-schedules">
+ <section class="stack schedules-page" [class.page]="!routeCode" [attr.data-testid]="routeCode ? 'delivery-route-schedule' : 'ordering-schedules'">
+ @if (routeCode) {
+ <h3>Horario de pedidos</h3>
+ <p>Antes del límite, el primer pedido se registra automáticamente. Desde esa hora requiere confirmación. La excepción del cliente tiene prioridad.</p>
+ } @else {
  <div class="page-title"><p class="eyebrow">Configuración</p><h2>Horarios de pedidos</h2></div>
- <button type="button" class="secondary" (click)="refresh()" [disabled]="loading || saving">Actualizar horarios</button>
  <p>La hora del cliente tiene prioridad. Si se deja vacía, se aplica la de su ruta; si tampoco está configurada, se usan las 10:00 a. m.</p>
  <p class="notice">Recibimos solicitudes para el mismo día antes de las 18:00. Después se ofrece el siguiente día hábil. PRODIMT descansa los martes. Hora de Ciudad de México.</p>
+ }
+ <button type="button" class="secondary" (click)="refresh()" [disabled]="loading || saving || blocked">{{ routeCode ? 'Actualizar horario' : 'Actualizar horarios' }}</button>
  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
  @if (notice) { <p class="alert success" role="status">{{ notice }}</p> }
  @if (loading) { <p role="status">Consultando horarios…</p> }
- @if (data; as d) {
- <section class="stack"><h3>Por ruta</h3><div class="schedule-grid">
- @for (route of d.routes; track route.routeCode) {
+ @if (data) {
+ <section class="stack">@if (!routeCode) { <h3>Por ruta</h3> }<div class="schedule-grid">
+ @for (route of visibleRoutes; track route.routeCode) {
  <form class="schedule-card" [attr.data-testid]="'schedule-route-'+route.routeCode" (ngSubmit)="saveRoute(route)">
- <strong>Ruta {{ route.routeCode }}</strong><label><span>Hora límite de confirmación automática</span>
- <input type="time" step="60" max="17:59" name="cutoff" [(ngModel)]="route.cutoff" [disabled]="saving || loading"></label>
- <small>Vacío: usar las 10:00 a. m.</small>
+ @if (!routeCode) { <strong>Ruta {{ route.routeCode }}</strong> }<label><span>Hora límite de confirmación automática</span>
+ <input type="time" step="60" max="17:59" name="cutoff" [(ngModel)]="route.cutoff" [disabled]="saving || loading || blocked"></label>
+ <small>Deja el campo vacío para usar las 10:00 a. m. de Ciudad de México.</small>
  @if (changed(route)) { <small>Cambios sin guardar</small> }
  @if (hasConflict(route)) {
  <p class="notice" role="status">{{ conflictMessage(route) }}</p>
- <button type="button" class="secondary" (click)="useCurrent(route)" [disabled]="saving || loading">{{ available(route) ? 'Usar horario actual' : 'Descartar borrador' }}</button>
- @if (available(route)) { <button type="button" class="secondary" (click)="keepDraft(route)" [disabled]="saving || loading">Conservar mi cambio sobre la versión actual</button> }
+ <button type="button" class="secondary" (click)="useCurrent(route)" [disabled]="saving || loading || blocked">{{ available(route) ? 'Usar horario actual' : 'Descartar borrador' }}</button>
+ @if (available(route)) { <button type="button" class="secondary" (click)="keepDraft(route)" [disabled]="saving || loading || blocked">Conservar mi cambio sobre la versión actual</button> }
  }
- <button class="primary" [disabled]="saving || loading || needsRefresh || hasConflict(route)">Guardar ruta</button>
- </form> }</div></section>
+ @else if (routeCode && changed(route)) {
+ <button type="button" class="secondary" (click)="useCurrent(route)" [disabled]="saving || loading || blocked">Usar horario guardado</button>
+ }
+ <button class="primary" [disabled]="saving || loading || blocked || needsRefresh || hasConflict(route) || (!!routeCode && !changed(route))">{{ routeCode ? 'Guardar horario' : 'Guardar ruta' }}</button>
+ </form> } @empty { @if (routeCode) { <p>Esta ruta aún no está disponible en Horarios. Actualiza para volver a consultarla.</p> } }</div></section>
+ @if (!routeCode) {
  <section class="stack"><h3>Excepciones por cliente</h3>
  <label><span>Buscar cliente o ruta</span><input name="search" type="search" [(ngModel)]="search" placeholder="Nombre o ruta"></label>
  <div class="schedule-grid">@for (customer of visibleCustomers; track customer.customerId) {
@@ -48,11 +57,13 @@ interface SavedSchedule { key: string; cutoff: string | null; expectedVersion: n
  @if (available(customer)) { <button type="button" class="secondary" (click)="keepDraft(customer)" [disabled]="saving || loading">Conservar mi cambio sobre la versión actual</button> }
  }
  <button class="primary" [disabled]="saving || loading || needsRefresh || hasConflict(customer)">Guardar cliente</button>
- </form> }</div></section> }
+ </form> }</div></section> } }
  </section>`,
  styles: [`.schedules-page{max-width:1100px}.schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}.schedule-card{display:grid;gap:12px;border:1px solid #dce4e5;border-radius:12px;padding:18px}.schedule-card small{color:#52616a}.schedule-card input{width:100%;min-height:44px}`]
 })
 export class AdminOrderingSchedulesComponent implements OnDestroy {
+ @Input() routeCode: string | null = null;
+ @Input() blocked = false;
  private readonly http = inject(HttpClient);
  private readonly cdr = inject(ChangeDetectorRef);
  private readonly url = environment.apiBaseUrl + '/api/admin/ordering-schedules';
@@ -66,14 +77,24 @@ export class AdminOrderingSchedulesComponent implements OnDestroy {
  protected error: string | null = null;
  protected notice: string | null = null;
  protected loading = true;
- protected saving = false;
+ private readonly savingState = signal(false);
+ protected get saving(): boolean { return this.savingState(); }
+ protected set saving(value: boolean) { this.savingState.set(value); }
  protected needsRefresh = false;
+
+ get isSaving(): boolean { return this.saving; }
+ get hasRouteDraft(): boolean { return this.visibleRoutes.some(route => this.changed(route) || this.hasConflict(route)); }
 
  constructor() { this.load(); }
  ngOnDestroy(): void {
    this.readGeneration++;
    this.destroyed.next();
    this.destroyed.complete();
+ }
+ protected get visibleRoutes(): RouteSchedule[] {
+   const routes = this.data?.routes ?? [];
+   const code = this.routeCode?.trim().toUpperCase();
+   return code ? routes.filter(route => route.routeCode.trim().toUpperCase() === code) : routes;
  }
  protected get visibleCustomers(): CustomerSchedule[] {
    const q = this.search.trim().toLocaleLowerCase('es');
@@ -85,7 +106,7 @@ export class AdminOrderingSchedulesComponent implements OnDestroy {
    return route?.cutoff?.slice(0, 5) ?? '10:00';
  }
  protected refresh(): void {
-   if (this.saving || this.loading) return;
+   if (this.saving || this.loading || this.blocked) return;
    this.error = null;
    this.load();
  }
@@ -102,7 +123,7 @@ export class AdminOrderingSchedulesComponent implements OnDestroy {
    return 'El horario cambió en otra sesión. Actual: ' + time + '. Tu borrador se conserva. Elige qué versión usar antes de guardar.';
  }
  protected useCurrent(row: Schedule): void {
-   if (this.saving || this.loading) return;
+   if (this.saving || this.loading || this.blocked) return;
    const key = this.key(row);
    const current = this.snapshots.get(key);
    if (current) Object.assign(row, current);
@@ -113,7 +134,7 @@ export class AdminOrderingSchedulesComponent implements OnDestroy {
    this.conflicts.delete(key);
  }
  protected keepDraft(row: Schedule): void {
-   if (this.saving || this.loading) return;
+   if (this.saving || this.loading || this.blocked) return;
    const current = this.snapshots.get(this.key(row));
    if (!current) return;
    // The user explicitly chose to save this draft over the version shown above.
@@ -131,7 +152,7 @@ export class AdminOrderingSchedulesComponent implements OnDestroy {
  }
  private time(value: string | null): string | null { return !value ? null : value.length === 5 ? value + ':00' : value; }
  private save(row: Schedule, path: string, body: unknown): void {
-   if (this.saving || this.loading || this.needsRefresh || this.hasConflict(row)) return;
+   if (this.saving || this.loading || this.blocked || this.needsRefresh || this.hasConflict(row)) return;
    const saved: SavedSchedule = { key: this.key(row), cutoff: this.time(row.cutoff), expectedVersion: row.version };
    this.saving = true;
    this.error = null;

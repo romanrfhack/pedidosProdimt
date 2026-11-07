@@ -8,9 +8,9 @@
   </div>
   @if (existingOrders.length) {
     <section class="alert warning stack" data-testid="capture-existing-orders"><strong>Este cliente ya tiene pedidos para esta fecha.</strong>
-      <p>Abre el pedido para corregir los kilos de la misma entrega.</p>
-      @for (order of existingOrders; track order.id) { <a routerLink="/admin/pedidos" [queryParams]="{ date: serviceDate, orderId: order.id }">Abrir pedido #{{ order.sequenceNumber }} y corregir</a> }
-      <label class="check-row"><input type="checkbox" name="confirmSeparateDelivery" [(ngModel)]="separateDelivery" [disabled]="locked"><span>Confirmo que es una entrega adicional independiente; crear otro pedido sujeto a revisión.</span></label>
+      @if (access.isSystemAdministrator()) { <p>Abre el pedido para corregir los kilos de la misma entrega.</p> }
+      @for (order of existingOrders; track order.id) { <a routerLink="/admin/pedidos" [queryParams]="{ date: serviceDate, orderId: order.id }">Abrir pedido #{{ order.sequenceNumber }}{{ access.isSystemAdministrator() ? ' y corregir' : '' }}</a> }
+      <label class="check-row"><input type="checkbox" name="confirmSeparateDelivery" [(ngModel)]="separateDelivery" [disabled]="locked"><span>Confirmo que es una entrega adicional independiente.{{ historical ? '' : ' El pedido quedará sujeto a revisión.' }}</span></label>
     </section>
   }
   @if (mode === 'quick') {
@@ -38,7 +38,8 @@
     <div class="manual-products">@for (product of config.products; track product.id) {
       <div class="manual-product-wrap" [class.additional]="additionalIds.has(product.id)">
       <label class="manual-product"><span><strong>{{ product.name }}</strong><small>{{ product.unitCode ? unitLabel(product.unitCode) : 'Confirma la unidad en Configurar cliente' }} @if (additionalIds.has(product.id)) { · Producto agregado }</small></span>
-        <input type="number" min="0" max="9999999999999999" step="0.01" inputmode="decimal" [name]="'captureQuantity' + product.id"
+        <input #quantityInput type="number" min="0" max="9999999999999999" step="0.01" inputmode="decimal" [name]="'captureQuantity' + product.id"
+          (focus)="selectQuantityOnFocus(quantityInput)"
           [(ngModel)]="product.quantity" [disabled]="locked || !product.unitCode" [attr.aria-label]="'Cantidad de ' + product.name">
       </label>
       @if (additionalIds.has(product.id)) { <button type="button" class="remove-additional" [disabled]="locked" [attr.aria-label]="'Quitar ' + product.name" (click)="removeAdditionalProduct(product.id)">Quitar del pedido</button> }

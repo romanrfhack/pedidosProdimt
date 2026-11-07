@@ -94,6 +94,9 @@ public sealed class LegacyCommercialCatalogRepository : ICommercialCatalogReposi
 // repair fixture. Never registered by the product or by current-schema tests.
 public sealed class LegacySecurityStore(PedidosDbContext db) : Prodimt.Pedidos.Application.Security.ISecurityStore
 {
+    public Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken cancellationToken)
+        => db.AdminUsers.AsNoTracking().AnyAsync(x => x.Id == userId && x.IsActive, cancellationToken);
+
     public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
         if (!await db.AdminUsers.AsNoTracking().AnyAsync(x => x.Id == userId && x.IsActive, cancellationToken)) return [];

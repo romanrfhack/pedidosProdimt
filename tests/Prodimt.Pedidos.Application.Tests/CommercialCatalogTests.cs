@@ -16,7 +16,7 @@ public sealed class CommercialCatalogTests
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
     private static readonly DateOnly Day = new(2026, 11, 1);
-    private static readonly AdminActorContext Actor = new("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Administracion de prueba");
+    private static readonly AdminActorContext Actor = new("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Administracion de prueba", IsSystemAdministrator: true);
     private static ChangeCustomerProductPriceRequest Change(decimal? amount, int version = 0, DateOnly? date = null, Guid? operation = null)
         => new(amount, date ?? Day, "Cambio confirmado en prueba ficticia", version, operation ?? Guid.NewGuid(), "kg");
 

@@ -55,7 +55,7 @@ public sealed class AuditMetadataSqlTests(SqlServerFixture database)
         await using (var attempt = database.CreateDbContext())
         {
             var service = new AdminCustomerCatalogService(new EfCustomerRepository(attempt), new EfProductRepository(attempt),
-                new EfMachineRepository(attempt), new EfAuditLogRepository(attempt), new Clock());
+                new EfMachineRepository(attempt), new EfAuditLogRepository(attempt), new Clock(), new EfDeliveryRepository(attempt));
             // SQL rejects this synthetic actor name (>200). Profile rows/version/audit must roll back together.
             await Assert.ThrowsAsync<DbUpdateException>(() => service.ReplaceFrequentProductsAsync(catalog.CustomerId,
                 new(items.Select(x => x with { DefaultQuantity = 999 }).ToArray(), false, 1), new("synthetic", new string('A', 201)), default));

@@ -82,6 +82,7 @@ export class AdminTodayComponent {
   }
 
   protected startCorrection(): void {
+    if (!this.selectedDetail || !this.canCorrect(this.selectedDetail)) return;
     this.navigationBlocked = false;
     this.correcting = true;
   }
@@ -247,7 +248,8 @@ export class AdminTodayComponent {
   }
 
   protected canCorrect(detail: AdminOrderDetail): boolean {
-    return this.access.has('orders.capture') && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(detail.status);
+    return this.access.has('orders.capture') && this.access.isSystemAdministrator()
+      && ['Submitted', 'Accepted', 'PendingAdminReview'].includes(detail.status);
   }
 
   protected reloadDetail(order: AdminOrder): void {

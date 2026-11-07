@@ -110,25 +110,31 @@ public sealed class Customer
         string? internalDeliveryInstructions,
         DateTimeOffset now)
     {
-        var route = string.IsNullOrWhiteSpace(routeCode) ? null : routeCode.Trim();
         var payment = string.IsNullOrWhiteSpace(paymentTermCode) ? null : paymentTermCode.Trim().ToLowerInvariant();
         var instructions = string.IsNullOrWhiteSpace(internalDeliveryInstructions) ? null : internalDeliveryInstructions.Trim();
+        if (payment is not null && payment is not ("cash_on_delivery" or "credit"))
+            throw new ArgumentException("Condicion de pago invalida. Usa cash_on_delivery o credit.", nameof(paymentTermCode));
+        if (instructions?.Length > 1000)
+            throw new ArgumentException("Las instrucciones internas admiten hasta 1000 caracteres.", nameof(internalDeliveryInstructions));
+
+        SetRouteAssignment(routeCode, routeStopOrder, now);
+        HasStoreKey = hasStoreKey;
+        PaymentTermCode = payment;
+        InternalDeliveryInstructions = instructions;
+    }
+
+    public void SetRouteAssignment(string? routeCode, int? routeStopOrder, DateTimeOffset now)
+    {
+        var route = string.IsNullOrWhiteSpace(routeCode) ? null : routeCode.Trim();
         if (route?.Length > 80)
             throw new ArgumentException("El codigo de ruta admite hasta 80 caracteres.", nameof(routeCode));
         if (routeStopOrder <= 0)
             throw new ArgumentException("El orden de parada debe ser positivo.", nameof(routeStopOrder));
         if (routeStopOrder is not null && route is null)
             throw new ArgumentException("Indica una ruta para asignar el orden de parada.", nameof(routeCode));
-        if (payment is not null && payment is not ("cash_on_delivery" or "credit"))
-            throw new ArgumentException("Condicion de pago invalida. Usa cash_on_delivery o credit.", nameof(paymentTermCode));
-        if (instructions?.Length > 1000)
-            throw new ArgumentException("Las instrucciones internas admiten hasta 1000 caracteres.", nameof(internalDeliveryInstructions));
 
         RouteCode = route;
         RouteStopOrder = routeStopOrder;
-        HasStoreKey = hasStoreKey;
-        PaymentTermCode = payment;
-        InternalDeliveryInstructions = instructions;
         UpdatedAt = now;
     }
 

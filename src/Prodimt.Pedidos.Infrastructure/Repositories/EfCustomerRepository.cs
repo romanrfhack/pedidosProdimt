@@ -22,6 +22,11 @@ public sealed class EfCustomerRepository(PedidosDbContext dbContext) : ICustomer
             .ToArrayAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CustomerRouteAssignment>> GetRouteAssignmentsAsync(CancellationToken cancellationToken)
+        => await dbContext.Customers.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id)
+            .Select(x => new CustomerRouteAssignment(x.Id, x.Name, x.RouteCode, x.RouteStopOrder, x.UpdatedAt, x.IsActive))
+            .ToArrayAsync(cancellationToken);
+
     public Task<Customer?> GetByIdAsync(Guid customerId, CancellationToken cancellationToken)
     {
         return dbContext.Customers

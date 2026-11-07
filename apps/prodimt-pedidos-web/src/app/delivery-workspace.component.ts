@@ -8,6 +8,8 @@ import { DeliveryApiService, DeliveryAssignment, DeliveryDashboard, DeliveryInst
 import { AuthService } from './auth.service';
 import { EffectivePermissionsService } from './effective-permissions.service';
 import { paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
+import { AdminOrderingSchedulesComponent } from './admin-ordering-schedules.component';
+import { DeliveryRouteCustomersComponent } from './delivery-route-customers.component';
 
 type EditorKind = 'count' | 'load' | 'deliver' | 'return' | 'route' | 'trip' | 'assign' | 'location' | 'close' | 'transfer' | 'adjust' | 'release' | 'instructions';
 interface DeliveryEditor {
@@ -22,7 +24,7 @@ interface DeliveryEditor {
 interface DeliveryStop { orderId: string; customerName: string; position: number | null; assignments: DeliveryAssignment[]; }
 
 @Component({
-  selector: 'app-delivery-workspace', imports: [FormsModule, RouterLink],
+  selector: 'app-delivery-workspace', imports: [FormsModule, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent],
   templateUrl: './delivery-workspace.component.html',
   styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css']
 })
@@ -34,6 +36,8 @@ export class DeliveryWorkspaceComponent {
   private readonly detector = inject(ChangeDetectorRef);
   private readonly destroy = inject(DestroyRef);
   @ViewChild('deliveryDialog') private dialog?: ElementRef<HTMLDialogElement>;
+  @ViewChild(AdminOrderingSchedulesComponent) private routeSchedule?: AdminOrderingSchedulesComponent;
+  @ViewChild(DeliveryRouteCustomersComponent) private routeCustomers?: DeliveryRouteCustomersComponent;
   protected readonly management = this.route.snapshot.data['deliveryManagement'] === true;
   protected readonly unitLabel = unitLabel;
   protected readonly storeKeyLabel = storeKeyLabel;
@@ -50,6 +54,8 @@ export class DeliveryWorkspaceComponent {
   protected success: string | null = null;
   protected editor: DeliveryEditor | null = null;
   protected recovery: DeliveryPendingCommand | null = null;
+  protected get routeSettingsBusy(): boolean { return !!(this.routeSchedule?.isSaving || this.routeCustomers?.isSaving); }
+  private get routeSettingsDirty(): boolean { return !!(this.routeSchedule?.hasRouteDraft || this.routeCustomers?.hasDrafts); }
   private read: Subscription | null = null;
   private write: Subscription | null = null;
   private readonly beforeUnload = (event: BeforeUnloadEvent) => {
@@ -66,7 +72,7 @@ export class DeliveryWorkspaceComponent {
 
   canLeave(): boolean {
     if (!this.auth.isAdmin()) return true;
-    if (this.saving) return false;
+    if (this.saving || this.routeSettingsBusy) return false;
     if (this.recovery || this.editor?.locked) return window.confirm('Hay una operación de reparto sin confirmación. Se conservará para reintentar con la misma referencia cuando regreses. ¿Salir de esta vista?');
     return !this.editor || window.confirm('Hay una captura de reparto sin guardar. ¿Descartar el borrador y salir?');
   }
@@ -211,13 +217,19 @@ export class DeliveryWorkspaceComponent {
     editor.tripNumber = Math.max(0, ...(this.dashboard?.trips.filter(trip => trip.routeCode === editor.routeCode).map(trip => trip.tripNumber) ?? [])) + 1;
   }
   protected closeEditor(event?: Event): void {
-    if (this.saving || this.editor?.locked) { event?.preventDefault(); return; }
+    event?.preventDefault();
+    if (this.saving || this.routeSettingsBusy || this.editor?.locked) return;
+    if (this.routeSettingsDirty && !window.confirm('Hay cambios de horario o clientes sin guardar. ¿Cerrar y descartar esos borradores?')) return;
     this.dialog?.nativeElement.close(); this.editor = null;
   }
 
   protected save(): void {
     const editor = this.editor;
-    if (!editor || this.saving || editor.conflict) return;
+    if (!editor || this.saving || this.routeSettingsBusy || editor.conflict) return;
+    if (editor.kind === 'route' && this.routeSettingsDirty) {
+      editor.error = 'Guarda o descarta los cambios de horario y clientes antes de guardar los datos de la ruta.';
+      return;
+    }
     if (!editor.command) {
       const command = this.command(editor);
       if (!command) return;

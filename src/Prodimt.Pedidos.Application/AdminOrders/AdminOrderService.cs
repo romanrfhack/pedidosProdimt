@@ -17,7 +17,8 @@ public sealed class AdminOrderService(
     ISalesChannelRepository salesChannels,
     IDateTimeProvider dateTimeProvider,
     OrderChangeNoticePublisher changeNotices,
-    ICommercialCatalogRepository? commercial = null)
+    ICommercialCatalogRepository? commercial = null,
+    OrderSchedulingService? scheduling = null)
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -107,18 +108,26 @@ public sealed class AdminOrderService(
         AdminSubmitCustomerOrderRequest request,
         AdminActorContext? actor,
         CancellationToken cancellationToken,
-        IDateTimeProvider? receivedClock = null, IReadOnlySet<Guid>? unconfiguredProductIds = null)
+        IDateTimeProvider? receivedClock = null, IReadOnlySet<Guid>? unconfiguredProductIds = null,
+        bool confirmSeparateDelivery = false)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var submissionClock = receivedClock ?? dateTimeProvider;
+        var submissionClock = receivedClock ?? DeliveryDatePolicy.CaptureExplicitClock(dateTimeProvider);
+        var today = submissionClock.Today;
         OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
-        var serviceDate = request.ServiceDate ?? submissionClock.Today;
+        var serviceDate = request.ServiceDate ?? today;
+        ServiceDatePolicy.RequireWriteDate(serviceDate, today, actor);
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
-        var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, serviceDate, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, serviceDate, cancellationToken);
-        var evaluation = ServiceDatePolicy.Evaluate(serviceDate, submissionClock, hasExistingOrder);
+        var hasExistingOrder = await orders.HasActiveCustomerOrderAsync(customerId, serviceDate, cancellationToken);
+        if (serviceDate < today && hasExistingOrder && !confirmSeparateDelivery)
+            throw new CustomerOrderConflictException("Ya existe un pedido para este cliente y fecha. Corrige el pedido o confirma una entrega independiente.");
+        var cutoff = customer.AutomaticConfirmationCutoff ?? OrderSubmissionPolicy.DefaultCutoffTime;
+        if (serviceDate == today && scheduling is not null)
+            cutoff = (await scheduling.ResolveCutoffAsync(customer, cancellationToken)).Cutoff;
+        var evaluation = ServiceDatePolicy.EvaluateForAdminWrite(serviceDate, submissionClock, hasExistingOrder, actor, cutoff);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
             customers, products, machines, cancellationToken, commercial, serviceDate, unconfiguredProductIds);
@@ -164,6 +173,7 @@ public sealed class AdminOrderService(
         var serviceDate = request.AutoDeliveryDate
             ? DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received)
             : request.ServiceDate ?? received.Today;
+        ServiceDatePolicy.RequireWriteDate(serviceDate, received.Today, actor);
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
         var latestOrder = await orders.GetLatestCustomerOrderAsync(customerId, serviceDate, cancellationToken);
@@ -219,6 +229,9 @@ public sealed class AdminOrderService(
         OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
 
         var order = await GetRequiredOrderAsync(orderId, cancellationToken);
+        ServiceDatePolicy.RequireWriteDate(order.OrderDate, dateTimeProvider.Today, actor);
+        if (request.Decision == AdminDecision.AcceptedWithChanges)
+            ServiceDatePolicy.RequireCorrectionAccess(actor);
 
         if (request.Decision is not (AdminDecision.Accepted or AdminDecision.Rejected or AdminDecision.AcceptedWithChanges))
         {
@@ -440,7 +453,7 @@ public sealed class AdminOrderService(
                 OrderAuditEventType.OrderMarkedLate,
                 order.SubmittedAt,
                 AuditActorType.System,
-                "Pedido tardio detectado en captura administrativa despues de la hora limite.",
+                "Pedido recibido a partir de la hora límite de confirmación automática.",
                 metadataJson: ToMetadataJson(new { capturedBy = "Admin" })), cancellationToken);
         }
 

@@ -19,6 +19,9 @@ public static class DeliveryDatePolicy
         return new ReceivedClock(now, DateOnly.FromDateTime(local), TimeOnly.FromDateTime(local));
     }
 
+    internal static IDateTimeProvider CaptureExplicitClock(IDateTimeProvider clock)
+        => new ReceivedClock(clock.Now, clock.Today, clock.LocalTimeOfDay);
+
     public static DateOnly GetDate(DateTimeOffset now)
     {
         var local = TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime;

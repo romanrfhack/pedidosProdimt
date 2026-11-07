@@ -25,7 +25,7 @@ public sealed class OrderingProfileConcurrencySqlTests(SqlServerFixture database
         var profileAudit = new PausedAudit(new EfAuditLogRepository(profileDb), release.Task);
         var productAudit = new PausedAudit(new EfAuditLogRepository(productDb), release.Task);
         var profileService = new AdminCustomerCatalogService(new EfCustomerRepository(profileDb),
-            new EfProductRepository(profileDb), new EfMachineRepository(profileDb), profileAudit, new Clock());
+            new EfProductRepository(profileDb), new EfMachineRepository(profileDb), profileAudit, new Clock(), new EfDeliveryRepository(profileDb));
         var productService = new AdminProductCatalogService(new EfProductRepository(productDb),
             productAudit, new Clock(), new EfCustomerRepository(productDb));
         var productName = (await productDb.Products.AsNoTracking().SingleAsync(x => x.Id == catalog.ProductId)).Name;

@@ -2,6 +2,7 @@ import { PaymentTermCode } from './operational-labels';
 
 export interface CustomerEditorValue {
   id: string | null;
+  expectedUpdatedAt: string | null;
   name: string;
   phoneNumber: string | null;
   preferredDeliveryTime: string | null;

@@ -275,7 +275,8 @@ export class AdminCatalogsComponent {
       hasStoreKey: this.customerForm.hasStoreKey,
       paymentTermCode: this.customerForm.paymentTermCode,
       internalDeliveryInstructions: this.emptyToNull(this.customerForm.internalDeliveryInstructions),
-      restDays: [...this.customerForm.restDays]
+      restDays: [...this.customerForm.restDays],
+      ...(this.customerForm.expectedUpdatedAt ? { expectedUpdatedAt: this.customerForm.expectedUpdatedAt } : {})
     };
     const operation = this.customerForm.id
       ? this.api.updateCustomer(this.customerForm.id, request)
@@ -291,6 +292,10 @@ export class AdminCatalogsComponent {
       error: (error: unknown) => {
         this.isCustomerSaving = false;
         this.customerDialogError = this.profileErrorText(error, 'No se pudo guardar el cliente.');
+        if (error instanceof HttpErrorResponse && error.status === 409 && error.error?.code === 'CatalogChanged') {
+          this.customerDialogError = 'El cliente cambió desde que abriste la ficha. Cierra y vuelve a abrir la ficha para aplicar tus cambios.';
+          this.loadCatalogs(false);
+        }
         this.changeDetector.detectChanges();
       }
     });
@@ -305,6 +310,7 @@ export class AdminCatalogsComponent {
     this.customerDialogOpen = true;
     this.customerForm = {
       id: customer.id,
+      expectedUpdatedAt: customer.updatedAt,
       name: customer.name,
       phoneNumber: customer.phoneNumber,
       preferredDeliveryTime: this.toTimeInput(customer.preferredDeliveryTime),
@@ -892,6 +898,7 @@ export class AdminCatalogsComponent {
   private emptyCustomerForm(): CustomerEditorValue {
     return {
       id: null,
+      expectedUpdatedAt: null,
       name: '',
       phoneNumber: null,
       preferredDeliveryTime: null,

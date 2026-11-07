@@ -1,0 +1,46 @@
+<section class="route-customers stack" data-testid="delivery-route-customers">
+  <h3>Clientes de la ruta</h3>
+  <p class="route-customer-notice">La ruta y el orden de visita se aplican a las próximas capturas.</p>
+  <div>
+    <button type="button" class="secondary" (click)="refresh()" [disabled]="busy">{{ loading ? 'Consultando…' : 'Actualizar clientes' }}</button>
+  </div>
+  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
+  @if (notice) { <p class="alert success" role="status">{{ notice }}</p> }
+  @if (loaded) {
+    @if (route.isActive && candidates.length) {
+      <form class="stack" (ngSubmit)="assignSelected()">
+        <label>Cliente para asignar
+          <select name="routeCustomer" [(ngModel)]="selectedId" [disabled]="busy || needsRefresh">
+            <option value="">Selecciona un cliente</option>
+            @for (customer of candidates; track customer.customerId) {
+              <option [value]="customer.customerId">{{ customer.customerName }} · {{ customer.routeCode || 'Sin ruta' }}</option>
+            }
+          </select>
+        </label>
+        @if (selected?.routeCode; as previousRoute) {
+          <p class="route-customer-notice">El cliente pasará de {{ previousRoute }} a {{ route.code }}. Puedes definir el nuevo orden después de moverlo.</p>
+        }
+        <div><button class="primary" [disabled]="busy || needsRefresh || !selected">{{ selected?.routeCode ? 'Mover a esta ruta' : 'Agregar a la ruta' }}</button></div>
+      </form>
+    } @else if (!route.isActive) {
+      <p class="route-customer-notice">Activa la ruta para agregar clientes.</p>
+    }
+    @for (customer of members; track customer.customerId) {
+      <div class="route-member stack" data-testid="delivery-route-member">
+        <strong>{{ customer.customerName }} @if (!customer.isActive) { <small>· Cliente inactivo</small> }</strong>
+        <label>Orden de visita de {{ customer.customerName }}
+          <input type="number" min="1" max="2147483647" step="1" [ngModel]="stop(customer)"
+            (ngModelChange)="changeStop(customer, $event)" [disabled]="busy || needsRefresh">
+        </label>
+        @if (stopConflict(customer)) {
+          <p class="route-customer-notice">La ficha cambió en otra sesión. El orden actual es {{ customer.routeStopOrder ?? 'sin orden' }}.</p>
+        }
+        <div class="route-member-actions">
+          <button type="button" class="secondary" (click)="saveStop(customer)" [disabled]="busy || needsRefresh || !canSaveStop(customer)">Guardar orden</button>
+          @if (hasStopDraft(customer)) { <button type="button" class="secondary" (click)="discardStop(customer)" [disabled]="busy">Usar orden guardado</button> }
+          <button type="button" class="secondary" (click)="remove(customer)" [disabled]="busy || needsRefresh">Quitar de la ruta</button>
+        </div>
+      </div>
+    } @empty { <p>Esta ruta todavía no tiene clientes asignados.</p> }
+  }
+</section>

@@ -10,7 +10,8 @@ public sealed class AdminCustomerCatalogService(
     IProductRepository products,
     IMachineRepository machines,
     IAuditLogRepository auditLogs,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    IDeliveryRepository delivery)
 {
     public async Task<IReadOnlyList<AdminCustomerResponse>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -57,7 +58,15 @@ public sealed class AdminCustomerCatalogService(
         return MapCustomer(customer);
     }
 
-    public async Task<AdminCustomerResponse> UpdateAsync(
+    public Task<AdminCustomerResponse> UpdateAsync(
+        Guid customerId,
+        UpsertAdminCustomerRequest request,
+        AdminActorContext? actor,
+        CancellationToken cancellationToken)
+        => customers.ExecuteOrderingProfileUpdateAsync(
+            token => UpdateCoreAsync(customerId, request, actor, token), cancellationToken);
+
+    private async Task<AdminCustomerResponse> UpdateCoreAsync(
         Guid customerId,
         UpsertAdminCustomerRequest request,
         AdminActorContext? actor,
@@ -65,6 +74,12 @@ public sealed class AdminCustomerCatalogService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var customer = await GetRequiredCustomerForUpdateAsync(customerId, cancellationToken);
+        if (request.ExpectedUpdatedAt is { } expected)
+        {
+            CustomerRouteAssignmentService.EnsureCurrent(customer, expected);
+            var route = await CustomerRouteAssignmentService.ResolveRouteCodeAsync(customer, request.RouteCode, delivery, cancellationToken);
+            request = request with { RouteCode = route, RouteStopOrder = route is null ? null : request.RouteStopOrder };
+        }
 
         if (customer.IsActive)
         {
@@ -72,9 +87,12 @@ public sealed class AdminCustomerCatalogService(
         }
 
         var now = dateTimeProvider.Now;
+        var updatedAt = CustomerRouteAssignmentService.NextUpdateStamp(customer, now);
         // Validate before mutating a tracked entity (including the in-memory provider).
-        ApplyPilotDelivery(new Customer(), request, now);
+        ApplyPilotDelivery(new Customer(), request, updatedAt);
         var previousRestDays = customer.GetRestDays();
+        var previousRouteCode = customer.RouteCode;
+        var previousRouteStopOrder = customer.RouteStopOrder;
         customer.Update(
             request.Name,
             request.PhoneNumber,
@@ -82,8 +100,8 @@ public sealed class AdminCustomerCatalogService(
             request.PreferredDeliveryWindowStart,
             request.PreferredDeliveryWindowEnd,
             request.DeliveryNotes,
-            now);
-        ApplyPilotDelivery(customer, request, now);
+            updatedAt);
+        ApplyPilotDelivery(customer, request, updatedAt);
 
         await auditLogs.AddAsync(CatalogAudit.Create(
             CatalogEntityTypes.Customer,
@@ -97,6 +115,8 @@ public sealed class AdminCustomerCatalogService(
                 customer.PreferredDeliveryTime,
                 customer.PreferredDeliveryWindowStart,
                 customer.PreferredDeliveryWindowEnd,
+                previousRouteCode,
+                previousRouteStopOrder,
                 customer.RouteCode,
                 customer.RouteStopOrder,
                 customer.HasStoreKey,

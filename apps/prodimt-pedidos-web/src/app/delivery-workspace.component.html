@@ -92,7 +92,7 @@
 
 <dialog #deliveryDialog class="delivery-dialog" aria-labelledby="delivery-dialog-title" (cancel)="closeEditor($event)">
   @if (editor; as edit) {
-    <div class="delivery-dialog-header"><h2 id="delivery-dialog-title">{{ edit.title }}</h2><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || edit.locked">Cerrar</button></div>
+    <div class="delivery-dialog-header"><h2 id="delivery-dialog-title">{{ edit.title }}</h2><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || routeSettingsBusy || edit.locked">Cerrar</button></div>
     <form class="delivery-form" (ngSubmit)="save()" novalidate>
       @if (edit.assignment) { <p><strong>{{ edit.assignment.customerName }} · {{ edit.assignment.productName }}</strong></p><div class="delivery-reference">Pedido vigente {{ quantity(edit.assignment.requestedQuantity) }} {{ quantityUnit }} · Disponible para esta etapa {{ quantity(quantityLimit) }} {{ quantityUnit }}</div> }
       @if (edit.order) { <p><strong>{{ edit.order.customerName }} @if (edit.line) { · {{ edit.line.productName }} }</strong></p> }
@@ -120,8 +120,16 @@
       </fieldset>
       @if (edit.error) { <div class="alert error" role="alert">{{ edit.error }}</div> }
       @if (edit.conflict) { <button type="button" class="secondary" (click)="reviewConflict()" [disabled]="loading">{{ loading ? 'Consultando…' : 'Revisar datos actuales' }}</button> }
-      <div class="delivery-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || edit.locked">Cancelar</button><button type="submit" class="primary" [disabled]="saving || edit.conflict">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : submitLabel }}</button></div>
+      <div class="delivery-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || routeSettingsBusy || edit.locked">Cancelar</button><button type="submit" class="primary" [disabled]="saving || routeSettingsBusy || edit.conflict">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : submitLabel }}</button></div>
       <p class="delivery-muted">La hora y el responsable se registran en el servidor al guardar.</p>
     </form>
+    @if (edit.kind === 'route' && edit.route && access.has('customers.manage')) {
+      <div class="delivery-route-settings">
+        <app-ordering-schedules [routeCode]="edit.route.code" [blocked]="saving || edit.locked || edit.conflict"></app-ordering-schedules>
+      </div>
+      <div class="delivery-route-settings">
+        <app-delivery-route-customers [route]="edit.route" [blocked]="saving || edit.locked || edit.conflict"></app-delivery-route-customers>
+      </div>
+    }
   }
 </dialog>

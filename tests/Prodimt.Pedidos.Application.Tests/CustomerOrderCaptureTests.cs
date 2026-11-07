@@ -222,8 +222,11 @@ public sealed partial class CustomerOrderCaptureTests
         Assert.Empty(await f.Db.Orders.ToArrayAsync());
         var explicitDate = f.Date.AddDays(-3);
         var saved = await f.Admin.SubmitAsync(f.Customer.Id,
-            auto with { AutoDeliveryDate = false, ExpectedDeliveryDate = null, ServiceDate = explicitDate }, null, Ct);
+            auto with { AutoDeliveryDate = false, ExpectedDeliveryDate = null, ServiceDate = explicitDate },
+            new("admin-test", "Administrador de prueba", IsSystemAdministrator: true), Ct);
         Assert.Equal(explicitDate, saved.Order.OrderDate);
+        Assert.Equal(OrderStatus.Accepted, saved.Order.Status);
+        Assert.False(saved.Order.RequiresAdminReview);
     }
 
     [Fact]
@@ -260,7 +263,8 @@ public sealed partial class CustomerOrderCaptureTests
         Assert.Empty(await f.Db.Orders.ToArrayAsync());
         Assert.Empty(await f.Db.OrderAuditLogs.ToArrayAsync());
         var saved = await f.AdminOrders.MarkNoOrderAsync(f.Customer.Id,
-            new(null, AutoDeliveryDate: true, ExpectedDeliveryDate: f.Date), null, Ct);
+            new(null, AutoDeliveryDate: true, ExpectedDeliveryDate: f.Date),
+            new("admin-test", "Administrador de prueba", IsSystemAdministrator: true), Ct);
         Assert.Equal(f.Date, saved.OrderDate);
         Assert.Equal(OrderStatus.NoOrder, saved.Status);
     }

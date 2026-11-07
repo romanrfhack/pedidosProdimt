@@ -30,6 +30,14 @@ public sealed class EfSecurityStore(PedidosDbContext db) : ISecurityStore
         return result;
     }
 
+    public Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken cancellationToken) =>
+        (from assignment in db.SecurityUserRoles
+         join role in db.SecurityRoles on assignment.RoleId equals role.Id
+         join user in db.AdminUsers on assignment.UserId equals user.Id
+         where user.Id == userId && user.IsActive && !user.IsDeleted && role.IsActive && role.IsSystem
+             && role.Id == SecurityDefaults.AdministratorRoleId
+         select assignment).AnyAsync(cancellationToken);
+
     public async Task<SecurityData> ReadAsync(CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);

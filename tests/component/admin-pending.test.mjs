@@ -5,6 +5,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { AdminPendingComponent } from '../../apps/prodimt-pedidos-web/src/app/admin-pending.component.ts';
+import { EffectivePermissionsService } from '../../apps/prodimt-pedidos-web/src/app/effective-permissions.service.ts';
 import { OrderDataService } from '../../apps/prodimt-pedidos-web/src/app/order-data.service.ts';
 
 const date = '2026-11-02';
@@ -53,6 +54,7 @@ function fixture(t) {
   };
   const injector = createEnvironmentInjector([
     { provide: OrderDataService, useValue: data },
+    { provide: EffectivePermissionsService, useValue: { isSystemAdministrator: () => true } },
     { provide: HttpClient, useValue: { get(url) {
       const response = new Subject();
       notifications.push({ url, response });

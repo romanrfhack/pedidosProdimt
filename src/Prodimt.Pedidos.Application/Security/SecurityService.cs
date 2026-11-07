@@ -15,6 +15,9 @@ public sealed class SecurityService(ISecurityStore store, IPasswordHashService p
     public Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken ct)
         => store.GetPermissionsAsync(userId, ct);
 
+    public Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken ct)
+        => store.IsSystemAdministratorAsync(userId, ct);
+
     public Task<SecuritySnapshot> SaveUserAsync(Guid? id, SaveSecurityUserRequest request, AdminActorContext actor, CancellationToken ct)
     {
         var userName = Required(request.UserName, 120, "usuario");

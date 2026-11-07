@@ -94,7 +94,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
         return new(options.Options);
     }
 
-    public SqlApiFactory CreateFactory() => new(ConnectionString, LegacyCaptureSchema);
+    public SqlApiFactory CreateFactory(TimeOnly? localTime = null) => new(ConnectionString, LegacyCaptureSchema, localTime);
 
     public static async Task<HttpClient> CreateAdminClientAsync(SqlApiFactory factory)
     {
@@ -181,11 +181,13 @@ public sealed class SqlServerFixture : IAsyncLifetime
     {
         private readonly string _connectionString;
         private readonly bool _legacyCaptureSchema;
+        private readonly TimeOnly _localTime;
 
-        public SqlApiFactory(string connectionString, bool legacyCaptureSchema = false)
+        public SqlApiFactory(string connectionString, bool legacyCaptureSchema = false, TimeOnly? localTime = null)
         {
             _connectionString = connectionString;
             _legacyCaptureSchema = legacyCaptureSchema;
+            _localTime = localTime ?? new TimeOnly(8, 0);
             // The dedicated test project runs in its own process; no application-test env is shared.
             Environment.SetEnvironmentVariable("Persistence__Provider", "SqlServer");
             Environment.SetEnvironmentVariable("ConnectionStrings__Pedidos", connectionString);
@@ -224,7 +226,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
                     services.AddScoped<IOrderingScheduleRepository, LegacyOrderingScheduleRepository>();
                 }
                 services.RemoveAll<IDateTimeProvider>();
-                services.AddSingleton<IDateTimeProvider, FixedClock>();
+                services.AddSingleton<IDateTimeProvider>(new FixedClock(_localTime));
                 // Business-date assertions are deterministic; JWT validity still uses the real clock.
                 services.RemoveAll<IJwtTokenService>();
                 services.AddSingleton<IJwtTokenService>(provider => new JwtTokenService(
@@ -233,10 +235,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
         }
     }
 
-    private sealed class FixedClock : IDateTimeProvider
+    private sealed class FixedClock(TimeOnly localTime) : IDateTimeProvider
     {
-        public DateTimeOffset Now => SqlServerFixture.Now;
+        public DateTimeOffset Now => SqlServerFixture.Now.Add(localTime.ToTimeSpan() - TimeSpan.FromHours(8));
         public DateOnly Today => new(2026, 10, 24);
-        public TimeOnly LocalTimeOfDay => new(8, 0);
+        public TimeOnly LocalTimeOfDay => localTime;
     }
 }

@@ -232,7 +232,7 @@ public sealed class SqlServerOrderTests(SqlServerFixture database)
     }
 
     [Fact]
-    public async Task PastServiceDate_CanBeReviewedByDate_AndOnlyThenAddsAuthorizedDemand()
+    public async Task PastServiceDate_RegistersWithoutReviewAndKeepsDemandInItsOwnDate()
     {
         var catalog = await database.CreateCatalogAsync();
         var request = ImportRequest(catalog, "9");
@@ -243,14 +243,16 @@ public sealed class SqlServerOrderTests(SqlServerFixture database)
         var orderId = (await JsonAsync(imported)).GetProperty("orders")[0].GetProperty("orderId").GetGuid();
         using var pending = await client.GetAsync("/api/admin/orders/pending-review?date=2026-10-23");
         var pendingOrders = (await JsonAsync(pending)).EnumerateArray().ToArray();
-        Assert.Contains(pendingOrders, item => item.GetProperty("orderId").GetGuid() == orderId);
-        using var before = await client.GetAsync("/api/admin/operations/plan?date=2026-10-23");
-        Assert.DoesNotContain((await JsonAsync(before)).GetProperty("machineDemand").EnumerateArray(),
+        Assert.DoesNotContain(pendingOrders, item => item.GetProperty("orderId").GetGuid() == orderId);
+        using var detail = await client.GetAsync($"/api/admin/orders/{orderId}");
+        var recorded = await JsonAsync(detail);
+        Assert.Equal("Accepted", recorded.GetProperty("status").GetString());
+        Assert.False(recorded.GetProperty("requiresAdminReview").GetBoolean());
+        using var today = await client.GetAsync("/api/admin/operations/plan?date=2026-10-24");
+        Assert.DoesNotContain((await JsonAsync(today)).GetProperty("machineDemand").EnumerateArray(),
             item => item.GetProperty("productId").GetGuid() == catalog.ProductId);
-        using var review = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", new { decision = "Accepted", expectedVersion = 1 });
-        review.EnsureSuccessStatusCode();
-        using var after = await client.GetAsync("/api/admin/operations/plan?date=2026-10-23");
-        var demand = (await JsonAsync(after)).GetProperty("machineDemand").EnumerateArray().ToArray();
+        using var history = await client.GetAsync("/api/admin/operations/plan?date=2026-10-23");
+        var demand = (await JsonAsync(history)).GetProperty("machineDemand").EnumerateArray().ToArray();
         Assert.Equal(9m, Assert.Single(demand, item => item.GetProperty("productId").GetGuid() == catalog.ProductId)
             .GetProperty("quantity").GetDecimal());
     }

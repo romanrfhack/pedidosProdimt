@@ -34,7 +34,7 @@ public sealed partial class CustomerOrderCaptureTests
         await using var f = await Fixture.Create();
         var customers = new EfCustomerRepository(f.Db);
         var repo = new EfOrderingScheduleRepository(f.Db);
-        var admin = new OrderingScheduleService(repo, customers, new EfAuditLogRepository(f.Db), f.Clock);
+        var admin = new OrderingScheduleService(repo, customers, new EfAuditLogRepository(f.Db), f.Clock, new EfDeliveryRepository(f.Db));
         var client = (await customers.GetByIdForUpdateAsync(f.Customer.Id, Ct))!;
         client.RouteCode = " ruta uno "; await customers.SaveChangesAsync(Ct);
         await admin.SetRouteAsync("Ruta Uno", new(new TimeOnly(10,0),0), new("test", "Test"), Ct);

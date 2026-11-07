@@ -33,7 +33,8 @@ public sealed record UpsertAdminCustomerRequest(
     bool? HasStoreKey = null,
     string? PaymentTermCode = null,
     string? InternalDeliveryInstructions = null,
-    IReadOnlyList<int>? RestDays = null);
+    IReadOnlyList<int>? RestDays = null,
+    DateTimeOffset? ExpectedUpdatedAt = null);
 
 public sealed record AdminProductResponse(Guid Id, string Name, string? ExternalCode, string? Description, bool IsActive, string? UnitCode = null,
     Guid? MergedIntoProductId = null, bool RequiresMachine = true);

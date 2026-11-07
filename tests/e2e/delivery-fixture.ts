@@ -75,8 +75,8 @@ export function deliveryFixture() {
     }
   }
 
-  async function install(page: Page) {
-    await page.route('**/api/admin/security/me', route => route.fulfill({ json: { userId: driverId, permissions } }));
+  async function install(page: Page, isSystemAdministrator = false) {
+    await page.route('**/api/admin/security/me', route => route.fulfill({ json: { userId: driverId, permissions, isSystemAdministrator } }));
     await page.route(/\/api\/(?:admin\/)?delivery(?:[/?]|$)/, async route => {
       const request = route.request(), url = new URL(request.url()), path = url.pathname;
       refresh();

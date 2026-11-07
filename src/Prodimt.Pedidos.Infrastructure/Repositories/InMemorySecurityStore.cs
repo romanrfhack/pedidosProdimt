@@ -35,6 +35,15 @@ public sealed class InMemorySecurityStore : ISecurityStore
     }
     public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
         => SecurityService.Resolve(await ReadAsync(cancellationToken), userId).Select(x => x.Key).ToArray();
+
+    public async Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var data = await ReadAsync(cancellationToken);
+        return data.Users.Any(x => x.Id == userId && x.IsActive && !x.IsDeleted)
+            && data.Roles.Any(x => x.Id == SecurityDefaults.AdministratorRoleId && x.IsActive && x.IsSystem)
+            && data.UserRoles.Any(x => x.UserId == userId && x.RoleId == SecurityDefaults.AdministratorRoleId);
+    }
+
     public Task<T> ExecuteAsync<T>(Guid expectedRevision, Func<SecurityData, T> mutation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AdminDecisionApiValue } from './customer-orders-api.service';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AdminOrder, AdminOrderAuditEvent, AdminOrderDetail, OrderDataService } from './order-data.service';
 
 interface ChangeLineForm {
@@ -81,27 +82,20 @@ interface ChangeLineForm {
                     (click)="loadAudit(order)">
                     Ver auditoria
                   </button>
-                  <button
-                    type="button"
-                    class="primary compact"
-                    [disabled]="!!reviewingOrderId"
-                    (click)="review(order, 'Accepted')">
-                    Aceptar
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary compact"
-                    [disabled]="!!reviewingOrderId"
-                    (click)="startAcceptedWithChanges(order)">
-                    Ver detalle / ajustar
-                  </button>
-                  <button
-                    type="button"
-                    class="secondary compact"
-                    [disabled]="!!reviewingOrderId"
-                    (click)="review(order, 'Rejected')">
-                    Rechazar
-                  </button>
+                  @if (canReview(order)) {
+                    <button type="button" class="primary compact" [disabled]="!!reviewingOrderId"
+                      (click)="review(order, 'Accepted')">
+                      Aceptar
+                    </button>
+                    @if (access.isSystemAdministrator()) {
+                      <button type="button" class="secondary compact" [disabled]="!!reviewingOrderId"
+                        (click)="startAcceptedWithChanges(order)">Ver detalle / ajustar</button>
+                    }
+                    <button type="button" class="secondary compact" [disabled]="!!reviewingOrderId"
+                      (click)="review(order, 'Rejected')">
+                      Rechazar
+                    </button>
+                  }
                 </div>
 
                 @if (changeDetail?.id === order.id) {
@@ -182,6 +176,7 @@ export class AdminPendingComponent {
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly access = inject(EffectivePermissionsService);
   private auditSubscription: Subscription | null = null;
   private auditGeneration = 0;
   private pendingSubscription: Subscription | null = null;
@@ -272,8 +267,12 @@ export class AdminPendingComponent {
     this.cancelChanges();
   }
 
+  protected canReview(order: AdminOrder): boolean {
+    return order.orderDate === businessDateToday() || this.access.isSystemAdministrator();
+  }
+
   protected review(order: AdminOrder, decision: AdminDecisionApiValue): void {
-    if (this.destroyRef.destroyed || this.reviewingOrderId) return;
+    if (!this.canReview(order) || this.destroyRef.destroyed || this.reviewingOrderId) return;
     const date = this.serviceDate;
     this.resetNotification();
     this.errorMessage = null;
@@ -300,7 +299,7 @@ export class AdminPendingComponent {
 
   protected startAcceptedWithChanges(order: AdminOrder): void {
     this.cancelChangeLoad();
-    if (this.destroyRef.destroyed || this.isLoading || this.reviewingOrderId) return;
+    if (!this.access.isSystemAdministrator() || this.destroyRef.destroyed || this.isLoading || this.reviewingOrderId) return;
     this.resetNotification();
     const generation = this.changeGeneration;
     const date = this.serviceDate;
@@ -335,7 +334,7 @@ export class AdminPendingComponent {
   }
 
   protected reviewWithChanges(order: AdminOrder): void {
-    if (this.destroyRef.destroyed || this.reviewingOrderId) return;
+    if (!this.access.isSystemAdministrator() || this.destroyRef.destroyed || this.reviewingOrderId) return;
     const date = this.serviceDate;
     if (this.changeLines.some((line) => Number(line.quantity) <= 0)) {
       this.errorMessage = 'Las cantidades ajustadas deben ser mayores a cero.';

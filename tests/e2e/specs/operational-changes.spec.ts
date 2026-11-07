@@ -178,6 +178,7 @@ function existingOrder() {
 
 test('captura detecta pedido llegado por otro canal durante edición y exige resolverlo antes de crear otro', async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(new Date(`${date}T16:00:00Z`));
   await login(page);
   let existing = false;
   await page.route(/\/api\/admin\/orders\/today\?/, route => route.fulfill({ json: existing ? [existingOrder()] : [] }));

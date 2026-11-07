@@ -21,6 +21,11 @@ public sealed class InMemoryCustomerRepository(InMemoryDataStore store) : ICusto
         return Task.FromResult(customers);
     }
 
+    public Task<IReadOnlyList<CustomerRouteAssignment>> GetRouteAssignmentsAsync(CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<CustomerRouteAssignment>>(store.Customers.OrderBy(x => x.Name).ThenBy(x => x.Id)
+            .Select(x => new CustomerRouteAssignment(x.Id, x.Name, x.RouteCode, x.RouteStopOrder, x.UpdatedAt, x.IsActive))
+            .ToArray());
+
     public Task<Customer?> GetByIdAsync(Guid customerId, CancellationToken cancellationToken)
     {
         var customer = store.Customers.SingleOrDefault(x => x.Id == customerId);

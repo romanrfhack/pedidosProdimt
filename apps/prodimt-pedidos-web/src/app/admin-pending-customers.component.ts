@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { EMPTY, forkJoin, Subscription, of, switchMap } from 'rxjs';
 import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from './admin-catalog-api.service';
 import { AdminOrderCaptureComponent } from './admin-order-capture.component';
+import { EffectivePermissionsService } from './effective-permissions.service';
 import { AdminOrder, AdminOrderTemplate, OrderDataService, PendingCustomerOrder } from './order-data.service';
 
 @Component({
@@ -19,6 +20,7 @@ export class AdminPendingCustomersComponent {
   private readonly catalog = inject(AdminCatalogApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly access = inject(EffectivePermissionsService);
   private captureRequest: Subscription | null = null;
   private captureGeneration = 0;
 
@@ -33,7 +35,7 @@ export class AdminPendingCustomersComponent {
   protected errorMessage: string | null = null;
   protected resultMessage: string | null = null;
   protected serviceDate = businessDateToday();
-  protected automaticDeliveryDate = true;
+  protected automaticDeliveryDate = this.access.isSystemAdministrator();
   protected existingOrders: AdminOrder[] = [];
 
   protected get scheduledRestCount(): number { return this.pendingCustomers.filter(customer=>customer.isScheduledRest).length; }
@@ -43,6 +45,7 @@ export class AdminPendingCustomersComponent {
   }
 
   protected isToday(): boolean { return this.serviceDate === businessDateToday(); }
+  protected canCaptureDate(): boolean { return this.isToday() || this.access.isSystemAdministrator(); }
 
   protected changeDate(): void {
     this.listGeneration++;
@@ -64,7 +67,7 @@ export class AdminPendingCustomersComponent {
   }
 
   protected startCapture(customer: PendingCustomerOrder): void {
-    if (this.loadingCustomerId || this.submittingCustomerId) return;
+    if (!this.canCaptureDate() || this.loadingCustomerId || this.submittingCustomerId) return;
     this.cancelCapture();
     this.errorMessage = null;
     this.resultMessage = null;
@@ -94,13 +97,14 @@ export class AdminPendingCustomersComponent {
   }
 
   protected captureSaved(independent: boolean): void {
-    this.resultMessage = independent ? 'Pedido independiente capturado; verifica su revisión antes de producir.' : 'Pedido capturado por administracion.';
+    this.resultMessage = this.serviceDate < businessDateToday() ? 'Pedido histórico registrado.'
+      : independent ? 'Pedido independiente capturado; verifica su revisión antes de producir.' : 'Pedido capturado por administracion.';
     this.cancelCapture();
     this.load(false);
   }
 
   protected markNoOrder(customer: PendingCustomerOrder): void {
-    if (this.submittingCustomerId || this.loadingCustomerId) return;
+    if (!this.canCaptureDate() || this.submittingCustomerId || this.loadingCustomerId) return;
     this.errorMessage = null;
     this.resultMessage = null;
     this.submittingCustomerId = customer.id;

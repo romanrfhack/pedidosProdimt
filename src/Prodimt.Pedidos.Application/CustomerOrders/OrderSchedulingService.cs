@@ -10,12 +10,21 @@ public sealed class OrderSchedulingService(IOrderingScheduleRepository schedules
 {
     public async Task<OrderingWindow> GetAsync(Customer customer, DateTimeOffset now, bool requestOnly, CancellationToken token)
     {
-        var route = string.IsNullOrWhiteSpace(customer.RouteCode) ? null : await schedules.GetAsync(customer.RouteCode.Trim().ToUpperInvariant(), token);
-        var cutoff = customer.AutomaticConfirmationCutoff ?? route?.AutomaticConfirmationCutoff ?? OrderSubmissionPolicy.DefaultCutoffTime;
+        var (cutoff, source) = await ResolveCutoffAsync(customer, token);
         var today = DeliveryDatePolicy.LocalDate(now);
         var date = DeliveryDatePolicy.GetDate(now);
-        return new(cutoff, customer.AutomaticConfirmationCutoff.HasValue ? "customer" : route?.AutomaticConfirmationCutoff.HasValue == true ? "route" : "default",
-            requestOnly || date == today && DeliveryDatePolicy.LocalTime(now) >= cutoff,
+        return new(cutoff, source, requestOnly || date == today && DeliveryDatePolicy.LocalTime(now) >= cutoff,
             date != today, date, today, requestOnly);
+    }
+
+    internal async Task<(TimeOnly Cutoff, string Source)> ResolveCutoffAsync(Customer customer, CancellationToken token)
+    {
+        if (customer.AutomaticConfirmationCutoff is { } customerCutoff)
+            return (customerCutoff, "customer");
+
+        var route = string.IsNullOrWhiteSpace(customer.RouteCode) ? null : await schedules.GetAsync(customer.RouteCode.Trim().ToUpperInvariant(), token);
+        return route?.AutomaticConfirmationCutoff is { } routeCutoff
+            ? (routeCutoff, "route")
+            : (OrderSubmissionPolicy.DefaultCutoffTime, "default");
     }
 }

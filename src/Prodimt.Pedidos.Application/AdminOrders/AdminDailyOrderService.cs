@@ -29,8 +29,9 @@ public sealed class AdminDailyOrderService(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly OrderStatus[] ActiveStatuses = [OrderStatus.Submitted, OrderStatus.Accepted, OrderStatus.PendingAdminReview];
 
-    public async Task<DailyOrderImportResponse> ValidateAsync(DailyOrderImportRequest request, CancellationToken cancellationToken)
-        => (await PrepareAsync(request, cancellationToken)).Response;
+    public async Task<DailyOrderImportResponse> ValidateAsync(DailyOrderImportRequest request, CancellationToken cancellationToken,
+        AdminActorContext? actor = null)
+        => (await PrepareAsync(request, actor, cancellationToken)).Response;
 
     public async Task<DailyOrderImportResponse> ApplyAsync(DailyOrderImportRequest request, AdminActorContext? actor,
         CancellationToken cancellationToken)
@@ -44,7 +45,7 @@ public sealed class AdminDailyOrderService(
         {
             var receipt = await operationStore.ExecuteAsync($"IMPORT:{Hash(new[] { source, batchKey })}", payloadHash, clock.Now, async token =>
             {
-                var prepared = await PrepareAsync(request, token);
+                var prepared = await PrepareAsync(request, actor, token);
                 if (prepared.HasSourceConflict)
                     throw new CustomerOrderConflictException("Una referencia de origen ya existe con contenido distinto. Usa una correccion explicita del pedido.");
                 if (!prepared.Response.CanApply) throw new ImportValidationException(prepared.Response);
@@ -53,6 +54,7 @@ public sealed class AdminDailyOrderService(
                 var projected = new Dictionary<(Guid, DateOnly), List<Order>>();
                 foreach (var item in prepared.Creates)
                 {
+                    ServiceDatePolicy.RequireWriteDate(item.ServiceDate, clock.Today, actor);
                     var customer = item.Customer;
                     var key = (customer.Id, item.ServiceDate);
                     if (!projected.TryGetValue(key, out var dayOrders))
@@ -65,7 +67,7 @@ public sealed class AdminDailyOrderService(
                     var order = item.Action == "no_order"
                         ? Order.CreateNoOrder(customer.Id, channel.Id, item.ServiceDate, clock.Now, sequence, customer)
                         : Order.CreateSubmitted(customer.Id, channel.Id, item.ServiceDate, clock.Now, sequence,
-                            ServiceDatePolicy.Evaluate(item.ServiceDate, clock, hasActive), item.Lines, customer);
+                            ServiceDatePolicy.EvaluateForAdminWrite(item.ServiceDate, clock, hasActive, actor), item.Lines, customer);
                     if (item.Action == "no_order") order.InternalNotes = item.NoOrderNotes;
                     order.Source = source;
                     order.ExternalOrderKey = item.Key;
@@ -92,6 +94,7 @@ public sealed class AdminDailyOrderService(
         AdminActorContext? actor, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ServiceDatePolicy.RequireCorrectionAccess(actor);
         var operationKey = Key(request.OperationKey, 100, "operacion");
         if (request.ExpectedVersion < 1) throw new ArgumentException("Indica la version esperada del pedido.");
         if (string.IsNullOrWhiteSpace(request.Reason) || request.Reason.Trim().Length > 1000)
@@ -135,11 +138,14 @@ public sealed class AdminDailyOrderService(
                     CurrencyCodeSnapshot = previous.CurrencyCodeSnapshot, PriceRevisionId = previous.PriceRevisionId,
                     PriceEffectiveFrom = previous.PriceEffectiveFrom };
             }).ToArray();
+            var closeHistoricalReview = order.OrderDate < clock.Today && order.Status == OrderStatus.PendingAdminReview && order.RequiresAdminReview
+                && (await salesChannels.GetByIdAsync(order.SalesChannelId, token))?.Type == SalesChannelType.AdminManualCapture;
             await orders.ReplaceLinesAsync(order, replacements, token);
+            if (closeHistoricalReview) order.ApplyAdminDecision(AdminDecision.AcceptedWithChanges);
             await changeNotices.PublishAsync(order, previousDemand, "correction", request.Reason.Trim(), actor, clock.Now, token);
             await auditLogs.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderCorrected, clock.Now,
                 AuditActorType.Admin, "Correccion comercial: reemplazo completo de partidas.", actor?.ActorId,
-                actor?.ActorDisplayName, JsonSerializer.Serialize(new { operationKey, reason = request.Reason.Trim(), before,
+                actor?.ActorDisplayName, JsonSerializer.Serialize(new { operationKey, reason = request.Reason.Trim(), closeHistoricalReview, before,
                     after = Snapshot(order) }, JsonOptions)), token);
             var detailService = new AdminOrderService(orders, auditLogs, customers, products, machines, salesChannels, clock, changeNotices);
             return await detailService.MapDetailAsync(order, token);
@@ -147,7 +153,7 @@ public sealed class AdminDailyOrderService(
         return receipt.Result;
     }
 
-    private async Task<PreparedImport> PrepareAsync(DailyOrderImportRequest request, CancellationToken token)
+    private async Task<PreparedImport> PrepareAsync(DailyOrderImportRequest request, AdminActorContext? actor, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(request);
         var errors = new List<DailyOrderImportError>();
@@ -209,6 +215,7 @@ public sealed class AdminDailyOrderService(
                             x.ProductId, x.ProductNameSnapshot ?? "Producto historico", x.Quantity, x.UnitCode ?? "", x.Notes)).ToArray()));
                     continue;
                 }
+                ServiceDatePolicy.RequireWriteDate(date, clock.Today, actor);
                 var customerMatches = allCustomers.Where(x => string.Equals(x.ExternalCode, customerCode, StringComparison.OrdinalIgnoreCase)).ToArray();
                 if (customerMatches.Length != 1 || !customerMatches[0].IsActive) throw new ArgumentException("Cliente inexistente, ambiguo o inactivo para el codigo indicado.");
                 var customer = customerMatches[0];
@@ -235,7 +242,7 @@ public sealed class AdminDailyOrderService(
                 creates.Add(new(group.Key, customer, date, action, fingerprint, lines, action == "no_order" ? first.Get("notes") : null));
                 results.Add(new(group.Key, customer.Id, customer.Name, date, action, "create", null,
                     lines.Select(x => new DailyOrderImportLine(x.ProductId, x.ProductNameSnapshot!, x.Quantity, x.UnitCode!, x.Notes)).ToArray()));
-                if (action == "order" && ServiceDatePolicy.Evaluate(date, clock, false).IsLate)
+                if (action == "order" && ServiceDatePolicy.EvaluateForAdminWrite(date, clock, false, actor).IsLate)
                     warnings.Add($"{group.Key}: recibido despues del corte de su fecha de servicio; queda tardio y pendiente de revision.");
                 if (action == "order" && lines.Any(x => x.AssignedMachineId is null)) warnings.Add($"{group.Key}: hay partidas sin maquina asignada.");
             }
@@ -246,8 +253,11 @@ public sealed class AdminDailyOrderService(
             var existing = (await orders.GetByDateAsync(group.Key.ServiceDate, token)).Where(x => x.CustomerId == group.Key.Id).ToArray();
             if (group.Any(x => x.Action == "no_order") && (group.Count() > 1 || existing.Any(x => ActiveStatuses.Contains(x.Status) || x.Status == OrderStatus.NoOrder)))
                 errors.Add(new(null, "No se puede mezclar no_order con otros pedidos del cliente/fecha ni duplicar un no_order existente con otra referencia."));
-            if (group.Count(x => x.Action == "order") > 1 || existing.Any(x => ActiveStatuses.Contains(x.Status)))
-                warnings.Add("Los pedidos adicionales del mismo cliente/fecha quedaran pendientes de revision.");
+            if (group.Any(x => x.Action == "order") &&
+                (group.Count(x => x.Action == "order") > 1 || existing.Any(x => ActiveStatuses.Contains(x.Status))))
+                warnings.Add(group.Key.ServiceDate < clock.Today
+                    ? "Se registrarán pedidos históricos independientes para el mismo cliente y fecha."
+                    : "Los pedidos adicionales del mismo cliente/fecha quedaran pendientes de revision.");
         }
         return new(new(batchKey, errors.Count == 0 && results.Count > 0, false, false, results, errors, warnings.Distinct().ToArray()), creates, sourceConflict);
     }

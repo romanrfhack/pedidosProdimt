@@ -175,7 +175,7 @@ public sealed class MachineRequirementTests
             var machines = new EfMachineRepository(db); var audit = new EfAuditLogRepository(db); var clock = new Clock();
             Orders = new(customers, products, new EfSalesChannelRepository(db), new EfOrderRepository(db),
                 new EfOrderAuditLogRepository(db), clock, machines);
-            Catalog = new(customers, products, machines, audit, clock);
+            Catalog = new(customers, products, machines, audit, clock, new EfDeliveryRepository(db));
             Products = new(products, audit, clock, customers);
         }
 

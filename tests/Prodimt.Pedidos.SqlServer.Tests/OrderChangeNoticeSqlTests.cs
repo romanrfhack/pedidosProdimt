@@ -184,33 +184,33 @@ public sealed class OrderChangeNoticeSqlTests(SqlServerFixture database)
     public async Task PendingCorrection_CreatesNoticeOnlyWhenAccepted_AndReviewRetryDoesNotDuplicate()
     {
         var catalog = await database.CreateCatalogAsync();
-        await using var factory = database.CreateFactory();
+        await using var factory = database.CreateFactory(new TimeOnly(10, 1));
         using var client = await SqlServerFixture.CreateAdminClientAsync(factory);
-        var orderId = await ImportAsync(client, catalog, "2026-10-23");
+        var orderId = await ImportAsync(client, catalog, "2026-10-24");
         using var corrected = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/corrections",
             Correction(catalog, 1, 20m, "Synthetic pending correction"));
         corrected.EnsureSuccessStatusCode();
-        Assert.Empty(await NoticesAsync(client, orderId, date: "2026-10-23"));
+        Assert.Empty(await NoticesAsync(client, orderId, date: "2026-10-24"));
         var review = new { decision = "Accepted", expectedVersion = 2, internalNotes = "Synthetic pending approval" };
         using var accepted = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", review);
         accepted.EnsureSuccessStatusCode();
-        var notice = Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-23"));
+        var notice = Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-24"));
         Assert.Equal("review", notice.GetProperty("kind").GetString());
         Assert.Equal(3, notice.GetProperty("orderVersion").GetInt32());
         Assert.Equal(0m, notice.GetProperty("lines")[0].GetProperty("beforeQuantity").GetDecimal());
         Assert.Equal(20m, notice.GetProperty("lines")[0].GetProperty("afterQuantity").GetDecimal());
         using var staleReview = await client.PostAsJsonAsync($"/api/admin/orders/{orderId}/review", review);
         Assert.Equal(HttpStatusCode.Conflict, staleReview.StatusCode);
-        Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-23"));
+        Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-24"));
     }
 
     [Fact]
     public async Task NoticeInsertFailure_RollsBackReviewDecisionAndAudit_ThenSameVersionRetries()
     {
         var catalog = await database.CreateCatalogAsync();
-        await using var factory = database.CreateFactory();
+        await using var factory = database.CreateFactory(new TimeOnly(10, 1));
         using var client = await SqlServerFixture.CreateAdminClientAsync(factory);
-        var orderId = await ImportAsync(client, catalog, "2026-10-23");
+        var orderId = await ImportAsync(client, catalog, "2026-10-24");
         var review = new { decision = "Accepted", expectedVersion = 1, internalNotes = "Synthetic approval with durable notice" };
         var constraint = $"CK_I04ReviewNoticeTest_{Guid.NewGuid():N}";
         await ExecuteGeneratedTestDdlAsync($"ALTER TABLE [OrderChangeNotices] ADD CONSTRAINT [{constraint}] CHECK ([OrderId] <> '{orderId}')");
@@ -245,7 +245,7 @@ public sealed class OrderChangeNoticeSqlTests(SqlServerFixture database)
         Assert.Equal(review.internalNotes, accepted.InternalNotes);
         Assert.Single(await persisted.OrderChangeNotices.Where(x => x.OrderId == orderId).ToArrayAsync());
         Assert.Single(await persisted.OrderAuditLogs.Where(x => x.OrderId == orderId && x.EventType == OrderAuditEventType.AdminDecisionRecorded).ToArrayAsync());
-        var notice = Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-23"));
+        var notice = Assert.Single(await NoticesAsync(client, orderId, date: "2026-10-24"));
         Assert.Equal(0m, notice.GetProperty("lines")[0].GetProperty("beforeQuantity").GetDecimal());
         Assert.Equal(15m, notice.GetProperty("lines")[0].GetProperty("afterQuantity").GetDecimal());
     }

@@ -88,6 +88,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
     }
     private static string CustomerPermission(string[] segments, bool get)
     {
+        if (segments.Length == 4 && segments[3] is "routes" or "route-assignments") return "customers.manage";
         if (segments.Contains("access-tokens") || segments.Last() == "phone") return "tokens.manage";
         if (segments.Contains("prices")) return "pricing.manage";
         if (segments.Contains("orders") || segments.Last() is "pending-orders" or "order-template") return "orders.capture";

@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.AdminCatalogs;
 using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
@@ -17,6 +18,101 @@ namespace Prodimt.Pedidos.Application.Tests;
 public sealed class DeliveryManagementServiceTests
 {
     private static readonly CancellationToken Ct = default;
+
+    [Fact]
+    public async Task RouteAndCustomerEditorsShareAssignmentAndRejectStaleEditsWithoutChangingOrders()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var db = f.Db;
+        db.DeliveryRoutes.AddRange(new DeliveryRoute { Code = "R-TWO", Name = "Segunda ruta" },
+            new DeliveryRoute { Code = "R-INACTIVE", Name = "Ruta inactiva", IsActive = false });
+        await db.SaveChangesAsync(Ct);
+        var repository = new EfCustomerRepository(db);
+        var routeRepository = new EfDeliveryRepository(db);
+        var routes = new CustomerRouteAssignmentService(repository, routeRepository, new EfAuditLogRepository(db), f.Clock);
+        await using var sheetDb = f.NewContext();
+        var sheet = new AdminCustomerCatalogService(new EfCustomerRepository(sheetDb), new EfProductRepository(sheetDb),
+            new EfMachineRepository(sheetDb), new EfAuditLogRepository(sheetDb), f.Clock, new EfDeliveryRepository(sheetDb));
+        var row = Assert.Single(await routes.GetAssignmentsAsync(Ct));
+        var original = await sheet.GetByIdAsync(row.CustomerId, Ct);
+        Assert.Equal(original.UpdatedAt, row.UpdatedAt);
+        Assert.Equal(new[] { "R-ONE", "R-TWO" }, (await routes.GetActiveRoutesAsync(Ct)).Select(x => x.Code));
+        await Assert.ThrowsAsync<ArgumentException>(() => routes.UpdateAsync(row.CustomerId,
+            new("R-INACTIVE", null, row.UpdatedAt), f.ManagerActor, Ct));
+        await Assert.ThrowsAsync<ArgumentException>(() => routes.UpdateAsync(row.CustomerId,
+            new("R-TWO", 0, row.UpdatedAt), f.ManagerActor, Ct));
+
+        var moved = await routes.UpdateAsync(row.CustomerId, new("r-two", 3, row.UpdatedAt), f.ManagerActor, Ct);
+        Assert.Equal("R-TWO", moved.RouteCode);
+        Assert.Equal(3, moved.RouteStopOrder);
+        Assert.NotEqual(row.UpdatedAt, moved.UpdatedAt);
+        await Assert.ThrowsAsync<CatalogConflictException>(() => routes.UpdateAsync(row.CustomerId,
+            new(null, null, row.UpdatedAt), f.ManagerActor, Ct));
+        var stale = new UpsertAdminCustomerRequest(original.Name, "5551234567", original.PreferredDeliveryTime, null, null,
+            original.DeliveryNotes, original.RouteCode, original.RouteStopOrder, original.HasStoreKey, original.PaymentTermCode,
+            original.InternalDeliveryInstructions, ExpectedUpdatedAt: original.UpdatedAt);
+        await Assert.ThrowsAsync<CatalogConflictException>(() => sheet.UpdateAsync(row.CustomerId, stale, f.ManagerActor, Ct));
+
+        var refreshed = await sheet.GetByIdAsync(row.CustomerId, Ct);
+        Assert.Equal(moved.RouteCode, refreshed.RouteCode);
+        Assert.Equal(original.InternalDeliveryInstructions, refreshed.InternalDeliveryInstructions);
+        Assert.Equal(original.PaymentTermCode, refreshed.PaymentTermCode);
+        Assert.Equal(original.PhoneNumber, refreshed.PhoneNumber);
+        var saved = await sheet.UpdateAsync(row.CustomerId, stale with { RouteStopOrder = 4, ExpectedUpdatedAt = refreshed.UpdatedAt },
+            f.ManagerActor, Ct);
+        var fromSheet = Assert.Single(await routes.GetAssignmentsAsync(Ct));
+        Assert.Equal("R-ONE", fromSheet.RouteCode);
+        Assert.Equal(4, fromSheet.RouteStopOrder);
+        Assert.Equal(saved.UpdatedAt, fromSheet.UpdatedAt);
+
+        db.ChangeTracker.Clear();
+        var removed = await routes.UpdateAsync(row.CustomerId, new(null, 4, fromSheet.UpdatedAt), f.ManagerActor, Ct);
+        Assert.Null(removed.RouteCode);
+        Assert.Null(removed.RouteStopOrder);
+        var recordedOrder = await db.Orders.AsNoTracking().SingleAsync(Ct);
+        Assert.Equal("R-ONE", recordedOrder.RouteCode);
+        Assert.Equal(1, recordedOrder.RouteStopOrder);
+        var changes = await db.AuditLogs.Where(x => x.EventType == "CustomerRouteAssignmentChanged").ToArrayAsync(Ct);
+        Assert.Equal(2, changes.Length);
+        Assert.All(changes, x => Assert.Equal(f.ManagerActor.ActorId, x.ActorId));
+        Assert.Contains(changes, x => x.MetadataJson!.Contains("\"previousRouteStopOrder\":4", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task RouteAssignmentAndAuditRollBackTogetherOnSaveFailure()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var routes = new CustomerRouteAssignmentService(new EfCustomerRepository(f.Db), new EfDeliveryRepository(f.Db),
+            new EfAuditLogRepository(f.Db), f.Clock);
+        var original = Assert.Single(await routes.GetAssignmentsAsync(Ct));
+        f.Failure.Enabled = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => routes.UpdateAsync(original.CustomerId,
+            new(null, null, original.UpdatedAt), f.ManagerActor, Ct));
+
+        await using var readback = f.NewContext();
+        Assert.Equal(original, Assert.Single(await new EfCustomerRepository(readback).GetRouteAssignmentsAsync(Ct)));
+        Assert.False(await readback.AuditLogs.AnyAsync(x => x.EventType == "CustomerRouteAssignmentChanged", Ct));
+    }
+
+    [Fact]
+    public async Task OrderingSchedulesIncludeNewDeliveryRoutesAndKeepLegacyCodes()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var db = f.Db;
+        db.DeliveryRoutes.Add(new DeliveryRoute { Code = "R-NEW", Name = "Ruta sin clientes" });
+        var legacy = Customer.Create("Cliente en ruta legada", null, null, null, null, null, f.Clock.Now);
+        legacy.SetRouteAssignment("ruta legada", null, f.Clock.Now);
+        db.Customers.Add(legacy);
+        await db.SaveChangesAsync(Ct);
+        var schedules = new OrderingScheduleService(new EfOrderingScheduleRepository(db), new EfCustomerRepository(db),
+            new EfAuditLogRepository(db), f.Clock, new EfDeliveryRepository(db));
+        await schedules.SetRouteAsync("R-ONLY-SCHEDULE", new(new TimeOnly(11, 0), 0), f.ManagerActor, Ct);
+
+        var listed = (await schedules.GetAsync(Ct)).Routes;
+        Assert.Contains(listed, x => x.RouteCode == "R-NEW" && x.Cutoff is null && x.Version == 0);
+        Assert.Contains(listed, x => x.RouteCode == "RUTA LEGADA");
+        Assert.Contains(listed, x => x.RouteCode == "R-ONLY-SCHEDULE" && x.Cutoff == new TimeOnly(11, 0));
+    }
 
     [Fact]
     public async Task PartialDeliverySeparatesCustomerPendingFromUnassignedAndCustodyQuantities()
@@ -408,7 +504,7 @@ public sealed class DeliveryManagementServiceTests
             new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(f.Db), new EfMachineRepository(f.Db), new EfCustomerRepository(f.Db)));
         await Assert.ThrowsAsync<CustomerOrderConflictException>(() => service.CorrectAsync(f.Order.Id,
             new("delivery-remove-loaded-line", currentOrder.Version, "Se intenta quitar producto cargado",
-                [new(f.PackageProduct.Id, 2, null)]), f.ManagerActor, Ct));
+                [new(f.PackageProduct.Id, 2, null)]), f.ManagerActor with { IsSystemAdministrator = true }, Ct));
         f.Db.ChangeTracker.Clear();
         Assert.Contains((await f.Db.Orders.Include(x => x.Lines).SingleAsync()).Lines, x => x.Id == f.KgLine.Id);
         Assert.Equal(25, (await f.AssignmentAsync(id)).CustodyQuantity);
@@ -425,7 +521,7 @@ public sealed class DeliveryManagementServiceTests
             new EfSalesChannelRepository(f.Db), f.Clock, new EfOrderOperationStore(f.Db),
             new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(f.Db), new EfMachineRepository(f.Db), new EfCustomerRepository(f.Db)));
         await service.CorrectAsync(f.Order.Id, new("delivery-increase", currentOrder.Version, "Cliente pide diez kilos más",
-            [new(f.KgProduct.Id, 60, null), new(f.PackageProduct.Id, 2, null)]), f.ManagerActor, Ct);
+            [new(f.KgProduct.Id, 60, null), new(f.PackageProduct.Id, 2, null)]), f.ManagerActor with { IsSystemAdministrator = true }, Ct);
         var a = await f.AssignmentAsync(id);
         Assert.True(a.HasOrderChanges);
         await Assert.ThrowsAsync<CustomerOrderConflictException>(() => f.StageAsync(id, "deliver", 25));

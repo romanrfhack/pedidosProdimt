@@ -502,7 +502,7 @@ public sealed class AdminCatalogServiceTests
         await secondRepository.GetByIdForUpdateAsync(customerId, default);
         AdminCustomerCatalogService Service(PedidosDbContext db, EfCustomerRepository repository) => new(repository,
             new EfProductRepository(db), new EfMachineRepository(db), new EfAuditLogRepository(db),
-            new FixedDateTimeProvider(new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero)));
+            new FixedDateTimeProvider(new DateTimeOffset(2026, 10, 24, 12, 0, 0, TimeSpan.Zero)), new EfDeliveryRepository(db));
 
         await Service(firstDb, firstRepository).ReplaceFrequentProductsAsync(customerId,
             new([new(productId, 20, 1, true, null, 1)], true, 0), AdminActor, default);
@@ -690,7 +690,8 @@ public sealed class AdminCatalogServiceTests
                 productRepository,
                 machineRepository,
                 auditLogRepository,
-                dateTimeProvider);
+                dateTimeProvider,
+                new EfDeliveryRepository(dbContext));
             var products = new AdminProductCatalogService(
                 productRepository,
                 auditLogRepository,

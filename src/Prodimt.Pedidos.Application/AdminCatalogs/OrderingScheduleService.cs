@@ -9,13 +9,15 @@ public sealed record RouteScheduleResponse(string RouteCode, TimeOnly? Cutoff, i
 public sealed record CustomerScheduleResponse(Guid CustomerId, string CustomerName, string? RouteCode, TimeOnly? Cutoff, int Version);
 public sealed record OrderingSchedulesResponse(IReadOnlyList<RouteScheduleResponse> Routes, IReadOnlyList<CustomerScheduleResponse> Customers);
 public sealed class OrderingScheduleService(IOrderingScheduleRepository schedules, ICustomerRepository customers,
-    IAuditLogRepository audit, IDateTimeProvider clock)
+    IAuditLogRepository audit, IDateTimeProvider clock, IDeliveryRepository delivery)
 {
     public async Task<OrderingSchedulesResponse> GetAsync(CancellationToken token)
     {
         var clients = await customers.GetAllAsync(token);
         var configured = (await schedules.GetAllAsync(token)).ToDictionary(x => x.RouteCode, StringComparer.OrdinalIgnoreCase);
-        var routes = clients.Select(x => x.RouteCode).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim().ToUpperInvariant())
+        var deliveryRoutes = await delivery.GetRoutesAsync(token);
+        var routes = clients.Select(x => x.RouteCode).Concat(deliveryRoutes.Select(x => x.Code))
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim().ToUpperInvariant())
             .Concat(configured.Keys).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x).Select(x =>
                 new RouteScheduleResponse(x, configured.GetValueOrDefault(x)?.AutomaticConfirmationCutoff, configured.GetValueOrDefault(x)?.Version ?? 0)).ToArray();
         return new(routes, clients.Where(x => x.IsActive).OrderBy(x => x.Name).Select(x => new CustomerScheduleResponse(x.Id, x.Name, x.RouteCode, x.AutomaticConfirmationCutoff, x.OrderingScheduleVersion)).ToArray());

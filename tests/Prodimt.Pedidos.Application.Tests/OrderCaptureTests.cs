@@ -23,7 +23,7 @@ namespace Prodimt.Pedidos.Application.Tests;
 public sealed class OrderCaptureTests
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
-    private static readonly AdminActorContext Actor = new("synthetic-admin", "Synthetic administrator");
+    private static readonly AdminActorContext Actor = new("synthetic-admin", "Synthetic administrator", IsSystemAdministrator: true);
     private static readonly Guid A = Guid.NewGuid(), B = Guid.NewGuid(), Extra = Guid.NewGuid();
     private static CustomerOrderingProfileSnapshot Profile(bool approved = true) => new(Guid.NewGuid(), 3, approved,
         [new(A, "Producto #11", null, 3, true, null, 1, "kg", true),
@@ -89,7 +89,7 @@ public sealed class OrderCaptureTests
     public async Task Preview_DoesNotWriteOrApprove_AndSaveRequiresExplicitApproval()
     {
         await using var f = await Fixture.Create(false);
-        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("13+7", f.Day), Ct);
+        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("13+7", f.Day), Ct, Actor);
         Assert.False(preview.Profile.IsOrderProfileApproved);
         Assert.Empty(await f.Db.Orders.ToArrayAsync()); Assert.Empty(await f.Db.OrderOperations.ToArrayAsync());
         await Assert.ThrowsAsync<CatalogConflictException>(() => f.Service.SubmitAsync(f.Customer.Id, f.Request(preview), Actor, Ct));
@@ -97,10 +97,68 @@ public sealed class OrderCaptureTests
     }
 
     [Fact]
+    public async Task Capture_RestrictsDatesForCounterAndAcceptsHistoricalEntriesForSystemAdministrator()
+    {
+        await using var f = await Fixture.Create();
+        var today = f.Day.AddDays(-1);
+        var yesterday = today.AddDays(-1);
+        var counter = new AdminActorContext("counter-test", "Mostrador de prueba");
+        var profile = await f.Service.PreviewAsync(f.Customer.Id, new("16", today), Ct, counter);
+        var request = new SubmitOrderCaptureRequest(Guid.NewGuid(), profile.Profile.OrderingProfileVersion, today,
+            Lines: [new(f.Products[0].Id, 5, "kg")]);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Service.SubmitAsync(f.Customer.Id,
+            request with { ServiceDate = yesterday }, counter, Ct));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Service.SubmitAsync(f.Customer.Id,
+            request with { ServiceDate = f.Day }, counter, Ct));
+        Assert.Empty(await f.Db.OrderOperations.ToArrayAsync());
+        Assert.Empty(await f.Db.Orders.ToArrayAsync());
+
+        var daily = await f.Service.SubmitAsync(f.Customer.Id, request, counter, Ct);
+        Assert.Equal(OrderStatus.Submitted, daily.Order.Status);
+        var historical = await f.Service.SubmitAsync(f.Customer.Id,
+            request with { OperationId = Guid.NewGuid(), ServiceDate = yesterday }, Actor, Ct);
+        Assert.Equal(yesterday, historical.Order.OrderDate);
+        Assert.Equal(OrderStatus.Accepted, historical.Order.Status);
+        Assert.False(historical.Order.RequiresAdminReview);
+        Assert.False(historical.Order.IsLate);
+    }
+
+    [Theory]
+    [InlineData(10, 30, 11, null, false)]
+    [InlineData(11, 0, 11, null, true)]
+    [InlineData(10, 30, 11, 10, true)]
+    [InlineData(10, 0, null, null, true)]
+    public async Task CounterCapture_UsesEffectiveCutoffAndRequiresReviewFromTheExactMinute(int hour, int minute,
+        int? routeCutoffHour, int? customerCutoffHour, bool expectedLate)
+    {
+        await using var f = await Fixture.Create();
+        f.BusinessClock.LocalTimeOfDay = new(hour, minute);
+        var customer = await f.Db.Customers.SingleAsync();
+        customer.RouteCode = " r1 ";
+        if (customerCutoffHour is { } customerHour)
+            customer.AutomaticConfirmationCutoff = new(customerHour, 0);
+        if (routeCutoffHour is { } routeHour)
+            f.Db.RouteOrderSchedules.Add(new() { RouteCode = "R1", AutomaticConfirmationCutoff = new(routeHour, 0) });
+        await f.Db.SaveChangesAsync();
+        f.Db.ChangeTracker.Clear();
+
+        var counter = new AdminActorContext("counter-test", "Mostrador de prueba");
+        var request = new SubmitOrderCaptureRequest(Guid.NewGuid(), customer.OrderingProfileVersion, f.BusinessClock.Today,
+            Lines: [new(f.Products[0].Id, 5, "kg")]);
+        var result = await f.Service.SubmitAsync(f.Customer.Id, request, counter, Ct);
+
+        Assert.Equal(expectedLate ? OrderStatus.PendingAdminReview : OrderStatus.Submitted, result.Order.Status);
+        Assert.Equal(expectedLate, result.Order.IsLate);
+        Assert.Equal(expectedLate, result.Order.RequiresAdminReview);
+        Assert.Equal(expectedLate ? AdminReviewReason.LateSubmission : (AdminReviewReason?)null, result.Order.AdminReviewReason);
+    }
+
+    [Fact]
     public async Task Save_IsAtomicIdempotentAuditedAndInheritsClientDelivery()
     {
         await using var f = await Fixture.Create();
-        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("1+5+2HN", f.Day), Ct);
+        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("1+5+2HN", f.Day), Ct, Actor);
         var request = f.Request(preview);
         var first = await f.Service.SubmitAsync(f.Customer.Id, request, Actor, Ct);
         var replay = await f.Service.SubmitAsync(f.Customer.Id, request, Actor, Ct);
@@ -123,18 +181,18 @@ public sealed class OrderCaptureTests
     public async Task Save_RejectsChangedTextProfileUnitAndDuplicateWithoutWriting()
     {
         await using var f = await Fixture.Create();
-        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct);
+        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct, Actor);
         await Assert.ThrowsAsync<CatalogConflictException>(() => f.Service.SubmitAsync(f.Customer.Id,
             f.Request(preview) with { Text = "17" }, Actor, Ct));
         var tracked = await f.Db.Customers.SingleAsync(); tracked.RecordOrderingProfileChange(true, new Clock().Now);
         await f.Db.SaveChangesAsync(); f.Db.ChangeTracker.Clear();
         await Assert.ThrowsAsync<CatalogConflictException>(() => f.Service.SubmitAsync(f.Customer.Id, f.Request(preview), Actor, Ct));
-        var current = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct);
+        var current = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct, Actor);
         var product = await f.Db.Products.SingleAsync(x => x.Id == f.Products[0].Id); product.SetUnitCode("piece");
         await f.Db.SaveChangesAsync(); f.Db.ChangeTracker.Clear();
         await Assert.ThrowsAsync<CatalogConflictException>(() => f.Service.SubmitAsync(f.Customer.Id, f.Request(current), Actor, Ct));
         Assert.Empty(await f.Db.Orders.ToArrayAsync()); Assert.Empty(await f.Db.OrderOperations.ToArrayAsync());
-        current = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct);
+        current = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct, Actor);
         await f.Service.SubmitAsync(f.Customer.Id, f.Request(current), Actor, Ct);
         await Assert.ThrowsAsync<CustomerOrderConflictException>(() => f.Service.SubmitAsync(f.Customer.Id, f.Request(current), Actor, Ct));
         Assert.Equal(1, await f.Db.Orders.CountAsync());
@@ -159,7 +217,7 @@ public sealed class OrderCaptureTests
     {
         await using var f = await Fixture.Create();
         await f.Db.Database.ExecuteSqlRawAsync("CREATE TRIGGER reject_capture_audit BEFORE INSERT ON OrderAuditLogs WHEN NEW.EventType='AdminOrderCaptureResolved' BEGIN SELECT RAISE(ABORT,'fictional failure'); END;");
-        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct);
+        var preview = await f.Service.PreviewAsync(f.Customer.Id, new("16", f.Day), Ct, Actor);
         await Assert.ThrowsAnyAsync<Exception>(() => f.Service.SubmitAsync(f.Customer.Id, f.Request(preview), Actor, Ct));
         Assert.Empty(await f.Db.Orders.ToArrayAsync()); Assert.Empty(await f.Db.OrderOperations.ToArrayAsync()); Assert.Empty(await f.Db.OrderAuditLogs.ToArrayAsync());
     }
@@ -181,7 +239,7 @@ public sealed class OrderCaptureTests
     {
         await using var f = await Fixture.Create();
         var catalog = new AdminCustomerCatalogService(new EfCustomerRepository(f.Db),new EfProductRepository(f.Db),
-            new EfMachineRepository(f.Db),new EfAuditLogRepository(f.Db),new Clock());
+            new EfMachineRepository(f.Db),new EfAuditLogRepository(f.Db),new Clock(),new EfDeliveryRepository(f.Db));
         UpdateCustomerFrequentProductsRequest Request(int version, string? alias) => new(f.Products.Select((p,i) =>
             new UpdateCustomerFrequentProductItemRequest(p.Id,null,i+1,true,InterpretationPosition:i+1,
                 CaptureAlias:i==2?alias:null)).ToArray(),ExpectedProfileVersion:version);
@@ -220,14 +278,16 @@ public sealed class OrderCaptureTests
         public Customer Customer { get; }
         public Product[] Products { get; }
         public AdminOrderCaptureService Service { get; }
-        public DateOnly Day => new Clock().Today.AddDays(1);
+        public Clock BusinessClock { get; } = new();
+        public DateOnly Day => BusinessClock.Today.AddDays(1);
         private Fixture(SqliteConnection c, PedidosDbContext db, Customer customer, Product[] products)
         {
             connection=c; Db=db; Customer=customer; Products=products;
             var customers=new EfCustomerRepository(db); var orders=new EfOrderRepository(db); var audit=new EfOrderAuditLogRepository(db);
             var machines=new EfMachineRepository(db); var publisher=new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(db),machines,customers);
-            var service=new AdminOrderService(orders,audit,customers,new EfProductRepository(db),machines,new EfSalesChannelRepository(db),new Clock(),publisher);
-            Service=new(customers,orders,audit,new EfOrderOperationStore(db),new Clock(),service);
+            var service = new AdminOrderService(orders, audit, customers, new EfProductRepository(db), machines,
+                new EfSalesChannelRepository(db), BusinessClock, publisher, scheduling: new OrderSchedulingService(new EfOrderingScheduleRepository(db)));
+            Service = new(customers, orders, audit, new EfOrderOperationStore(db), BusinessClock, service);
         }
         public SubmitOrderCaptureRequest Request(PreviewOrderCaptureResponse p) => new(Guid.NewGuid(),p.Profile.OrderingProfileVersion,Day,p.Text,p.Fingerprint);
         public static async Task<Fixture> Create(bool approved=true)
@@ -247,6 +307,10 @@ public sealed class OrderCaptureTests
         }
         public async ValueTask DisposeAsync(){await Db.DisposeAsync();await connection.DisposeAsync();}
     }
-    private sealed class Clock:IDateTimeProvider
-    { public DateTimeOffset Now=>new(2026,10,28,14,0,0,TimeSpan.Zero);public DateOnly Today=>new(2026,10,28);public TimeOnly LocalTimeOfDay=>new(8,0); }
+    private sealed class Clock : IDateTimeProvider
+    {
+        public DateTimeOffset Now => new(Today, LocalTimeOfDay, TimeSpan.FromHours(-6));
+        public DateOnly Today => new(2026, 10, 28);
+        public TimeOnly LocalTimeOfDay { get; set; } = new(8, 0);
+    }
 }

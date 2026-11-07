@@ -14,7 +14,7 @@ async function login(page: Page) {
 }
 
 /** Share fictional order state across the existing review and delivery HTTP contracts. */
-async function integrationFixture(page: Page, permissions: string[]) {
+async function integrationFixture(page: Page, permissions: string[], isSystemAdministrator = false) {
   const state = deliveryFixture(); state.setPermissions(permissions);
   const reads: Array<{ path: string; date: string | null }> = [];
   const reviews: Array<{ path: string; body: any }> = [];
@@ -36,7 +36,7 @@ async function integrationFixture(page: Page, permissions: string[]) {
       orderDate: deliveryDate, status: 'Submitted', submittedAt: `${deliveryDate}T14:00:00Z`,
       requestedDeliveryTime: null, requestedDeliveryWindowStart: null, requestedDeliveryWindowEnd: null,
       isLate: false, requiresAdminReview: false, adminReviewReason: null, adminDecision: null }];
-  await state.install(page);
+  await state.install(page, isSystemAdministrator);
   page.on('request', request => {
     const url = new URL(request.url());
     if (request.method() === 'GET' && /\/api\/(?:admin\/)?delivery(?:[/?]|$)/.test(url.pathname)) deliveryReads.push(request.url());
@@ -82,7 +82,7 @@ async function orders(page: Page) {
 }
 
 async function openCorrection(page: Page) {
-  const state = await integrationFixture(page, ['orders.read', 'orders.capture', 'delivery.manage']);
+  const state = await integrationFixture(page, ['orders.read', 'orders.capture', 'delivery.manage'], true);
   const order = state.orders[0];
   const orderWrites: string[] = [];
   page.on('request', request => {
@@ -195,7 +195,35 @@ for (const canManageSecurity of [false, true]) {
 
 test('preparar reparto distingue falta de conductores, ruta, vuelta y asignaciones', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 960 });
-  const state = await integrationFixture(page, ['delivery.manage', 'security.manage']);
+  const state = await integrationFixture(page, ['delivery.manage', 'security.manage', 'customers.manage']);
+  const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'GET,PUT,OPTIONS' };
+  const schedule: { routeCode: string; cutoff: string | null; version: number } = { routeCode: 'A', cutoff: null, version: 0 };
+  const client = { customerId: '56000000-0000-0000-0000-000000000001', customerName: 'Cliente de prueba sin ruta',
+    routeCode: null as string | null, routeStopOrder: null as number | null, updatedAt: `${deliveryDate}T13:00:00Z`, isActive: true };
+  const cutoffWrites: unknown[] = [];
+  const customerRouteWrites: unknown[] = [];
+  await page.route(/\/api\/admin\/ordering-schedules(?:\/routes)?\/?$/, async route => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (request.method() === 'GET') return route.fulfill({ headers, json: { routes: [schedule], customers: [] } });
+    const body = request.postDataJSON();
+    cutoffWrites.push(body);
+    schedule.cutoff = body.cutoff;
+    schedule.version++;
+    return route.fulfill({ status: 204, headers });
+  });
+  await page.route('**/api/admin/customers/route-assignments', route => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 204, headers }) : route.fulfill({ headers, json: [client] }));
+  await page.route(`**/api/admin/customers/${client.customerId}/route`, async route => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const body = request.postDataJSON();
+    customerRouteWrites.push(body);
+    client.routeCode = body.routeCode;
+    client.routeStopOrder = body.routeStopOrder;
+    client.updatedAt = `${deliveryDate}T13:01:00Z`;
+    return route.fulfill({ headers, json: client });
+  });
   const driver = state.dashboard.drivers[0];
   state.dashboard.drivers = []; state.dashboard.routes = []; state.dashboard.trips = [];
   await login(page); await expect(page.getByTestId('delivery-page')).toBeVisible();
@@ -217,6 +245,27 @@ test('preparar reparto distingue falta de conductores, ruta, vuelta y asignacion
   await dialog.getByRole('button', { name: 'Guardar ruta', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(checklist.getByTestId('delivery-setup-routes')).toHaveAttribute('data-complete', 'true');
+
+  await page.getByRole('button', { name: 'Editar ruta', exact: true }).click();
+  const routeSchedule = dialog.getByTestId('delivery-route-schedule');
+  await routeSchedule.getByLabel('Hora límite de confirmación automática').fill('11:00');
+  await routeSchedule.getByRole('button', { name: 'Guardar horario', exact: true }).click();
+  await expect(routeSchedule.getByText('Horario guardado.', { exact: true })).toBeVisible();
+  expect(cutoffWrites).toEqual([{ routeCode: 'A', cutoff: '11:00:00', expectedVersion: 0 }]);
+
+  const routeCustomers = dialog.getByTestId('delivery-route-customers');
+  await routeCustomers.getByLabel('Cliente para asignar').selectOption(client.customerId);
+  await routeCustomers.getByRole('button', { name: 'Agregar a la ruta', exact: true }).click();
+  const member = routeCustomers.getByTestId('delivery-route-member').filter({ hasText: client.customerName });
+  await expect(member).toBeVisible();
+  expect(customerRouteWrites).toEqual([{ routeCode: 'A', routeStopOrder: null, expectedUpdatedAt: `${deliveryDate}T13:00:00Z` }]);
+  await member.getByLabel(`Orden de visita de ${client.customerName}`).fill('2');
+  await member.getByRole('button', { name: 'Guardar orden', exact: true }).click();
+  await expect(routeCustomers.getByRole('status')).toHaveText('Orden de visita guardado.');
+  expect(customerRouteWrites[1]).toEqual({ routeCode: 'A', routeStopOrder: 2, expectedUpdatedAt: `${deliveryDate}T13:01:00Z` });
+  await dialog.getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+
   await page.setViewportSize({ width: 768, height: 960 });
   await checklist.getByRole('button', { name: 'Crear recorrido', exact: true }).click();
   await dialog.getByRole('combobox', { name: 'Repartidor de esta vuelta', exact: true }).selectOption(driverId);
@@ -234,7 +283,7 @@ test('preparar reparto distingue falta de conductores, ruta, vuelta y asignacion
 });
 
 test('revisión conserva fecha y sólo un pedido aceptado pasa a pendientes de reparto', async ({ page }) => {
-  const state = await integrationFixture(page, ['orders.read', 'orders.review', 'delivery.manage']);
+  const state = await integrationFixture(page, ['orders.read', 'orders.review', 'delivery.manage'], true);
   await login(page); await orders(page);
   await prepareOrders(page).getByRole('link', { name: 'Gestionar reparto', exact: true }).click();
   const pending = page.getByTestId('delivery-pending-order');

@@ -209,7 +209,7 @@ public sealed class CustomerProductSetupTests
         await using var f = await Fixture.Create();
         await f.ConfigureExtra(12);
         var service = new AdminCustomerCatalogService(new EfCustomerRepository(f.Db), new EfProductRepository(f.Db),
-            new EfMachineRepository(f.Db), new EfAuditLogRepository(f.Db), f.Clock);
+            new EfMachineRepository(f.Db), new EfAuditLogRepository(f.Db), f.Clock, new EfDeliveryRepository(f.Db));
         await service.ReplaceFrequentProductsAsync(f.Customer.Id, new([
             new(f.Habitual.Id, null, 1, true), new(f.Extra.Id, null, 2, true)], false, f.Customer.OrderingProfileVersion), Actor, Ct);
         f.Db.ChangeTracker.Clear();

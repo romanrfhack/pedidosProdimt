@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.Security;
 using Prodimt.Pedidos.Infrastructure.Authentication;
+using Prodimt.Pedidos.Infrastructure.Persistence.Seed;
 using Prodimt.Pedidos.Infrastructure.Repositories;
 
 namespace Prodimt.Pedidos.Application.Tests;
@@ -20,6 +23,27 @@ public sealed class SecurityAdministrationTests
     [InlineData("/api/admin/delivery", "delivery.manage")]
     public void IntegratedSchedulesAndDelivery_KeepTheirOwnAdministrativePermission(string path, string expected)
         => Assert.Equal(expected, Prodimt.Pedidos.Api.AdminPermissionMiddleware.RequiredPermission("GET", path));
+
+    [Fact]
+    public async Task RouteAssignmentEndpointsRequireCustomerManagementPermission()
+    {
+        await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
+        using var manager = await ManagerAsync(factory);
+        using var deliveryUser = Client(factory);
+        var state = await SnapshotAsync(manager);
+        await CreateUserAsync(manager, state, "only-delivery-routes", [], [Permission(state, "delivery.manage")]);
+        Bearer(deliveryUser, await LoginAsync(deliveryUser, "only-delivery-routes"));
+
+        var catalog = "/api/admin/customers/routes";
+        var assignments = "/api/admin/customers/route-assignments";
+        var update = $"/api/admin/customers/{DevelopmentSeedIds.GranTakitoCustomerId}/route";
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync(catalog)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync(assignments)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await deliveryUser.GetAsync(catalog)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await deliveryUser.GetAsync(assignments)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await deliveryUser.PutAsJsonAsync(update, new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await manager.PutAsJsonAsync(update, new { })).StatusCode);
+    }
 
     [Fact]
     public async Task SecurityAdministration_RejectsAnonymousCustomerAndUnprivilegedStaff()
@@ -61,6 +85,63 @@ public sealed class SecurityAdministrationTests
         Assert.Equal(HttpStatusCode.OK, (await staff.GetAsync(reference)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await staff.PostAsJsonAsync("/api/admin/products", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await staff.GetAsync(Root)).StatusCode);
+    }
+
+    [Fact]
+    public async Task CounterRole_CanReadHistoryButCannotBackfillOrCorrectOrdersThroughTheApi()
+    {
+        await using var factory = new AuthApiAuthorizationTests.AuthApiFactory();
+        using var manager = await ManagerAsync(factory);
+        var state = await SnapshotAsync(manager);
+        const string counterRole = "Administración - Mostrador";
+        state = await SaveAsync(manager, "roles", null, new SaveSecurityRoleRequest(state.Revision, counterRole, "", true,
+            [Permission(state, "orders.read"), Permission(state, "orders.capture")]));
+        state = await CreateUserAsync(manager, state, "counter-orders", [state.Roles.Single(x => x.Name == counterRole).Id],
+            [Permission(state, "orders.review"), Permission(state, "imports.manage")]);
+        using var counter = Client(factory);
+        Bearer(counter, await LoginAsync(counter, "counter-orders"));
+
+        var today = factory.Services.GetRequiredService<IDateTimeProvider>().Today;
+        var yesterday = today.AddDays(-1);
+        var customer = $"/api/admin/customers/{DevelopmentSeedIds.GranTakitoCustomerId}/orders";
+        var line = new { productId = DevelopmentSeedIds.ProductNineAndHalfId, quantity = 5 };
+        using var me = await counter.GetAsync(Root + "/me");
+        Assert.False((await me.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("isSystemAdministrator").GetBoolean());
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync(customer + "/submit",
+            new { serviceDate = yesterday, lines = new[] { line }, isSystemAdministrator = true })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync(customer + "/no-order",
+            new { serviceDate = yesterday })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync(customer + "/preview",
+            new { serviceDate = today.AddDays(1), text = "5" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync("/api/admin/daily-orders/validate", new
+        {
+            source = "COUNTER", batchKey = "BATCH-1",
+            content = "externalOrderKey,serviceDate,customerExternalCode,action,productExternalCode,quantity,unitCode,notes\n"
+                + $"COUNTER-1,{yesterday:yyyy-MM-dd},C-DEMO,order,P-DEMO,5,kg,"
+        })).StatusCode);
+
+        using var historical = await manager.PostAsJsonAsync(customer + "/submit", new { serviceDate = yesterday, lines = new[] { line } });
+        historical.EnsureSuccessStatusCode();
+        var recorded = await historical.Content.ReadFromJsonAsync<JsonElement>();
+        var historicalId = recorded.GetProperty("orderId").GetGuid();
+        Assert.Equal("Accepted", recorded.GetProperty("status").GetString());
+        Assert.False(recorded.GetProperty("requiresAdminReview").GetBoolean());
+        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync(customer + "/submit",
+            new { serviceDate = yesterday, lines = new[] { line } })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await counter.GetAsync($"/api/admin/orders/today?date={yesterday:yyyy-MM-dd}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await counter.GetAsync($"/api/admin/orders/{historicalId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync($"/api/admin/orders/{historicalId}/review",
+            new { decision = "Accepted" })).StatusCode);
+
+        using var daily = await counter.PostAsJsonAsync(customer + "/submit", new { serviceDate = today, lines = new[] { line } });
+        daily.EnsureSuccessStatusCode();
+        var currentId = (await daily.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("orderId").GetGuid();
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync($"/api/admin/orders/{currentId}/corrections", new
+        {
+            operationKey = "COUNTER-CORRECTION", expectedVersion = 1, reason = "Prueba", lines = new[] { line }
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await counter.PostAsJsonAsync($"/api/admin/orders/{currentId}/review",
+            new { decision = "AcceptedWithChanges" })).StatusCode);
     }
 
     [Fact]

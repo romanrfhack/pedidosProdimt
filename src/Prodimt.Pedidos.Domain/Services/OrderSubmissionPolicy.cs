@@ -10,10 +10,10 @@ public static class OrderSubmissionPolicy
         TimeOnly submittedAt,
         bool hasExistingActiveOrderToday,
         TimeOnly? cutoffTime = null)
-    {
-        var effectiveCutoff = cutoffTime ?? DefaultCutoffTime;
-        var isLate = submittedAt > effectiveCutoff;
+        => Evaluate(submittedAt > (cutoffTime ?? DefaultCutoffTime), hasExistingActiveOrderToday);
 
+    public static OrderSubmissionEvaluation Evaluate(bool isLate, bool hasExistingActiveOrderToday)
+    {
         if (hasExistingActiveOrderToday)
         {
             return new OrderSubmissionEvaluation(

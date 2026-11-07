@@ -28,16 +28,17 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public Task<PreviewOrderCaptureResponse> PreviewAsync(Guid customerId, PreviewOrderCaptureRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, AdminActorContext? actor = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         var received = request.AutoDeliveryDate ? DeliveryDatePolicy.Capture(clock) : clock;
         return customers.ExecuteOrderingProfileUpdateAsync(async token =>
         {
-            var (customer, profile) = await ReadProfileAsync(customerId, token);
             var date = request.AutoDeliveryDate
                 ? DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received)
-                : request.ServiceDate ?? clock.Today;
+                : request.ServiceDate ?? received.Today;
+            ServiceDatePolicy.RequireWriteDate(date, received.Today, actor);
+            var (customer, profile) = await ReadProfileAsync(customerId, token);
             return Preview(customer, profile, request.Text, date);
         }, cancellationToken);
     }
@@ -46,7 +47,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
         AdminActorContext? actor, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var received = request.AutoDeliveryDate ? DeliveryDatePolicy.Capture(clock) : clock;
+        var received = request.AutoDeliveryDate ? DeliveryDatePolicy.Capture(clock) : DeliveryDatePolicy.CaptureExplicitClock(clock);
         if (request.OperationId == Guid.Empty || request.ExpectedProfileVersion < 0)
             throw new ArgumentException("La captura debe incluir su referencia y la versión del perfil que se mostró.");
         var quick = !string.IsNullOrWhiteSpace(request.Text);
@@ -58,7 +59,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
             throw new ArgumentException("Confirma la fecha de entrega mostrada antes de guardar.");
         // Use the observed date in the receipt hash, and validate current cutoff only
         // inside a new action so an already committed attempt can replay after 18:00.
-        var date = request.AutoDeliveryDate ? request.ExpectedDeliveryDate!.Value : request.ServiceDate ?? clock.Today;
+        var date = request.AutoDeliveryDate ? request.ExpectedDeliveryDate!.Value : request.ServiceDate ?? received.Today;
         // Preserve I07 receipt hashes for callers that do not opt into automatic dates.
         // Appending optional DTO fields must not invalidate an in-flight durable retry.
         var payloadHash = request.AutoDeliveryDate
@@ -70,6 +71,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
             token => customers.ExecuteOrderingProfileUpdateAsync(async inner =>
             {
                 if (request.AutoDeliveryDate) DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received);
+                ServiceDatePolicy.RequireWriteDate(date, received.Today, actor);
                 var (customer, profile) = await ReadProfileAsync(customerId, inner);
                 if (profile.OrderingProfileVersion != request.ExpectedProfileVersion)
                     throw new CatalogConflictException("El perfil del cliente cambió. Actualiza la configuración y revisa el desglose antes de guardar.");
@@ -109,8 +111,9 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                     resolved.Select(x => new AdminSubmitCustomerOrderLineRequest(x.ProductId, x.Quantity,
                         quick ? null : request.Lines!.Single(line => line.ProductId == x.ProductId).Notes)).ToArray(),
                     null, null, null, request.DeliveryNotes, request.InternalNotes, date), actor, inner,
-                    receivedClock: request.AutoDeliveryDate ? received : null,
-                    unconfiguredProductIds: resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet());
+                    receivedClock: received,
+                    unconfiguredProductIds: resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet(),
+                    confirmSeparateDelivery: request.ConfirmSeparateDelivery);
                 var order = await orders.GetByIdAsync(result.OrderId, inner)
                     ?? throw new InvalidOperationException("No se pudo verificar el pedido guardado.");
                 await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.AdminOrderCaptureResolved,

@@ -8,7 +8,9 @@
 
   <form class="operations-filters pending-filters" (ngSubmit)="load()">
     <label><span>Fecha de servicio</span><input name="serviceDate" type="date" required [(ngModel)]="serviceDate" (ngModelChange)="changeDate()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"></label>
-    <label class="check-row"><input type="checkbox" name="automaticDeliveryDate" [(ngModel)]="automaticDeliveryDate" (ngModelChange)="changeDateMode()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"><span>Próxima entrega automática · corte 18:00, Ciudad de México</span></label>
+    @if (access.isSystemAdministrator()) {
+      <label class="check-row"><input type="checkbox" name="automaticDeliveryDate" [(ngModel)]="automaticDeliveryDate" (ngModelChange)="changeDateMode()" [disabled]="isLoading || !!submittingCustomerId || !!loadingCustomerId"><span>Próxima entrega automática · corte 18:00, Ciudad de México</span></label>
+    }
     <button type="submit" class="primary" [disabled]="isLoading || !serviceDate || !!submittingCustomerId || !!loadingCustomerId">Consultar clientes</button>
   </form>
 
@@ -17,6 +19,7 @@
   @if (errorMessage) { <div class="alert error">{{ errorMessage }}</div> }
 
   @if (!isLoading && !errorMessage) {
+    @if (!canCaptureDate()) { <p class="notice">Consulta de fecha de servicio. La captura está disponible para el día en curso.</p> }
     @if (scheduledRestCount > 0) {
       <label class="check-row pending-rest" data-testid="pending-rest-filter">
         <input type="checkbox" name="includeRestCustomers" [(ngModel)]="includeRestCustomers" [disabled]="!!submittingCustomerId || !!loadingCustomerId || !!template">
@@ -41,10 +44,12 @@
               </dl>
               @if (customer.deliveryNotes) { <p class="pending-notes"><span>Notas:</span> {{ customer.deliveryNotes }}</p> }
             </div>
-            <div class="review-actions pending-actions">
-              <button type="button" class="primary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="startCapture(customer)">Capturar pedido</button>
-              <button type="button" class="secondary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="markNoOrder(customer)">{{ isToday() ? 'No pedir hoy' : 'No pide en esta fecha' }}</button>
-            </div>
+            @if (canCaptureDate()) {
+              <div class="review-actions pending-actions">
+                <button type="button" class="primary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="startCapture(customer)">Capturar pedido</button>
+                <button type="button" class="secondary compact" [disabled]="!!loadingCustomerId || !!submittingCustomerId" (click)="markNoOrder(customer)">{{ isToday() ? 'No pedir hoy' : 'No pide en esta fecha' }}</button>
+              </div>
+            }
             @if (getTemplate(customer); as selectedTemplate) {
               @if (profile; as currentProfile) {
                 <app-admin-order-capture [template]="selectedTemplate" [initialProfile]="currentProfile"
