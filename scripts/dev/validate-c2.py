@@ -115,6 +115,11 @@ def checked_browser(report, expected):
     return {"expected": expected, "passed": expected, "failed": 0, "skipped": 0, "flaky": 0}
 
 
+def redact_diagnostics(content):
+    content = re.sub(r"c2-synthetic-[a-f0-9]{32}", "[synthetic-token-omitted]", content)
+    return re.sub(r"\b(?:[a-f0-9]{32}|[a-f0-9]{48})Aa1!", "[synthetic-password-omitted]", content)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", help="Exact clean C2 commit")
@@ -321,17 +326,18 @@ def main():
         # Credentials are private while running and destroyed even on failure.
         for private in ("sql.private.env", "config.private.json", "browser-private.json"):
             (directory / private).unlink(missing_ok=True)
-        # Playwright navigation diagnostics can include the fragment token even
-        # when the application removes it immediately. Do not retain it in logs.
+        # Playwright diagnostics can include fragment tokens and password inputs.
+        # Do not retain synthetic credentials in logs or error-context Markdown.
         for artifact in directory.rglob("*"):
-            if artifact.is_file() and artifact.suffix in (".json", ".jsonl", ".log", ".txt"):
+            if artifact.is_file() and artifact.suffix in (".json", ".jsonl", ".log", ".txt", ".md"):
                 content = artifact.read_text(errors="replace")
-                content = re.sub(r"c2-synthetic-[a-f0-9]{32}", "[synthetic-token-omitted]", content)
-                artifact.write_text(content)
+                artifact.write_text(redact_diagnostics(content))
         report["artifacts"] = {str(path.relative_to(directory)): hashlib.sha256(path.read_bytes()).hexdigest()
                                for path in sorted(directory.rglob("*")) if path.is_file() and path.name != "gate.json"}
         (directory / "gate.json").write_text(json.dumps(report, indent=2) + "\n")
-        print(json.dumps({key: report[key] for key in ("status", "sourceCommit", "cleanupVerified", "recoveryPending")}))
+        summary = {key: report[key] for key in ("status", "sourceCommit", "cleanupVerified", "recoveryPending")}
+        summary.update(reportDirectory=str(directory), issue=report.get("issue"))
+        print(json.dumps(summary))
     return 0 if report["status"] == "passed" else 1
 
 

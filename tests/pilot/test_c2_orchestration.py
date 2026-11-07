@@ -54,6 +54,15 @@ class C2GateTests(unittest.TestCase):
             with self.assertRaisesRegex(c2.Failure, "source_dirty"):
                 c2.source_identity("a" * 40)
 
+    def test_failure_snapshot_redacts_synthetic_credentials_and_preserves_diagnosis(self):
+        snapshot = 'textbox "Contrasena": ' + 'a' * 32 + 'Aa1!\nExpected: 200 Received: 403\n'
+        snapshot += 'MSSQL_SA_PASSWORD=' + 'b' * 48 + 'Aa1!\n/cliente#token=c2-synthetic-' + 'c' * 32
+        redacted = c2.redact_diagnostics(snapshot)
+        self.assertNotIn('Aa1!', redacted)
+        self.assertNotIn('c2-synthetic-', redacted)
+        self.assertIn('Expected: 200 Received: 403', redacted)
+        self.assertEqual(2, redacted.count('[synthetic-password-omitted]'))
+
 
 if __name__ == "__main__":
     unittest.main()

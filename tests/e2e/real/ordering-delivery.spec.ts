@@ -25,7 +25,12 @@ async function login(page: Page, user = scene.adminName) {
   await page.goto('/admin/login');
   await page.getByLabel('Usuario', { exact: true }).fill(user);
   await page.getByLabel('Contrasena', { exact: true }).fill(scene.password);
+  const authenticated = page.waitForResponse(response => response.request().method() === 'POST'
+    && new URL(response.url()).pathname === '/api/auth/admin/login');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+  expect((await authenticated).status()).toBe(200);
+  // A customer session already shows Salir; wait for the administrative landing.
+  await expect(page.getByTestId('admin-login')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Salir', exact: true })).toBeVisible();
 }
 async function authorization(page: Page) {
