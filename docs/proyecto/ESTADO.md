@@ -1,7 +1,10 @@
 # Estado vigente de PRODIMT
 
-C2: [matriz, validación y bloqueo local](../corrections/C2.md). F13 abierto y F14 parcial;
-43 HTTP/SQL y tres navegador real preparados, ejecución SQL pendiente.
+C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
+y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.
+Fuente probada `5e7d8e836f0951aefc613e0363d740b26ec59153`.
+[Causa, corrección y reportes](../validation/2026-11-07-c2-wsl.md).
+CI remoto y aceptación humana pendientes; C1 R5 sigue instalado. Sin push.
 
 ## Estado posterior confirmado: C1 R5 instalado; C2 en trabajo
 

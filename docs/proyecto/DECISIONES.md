@@ -1,5 +1,15 @@
 # Decisiones vigentes
 
+## 7 de noviembre de 2026 — C2 validado localmente
+
+El usuario limita esta continuación a WSL y SQL Server sintético. El gate
+completo de `5e7d8e836f0951aefc613e0363d740b26ec59153` pasa F13 43/43 y
+F14 3/3, con limpieza verificada. La corrección espera el login administrativo
+real en el helper, sin modificar producto ni autorización. Se conserva el pin
+del wrapper anterior; nuevos gates usan SHA limpio y salida externa nueva.
+[Causa y evidencia](../validation/2026-11-07-c2-wsl.md). CI remoto y aceptación
+humana pendientes; no instalar C2 ni publicar GitHub. El corte 4–5 sigue abajo.
+
 C2, 4–5 de noviembre: entrega sólo tests/runners/CI/docs sobre R5 instalado.
 43 escenarios HTTP/SQL y tres navegador real compilados/colectados; ejecución
 pendiente por Docker/SQL Server ausentes. Ocho guardas .NET y cinco Python

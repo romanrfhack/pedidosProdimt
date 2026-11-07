@@ -1,5 +1,26 @@
 # Bitácora de trabajo
 
+## 7 de noviembre de 2026 — C2, gate WSL completo correcto
+
+Se abrió el intento más reciente del usuario, `20261107T014943Z`, fuente
+`4867c0be…`: F13 43/43 y F14 2/3. Primer fallo en `browser.log`: GET reparto
+200 esperado/403 recibido. El helper confundía el botón Salir de la sesión de
+cliente con el final del login administrativo. Se espera POST200 y salida del
+formulario; no se cambia autorización ni aplicación. El runner muestra causa/ruta
+y elimina contraseñas sintéticas de diagnósticos, incluido Markdown.
+
+Fuente corregida probada **`5e7d8e836f0951aefc613e0363d740b26ec59153`**,
+HEAD limpio antes/después, Node24.22.2/.NET10.0.114/Docker Linux/SQL2022:
+**F13 43/43 y F14 3/3**, SQL independiente correcto, cero omisiones/inestables/
+retries. Dos bases UUID y contenedor propio eliminados, `cleanupVerified=true`,
+`recoveryPending=false`; hashes correctos y archivos privados ausentes. Seis
+guardas Python y typecheck correctos. Elevación autorizada resolvió el acceso al
+socket Docker desde Codex. [Reportes y diagnóstico](../validation/2026-11-07-c2-wsl.md).
+Documentación posterior separada del SHA probado; entrega local sin push ni VPS.
+CI remoto, análisis global y aceptación humana pendientes. Graphify no disponible.
+
+Los apartados siguientes conservan sus fechas y resultados anteriores.
+
 C2, 4–5 de noviembre: entrega sólo tests/runners/CI/docs sobre R5 instalado.
 43 escenarios HTTP/SQL y tres navegador real compilados/colectados; ejecución
 pendiente por Docker/SQL Server ausentes. Ocho guardas .NET y cinco Python
