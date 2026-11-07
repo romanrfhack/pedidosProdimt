@@ -226,7 +226,10 @@ test('preparar reparto distingue falta de conductores, ruta, vuelta y asignacion
   });
   const driver = state.dashboard.drivers[0];
   state.dashboard.drivers = []; state.dashboard.routes = []; state.dashboard.trips = [];
-  await login(page); await expect(page.getByTestId('delivery-page')).toBeVisible();
+  await login(page);
+  await expect(page).toHaveURL('/admin/catalogos');
+  await navigation(page).getByRole('link', { name: 'Reparto', exact: true }).click();
+  await expect(page.getByTestId('delivery-page')).toBeVisible();
   const checklist = page.getByTestId('delivery-setup-checklist');
   await expect(checklist).toBeVisible();
   for (const part of ['drivers', 'routes', 'trips', 'assignments']) {

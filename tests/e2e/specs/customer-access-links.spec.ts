@@ -267,7 +267,9 @@ for (const viewport of [
 
 test('captura administrativa usa próxima fecha del servidor y revalida corte conservando cantidades', async ({ page }) => {
   let date = '2026-11-01';
-  await page.route(metadataUrl, route => route.fulfill({ json: { deliveryDate: date, serverNow: '2026-10-31T19:00:00-06:00' } }));
+  let serverNow = '2026-11-01T17:59:00-06:00';
+  await page.clock.setFixedTime(new Date(serverNow));
+  await page.route(metadataUrl, route => route.fulfill({ json: { deliveryDate: date, serverNow } }));
   await page.goto('/admin/login'); await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByTestId('admin-today')).toBeVisible(); await page.goto('/admin/clientes-pendientes');
   await expect(page.getByLabel('Fecha de servicio')).toHaveValue(date);
@@ -279,8 +281,9 @@ test('captura administrativa usa próxima fecha del servidor y revalida corte co
     attempts.push(route.request().postDataJSON());
     if (attempts.length === 1) {
       date = '2026-11-02';
+      serverNow = '2026-11-01T18:00:00-06:00';
       await route.fulfill({ status: 409, json: { code: 'DeliveryDateChanged', deliveryDate: date,
-        serverNow: '2026-11-01T18:00:00-06:00', error: 'Cambió la fecha de entrega. Confirma de nuevo.' } });
+        serverNow, error: 'Cambió la fecha de entrega. Confirma de nuevo.' } });
     } else await route.fulfill({ json: { order: { orderId: 'order-demo' }, replayed: false } });
   });
   await page.getByRole('button', { name: 'Guardar pedido' }).click();
@@ -289,5 +292,6 @@ test('captura administrativa usa próxima fecha del servidor y revalida corte co
   expect(attempts[0]).toMatchObject({ serviceDate: '2026-11-01', autoDeliveryDate: true, expectedDeliveryDate: '2026-11-01' });
   await page.getByRole('button', { name: 'Guardar pedido' }).click();
   await expect(page.getByText('Pedido capturado por administracion.')).toBeVisible();
-  expect(attempts[1]).toMatchObject({ serviceDate: '2026-11-02', autoDeliveryDate: true, expectedDeliveryDate: '2026-11-02' });
+  expect(attempts[1]).toMatchObject({ serviceDate: '2026-11-02', autoDeliveryDate: true, expectedDeliveryDate: '2026-11-02',
+    lines: [{ quantity: 8 }] });
 });
