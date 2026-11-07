@@ -234,6 +234,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0 # Read the reviewed historical package fixtures.
       - name: Verify VPS inventory and isolated Nginx publication guards
         run: python3 -m unittest discover -s tests/pilot -v
       - name: Exercise configuration files extracted with private permissions

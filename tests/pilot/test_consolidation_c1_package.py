@@ -345,18 +345,25 @@ class ConsolidationC1PackageTests(unittest.TestCase):
                     builder.validate_source('a' * 40)
 
     def test_source_bundle_is_a_real_recoverable_exact_revision(self):
-        source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-        raw = builder.source_bundle(source)
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            repository = root / 'repository'
+            subprocess.run(['git', 'init', '--quiet', '--initial-branch', builder.SOURCE_BRANCH, str(repository)],
+                           check=True, capture_output=True)
+            subprocess.run(['git', '-c', 'user.name=PRODIMT Tests', '-c', 'user.email=tests@example.invalid',
+                            '-c', 'commit.gpgsign=false', 'commit', '--quiet', '--allow-empty', '-m', 'Fixture source'],
+                           cwd=repository, check=True, capture_output=True)
+            source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repository, text=True).strip()
+            with patch.object(builder, 'ROOT', repository):
+                raw = builder.source_bundle(source)
+                with self.assertRaisesRegex(ValueError, 'bundle_source_not_current'):
+                    builder.source_bundle('0' * 40)
             bundle = root / 'source.bundle'
             bundle.write_bytes(raw)
             subprocess.run(['git', 'clone', '--quiet', '--branch', builder.SOURCE_BRANCH, str(bundle), str(root / 'recovered')],
                            check=True, capture_output=True)
             head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root / 'recovered', text=True).strip()
             self.assertEqual(head, source)
-        with self.assertRaisesRegex(ValueError, 'bundle_source_not_current'):
-            builder.source_bundle('0' * 40)
 
 
 if __name__ == '__main__':
