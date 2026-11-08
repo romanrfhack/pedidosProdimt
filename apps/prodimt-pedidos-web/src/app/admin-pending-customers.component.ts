@@ -2,7 +2,7 @@ import { businessDateToday, unitLabel } from './operational-labels';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EMPTY, forkJoin, Subscription, of, switchMap } from 'rxjs';
+import { EMPTY, forkJoin, Observable, Subscription, of, switchMap } from 'rxjs';
 import { AdminCatalogApiService, AdminCustomerOrderingProfileApiResponse } from './admin-catalog-api.service';
 import { AdminOrderCaptureComponent } from './admin-order-capture.component';
 import { EffectivePermissionsService } from './effective-permissions.service';
@@ -25,6 +25,7 @@ export class AdminPendingCustomersComponent {
   private captureGeneration = 0;
 
   private pendingCustomers: PendingCustomerOrder[] = [];
+  private upcomingCaptureDate: string | null = null;
   protected includeRestCustomers = false;
   private listGeneration = 0;
   protected template: AdminOrderTemplate | null = null;
@@ -45,11 +46,15 @@ export class AdminPendingCustomersComponent {
   }
 
   protected isToday(): boolean { return this.serviceDate === businessDateToday(); }
-  protected canCaptureDate(): boolean { return this.isToday() || this.access.isSystemAdministrator(); }
+  protected canMarkNoOrderDate(): boolean { return this.isToday() || this.access.isSystemAdministrator(); }
+  protected canCaptureDate(): boolean {
+    return this.canMarkNoOrderDate() || (this.automaticDeliveryDate && this.serviceDate === this.upcomingCaptureDate);
+  }
 
   protected changeDate(): void {
     this.listGeneration++;
     this.automaticDeliveryDate = false;
+    this.upcomingCaptureDate = null;
     this.cancelCapture();
     this.pendingCustomers = [];
     this.errorMessage = null;
@@ -104,7 +109,7 @@ export class AdminPendingCustomersComponent {
   }
 
   protected markNoOrder(customer: PendingCustomerOrder): void {
-    if (!this.canCaptureDate() || this.submittingCustomerId || this.loadingCustomerId) return;
+    if (!this.canMarkNoOrderDate() || this.submittingCustomerId || this.loadingCustomerId) return;
     this.errorMessage = null;
     this.resultMessage = null;
     this.submittingCustomerId = customer.id;
@@ -147,15 +152,19 @@ export class AdminPendingCustomersComponent {
     const generation=++this.listGeneration;
     let date=this.serviceDate;
     this.errorMessage=null;
+    this.upcomingCaptureDate = null;
     if (showLoading) {
       this.isLoading = true;
     }
 
-    (this.automaticDeliveryDate ? this.catalog.getNextDeliveryDate() : of({ deliveryDate: this.serviceDate })).pipe(
+    const deliveryDate$: Observable<{ deliveryDate: string; canCaptureUpcomingDate?: boolean }> =
+      this.automaticDeliveryDate ? this.catalog.getNextDeliveryDate() : of({ deliveryDate: this.serviceDate });
+    deliveryDate$.pipe(
       switchMap(metadata => {
         if (generation !== this.listGeneration) return EMPTY;
         date = metadata.deliveryDate;
         this.serviceDate = date;
+        this.upcomingCaptureDate = metadata.canCaptureUpcomingDate ? date : null;
         return this.data.loadPendingCustomers(date);
       })
     ).subscribe({

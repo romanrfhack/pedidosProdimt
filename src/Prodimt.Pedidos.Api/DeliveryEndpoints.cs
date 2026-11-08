@@ -17,6 +17,14 @@ public static class DeliveryEndpoints
             => OwnAsync(context, security, false, async _ => Results.Ok(await service.DashboardAsync(date, null, Actor(context.User), false, ct))));
         own.MapGet("/trips/{id:guid}", (Guid id, HttpContext context, DeliveryManagementService service, SecurityService security, CancellationToken ct)
             => OwnAsync(context, security, false, async _ => Results.Ok(await service.TripAsync(id, Actor(context.User), false, ct))));
+        own.MapPost("/prepare", (PrepareDeliveryRequest request, HttpContext context, DeliveryManagementService service, SecurityService security, CancellationToken ct)
+            => OwnAsync(context, security, true, async _ => Results.Ok(await service.PrepareAsync(request, Actor(context.User), false, ct))));
+        own.MapPost("/trips/{id:guid}/planned-count", (Guid id, CountPlannedDeliveryLineRequest request, HttpContext context,
+            DeliveryManagementService service, SecurityService security, CancellationToken ct)
+            => OwnAsync(context, security, true, async _ => Results.Ok(await service.CountPlannedAsync(id, request, Actor(context.User), false, ct))));
+        own.MapPost("/trips/{id:guid}/depart", (Guid id, DepartDeliveryTripRequest request, HttpContext context,
+            DeliveryManagementService service, SecurityService security, CancellationToken ct)
+            => OwnAsync(context, security, true, async _ => Results.Ok(await service.DepartAsync(id, request, Actor(context.User), false, ct))));
         foreach (var stage in new[] { "count", "load", "deliver", "return" })
             own.MapPost("/assignments/{id:guid}/" + stage, (Guid id, RecordDeliveryStageRequest request, HttpContext context,
                 DeliveryManagementService service, SecurityService security, CancellationToken ct)
@@ -30,14 +38,22 @@ public static class DeliveryEndpoints
             => ExecuteAsync(async () => Results.Ok(await service.DashboardAsync(date, routeCode, Actor(user), true, ct))));
         admin.MapGet("/trips/{id:guid}", (Guid id, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.TripAsync(id, Actor(user), true, ct))));
+        admin.MapPost("/prepare", (PrepareDeliveryRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
+            => ExecuteAsync(async () => Results.Ok(await service.PrepareAsync(request, Actor(user), true, ct))));
         admin.MapPost("/routes", (SaveDeliveryRouteRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.SaveRouteAsync(request, Actor(user), ct))));
+        admin.MapPost("/routes/day-driver", (SaveDeliveryDayDriverRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
+            => ExecuteAsync(async () => Results.Ok(await service.SaveDayDriverAsync(request, Actor(user), ct))));
         admin.MapPut("/customers/{customerId:guid}/location", (Guid customerId, SaveDeliveryLocationRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.SaveLocationAsync(customerId, request, Actor(user), ct))));
         admin.MapPost("/trips", (CreateDeliveryTripRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.CreateTripAsync(request, Actor(user), ct))));
         admin.MapPost("/trips/{id:guid}/assignments", (Guid id, AssignDeliveryLineRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.AssignAsync(id, request, Actor(user), ct))));
+        admin.MapPost("/trips/{id:guid}/planned-count", (Guid id, CountPlannedDeliveryLineRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
+            => ExecuteAsync(async () => Results.Ok(await service.CountPlannedAsync(id, request, Actor(user), true, ct))));
+        admin.MapPost("/trips/{id:guid}/depart", (Guid id, DepartDeliveryTripRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
+            => ExecuteAsync(async () => Results.Ok(await service.DepartAsync(id, request, Actor(user), true, ct))));
         foreach (var stage in new[] { "count", "load", "deliver", "return" })
             admin.MapPost("/assignments/{id:guid}/" + stage, (Guid id, RecordDeliveryStageRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
                 => ExecuteAsync(async () => Results.Ok(await service.RecordAsync(id, stage, request, Actor(user), true, ct))));

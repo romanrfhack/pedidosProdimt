@@ -20,6 +20,98 @@ public sealed class DeliveryManagementServiceTests
     private static readonly CancellationToken Ct = default;
 
     [Fact]
+    public async Task ReadyOrderPreparesOneFirstTripAndExposesUnreservedStopsOnlyToItsDriver()
+    {
+        await using var f = await Fixture.CreateAsync(createTrip: false);
+        var route = await f.Db.DeliveryRoutes.SingleAsync(Ct);
+        route.IsActive = false;
+        await f.Db.SaveChangesAsync(Ct);
+        await f.Service.PrepareForOrderAsync(f.Order.Id, Ct);
+        Assert.Empty(await f.Db.DeliveryTrips.ToArrayAsync(Ct));
+
+        route = await f.Db.DeliveryRoutes.SingleAsync(Ct);
+        route.IsActive = true;
+        await f.Db.SaveChangesAsync(Ct);
+        var before = await f.Service.DashboardAsync(f.Date, null, f.DriverActor, false, Ct);
+        Assert.True(before.CanPrepare);
+        Assert.Empty(before.Trips);
+        Assert.Empty(await f.Db.DeliveryTrips.ToArrayAsync(Ct));
+
+        await f.Service.PrepareForOrderAsync(f.Order.Id, Ct);
+        await using var retryDb = f.NewContext();
+        await f.NewService(retryDb).PrepareForOrderAsync(f.Order.Id, Ct);
+
+        var prepared = await f.Service.DashboardAsync(f.Date, null, f.DriverActor, false, Ct);
+        Assert.False(prepared.CanPrepare);
+        var trip = Assert.Single(prepared.Trips);
+        Assert.Equal(1, trip.TripNumber);
+        Assert.Equal(f.Driver.Id, trip.DriverUserId);
+        Assert.Equal(f.Order.Id, Assert.Single(trip.PlannedOrders!).OrderId);
+        Assert.Equal(2, Assert.Single(trip.PlannedOrders!).Lines.Count);
+        Assert.Empty(trip.Assignments);
+        Assert.Empty(await f.Db.DeliveryAssignments.ToArrayAsync(Ct));
+        Assert.Empty((await f.Service.DashboardAsync(f.Date, null, f.OtherActor, false, Ct)).Trips);
+    }
+
+    [Fact]
+    public async Task PlannedCountKeepsTwentyRequestedAndLeavesEightForAnExplicitSecondTrip()
+    {
+        await using var f = await Fixture.CreateAsync(kgQuantity: 20);
+        var trip = await f.TripAsync();
+        var count = new CountPlannedDeliveryLineRequest(Guid.NewGuid(), f.Order.Id, f.KgLine.Id,
+            f.Order.Version, trip.Version, 12, "Producción parcial");
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            f.Service.CountPlannedAsync(f.TripId, count, f.OtherActor, false, Ct));
+        var counted = await f.Service.CountPlannedAsync(f.TripId, count, f.DriverActor, false, Ct);
+        var replay = await f.Service.CountPlannedAsync(f.TripId, count, f.DriverActor, false, Ct);
+        Assert.True(replay.Replayed);
+        Assert.Equal(counted.Id, replay.Id);
+        await f.StageAsync(counted.Id, "load", 12);
+
+        await f.Service.PrepareForOrderAsync(f.Order.Id, Ct);
+        trip = await f.TripAsync();
+        Assert.DoesNotContain(Assert.Single(trip.PlannedOrders!).Lines, x => x.OrderLineId == f.KgLine.Id);
+        Assert.Equal(8, (await f.OrderLineAsync(f.KgLine.Id)).AvailableQuantity);
+        await f.Service.DepartAsync(f.TripId, new(Guid.NewGuid(), trip.Version), f.DriverActor, false, Ct);
+        trip = await f.TripAsync();
+        Assert.NotNull(trip.DepartedAt);
+        Assert.Empty(trip.PlannedOrders ?? []);
+        Assert.Equal(20, Assert.Single(trip.Assignments).RequestedQuantity);
+        Assert.Equal(12, Assert.Single(trip.Assignments).CustodyQuantity);
+
+        var second = await f.CreateTripAsync(2, f.OtherDriver.Id);
+        await f.AssignAsync(second, f.KgLine.Id, 8);
+        Assert.Equal(0, (await f.OrderLineAsync(f.KgLine.Id)).AvailableQuantity);
+        Assert.Equal(12, (await f.AssignmentAsync(counted.Id)).CustodyQuantity);
+    }
+
+    [Fact]
+    public async Task DayDriverChangesFirstTripOwnershipAndKeepsHabitualDriverForOtherDates()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var trip = await f.TripAsync();
+        var request = new SaveDeliveryDayDriverRequest(Guid.NewGuid(), f.Date, "R-ONE", f.OtherDriver.Id,
+            0, trip.Version, "Sustitución del día");
+        await f.Service.SaveDayDriverAsync(request, f.ManagerActor, Ct);
+        Assert.Empty((await f.Service.DashboardAsync(f.Date, null, f.DriverActor, false, Ct)).Trips);
+        var reassigned = Assert.Single((await f.Service.DashboardAsync(f.Date, null, f.OtherActor, false, Ct)).Trips);
+        Assert.Equal(f.TripId, reassigned.Id);
+        Assert.Equal(f.Order.Id, Assert.Single(reassigned.PlannedOrders!).OrderId);
+        var today = Assert.Single((await f.Service.DashboardAsync(f.Date, null, f.ManagerActor, true, Ct)).Routes);
+        var tomorrow = Assert.Single((await f.Service.DashboardAsync(f.Date.AddDays(1), null, f.ManagerActor, true, Ct)).Routes);
+        Assert.Equal(f.Driver.Id, today.DefaultDriverUserId);
+        Assert.Equal(f.OtherDriver.Id, today.DayDriverUserId);
+        Assert.Null(tomorrow.DayDriverUserId);
+
+        await f.Service.DepartAsync(reassigned.Id, new(Guid.NewGuid(), reassigned.Version), f.OtherActor, false, Ct);
+        var departed = await f.TripAsync();
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() => f.Service.SaveDayDriverAsync(
+            request with { OperationId = Guid.NewGuid(), DriverUserId = null, ExpectedVersion = today.DayDriverVersion,
+                ExpectedTripVersion = departed.Version }, f.ManagerActor, Ct));
+        Assert.Equal(f.OtherDriver.Id, (await f.TripAsync()).DriverUserId);
+    }
+
+    [Fact]
     public async Task RouteAndCustomerEditorsShareAssignmentAndRejectStaleEditsWithoutChangingOrders()
     {
         await using var f = await Fixture.CreateAsync();
@@ -664,7 +756,7 @@ public sealed class DeliveryManagementServiceTests
             await StageAsync(id, "load", quantity);
             return id;
         }
-        public static async Task<Fixture> CreateAsync()
+        public static async Task<Fixture> CreateAsync(bool createTrip = true, decimal kgQuantity = 50)
         {
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
@@ -680,7 +772,7 @@ public sealed class DeliveryManagementServiceTests
             var channel = new SalesChannel { Id = Guid.NewGuid(), Name = "Prueba", Type = SalesChannelType.AdminManualCapture };
             var order = Order.CreateSubmitted(customer.Id, channel.Id, clock.Today, clock.Now, 1,
                 new(false, false, null, OrderStatus.Submitted),
-                [new OrderLine { Id = Guid.NewGuid(), ProductId = kg.Id, ProductNameSnapshot = kg.Name, UnitCode = "kg", Quantity = 50 },
+                [new OrderLine { Id = Guid.NewGuid(), ProductId = kg.Id, ProductNameSnapshot = kg.Name, UnitCode = "kg", Quantity = kgQuantity },
                  new OrderLine { Id = Guid.NewGuid(), ProductId = packages.Id, ProductNameSnapshot = packages.Name, UnitCode = "package", Quantity = 2 }], customer);
             var driver = AdminUser.Create("driver-one", "Repartidor uno", "fictitious-hash", clock.Now);
             var other = AdminUser.Create("driver-two", "Repartidor dos", "fictitious-hash", clock.Now);
@@ -692,7 +784,7 @@ public sealed class DeliveryManagementServiceTests
             await db.SaveChangesAsync(); db.ChangeTracker.Clear();
             var fixture = new Fixture(connection, db, kg, packages, order, driver, other, manager, failure);
             await fixture.Service.SaveRouteAsync(new(Guid.NewGuid(), "R-ONE", "Ruta de prueba", driver.Id), fixture.ManagerActor, Ct);
-            fixture.TripId = await fixture.CreateTripAsync(1);
+            if (createTrip) fixture.TripId = await fixture.CreateTripAsync(1);
             return fixture;
         }
         public async ValueTask DisposeAsync() { await Db.DisposeAsync(); await connection.DisposeAsync(); }

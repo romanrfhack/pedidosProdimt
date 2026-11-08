@@ -37,7 +37,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
             var date = request.AutoDeliveryDate
                 ? DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received)
                 : request.ServiceDate ?? received.Today;
-            ServiceDatePolicy.RequireWriteDate(date, received.Today, actor);
+            ServiceDatePolicy.RequireCaptureDate(date, received, actor, request.AutoDeliveryDate);
             var (customer, profile) = await ReadProfileAsync(customerId, token);
             return Preview(customer, profile, request.Text, date);
         }, cancellationToken);
@@ -71,7 +71,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
             token => customers.ExecuteOrderingProfileUpdateAsync(async inner =>
             {
                 if (request.AutoDeliveryDate) DeliveryDatePolicy.RequireExpectedDate(request.ExpectedDeliveryDate, received);
-                ServiceDatePolicy.RequireWriteDate(date, received.Today, actor);
+                ServiceDatePolicy.RequireCaptureDate(date, received, actor, request.AutoDeliveryDate);
                 var (customer, profile) = await ReadProfileAsync(customerId, inner);
                 if (profile.OrderingProfileVersion != request.ExpectedProfileVersion)
                     throw new CatalogConflictException("El perfil del cliente cambió. Actualiza la configuración y revisa el desglose antes de guardar.");
@@ -113,7 +113,7 @@ public sealed class AdminOrderCaptureService(ICustomerRepository customers, IOrd
                     null, null, null, request.DeliveryNotes, request.InternalNotes, date), actor, inner,
                     receivedClock: received,
                     unconfiguredProductIds: resolved.Where(x => !profile.Items.Any(p => p.ProductId == x.ProductId)).Select(x => x.ProductId).ToHashSet(),
-                    confirmSeparateDelivery: request.ConfirmSeparateDelivery);
+                    confirmSeparateDelivery: request.ConfirmSeparateDelivery, automaticDeliveryDate: request.AutoDeliveryDate);
                 var order = await orders.GetByIdAsync(result.OrderId, inner)
                     ?? throw new InvalidOperationException("No se pudo verificar el pedido guardado.");
                 await audit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.AdminOrderCaptureResolved,

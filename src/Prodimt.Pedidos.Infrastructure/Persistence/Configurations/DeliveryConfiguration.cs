@@ -13,6 +13,18 @@ public sealed class DeliveryRouteConfiguration : IEntityTypeConfiguration<Delive
         b.HasOne<AdminUser>().WithMany().HasForeignKey(x => x.DefaultDriverUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+public sealed class DeliveryRouteDayDriverConfiguration : IEntityTypeConfiguration<DeliveryRouteDayDriver>
+{
+    public void Configure(EntityTypeBuilder<DeliveryRouteDayDriver> b)
+    {
+        b.ToTable("DeliveryRouteDayDrivers");
+        b.HasKey(x => new { x.Date, x.RouteCode });
+        b.Property(x => x.RouteCode).HasMaxLength(80).IsRequired();
+        b.Property(x => x.Version).IsConcurrencyToken();
+        b.HasOne<DeliveryRoute>().WithMany().HasForeignKey(x => x.RouteCode).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<AdminUser>().WithMany().HasForeignKey(x => x.DriverUserId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
 public sealed class CustomerDeliveryLocationConfiguration : IEntityTypeConfiguration<CustomerDeliveryLocation>
 {
     public void Configure(EntityTypeBuilder<CustomerDeliveryLocation> b)

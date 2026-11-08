@@ -1,5 +1,13 @@
 # Bitácora de trabajo
 
+## 8 de noviembre de 2026 — Primera vuelta automática
+
+Se conectó la preparación de la primera vuelta con las altas de pedidos, el portal, la aceptación administrativa y las importaciones. El pedido se confirma primero. Si falta una ruta o un chofer habilitado, el pedido queda disponible para Producción según su estado y la preparación se puede reintentar desde Reparto. El conteo convierte la parada planeada en una asignación transaccional. El caso de 20 kg contados y cargados por 12 deja 8 kg disponibles para una segunda vuelta explícita.
+
+El responsable de reparto puede registrar una suplencia con motivo para la ruta y fecha. El registro de salida fija el límite para incorporar paradas nuevas. La migración 20 agrega los datos operativos y las pruebas de C2 verifican el permiso efectivo de la tabla de suplencias. Se agregó cobertura para el reintento de preparación, la propiedad de la vuelta, el conteo parcial y la fecha automática de Mostrador.
+
+Validación local con 515 pruebas .NET, 49 de componentes Angular, compilación de producción y tipado E2E. El modelo de EF coincide con la migración y se generó el SQL idempotente 19→20. Compilaron las suites SQL Server y C2. La ejecución con SQL Server y la aceptación en navegador quedan para WSL. Chromium se detuvo al iniciar en este entorno por la restricción de sockets Unix.
+
 ## 7 de noviembre de 2026 — C2, gate WSL completo correcto
 
 Se abrió el intento más reciente del usuario, `20261107T014943Z`, fuente

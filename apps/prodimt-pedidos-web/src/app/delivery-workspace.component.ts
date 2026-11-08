@@ -2,16 +2,17 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, catchError, of, switchMap } from 'rxjs';
 import { DeliveryApiService, DeliveryAssignment, DeliveryDashboard, DeliveryInstructions, DeliveryLine, DeliveryOrder,
   DeliveryPendingCommand, DeliveryRoute, DeliveryTrip, safeDeliveryMapsUrl } from './delivery-api.service';
 import { AuthService } from './auth.service';
 import { EffectivePermissionsService } from './effective-permissions.service';
-import { paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
+import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
 import { AdminOrderingSchedulesComponent } from './admin-ordering-schedules.component';
 import { DeliveryRouteCustomersComponent } from './delivery-route-customers.component';
 
-type EditorKind = 'count' | 'load' | 'deliver' | 'return' | 'route' | 'trip' | 'assign' | 'location' | 'close' | 'transfer' | 'adjust' | 'release' | 'instructions';
+type EditorKind = 'count' | 'planned-count' | 'load' | 'deliver' | 'return' | 'route' | 'day-driver' | 'trip'
+  | 'assign' | 'location' | 'depart' | 'close' | 'transfer' | 'adjust' | 'release' | 'instructions';
 interface DeliveryEditor {
   kind: EditorKind; title: string; operationId: string; assignment: DeliveryAssignment | null;
   order: DeliveryOrder | null; line: DeliveryLine | null; route: DeliveryRoute | null;
@@ -21,7 +22,10 @@ interface DeliveryEditor {
   acknowledgeOrderChange: boolean; isActive: boolean; error: string | null; conflict: boolean;
   locked: boolean; command: DeliveryPendingCommand | null;
 }
-interface DeliveryStop { orderId: string; customerName: string; position: number | null; assignments: DeliveryAssignment[]; }
+interface DeliveryStop {
+  orderId: string; customerName: string; position: number | null;
+  reference: DeliveryOrder | DeliveryAssignment; assignments: DeliveryAssignment[]; plannedOrder: DeliveryOrder | null;
+}
 
 @Component({
   selector: 'app-delivery-workspace', imports: [FormsModule, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent],
@@ -52,6 +56,7 @@ export class DeliveryWorkspaceComponent {
   protected saving = false;
   protected error: string | null = null;
   protected success: string | null = null;
+  protected preparationWarning: string | null = null;
   protected editor: DeliveryEditor | null = null;
   protected recovery: DeliveryPendingCommand | null = null;
   protected get routeSettingsBusy(): boolean { return !!(this.routeSchedule?.isSaving || this.routeCustomers?.isSaving); }
@@ -77,14 +82,34 @@ export class DeliveryWorkspaceComponent {
     return !this.editor || window.confirm('Hay una captura de reparto sin guardar. ¿Descartar el borrador y salir?');
   }
 
-  protected load(preserveStop = false): void {
+  protected load(preserveStop = false, prepare = !preserveStop): void {
     if (this.loading || this.saving) return;
     this.loading = true; this.error = null;
+    if (prepare) this.preparationWarning = null;
     this.read?.unsubscribe();
-    this.read = this.api.getDashboard(this.date || null, this.management).subscribe({
+    this.read = this.api.getDashboard(this.date || null, this.management).pipe(
+      switchMap(board => {
+        if (!prepare || this.recovery || this.editor || !board.canPrepare || !this.canManageTrip) return of(board);
+        const operationId = crypto.randomUUID();
+        return this.api.execute({
+          operationId, path: this.deliveryPath + '/prepare', method: 'POST',
+          body: { operationId, date: board.date }, title: 'Preparar primera vuelta',
+          management: this.management, tripId: null, summary: board.date
+        }).pipe(
+          switchMap(() => this.api.getDashboard(board.date, this.management)),
+          catchError(() => {
+            this.preparationWarning = 'No se pudo comprobar la preparación automática. Vuelve a consultar para reintentar.';
+            return of(board);
+          })
+        );
+      })
+    ).subscribe({
       next: value => {
         this.dashboard = value; this.date = value.date;
-        if (!value.trips.some(trip => trip.id === this.selectedTripId)) this.selectedTripId = value.trips[0]?.id ?? '';
+        if (!value.trips.some(trip => trip.id === this.selectedTripId)) {
+          const populated = value.trips.find(trip => trip.plannedOrders?.length || trip.assignments.some(line => line.status !== 'Released'));
+          this.selectedTripId = populated?.id ?? value.trips[0]?.id ?? '';
+        }
         if (!preserveStop) this.selectedStopId = null;
         this.loading = false; this.detector.detectChanges();
       },
@@ -95,24 +120,73 @@ export class DeliveryWorkspaceComponent {
   protected today(): void { if (this.editor || this.recovery || this.loading) return; this.date = ''; this.load(); }
 
   protected get trip(): DeliveryTrip | null { return this.dashboard?.trips.find(trip => trip.id === this.selectedTripId) ?? null; }
+  private get deliveryPath(): string { return this.management ? '/api/admin/delivery' : '/api/delivery'; }
+  private get canManageTrip(): boolean { return this.access.has(this.management ? 'delivery.manage' : 'delivery.operate.own'); }
   protected get stops(): DeliveryStop[] {
     const grouped = new Map<string, DeliveryStop>();
     for (const assignment of this.trip?.assignments ?? []) {
-      const stop = grouped.get(assignment.orderId) ?? { orderId: assignment.orderId, customerName: assignment.customerName, position: assignment.routeStopOrder, assignments: [] };
+      const stop = grouped.get(assignment.orderId) ?? {
+        orderId: assignment.orderId, customerName: assignment.customerName, position: assignment.routeStopOrder,
+        reference: assignment, assignments: [], plannedOrder: null
+      };
       stop.assignments.push(assignment); grouped.set(stop.orderId, stop);
+    }
+    for (const order of this.trip?.plannedOrders ?? []) {
+      const stop = grouped.get(order.orderId) ?? {
+        orderId: order.orderId, customerName: order.customerName, position: order.routeStopOrder,
+        reference: order, assignments: [], plannedOrder: null
+      };
+      stop.plannedOrder = order;
+      grouped.set(stop.orderId, stop);
     }
     return [...grouped.values()].sort((a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) || a.customerName.localeCompare(b.customerName, 'es'));
   }
   protected get selectedStop(): DeliveryStop | null { return this.stops.find(stop => stop.orderId === this.selectedStopId) ?? null; }
   protected get visibleStops(): DeliveryStop[] { return this.selectedStop ? [this.selectedStop] : this.stops; }
-  protected get pendingOrders(): DeliveryOrder[] { return (this.dashboard?.orders ?? []).filter(order => order.lines.some(line => line.availableQuantity > 0)); }
+  protected get pendingOrders(): DeliveryOrder[] {
+    const plannedLines = new Set((this.dashboard?.trips ?? []).flatMap(trip =>
+      (trip.plannedOrders ?? []).flatMap(order => order.lines.map(line => line.orderLineId))));
+    return (this.dashboard?.orders ?? []).flatMap(order => {
+      const lines = order.lines.filter(line => !plannedLines.has(line.orderLineId));
+      return lines.some(line => line.availableQuantity > 0) ? [{ ...order, lines }] : [];
+    });
+  }
   protected get routeCodes(): string[] { return [...new Set([...(this.dashboard?.routes.map(route => route.code) ?? []), ...(this.dashboard?.orders.map(order => order.routeCode).filter((code): code is string => !!code) ?? [])])].sort(); }
   protected get closed(): boolean { return !!this.trip?.closedAt || this.trip?.status.toLowerCase() === 'closed'; }
-  protected get canOperate(): boolean { return (this.management ? this.access.has('delivery.manage') : this.access.has('delivery.operate.own')) && !this.closed && !this.recovery; }
+  protected get canOperate(): boolean { return this.canManageTrip && !this.closed && !this.recovery; }
+  protected get canDepart(): boolean {
+    return !!this.dashboard?.operationalDate && this.canOperate && this.trip?.departedAt === null
+      && this.trip.date === businessDateToday();
+  }
+  protected get departureBlocked(): boolean {
+    return this.trip?.assignments.some(line =>
+      line.assignedQuantity - line.releasedQuantity > line.deliveredQuantity + line.custodyQuantity) ?? false;
+  }
   protected get eventList() { return [...(this.trip?.events ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)); }
   protected get completedStops(): number { return this.stops.filter(stop => stop.assignments[0]?.orderIsComplete === true).length; }
   protected selectTrip(): void { this.selectedStopId = null; this.showHistory = false; }
   protected quantity(value: number | null): string { return value === null ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 }).format(value); }
+  protected tripLabel(trip: DeliveryTrip): string {
+    return `${trip.routeName} · Vuelta ${trip.tripNumber} · ${trip.driverName} · ${trip.routeCode}`;
+  }
+  protected loadsForLine(line: DeliveryLine): { id: string; driverName: string; tripNumber: number; quantity: number }[] {
+    return (this.dashboard?.trips ?? []).flatMap(trip => trip.assignments
+      .filter(assignment => assignment.orderLineId === line.orderLineId && (assignment.loadedQuantity ?? 0) > 0)
+      .map(assignment => ({ id: assignment.id, driverName: trip.driverName, tripNumber: trip.tripNumber, quantity: assignment.loadedQuantity! })));
+  }
+  private firstTripFor(route: DeliveryRoute): DeliveryTrip | undefined {
+    return this.dashboard?.trips.find(trip => trip.routeCode === route.code && trip.tripNumber === 1);
+  }
+  protected canSetDayDriver(route: DeliveryRoute): boolean {
+    return !!this.dashboard?.operationalDate && route.isActive && route.dayDriverVersion !== undefined
+      && this.firstTripFor(route)?.canChangeDriver !== false;
+  }
+  protected get dayDriverLabel(): string {
+    return this.dashboard?.date === businessDateToday() ? 'Cambiar chofer por hoy' : 'Cambiar chofer para esta fecha';
+  }
+  protected dayDriverName(route: DeliveryRoute): string | null {
+    return this.dashboard?.drivers.find(driver => driver.id === route.dayDriverUserId)?.displayName ?? null;
+  }
   protected time(value: string | null): string { return value?.slice(0, 5) || ''; }
   protected schedule(value: DeliveryInstructions): string {
     if (value.requestedDeliveryWindowStart && value.requestedDeliveryWindowEnd) return `${this.time(value.requestedDeliveryWindowStart)} – ${this.time(value.requestedDeliveryWindowEnd)}`;
@@ -135,16 +209,21 @@ export class DeliveryWorkspaceComponent {
   protected hasFailedAttempt(assignment: DeliveryAssignment): boolean {
     return this.eventList.some(event => event.assignmentId === assignment.id && (event.type === 'Delivered' || event.type === 'deliver') && event.quantity === 0);
   }
-  protected orderForStop(stop: DeliveryStop): DeliveryOrder | null { return this.dashboard?.orders.find(order => order.orderId === stop.orderId) ?? null; }
+  protected orderForStop(stop: DeliveryStop): DeliveryOrder | null {
+    return this.dashboard?.orders.find(order => order.orderId === stop.orderId) ?? stop.plannedOrder;
+  }
   protected hasOtherPendingLines(stop: DeliveryStop): boolean {
-    return this.orderForStop(stop)?.lines.some(line => line.requestedQuantity > line.deliveredQuantity && !stop.assignments.some(assignment => assignment.orderLineId === line.orderLineId)) ?? false;
+    return this.orderForStop(stop)?.lines.some(line => line.requestedQuantity > line.deliveredQuantity
+      && !stop.assignments.some(assignment => assignment.orderLineId === line.orderLineId)
+      && !stop.plannedOrder?.lines.some(planned => planned.orderLineId === line.orderLineId)) ?? false;
   }
   protected stopStatus(stop: DeliveryStop): string {
-    if (stop.assignments.every(line => line.deliveredQuantity === 0 && this.hasFailedAttempt(line))) return 'No entregado';
+    if (!stop.assignments.length) return 'Por preparar';
+    if (!stop.plannedOrder && stop.assignments.every(line => line.deliveredQuantity === 0 && this.hasFailedAttempt(line))) return 'No entregado';
     if (stop.assignments.some(line => line.status === 'Incident')) return 'Incidencia por aclarar';
     if (stop.assignments[0]?.orderIsComplete === true) return 'Entregado completo';
-    if (stop.assignments.every(line => line.status === 'Released')) return stop.assignments.some(line => line.transferredOutQuantity > 0) ? 'Carga transferida' : 'Reserva liberada';
-    if (stop.assignments.some(line => line.deliveredQuantity > 0) && stop.assignments.every(line => line.deliveredQuantity >= line.assignedQuantity - line.releasedQuantity)) return 'Mi parte entregada; pedido con pendientes';
+    if (!stop.plannedOrder && stop.assignments.every(line => line.status === 'Released')) return stop.assignments.some(line => line.transferredOutQuantity > 0) ? 'Carga transferida' : 'Reserva liberada';
+    if (!stop.plannedOrder && stop.assignments.some(line => line.deliveredQuantity > 0) && stop.assignments.every(line => line.deliveredQuantity >= line.assignedQuantity - line.releasedQuantity)) return 'Mi parte entregada; pedido con pendientes';
     if (stop.assignments.some(line => line.deliveredQuantity > 0)) return 'Entrega parcial';
     if (stop.assignments.some(line => line.custodyQuantity > 0)) return 'En camioneta';
     return 'En preparación';
@@ -156,19 +235,28 @@ export class DeliveryWorkspaceComponent {
       Adjusted: 'Corrección registrada', DeliveredAdjusted: 'Entrega acumulada corregida', InstructionsUpdated: 'Indicaciones de entrega actualizadas', CountAdjusted: 'Conteo corregido', LoadAdjusted: 'Carga corregida',
       ReservationReleased: 'Reserva liberada', UnloadedReservationReleased: 'Reserva sin cargar liberada',
       RemainsInVehicle: 'Producto permanece en camioneta', IncidentUnresolved: 'Incidencia por aclarar', OrderChangeAcknowledged: 'Cambio del pedido revisado',
-      Closed: 'Vuelta cerrada', TripClosed: 'Vuelta cerrada', TripCreated: 'Vuelta creada', RouteSaved: 'Ruta actualizada' } as Record<string, string>)[type] || type;
+      Closed: 'Vuelta cerrada', TripClosed: 'Vuelta cerrada', TripCreated: 'Vuelta creada', RouteSaved: 'Ruta actualizada',
+      TripDeparted: 'Salida confirmada', TripDriverChanged: 'Repartidor de la vuelta actualizado' } as Record<string, string>)[type] || type;
   }
   protected get targetTrips(): DeliveryTrip[] {
     const editor = this.editor;
     return (this.dashboard?.trips ?? []).filter(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed'
+      && (editor?.kind !== 'assign' || this.acceptsAssignment(trip, editor.line))
       && (editor?.kind !== 'transfer' || trip.id !== this.trip?.id && trip.driverUserId !== this.trip?.driverUserId && trip.routeCode.toUpperCase() === this.trip?.routeCode.toUpperCase())
       && (!editor?.order?.routeCode || trip.routeCode.toUpperCase() === editor.order.routeCode.toUpperCase()));
   }
   protected get activeRoutes(): DeliveryRoute[] { return (this.dashboard?.routes ?? []).filter(route => route.isActive); }
   protected get openTripsCount(): number { return (this.dashboard?.trips ?? []).filter(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed').length; }
   protected get assignedLineCount(): number { return (this.dashboard?.trips ?? []).reduce((total, trip) => total + trip.assignments.filter(line => line.status !== 'Released').length, 0); }
-  protected hasAssignmentTarget(order: DeliveryOrder): boolean {
-    return !!order.routeCode && (this.dashboard?.trips ?? []).some(trip => !trip.closedAt && trip.status.toLowerCase() !== 'closed' && trip.routeCode.toUpperCase() === order.routeCode?.toUpperCase());
+  protected hasAssignmentTarget(order: DeliveryOrder, line?: DeliveryLine): boolean {
+    const lines = line ? [line] : order.lines.filter(item => item.availableQuantity > 0);
+    return !!order.routeCode && (this.dashboard?.trips ?? []).some(trip => !trip.closedAt
+      && trip.status.toLowerCase() !== 'closed' && trip.routeCode.toUpperCase() === order.routeCode?.toUpperCase()
+      && lines.some(item => this.acceptsAssignment(trip, item)));
+  }
+  private acceptsAssignment(trip: DeliveryTrip, line: DeliveryLine | null): boolean {
+    return !trip.departedAt && !(trip.tripNumber === 1 && line && trip.assignments.some(item =>
+      item.orderLineId === line.orderLineId && item.countedQuantity !== null && item.releasedQuantity > 0));
   }
   protected get quantityLimit(): number {
     const assignment = this.editor?.assignment;
@@ -187,22 +275,30 @@ export class DeliveryWorkspaceComponent {
       default: return 0;
     }
   }
-  protected get hasDifference(): boolean { return !!this.editor && ['count', 'load', 'deliver'].includes(this.editor.kind) && this.editor.quantity !== null && this.editor.quantity !== this.expectedQuantity; }
+  protected get hasDifference(): boolean { return !!this.editor && ['count', 'planned-count', 'load', 'deliver'].includes(this.editor.kind) && this.editor.quantity !== null && this.editor.quantity !== this.expectedQuantity; }
   protected get deliveryRemainder(): number { return this.editor?.kind === 'deliver' && this.editor.quantity !== null ? Math.max(0, this.expectedQuantity - this.editor.quantity) : 0; }
-  protected get reasonRequired(): boolean { return this.hasDifference || !!this.editor && ['return', 'adjust', 'transfer', 'release', 'instructions'].includes(this.editor.kind); }
-  protected get quantityRequired(): boolean { return !!this.editor && ['count', 'load', 'deliver', 'return', 'assign', 'transfer', 'adjust'].includes(this.editor.kind); }
+  protected get reasonRequired(): boolean { return this.hasDifference || !!this.editor && ['return', 'adjust', 'transfer', 'release', 'instructions', 'day-driver'].includes(this.editor.kind); }
+  protected get quantityRequired(): boolean { return !!this.editor && ['count', 'planned-count', 'load', 'deliver', 'return', 'assign', 'transfer', 'adjust'].includes(this.editor.kind); }
   protected get quantityUnit(): string { return unitLabel(this.editor?.assignment?.unitCode ?? this.editor?.line?.unitCode); }
   protected get submitLabel(): string {
-    return ({ count: 'Guardar conteo', load: 'Confirmar carga', deliver: 'Guardar entrega', return: 'Guardar devolución', route: 'Guardar ruta', trip: 'Crear vuelta',
-      assign: 'Confirmar asignación', location: 'Guardar ubicación', close: 'Cerrar vuelta', transfer: 'Confirmar transferencia', adjust: 'Guardar corrección', release: 'Liberar reserva', instructions: 'Actualizar indicaciones' } as Record<string, string>)[this.editor?.kind || ''] || 'Guardar';
+    return ({ count: 'Guardar conteo', 'planned-count': 'Guardar conteo', load: 'Confirmar carga', deliver: 'Guardar entrega',
+      return: 'Guardar devolución', route: 'Guardar ruta', 'day-driver': 'Guardar chofer del día', trip: 'Crear vuelta',
+      assign: 'Confirmar asignación', location: 'Guardar ubicación', depart: 'Confirmar salida', close: 'Cerrar vuelta',
+      transfer: 'Confirmar transferencia', adjust: 'Guardar corrección', release: 'Liberar reserva', instructions: 'Actualizar indicaciones'
+    } as Record<string, string>)[this.editor?.kind || ''] || 'Guardar';
   }
 
   protected open(kind: EditorKind, assignment: DeliveryAssignment | null = null, order: DeliveryOrder | null = null, line: DeliveryLine | null = null, route: DeliveryRoute | null = null): void {
     if (this.saving || this.editor || this.recovery || this.loading) return;
-    const titles: Record<EditorKind, string> = { count: 'Registrar conteo', load: 'Confirmar carga', deliver: 'Registrar entrega', return: 'Registrar devolución', route: route ? 'Editar ruta' : 'Nueva ruta', trip: 'Nueva vuelta', assign: 'Asignar a vuelta', location: 'Ubicación del cliente', close: 'Cerrar vuelta', transfer: 'Transferir carga', adjust: 'Corregir un registro de reparto', release: 'Liberar reserva', instructions: 'Actualizar indicaciones de entrega' };
+    const titles: Record<EditorKind, string> = { count: 'Registrar conteo', 'planned-count': 'Registrar conteo', load: 'Confirmar carga',
+      deliver: 'Registrar entrega', return: 'Registrar devolución', route: route ? 'Editar ruta' : 'Nueva ruta',
+      'day-driver': this.dayDriverLabel, trip: 'Nueva vuelta', assign: 'Asignar a vuelta', location: 'Ubicación del cliente',
+      depart: 'Iniciar recorrido', close: 'Cerrar vuelta', transfer: 'Transferir carga', adjust: 'Corregir un registro de reparto',
+      release: 'Liberar reserva', instructions: 'Actualizar indicaciones de entrega' };
     this.editor = { kind, title: titles[kind], operationId: crypto.randomUUID(), assignment, order, line, route, quantity: null,
       reason: '', notes: '', remainderDisposition: '', routeCode: route?.code ?? this.routeCodes[0] ?? '', routeName: route?.name ?? '',
-      driverUserId: route?.defaultDriverUserId ?? '', tripNumber: 1, targetTripId: '', mapsUrl: order?.mapsUrl ?? '', address: order?.address ?? '',
+      driverUserId: (kind === 'day-driver' ? route?.dayDriverUserId : route?.defaultDriverUserId) ?? '',
+      tripNumber: 1, targetTripId: '', mapsUrl: order?.mapsUrl ?? '', address: order?.address ?? '',
       adjustStage: assignment && assignment.transferredInQuantity > 0 ? 'deliver' : assignment?.loadedQuantity === null ? 'count' : 'load', acknowledgeOrderChange: false, isActive: route?.isActive ?? true, error: null, conflict: false, locked: false, command: null };
     if (this.quantityRequired) this.editor.quantity = Math.min(this.expectedQuantity, this.quantityLimit);
     this.editor.targetTripId = this.targetTrips.find(trip => trip.id === this.selectedTripId)?.id ?? this.targetTrips[0]?.id ?? '';
@@ -213,7 +309,8 @@ export class DeliveryWorkspaceComponent {
   protected routeChanged(): void {
     const editor = this.editor;
     if (!editor || editor.kind !== 'trip') return;
-    editor.driverUserId = this.dashboard?.routes.find(route => route.code === editor.routeCode)?.defaultDriverUserId ?? '';
+    const route = this.dashboard?.routes.find(route => route.code === editor.routeCode);
+    editor.driverUserId = route?.dayDriverUserId ?? route?.defaultDriverUserId ?? '';
     editor.tripNumber = Math.max(0, ...(this.dashboard?.trips.filter(trip => trip.routeCode === editor.routeCode).map(trip => trip.tripNumber) ?? [])) + 1;
   }
   protected closeEditor(event?: Event): void {
@@ -243,19 +340,31 @@ export class DeliveryWorkspaceComponent {
     if (this.quantityRequired && (editor.quantity === null || !Number.isFinite(editor.quantity) || editor.quantity < 0)) { editor.error = 'Captura una cantidad válida, igual o mayor que cero.'; return null; }
     if (this.quantityRequired && !['adjust'].includes(editor.kind) && editor.quantity! > this.quantityLimit) { editor.error = 'La cantidad supera lo disponible para esta operación. Actualiza los datos o registra una corrección con el responsable.'; return null; }
     if (editor.kind === 'return' && editor.quantity === 0) { editor.error = 'La devolución requiere una cantidad mayor que cero.'; return null; }
-    if (this.reasonRequired && !editor.reason.trim()) { editor.error = 'Captura el motivo de la diferencia.'; return null; }
+    if (this.reasonRequired && !editor.reason.trim()) {
+      editor.error = editor.kind === 'day-driver' ? 'Indica el motivo del cambio de chofer.' : 'Captura el motivo de la diferencia.';
+      return null;
+    }
     if (this.deliveryRemainder > 0 && !editor.remainderDisposition) { editor.error = 'Indica dónde quedó el producto cargado que no se entregó.'; return null; }
     if (editor.assignment?.hasOrderChanges && ['count', 'load', 'deliver', 'return'].includes(editor.kind) && !editor.acknowledgeOrderChange) { editor.error = 'Revisa y reconoce los cambios del pedido antes de continuar.'; return null; }
     const trip = this.trip;
     let path = '', method: 'POST' | 'PUT' = 'POST', fields: Record<string, unknown> = {};
     const assignment = editor.assignment;
     if (['count', 'load', 'deliver', 'return'].includes(editor.kind) && assignment) {
-      path = `${this.management ? '/api/admin/delivery' : '/api/delivery'}/assignments/${assignment.id}/${editor.kind}`;
+      path = `${this.deliveryPath}/assignments/${assignment.id}/${editor.kind}`;
       fields = { expectedVersion: assignment.version, expectedOrderVersion: assignment.currentOrderVersion, quantity: editor.quantity,
         reason: editor.reason.trim() || null, notes: editor.notes.trim() || null, remainderDisposition: editor.remainderDisposition || null, acknowledgeOrderChange: editor.acknowledgeOrderChange };
+    } else if (editor.kind === 'planned-count' && trip && editor.order && editor.line) {
+      path = `${this.deliveryPath}/trips/${trip.id}/planned-count`;
+      fields = { orderId: editor.order.orderId, orderLineId: editor.line.orderLineId, expectedOrderVersion: editor.order.orderVersion,
+        expectedTripVersion: trip.version, quantity: editor.quantity, reason: editor.reason.trim() || null, notes: editor.notes.trim() || null };
     } else if (editor.kind === 'route') {
       if (!editor.routeCode.trim() || !editor.routeName.trim()) { editor.error = 'Indica el código y el nombre de la ruta.'; return null; }
       path = '/api/admin/delivery/routes'; fields = { code: editor.routeCode.trim(), name: editor.routeName.trim(), defaultDriverUserId: editor.driverUserId || null, expectedVersion: editor.route?.version ?? null, isActive: editor.isActive };
+    } else if (editor.kind === 'day-driver' && editor.route && this.dashboard) {
+      path = '/api/admin/delivery/routes/day-driver';
+      fields = { date: this.dashboard.date, routeCode: editor.route.code, driverUserId: editor.driverUserId || null,
+        expectedVersion: editor.route.dayDriverVersion ?? 0, expectedTripVersion: this.firstTripFor(editor.route)?.version ?? null,
+        reason: editor.reason.trim() };
     } else if (editor.kind === 'trip') {
       if (!editor.routeCode || !Number.isInteger(editor.tripNumber) || editor.tripNumber! < 1) { editor.error = 'Selecciona una ruta y un número de vuelta válido.'; return null; }
       path = '/api/admin/delivery/trips'; fields = { date: this.dashboard?.date ?? this.date, routeCode: editor.routeCode, tripNumber: editor.tripNumber, driverUserId: editor.driverUserId || null, reason: editor.reason.trim() || null };
@@ -267,8 +376,10 @@ export class DeliveryWorkspaceComponent {
       if (editor.mapsUrl.trim() && !safeDeliveryMapsUrl(editor.mapsUrl.trim())) { editor.error = 'Usa un enlace HTTPS de Google Maps válido.'; return null; }
       method = 'PUT'; path = `/api/admin/delivery/customers/${editor.order.customerId}/location`;
       fields = { mapsUrl: editor.mapsUrl.trim() || null, address: editor.address.trim() || null, expectedVersion: editor.order.locationVersion };
+    } else if (editor.kind === 'depart' && trip) {
+      path = `${this.deliveryPath}/trips/${trip.id}/depart`; fields = { expectedVersion: trip.version };
     } else if (editor.kind === 'close' && trip) {
-      path = `${this.management ? '/api/admin/delivery' : '/api/delivery'}/trips/${trip.id}/close`; fields = { expectedVersion: trip.version, notes: editor.notes.trim() || null };
+      path = `${this.deliveryPath}/trips/${trip.id}/close`; fields = { expectedVersion: trip.version, notes: editor.notes.trim() || null };
     } else if (editor.kind === 'transfer' && assignment) {
       const target = this.dashboard?.trips.find(item => item.id === editor.targetTripId);
       if (!target || editor.quantity! <= 0) { editor.error = 'Selecciona otra vuelta abierta y una cantidad mayor que cero.'; return null; }
@@ -281,7 +392,10 @@ export class DeliveryWorkspaceComponent {
       path = `/api/admin/delivery/assignments/${assignment.id}/release`; fields = { expectedVersion: assignment.version, reason: editor.reason.trim() };
     } else { editor.error = 'No se pudo preparar la operación. Actualiza el reparto.'; return null; }
     return { operationId: editor.operationId, path, method, body: { operationId: editor.operationId, ...fields }, title: editor.title,
-      management: this.management, tripId: trip?.id ?? null, summary: [this.dashboard?.date, trip ? `${trip.routeName} · Vuelta ${trip.tripNumber}` : null, assignment?.customerName ?? editor.order?.customerName ?? editor.routeName, assignment?.productName ?? editor.line?.productName, this.quantityRequired ? `${this.quantity(editor.quantity)} ${this.quantityUnit}` : ''].filter(Boolean).join(' · ') };
+      management: this.management, tripId: trip?.id ?? null, summary: [this.dashboard?.date,
+        trip && editor.kind !== 'day-driver' ? this.tripLabel(trip) : null,
+        assignment?.customerName ?? editor.order?.customerName ?? editor.routeName, assignment?.productName ?? editor.line?.productName,
+        this.quantityRequired ? `${this.quantity(editor.quantity)} ${this.quantityUnit}` : ''].filter(Boolean).join(' · ') };
   }
 
   private execute(command: DeliveryPendingCommand): void {
@@ -296,7 +410,8 @@ export class DeliveryWorkspaceComponent {
         this.api.clear(user); this.recovery = null; this.saving = false;
         this.dialog?.nativeElement.close(); this.editor = null;
         this.success = result.replayed ? 'Operación recuperada sin duplicar registros.' : 'Registro guardado. La hora y el responsable quedaron en la bitácora.';
-        this.load(true); this.detector.detectChanges();
+        this.load(true, command.path === '/api/admin/delivery/routes' || command.path === '/api/admin/delivery/routes/day-driver');
+        this.detector.detectChanges();
       },
       error: error => {
         this.saving = false;
@@ -326,9 +441,12 @@ export class DeliveryWorkspaceComponent {
           editor.assignment = assignment;
         }
         if (editor.order) {
-          const order = value.orders.find(item => item.orderId === editor.order?.orderId);
+          const orders = editor.kind === 'planned-count' ? this.trip?.plannedOrders ?? [] : value.orders;
+          const order = orders.find(item => item.orderId === editor.order?.orderId);
           if (!order) { editor.error = 'El pedido ya no está disponible para esta operación. Revisa con el responsable.'; this.detector.detectChanges(); return; }
-          editor.order = order; editor.line = order.lines.find(line => line.orderLineId === editor.line?.orderLineId) ?? null;
+          const line = order.lines.find(item => item.orderLineId === editor.line?.orderLineId) ?? null;
+          if (editor.line && !line) { editor.error = 'La partida ya no está disponible en esta vuelta.'; this.detector.detectChanges(); return; }
+          editor.order = order; editor.line = line;
         }
         if (editor.route) editor.route = value.routes.find(route => route.code === editor.route?.code) ?? editor.route;
         editor.conflict = false; editor.acknowledgeOrderChange = false;

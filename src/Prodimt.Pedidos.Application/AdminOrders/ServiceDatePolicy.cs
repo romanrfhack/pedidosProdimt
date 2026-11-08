@@ -1,4 +1,5 @@
 using Prodimt.Pedidos.Application.Abstractions;
+using Prodimt.Pedidos.Application.CustomerOrders;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Domain.Services;
 
@@ -12,6 +13,13 @@ internal static class ServiceDatePolicy
             throw new UnauthorizedAccessException("Solo el Administrador del sistema puede registrar o modificar pedidos de otras fechas.");
     }
 
+    public static void RequireCaptureDate(DateOnly date, IDateTimeProvider received, AdminActorContext? actor,
+        bool automaticDeliveryDate)
+    {
+        if (automaticDeliveryDate && DeliveryDatePolicy.CanCaptureUpcomingDate(date, received)) return;
+        RequireWriteDate(date, received.Today, actor);
+    }
+
     public static void RequireCorrectionAccess(AdminActorContext? actor)
     {
         if (actor?.IsSystemAdministrator != true)
@@ -22,10 +30,10 @@ internal static class ServiceDatePolicy
         => EvaluateAtDate(date, clock.Today, clock.LocalTimeOfDay, hasActiveOrder);
 
     public static OrderSubmissionEvaluation EvaluateForAdminWrite(DateOnly date, IDateTimeProvider clock, bool hasActiveOrder,
-        AdminActorContext? actor, TimeOnly? sameDayCutoff = null)
+        AdminActorContext? actor, TimeOnly? sameDayCutoff = null, bool automaticDeliveryDate = false)
     {
         var today = clock.Today;
-        RequireWriteDate(date, today, actor);
+        RequireCaptureDate(date, clock, actor, automaticDeliveryDate);
         // An authorized backfill records a completed service day.
         if (date < today) return new(false, false, null, OrderStatus.Accepted);
         if (date == today && sameDayCutoff is { } cutoff)

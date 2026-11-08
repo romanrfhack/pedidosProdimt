@@ -2,8 +2,9 @@ namespace Prodimt.Pedidos.Application.Delivery;
 
 public sealed record DeliveryDashboardResponse(DateOnly Date, IReadOnlyList<DeliveryRouteResponse> Routes,
     IReadOnlyList<DeliveryDriverResponse> Drivers, IReadOnlyList<DeliveryTripResponse> Trips,
-    IReadOnlyList<DeliveryOrderResponse> Orders);
-public sealed record DeliveryRouteResponse(string Code, string Name, Guid? DefaultDriverUserId, bool IsActive, int Version);
+    IReadOnlyList<DeliveryOrderResponse> Orders, bool CanPrepare = false, bool OperationalDate = false);
+public sealed record DeliveryRouteResponse(string Code, string Name, Guid? DefaultDriverUserId, bool IsActive, int Version,
+    Guid? DayDriverUserId = null, int DayDriverVersion = 0);
 public sealed record DeliveryDriverResponse(Guid Id, string DisplayName, string UserName);
 public sealed record DeliveryOrderResponse(Guid OrderId, Guid CustomerId, string CustomerName, int SequenceNumber,
     string? RouteCode, int? RouteStopOrder, int OrderVersion, string? MapsUrl, string? Address,
@@ -15,7 +16,8 @@ public sealed record DeliveryOrderLineResponse(Guid OrderLineId, Guid ProductId,
 public sealed record DeliveryTripResponse(Guid Id, DateOnly Date, string RouteCode, string RouteName,
     int TripNumber, Guid DriverUserId, string DriverName, string Status, int Version,
     DateTimeOffset CreatedAt, DateTimeOffset? ClosedAt, IReadOnlyList<DeliveryAssignmentResponse> Assignments,
-    IReadOnlyList<DeliveryEventResponse> Events);
+    IReadOnlyList<DeliveryEventResponse> Events, DateTimeOffset? DepartedAt = null,
+    IReadOnlyList<DeliveryOrderResponse>? PlannedOrders = null, bool CanChangeDriver = false);
 public sealed record DeliveryAssignmentResponse(Guid Id, Guid OrderId, Guid OrderLineId, Guid CustomerId,
     string CustomerName, int SequenceNumber, int? RouteStopOrder, string ProductName, string UnitCode,
     decimal RequestedQuantity, decimal AssignedQuantity, decimal ReleasedQuantity, decimal? CountedQuantity,
@@ -33,6 +35,12 @@ public sealed record SaveDeliveryRouteRequest(Guid OperationId, string Code, str
 public sealed record SaveDeliveryLocationRequest(Guid OperationId, string? MapsUrl, string? Address, int ExpectedVersion = 0);
 public sealed record CreateDeliveryTripRequest(Guid OperationId, DateOnly Date, string RouteCode, int TripNumber,
     Guid? DriverUserId = null, string? Reason = null);
+public sealed record PrepareDeliveryRequest(Guid OperationId, DateOnly Date);
+public sealed record SaveDeliveryDayDriverRequest(Guid OperationId, DateOnly Date, string RouteCode, Guid? DriverUserId,
+    int ExpectedVersion, int? ExpectedTripVersion, string Reason);
+public sealed record CountPlannedDeliveryLineRequest(Guid OperationId, Guid OrderId, Guid OrderLineId,
+    int ExpectedOrderVersion, int ExpectedTripVersion, decimal Quantity, string? Reason = null, string? Notes = null);
+public sealed record DepartDeliveryTripRequest(Guid OperationId, int ExpectedVersion);
 public sealed record AssignDeliveryLineRequest(Guid OperationId, Guid OrderId, Guid OrderLineId, decimal Quantity,
     int ExpectedTripVersion, int ExpectedOrderVersion);
 public sealed record RecordDeliveryStageRequest(Guid OperationId, int ExpectedVersion, int ExpectedOrderVersion,

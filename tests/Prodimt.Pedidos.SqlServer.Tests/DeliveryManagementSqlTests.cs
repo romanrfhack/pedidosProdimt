@@ -19,6 +19,48 @@ public sealed class DeliveryManagementSqlTests(SqlServerFixture database)
     private static readonly DateOnly ServiceDate = new(2026, 10, 24);
 
     [Fact]
+    public async Task ConcurrentPreparationAndCountingUseOneTripAndOneReservation()
+    {
+        var scene = await SeedAsync();
+        await using var firstHost = database.CreateFactory();
+        await using var secondHost = database.CreateFactory();
+        using var first = await DriverClientAsync(firstHost, scene.DriverUserName);
+        using var second = await DriverClientAsync(secondHost, scene.DriverUserName);
+
+        async Task<HttpStatusCode[]> Race<T>(string path, Func<T> request)
+        {
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            async Task<HttpStatusCode> Send(HttpClient client)
+            {
+                await start.Task;
+                using var response = await client.PostAsJsonAsync(path, request());
+                return response.StatusCode;
+            }
+            var firstWrite = Send(first);
+            var secondWrite = Send(second);
+            start.SetResult();
+            return await Task.WhenAll(firstWrite, secondWrite);
+        }
+
+        var prepared = await Race(OwnBase + "/prepare", () => new PrepareDeliveryRequest(Guid.NewGuid(), ServiceDate));
+        Assert.Contains(HttpStatusCode.OK, prepared);
+        Assert.All(prepared, code => Assert.True(code is HttpStatusCode.OK or HttpStatusCode.Conflict, code.ToString()));
+        var dashboard = await first.GetFromJsonAsync<DeliveryDashboardResponse>(OwnBase + $"?date={ServiceDate:yyyy-MM-dd}");
+        var trip = Assert.Single(dashboard!.Trips);
+        var order = Assert.Single(trip.PlannedOrders!);
+        var counted = await Race(OwnBase + $"/trips/{trip.Id}/planned-count", () => new CountPlannedDeliveryLineRequest(
+            Guid.NewGuid(), scene.OrderId, scene.LineId, order.OrderVersion, trip.Version, 6, "Conteo parcial"));
+        Assert.Single(counted, x => x == HttpStatusCode.OK);
+        Assert.Single(counted, x => x == HttpStatusCode.Conflict);
+        await using var check = database.CreateDbContext();
+        Assert.Single(await check.DeliveryTrips.Where(x => x.RouteCode == scene.RouteCode).ToArrayAsync());
+        var assigned = Assert.Single(await check.DeliveryAssignments.Where(x => x.OrderId == scene.OrderId).ToArrayAsync());
+        Assert.Equal(6, assigned.CommitmentQuantity);
+        Assert.Equal(4, assigned.ReleasedQuantity);
+        Assert.Equal(0, assigned.CustodyQuantity);
+    }
+
+    [Fact]
     public async Task IndependentHostsCannotReserveTheSameRemainingDemandTwice()
     {
         var scene = await SeedAsync();

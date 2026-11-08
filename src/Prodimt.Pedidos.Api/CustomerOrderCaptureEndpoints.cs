@@ -12,8 +12,10 @@ public static class CustomerOrderCaptureEndpoints
     {
         endpoints.MapGet("/api/admin/orders/next-delivery-date", (IDateTimeProvider clock) =>
         {
-            var now = clock.Now;
-            return Results.Ok(new { deliveryDate = DeliveryDatePolicy.GetDate(now), serverNow = now });
+            var received = DeliveryDatePolicy.Capture(clock);
+            var deliveryDate = DeliveryDatePolicy.GetDate(received);
+            return Results.Ok(new { deliveryDate, serverNow = received.Now,
+                canCaptureUpcomingDate = DeliveryDatePolicy.CanCaptureUpcomingDate(deliveryDate, received) });
         }).RequireAuthorization("AdminAccess");
 
         var group = endpoints.MapGroup("/api/customer-orders/{customerId:guid}").RequireAuthorization("CustomerAccess");
@@ -23,8 +25,14 @@ public static class CustomerOrderCaptureEndpoints
             CustomerOrderCaptureService service, CancellationToken token) =>
             await ExecuteAsync(user, customerId, async () => Results.Ok(await service.PreviewAsync(customerId, request, token))));
         group.MapPost("/capture", async (Guid customerId, ClaimsPrincipal user, SubmitCustomerOrderCaptureRequest request,
-            CustomerOrderCaptureService service, CancellationToken token) =>
-            await ExecuteAsync(user, customerId, async () => Results.Ok(await service.SubmitAsync(customerId, request, token, user.HasClaim(CustomerLinkAccessPolicy.RequestOnlyClaim, "true")))));
+            CustomerOrderCaptureService service, OrderDispatchPreparation dispatch, CancellationToken token) =>
+            await ExecuteAsync(user, customerId, async () =>
+            {
+                var result = await service.SubmitAsync(customerId, request, token,
+                    user.HasClaim(CustomerLinkAccessPolicy.RequestOnlyClaim, "true"));
+                await dispatch.AfterSaveAsync(result.Order.OrderId, result.Order.Status, token);
+                return Results.Ok(result);
+            }));
         group.MapPost("/next/no-order", async (Guid customerId, ClaimsPrincipal user, MarkNextCustomerNoOrderRequest request,
             CustomerOrderCaptureService service, CancellationToken token) =>
             await ExecuteAsync(user, customerId, async () => Results.Ok(await service.MarkNoOrderAsync(customerId, request, token))));

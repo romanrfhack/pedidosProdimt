@@ -783,6 +783,31 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("DeliveryRoutes", (string)null);
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryRouteDayDriver", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RouteCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid?>("DriverUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("Date", "RouteCode");
+
+                    b.HasIndex("DriverUserId");
+
+                    b.HasIndex("RouteCode");
+
+                    b.ToTable("DeliveryRouteDayDrivers", (string)null);
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", b =>
                 {
                     b.Property<Guid>("Id")
@@ -797,6 +822,9 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("DepartedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("DriverName")
                         .IsRequired()
@@ -1740,6 +1768,20 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DefaultDriverUserId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryRouteDayDriver", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.DeliveryRoute", null)
+                        .WithMany()
+                        .HasForeignKey("RouteCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.DeliveryTrip", b =>

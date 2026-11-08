@@ -37,6 +37,7 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public DbSet<ProductionAllocation> ProductionAllocations => Set<ProductionAllocation>();
 
     public DbSet<DeliveryRoute> DeliveryRoutes => Set<DeliveryRoute>();
+    public DbSet<DeliveryRouteDayDriver> DeliveryRouteDayDrivers => Set<DeliveryRouteDayDriver>();
     public DbSet<CustomerDeliveryLocation> CustomerDeliveryLocations => Set<CustomerDeliveryLocation>();
     public DbSet<DeliveryTrip> DeliveryTrips => Set<DeliveryTrip>();
     public DbSet<DeliveryAssignment> DeliveryAssignments => Set<DeliveryAssignment>();

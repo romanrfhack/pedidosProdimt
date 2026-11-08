@@ -15,9 +15,17 @@ public static class DailyOrderEndpoints
             await ExecuteAsync(async () => Results.Ok(await service.ValidateAsync(request, token,
                 await SecurityEndpoints.GetOrderActorAsync(user, security, token)))));
         group.MapPost("/apply", async (DailyOrderImportRequest request, ClaimsPrincipal user,
-            AdminDailyOrderService service, SecurityService security, CancellationToken token) =>
-            await ExecuteAsync(async () => Results.Ok(await service.ApplyAsync(request,
-                await SecurityEndpoints.GetOrderActorAsync(user, security, token), token))));
+            AdminDailyOrderService service, SecurityService security, OrderDispatchPreparation dispatch,
+            CancellationToken token) =>
+            await ExecuteAsync(async () =>
+            {
+                var result = await service.ApplyAsync(request,
+                    await SecurityEndpoints.GetOrderActorAsync(user, security, token), token);
+                if (result.Applied)
+                    await dispatch.AfterSaveAsync(result.Orders.Where(row => row.Action == "order" && row.OrderId.HasValue)
+                        .Select(row => row.OrderId!.Value), token);
+                return Results.Ok(result);
+            }));
         endpoints.MapPost("/api/admin/orders/{orderId:guid}/corrections", async (Guid orderId, CorrectOrderRequest request,
             ClaimsPrincipal user, AdminDailyOrderService service, SecurityService security, CancellationToken token) =>
             await ExecuteAsync(async () => Results.Ok(await service.CorrectAsync(orderId, request,

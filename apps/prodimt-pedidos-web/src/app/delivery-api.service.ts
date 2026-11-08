@@ -3,7 +3,10 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../environments/environment';
 
-export interface DeliveryRoute { code: string; name: string; defaultDriverUserId: string | null; isActive: boolean; version: number; }
+export interface DeliveryRoute {
+  code: string; name: string; defaultDriverUserId: string | null; isActive: boolean; version: number;
+  dayDriverUserId?: string | null; dayDriverVersion?: number;
+}
 export interface DeliveryDriver { id: string; displayName: string; userName: string; }
 export interface DeliveryLine {
   orderLineId: string; productId: string; productName: string; unitCode: string | null;
@@ -38,9 +41,11 @@ export interface DeliveryTrip {
   id: string; date: string; routeCode: string; routeName: string; tripNumber: number;
   driverUserId: string; driverName: string; status: string; version: number;
   createdAt: string; closedAt: string | null; assignments: DeliveryAssignment[]; events: DeliveryEvent[];
+  departedAt?: string | null; plannedOrders?: DeliveryOrder[]; canChangeDriver?: boolean;
 }
 export interface DeliveryDashboard {
   date: string; routes: DeliveryRoute[]; drivers: DeliveryDriver[]; trips: DeliveryTrip[]; orders: DeliveryOrder[];
+  canPrepare?: boolean; operationalDate?: boolean;
 }
 export interface DeliveryCommandResult { id: string; version: number | null; replayed: boolean; }
 export interface DeliveryPendingCommand {

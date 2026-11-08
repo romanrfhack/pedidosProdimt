@@ -16,9 +16,15 @@ public static class OrderCaptureEndpoints
             await ExecuteAsync(async () => Results.Ok(await service.PreviewAsync(customerId, request, token,
                 await SecurityEndpoints.GetOrderActorAsync(user, security, token)))));
         group.MapPost("/capture", async (Guid customerId, SubmitOrderCaptureRequest request, ClaimsPrincipal user,
-            AdminOrderCaptureService service, SecurityService security, CancellationToken token) =>
-            await ExecuteAsync(async () => Results.Ok(await service.SubmitAsync(customerId, request,
-                await SecurityEndpoints.GetOrderActorAsync(user, security, token), token))));
+            AdminOrderCaptureService service, SecurityService security, OrderDispatchPreparation dispatch,
+            CancellationToken token) =>
+            await ExecuteAsync(async () =>
+            {
+                var result = await service.SubmitAsync(customerId, request,
+                    await SecurityEndpoints.GetOrderActorAsync(user, security, token), token);
+                await dispatch.AfterSaveAsync(result.Order.OrderId, result.Order.Status, token);
+                return Results.Ok(result);
+            }));
     }
 
     private static async Task<IResult> ExecuteAsync(Func<Task<IResult>> action)

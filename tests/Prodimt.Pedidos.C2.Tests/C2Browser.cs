@@ -14,17 +14,20 @@ public static class C2Browser
         var portal = await db.Seed("Cliente C2 revisión");
         var delivery = await db.Seed("Cliente C2 reparto");
         using var customer = await host.Customer(delivery); using var admin = await host.Admin();
+        await C2Scenarios.Post<DeliveryCommandResponse>(admin, "/api/admin/delivery/routes",
+            new SaveDeliveryRouteRequest(Guid.NewGuid(), delivery.RouteCode, "Ruta C2 sintética", delivery.DriverId));
         var saved = await C2Scenarios.Capture(customer, delivery, C2Scenarios.Request(delivery, await C2Scenarios.Next(customer, delivery)));
         await C2Scenarios.Post<AdminOrderSummaryResponse>(admin, $"/api/admin/orders/{saved.Order.OrderId}/review",
             new ReviewOrderRequest(AdminDecision.Accepted, "Preparación sintética C2", ExpectedVersion: 1));
-        await C2Scenarios.Post<DeliveryCommandResponse>(admin, "/api/admin/delivery/routes",
-            new SaveDeliveryRouteRequest(Guid.NewGuid(), delivery.RouteCode, "Ruta C2 sintética", delivery.DriverId));
-        var trip = await C2Scenarios.Post<DeliveryCommandResponse>(admin, "/api/admin/delivery/trips",
-            new CreateDeliveryTripRequest(Guid.NewGuid(), new(2026, 11, 4), delivery.RouteCode, 1, delivery.DriverId));
         var board = await C2Scenarios.Read<DeliveryDashboardResponse>(admin, "/api/admin/delivery?date=2026-11-04");
+        var trip = Assert.Single(board.Trips, x => x.RouteCode == delivery.RouteCode);
+        Assert.Equal(1, trip.TripNumber);
+        Assert.Equal(delivery.DriverId, trip.DriverUserId);
+        Assert.Empty(trip.Assignments);
+        Assert.Contains(trip.PlannedOrders!, x => x.OrderId == saved.Order.OrderId);
         var order = board.Orders.Single(x => x.OrderId == saved.Order.OrderId);
         var assignment = await C2Scenarios.Post<DeliveryCommandResponse>(admin, $"/api/admin/delivery/trips/{trip.Id}/assignments",
-            new AssignDeliveryLineRequest(Guid.NewGuid(), order.OrderId, Assert.Single(order.Lines).OrderLineId, 25, trip.Version!.Value, order.OrderVersion));
+            new AssignDeliveryLineRequest(Guid.NewGuid(), order.OrderId, Assert.Single(order.Lines).OrderLineId, 25, trip.Version, order.OrderVersion));
         return new(portal, delivery, trip.Id, assignment.Id, order.OrderId);
     }
 

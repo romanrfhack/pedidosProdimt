@@ -10,6 +10,8 @@ public sealed class EfDeliveryRepository(PedidosDbContext db) : IDeliveryReposit
         => await db.DeliveryRoutes.OrderBy(x => x.Code).ToArrayAsync(token);
     public Task<DeliveryRoute?> GetRouteAsync(string code, CancellationToken token)
         => db.DeliveryRoutes.SingleOrDefaultAsync(x => x.Code == code, token);
+    public async Task<IReadOnlyList<DeliveryRouteDayDriver>> GetDayDriversAsync(DateOnly date, CancellationToken token)
+        => await db.DeliveryRouteDayDrivers.Where(x => x.Date == date).ToArrayAsync(token);
     public async Task<IReadOnlyList<AdminUser>> GetDriversAsync(CancellationToken token)
     {
         var permissionIds = db.SecurityPermissions.Where(x => x.IsActive && x.Key == "delivery.operate.own").Select(x => x.Id);
@@ -36,6 +38,8 @@ public sealed class EfDeliveryRepository(PedidosDbContext db) : IDeliveryReposit
         => (await db.DeliveryEvents.AsNoTracking().Where(x => x.TripId == tripId).ToArrayAsync(token))
             .OrderByDescending(x => x.OccurredAt).ThenBy(x => x.Id).ToArray();
     public async Task AddRouteAsync(DeliveryRoute item, CancellationToken token) => await db.DeliveryRoutes.AddAsync(item, token);
+    public async Task AddDayDriverAsync(DeliveryRouteDayDriver item, CancellationToken token)
+        => await db.DeliveryRouteDayDrivers.AddAsync(item, token);
     public async Task AddLocationAsync(CustomerDeliveryLocation item, CancellationToken token) => await db.CustomerDeliveryLocations.AddAsync(item, token);
     public async Task AddTripAsync(DeliveryTrip item, CancellationToken token) => await db.DeliveryTrips.AddAsync(item, token);
     public async Task AddAssignmentAsync(DeliveryAssignment item, CancellationToken token) => await db.DeliveryAssignments.AddAsync(item, token);

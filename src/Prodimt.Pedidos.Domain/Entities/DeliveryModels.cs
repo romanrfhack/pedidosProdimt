@@ -9,6 +9,14 @@ public sealed class DeliveryRoute
     public int Version { get; set; } = 1;
 }
 
+public sealed class DeliveryRouteDayDriver
+{
+    public DateOnly Date { get; set; }
+    public string RouteCode { get; set; } = string.Empty;
+    public Guid? DriverUserId { get; set; }
+    public int Version { get; set; } = 1;
+}
+
 public sealed class CustomerDeliveryLocation
 {
     public Guid CustomerId { get; set; }
@@ -29,6 +37,7 @@ public sealed class DeliveryTrip
     public string Status { get; set; } = "Open";
     public int Version { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? DepartedAt { get; set; }
     public DateTimeOffset? ClosedAt { get; set; }
 }
 

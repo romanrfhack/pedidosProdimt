@@ -40,6 +40,9 @@ public static class DeliveryDatePolicy
     public static DateOnly LocalDate(DateTimeOffset now) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime);
     public static TimeOnly LocalTime(DateTimeOffset now) => TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, BusinessTimeZone).DateTime);
 
+    public static bool CanCaptureUpcomingDate(DateOnly date, IDateTimeProvider received)
+        => date > received.Today && received.LocalTimeOfDay >= Cutoff && date == GetDate(received);
+
     public static DateOnly RequireExpectedDate(DateOnly? expected, IDateTimeProvider clock)
     {
         if (expected is null || expected == DateOnly.MinValue)

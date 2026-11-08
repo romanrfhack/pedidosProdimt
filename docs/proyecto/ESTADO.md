@@ -1,5 +1,13 @@
 # Estado vigente de PRODIMT
 
+## Vuelta inicial automática y suplencia diaria
+
+El release operativo `capture-routes-1b49aaeefebd` confirmó salud y evidencia de instalación el 7 de noviembre. La rama local sobre `0820087` prepara Vuelta 1 al registrar o aceptar un pedido con ruta activa y chofer habilitado para la fecha de servicio operativa. Las paradas se muestran por preparar. Confirmar el conteo genera la reserva y libera las diferencias para otra vuelta. La salida detiene nuevas incorporaciones y el saldo continúa en Pendientes de asignar.
+
+La suplencia se guarda por ruta y fecha. Una Vuelta 1 que aún admite cambio de chofer conserva su identidad y deja el cambio en bitácora. Mostrador puede elegir próxima entrega automática desde las 18:00 de CDMX para la fecha calculada por el servidor.
+
+La migración aditiva `20261108143413_AddDeliveryTripDepartureAndDayDrivers` agrega la hora de salida y la tabla de suplencias. Para la publicación nativa se necesita aplicar 19→20 y verificar los permisos efectivos `1110` (`SELECT`, `INSERT`, `UPDATE` y `DENY DELETE`) sobre `dbo.DeliveryRouteDayDrivers` para `prodimt_pedidos_app`. La validación de SQL Server y la instalación de este incremento son pasos de la siguiente entrega.
+
 C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
 y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.
 Fuente probada `5e7d8e836f0951aefc613e0363d740b26ec59153`.

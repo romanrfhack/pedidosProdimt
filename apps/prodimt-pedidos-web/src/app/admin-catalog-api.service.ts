@@ -195,8 +195,8 @@ export class AdminCatalogApiService {
     return this.http.patch<void>(`${this.apiBaseUrl}/api/admin/customers/${customerId}/phone`, { phoneNumber });
   }
 
-  getNextDeliveryDate(): Observable<{ deliveryDate: string; serverNow: string }> {
-    return this.http.get<{ deliveryDate: string; serverNow: string }>(`${this.apiBaseUrl}/api/admin/orders/next-delivery-date`);
+  getNextDeliveryDate(): Observable<{ deliveryDate: string; serverNow: string; canCaptureUpcomingDate?: boolean }> {
+    return this.http.get<{ deliveryDate: string; serverNow: string; canCaptureUpcomingDate?: boolean }>(`${this.apiBaseUrl}/api/admin/orders/next-delivery-date`);
   }
 
   getCustomerDayStatus(): Observable<CustomerDayResponse> {

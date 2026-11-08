@@ -109,7 +109,7 @@ public sealed class AdminOrderService(
         AdminActorContext? actor,
         CancellationToken cancellationToken,
         IDateTimeProvider? receivedClock = null, IReadOnlySet<Guid>? unconfiguredProductIds = null,
-        bool confirmSeparateDelivery = false)
+        bool confirmSeparateDelivery = false, bool automaticDeliveryDate = false)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -117,7 +117,7 @@ public sealed class AdminOrderService(
         var today = submissionClock.Today;
         OrderNoteLimits.Validate(request.DeliveryNotes, request.InternalNotes);
         var serviceDate = request.ServiceDate ?? today;
-        ServiceDatePolicy.RequireWriteDate(serviceDate, today, actor);
+        ServiceDatePolicy.RequireCaptureDate(serviceDate, submissionClock, actor, automaticDeliveryDate);
         var customer = await GetRequiredActiveCustomerAsync(customerId, cancellationToken);
         var channel = await salesChannels.GetRequiredByTypeAsync(SalesChannelType.AdminManualCapture, cancellationToken);
         var existingCount = await orders.CountCustomerOrdersAsync(customerId, serviceDate, cancellationToken);
@@ -127,7 +127,8 @@ public sealed class AdminOrderService(
         var cutoff = customer.AutomaticConfirmationCutoff ?? OrderSubmissionPolicy.DefaultCutoffTime;
         if (serviceDate == today && scheduling is not null)
             cutoff = (await scheduling.ResolveCutoffAsync(customer, cancellationToken)).Cutoff;
-        var evaluation = ServiceDatePolicy.EvaluateForAdminWrite(serviceDate, submissionClock, hasExistingOrder, actor, cutoff);
+        var evaluation = ServiceDatePolicy.EvaluateForAdminWrite(serviceDate, submissionClock, hasExistingOrder,
+            actor, cutoff, automaticDeliveryDate);
         var lines = await OrderLineFactory.CreateAsync(customerId,
             request.Lines?.Select(x => new OrderLineInput(x.ProductId, x.Quantity, x.Notes)).ToArray(),
             customers, products, machines, cancellationToken, commercial, serviceDate, unconfiguredProductIds);

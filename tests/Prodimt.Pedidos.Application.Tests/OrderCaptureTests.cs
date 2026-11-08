@@ -124,6 +124,26 @@ public sealed class OrderCaptureTests
         Assert.False(historical.Order.IsLate);
     }
 
+    [Fact]
+    public async Task CounterAfterEighteenCanCaptureOnlyTheConfirmedAutomaticNextDate()
+    {
+        await using var f = await Fixture.Create();
+        var counter = new AdminActorContext("counter-test", "Mostrador de prueba");
+        f.BusinessClock.LocalTimeOfDay = new(18, 0);
+        var request = new SubmitOrderCaptureRequest(Guid.NewGuid(), f.Customer.OrderingProfileVersion, f.Day,
+            Lines: [new(f.Products[0].Id, 5, "kg")]);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => f.Service.SubmitAsync(f.Customer.Id, request, counter, Ct));
+        await Assert.ThrowsAsync<DeliveryDateChangedException>(() => f.Service.SubmitAsync(f.Customer.Id,
+            request with { AutoDeliveryDate = true, ExpectedDeliveryDate = f.Day.AddDays(1) }, counter, Ct));
+        var result = await f.Service.SubmitAsync(f.Customer.Id,
+            request with { AutoDeliveryDate = true, ExpectedDeliveryDate = f.Day }, counter, Ct);
+
+        Assert.Equal(f.Day, result.Order.OrderDate);
+        Assert.Equal(OrderStatus.Submitted, result.Order.Status);
+        Assert.False(result.Order.RequiresAdminReview);
+    }
+
     [Theory]
     [InlineData(10, 30, 11, null, false)]
     [InlineData(11, 0, 11, null, true)]

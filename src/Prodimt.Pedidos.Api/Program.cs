@@ -50,6 +50,7 @@ builder.Services.AddScoped<AdminDailyOrderService>();
 builder.Services.AddScoped<AdminOperationsService>();
 builder.Services.AddScoped<ProductionManagementService>();
 builder.Services.AddScoped<Prodimt.Pedidos.Application.Delivery.DeliveryManagementService>();
+builder.Services.AddSingleton<OrderDispatchPreparation>();
 builder.Services.AddScoped<OrderChangeNoticePublisher>();
 builder.Services.AddScoped<OrderChangeNoticeService>();
 builder.Services.AddScoped<AdminCustomerCatalogService>();
@@ -348,6 +349,7 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
     ClaimsPrincipal user,
     SubmitCustomerOrderRequest request,
     CustomerOrderService service,
+    OrderDispatchPreparation dispatch,
     CancellationToken cancellationToken) =>
 {
     var authorizationFailure = ValidateCustomerAccess(user, customerId);
@@ -358,7 +360,9 @@ customerOrders.MapPost("/{customerId:guid}/submit", async (
 
     try
     {
-        return Results.Ok(await service.SubmitAsync(customerId, request, cancellationToken));
+        var order = await service.SubmitAsync(customerId, request, cancellationToken);
+        await dispatch.AfterSaveAsync(order.OrderId, order.Status, cancellationToken);
+        return Results.Ok(order);
     }
     catch (CustomerOrderConflictException ex)
     {
@@ -462,12 +466,15 @@ adminOrders.MapPost("/{orderId:guid}/review", async (
     ClaimsPrincipal user,
     AdminOrderService service,
     SecurityService security,
+    OrderDispatchPreparation dispatch,
     CancellationToken cancellationToken) =>
 {
     try
     {
         var actor = await SecurityEndpoints.GetOrderActorAsync(user, security, cancellationToken);
-        return Results.Ok(await service.ReviewAsync(orderId, request, cancellationToken, actor));
+        var order = await service.ReviewAsync(orderId, request, cancellationToken, actor);
+        await dispatch.AfterSaveAsync(order.OrderId, order.Status, cancellationToken);
+        return Results.Ok(order);
     }
     catch (UnauthorizedAccessException ex)
     {
@@ -796,12 +803,15 @@ adminCustomers.MapPost("/{customerId:guid}/orders/submit", async (
     ClaimsPrincipal user,
     AdminOrderService service,
     SecurityService security,
+    OrderDispatchPreparation dispatch,
     CancellationToken cancellationToken) =>
 {
     try
     {
         var actor = await SecurityEndpoints.GetOrderActorAsync(user, security, cancellationToken);
-        return Results.Ok(await service.SubmitCustomerOrderAsync(customerId, request, actor, cancellationToken));
+        var order = await service.SubmitCustomerOrderAsync(customerId, request, actor, cancellationToken);
+        await dispatch.AfterSaveAsync(order.OrderId, order.Status, cancellationToken);
+        return Results.Ok(order);
     }
     catch (UnauthorizedAccessException ex)
     {
