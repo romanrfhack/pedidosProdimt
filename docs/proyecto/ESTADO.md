@@ -8,6 +8,8 @@ La suplencia se guarda por ruta y fecha. Una Vuelta 1 que aún admite cambio de 
 
 La migración aditiva `20261108143413_AddDeliveryTripDepartureAndDayDrivers` agrega la hora de salida y la tabla de suplencias. Para la publicación nativa se necesita aplicar 19→20 y verificar los permisos efectivos `1110` (`SELECT`, `INSERT`, `UPDATE` y `DENY DELETE`) sobre `dbo.DeliveryRouteDayDrivers` para `prodimt_pedidos_app`. La validación de SQL Server y la instalación de este incremento son pasos de la siguiente entrega.
 
+El candidato `7d09e565` pasó C1 en WSL. C2 ejecutó 43 casos HTTP con SQL Server, pasó 42 y verificó la limpieza. La prueba `actor_isolation` ya compara los códigos de ruta sin distinguir mayúsculas y minúsculas. Falta validar el candidato corregido con los gates completos.
+
 C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
 y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.
 Fuente probada `5e7d8e836f0951aefc613e0363d740b26ec59153`.

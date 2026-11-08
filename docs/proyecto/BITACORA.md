@@ -8,6 +8,8 @@ El responsable de reparto puede registrar una suplencia con motivo para la ruta 
 
 Validación local con 515 pruebas .NET, 49 de componentes Angular, compilación de producción y tipado E2E. El modelo de EF coincide con la migración y se generó el SQL idempotente 19→20. Compilaron las suites SQL Server y C2. La ejecución con SQL Server y la aceptación en navegador quedan para WSL. Chromium se detuvo al iniciar en este entorno por la restricción de sockets Unix.
 
+La ejecución WSL de `7d09e565` aprobó los 240 casos de C1 con API simulada y 42 de 43 casos HTTP con SQL Server. C2 verificó la limpieza. En `actor_isolation`, la prueba comparaba el código sintético con el código normalizado de la vuelta distinguiendo mayúsculas y minúsculas. La comparación se corrigió en la prueba y queda pendiente repetir C2 en el nuevo candidato.
+
 ## 7 de noviembre de 2026 — C2, gate WSL completo correcto
 
 Se abrió el intento más reciente del usuario, `20261107T014943Z`, fuente

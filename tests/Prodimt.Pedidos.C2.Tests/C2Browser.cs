@@ -20,7 +20,7 @@ public static class C2Browser
         await C2Scenarios.Post<AdminOrderSummaryResponse>(admin, $"/api/admin/orders/{saved.Order.OrderId}/review",
             new ReviewOrderRequest(AdminDecision.Accepted, "Preparación sintética C2", ExpectedVersion: 1));
         var board = await C2Scenarios.Read<DeliveryDashboardResponse>(admin, "/api/admin/delivery?date=2026-11-04");
-        var trip = Assert.Single(board.Trips, x => x.RouteCode == delivery.RouteCode);
+        var trip = Assert.Single(board.Trips, x => string.Equals(x.RouteCode, delivery.RouteCode, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(1, trip.TripNumber);
         Assert.Equal(delivery.DriverId, trip.DriverUserId);
         Assert.Empty(trip.Assignments);
