@@ -1,5 +1,9 @@
 # Bitácora de trabajo
 
+## 13 de noviembre de 2026 — Validación de reparto en WSL
+
+El candidato `df79c83` pasó los 43 casos HTTP con SQL Server. Playwright con la API real pasó dos de tres casos y la limpieza quedó verificada. El recorrido de entrega parcial pulsó «Registrar conteo» después de solicitar una recarga de reparto y no encontró el diálogo. Durante la recarga, la pantalla conserva las paradas anteriores y el editor bloquea la apertura. La prueba ahora espera el HTTP 200 de la fecha solicitada y la habilitación de «Consultar reparto» antes de abrir el conteo. Se conserva la comprobación de 25 kg y queda pendiente validar el nuevo commit en WSL.
+
 ## 8 de noviembre de 2026 — Primera vuelta automática
 
 Se conectó la preparación de la primera vuelta con las altas de pedidos, el portal, la aceptación administrativa y las importaciones. El pedido se confirma primero. Si falta una ruta o un chofer habilitado, el pedido queda disponible para Producción según su estado y la preparación se puede reintentar desde Reparto. El conteo convierte la parada planeada en una asignación transaccional. El caso de 20 kg contados y cargados por 12 deja 8 kg disponibles para una segunda vuelta explícita.

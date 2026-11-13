@@ -82,11 +82,21 @@ test('pedido 50, primera carga 25, entrega 20, pendiente 30, custodia 5 y dispon
   await login(page, scene.delivery.driverName);
   await expect(page.getByTestId('delivery-page')).toBeVisible();
   await page.getByLabel('Fecha de reparto', { exact: true }).fill(scene.date);
-  await page.getByRole('button', { name: 'Consultar reparto', exact: true }).click();
+  const consult = page.getByRole('button', { name: 'Consultar reparto', exact: true });
+  const refreshed = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/delivery'
+      && url.searchParams.get('date') === scene.date;
+  });
+  await consult.click();
+  expect((await refreshed).status()).toBe(200);
+  // The previous stops stay visible while the component applies the refreshed dashboard.
+  await expect(consult).toBeEnabled();
   const stop = page.getByTestId('delivery-stop').filter({ hasText: scene.delivery.customerName });
   await expect(stop).toBeVisible();
   await stop.getByRole('button', { name: /Registrar conteo/ }).click();
-  let dialog = page.getByRole('dialog');
+  let dialog = page.getByRole('dialog', { name: 'Registrar conteo', exact: true });
+  await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('25');
   await dialog.getByRole('button', { name: 'Guardar conteo', exact: true }).click();
   await expect(dialog).toHaveCount(0);
