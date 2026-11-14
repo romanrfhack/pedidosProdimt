@@ -92,23 +92,31 @@ test('pedido 50, primera carga 25, entrega 20, pendiente 30, custodia 5 y dispon
   expect((await refreshed).status()).toBe(200);
   // The previous stops stay visible while the component applies the refreshed dashboard.
   await expect(consult).toBeEnabled();
-  const stop = page.getByTestId('delivery-stop').filter({ hasText: scene.delivery.customerName });
-  await expect(stop).toBeVisible();
-  await stop.getByRole('button', { name: /Registrar conteo/ }).click();
+  const customer = page.getByRole('button', { name: scene.delivery.customerName, exact: true });
+  const row = page.getByTestId('delivery-customer').filter({ has: customer });
+  const stop = row.getByTestId('delivery-stop');
+  const advance = async (label: string) => {
+    const stageButton = page.getByRole('button', { name: label, exact: true });
+    await expect(stageButton).toBeEnabled();
+    await stageButton.click();
+    await row.getByRole('button', { name: `${label} para ${scene.delivery.customerName}`, exact: true }).click();
+  };
+  await advance('Registrar conteo');
   let dialog = page.getByRole('dialog', { name: 'Registrar conteo', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('25');
   await dialog.getByRole('button', { name: 'Guardar conteo', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await stop.getByRole('button', { name: /Confirmar carga/ }).click(); dialog = page.getByRole('dialog');
+  await advance('Confirmar carga'); dialog = page.getByRole('dialog');
   await expect(dialog.getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('25');
   await dialog.getByRole('button', { name: 'Confirmar carga', exact: true }).click(); await expect(dialog).toHaveCount(0);
-  await stop.getByRole('button', { name: /Registrar entrega/ }).click(); dialog = page.getByRole('dialog');
+  await advance('Registrar entrega'); dialog = page.getByRole('dialog');
   await dialog.getByLabel('Cantidad (kg)', { exact: true }).fill('20');
   await dialog.getByLabel('Motivo de la diferencia', { exact: true }).fill('Recepción parcial sintética C2');
   await dialog.getByRole('combobox', { name: 'Producto cargado que no se entregó', exact: true }).selectOption('in-vehicle');
   await dialog.getByLabel('Observaciones', { exact: true }).fill('Cinco kg bajo custodia; datos sintéticos.');
   await dialog.getByRole('button', { name: 'Guardar entrega', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await customer.click();
   await expect(stop.locator('.delivery-custody')).toContainText('5 kg');
   await expect(stop.locator('.delivery-quantities')).toContainText('30 kg');
   const detail = await page.request.get(`/api/delivery/trips/${scene.tripId}`, { headers: await authorization(page) });
@@ -120,8 +128,9 @@ test('pedido 50, primera carga 25, entrega 20, pendiente 30, custodia 5 y dispon
   for (const type of ['Counted', 'Loaded', 'Delivered']) expect(trip.events.filter(x => x.type === type)).toHaveLength(1);
   await page.goto('/admin/login'); // Re-enter through the existing SPA entry and real session.
   await expect(page.getByTestId('delivery-page')).toBeVisible();
-  await expect(page.getByTestId('delivery-stop').filter({ hasText: scene.delivery.customerName })
-    .locator('.delivery-custody')).toContainText('5 kg');
+  await page.getByRole('button', { name: 'Registrar entrega', exact: true }).click();
+  await customer.click();
+  await expect(stop.locator('.delivery-custody')).toContainText('5 kg');
 });
 
 test('autenticación real conserva aislamiento de cliente y chofer ajeno a la vuelta', async ({ page }) => {

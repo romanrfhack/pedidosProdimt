@@ -1,4 +1,4 @@
-<section class="delivery-page stack" data-testid="delivery-page">
+<section class="delivery-page stack" [class.driver-delivery-page]="!management" data-testid="delivery-page">
   <header class="delivery-heading">
     <div class="page-title"><p class="eyebrow">{{ management ? 'Coordinación de reparto' : 'Repartidor · Camioneta' }}</p><h2>{{ management ? 'Rutas y vueltas' : 'Mi reparto' }}</h2><p class="delivery-muted">Cantidades por partida y vuelta · Horarios de Ciudad de México</p></div>
     <form class="delivery-filters" (ngSubmit)="load()">
@@ -77,67 +77,144 @@
       @if (trip; as current) {
         <div class="delivery-trip-summary"><div><strong>{{ current.routeName }} · Vuelta {{ current.tripNumber }}</strong><span>{{ current.routeCode }} · {{ current.driverName }} · {{ closed ? 'Cerrada' : current.departedAt ? 'En recorrido' : 'Abierta' }}</span></div><div><strong>{{ completedStops }} / {{ stops.length }}</strong><span>pedidos completos</span></div></div>
         <div class="delivery-toolbar">
-          <div class="delivery-actions"><button type="button" class="secondary" [class.selected]="!showHistory" (click)="showHistory = false" [attr.aria-pressed]="!showHistory">Paradas</button><button type="button" class="secondary" [class.selected]="showHistory" (click)="showHistory = true" [attr.aria-pressed]="showHistory">Bitácora</button></div>
+          <div class="delivery-actions" [class.driver-trip-navigation]="!management">
+            <button type="button" class="secondary" [class.selected]="!showHistory && !showAllCustomers"
+              [attr.aria-pressed]="!showHistory && !showAllCustomers" (click)="showStops()">Paradas</button>
+            <button type="button" class="secondary" [class.selected]="showHistory"
+              [attr.aria-pressed]="showHistory" (click)="showHistory = true">Bitácora</button>
+            @if (!management && !closed && stops.length) {
+              <button type="button" class="secondary" [class.selected]="!showHistory && showAllCustomers"
+                [attr.aria-pressed]="!showHistory && showAllCustomers" (click)="showCustomerList()">Todas las paradas</button>
+            }
+          </div>
           @if (canOperate) {
             <div class="delivery-actions">
               @if (canDepart) { <button type="button" class="primary" (click)="open('depart')" [disabled]="departureBlocked">Iniciar recorrido</button> }
               <button type="button" class="secondary" (click)="open('close')">Cerrar vuelta</button>
             </div>
           }
+
         </div>
         @if (canDepart && departureBlocked) { <p class="delivery-muted">Confirma la carga o libera las reservas pendientes antes de iniciar el recorrido.</p> }
         @if (showHistory) {
           <section class="delivery-history stack" aria-label="Bitácora de la vuelta">@for (event of eventList; track event.id) { <article class="delivery-event"><div class="delivery-toolbar"><strong>{{ eventLabel(event.type) }} @if (event.quantity !== null) { · {{ quantity(event.quantity) }} }</strong><time [attr.datetime]="event.occurredAt">{{ timestamp(event.occurredAt) }}</time></div>@if (event.previousQuantity !== null) { <p>Valor anterior: {{ quantity(event.previousQuantity) }}</p> }@if (event.reason) { <p>{{ event.reason }}</p> }@if (event.notes) { <p>{{ event.notes }}</p> }<small>{{ event.actorName || 'Usuario registrado' }}</small></article> } @empty { <p class="delivery-empty">Aún no hay movimientos registrados.</p> }</section>
         } @else {
-          @if (selectedStopId) { <div><button type="button" class="secondary" (click)="selectedStopId = null">Todas las paradas</button></div> }
-          <div class="delivery-order-grid">
-            @for (stop of visibleStops; track stop.orderId) {
-              <article class="delivery-stop" data-testid="delivery-stop" [class.delivery-complete]="stopStatus(stop) === 'Entregado completo'" [class.delivery-partial]="stopStatus(stop) === 'Entrega parcial' || stopStatus(stop) === 'Incidencia por aclarar' || stopStatus(stop) === 'No entregado' || stopStatus(stop) === 'Mi parte entregada; pedido con pendientes'">
-                <div class="delivery-toolbar"><div class="delivery-stop-name"><span class="delivery-position">{{ stop.position ?? '·' }}</span><div><h4>{{ stop.customerName }}</h4><small>Pedido #{{ stop.reference.sequenceNumber }}</small></div></div><span class="delivery-state">{{ stopStatus(stop) }}</span></div>
-                <div class="delivery-toolbar">@if (management) { @if (orderForStop(stop); as order) { <button type="button" class="secondary" (click)="open('location', null, order)" [disabled]="!!recovery">Actualizar ubicación para próximas vueltas</button> } }<span class="delivery-schedule">{{ schedule(stop.reference) }}</span>@if (mapsUrl(stop.reference.mapsUrl); as url) { <a class="delivery-map" [href]="url" target="_blank" rel="noopener noreferrer">Abrir Google Maps</a> } @else { <span class="delivery-muted">Ubicación por completar</span> }</div>
-                @if (stop.reference.address) { <p>{{ stop.reference.address }}</p> }
-                <details class="delivery-instructions"><summary>Instrucciones de entrega</summary><div class="stack"><p>{{ storeKeyLabel(stop.reference.hasStoreKey) }}</p><p>{{ paymentTermLabel(stop.reference.paymentTermCode) }}</p>@if (stop.reference.internalDeliveryInstructions) { <p>{{ stop.reference.internalDeliveryInstructions }}</p> }@if (stop.reference.deliveryNotes) { <p>{{ stop.reference.deliveryNotes }}</p> }<small>Estas instrucciones pertenecen al cliente. Las observaciones del recorrido se guardan en la bitácora.</small></div></details>
-                @if (stop.assignments.length && orderForStop(stop); as original) { <section class="delivery-original" aria-label="Pedido del cliente y avance global"><h5>Pedido del cliente · Avance general</h5>@for (originalLine of original.lines; track originalLine.orderLineId) { <div><strong>{{ originalLine.productName }}</strong><span>Pedido {{ quantity(originalLine.requestedQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Entregado {{ quantity(originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Pendiente {{ quantity(originalLine.requestedQuantity - originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }}</span></div> }</section> }
-                @if (hasOtherPendingLines(stop)) { <div class="delivery-notice">El pedido conserva otras partidas pendientes fuera de esta vuelta.</div> }
-                @if (stop.plannedOrder; as planned) {
-                  @for (line of planned.lines; track line.orderLineId) {
-                    <section class="delivery-line" data-testid="delivery-planned-line">
-                      <div class="delivery-toolbar"><strong>{{ line.productName }}</strong><span class="delivery-state">Por preparar</span></div>
-                      <span>Pedido {{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }}</span>
-                      @if (canOperate) {
-                        <div class="delivery-actions"><button type="button" class="primary" [attr.aria-label]="'Registrar conteo ' + stop.customerName + ' ' + line.productName" (click)="open('planned-count', null, planned, line)">Registrar conteo</button></div>
-                      }
-                    </section>
+          @if (management) {
+            @if (selectedStopId) { <div><button type="button" class="secondary" (click)="selectedStopId = null">Todas las paradas</button></div> }
+            <div class="delivery-order-grid">
+              @for (stop of visibleStops; track stop.orderId) {
+                <ng-container [ngTemplateOutlet]="stopDetail" [ngTemplateOutletContext]="{ $implicit: stop }" />
+              } @empty { <p class="delivery-empty">Esta vuelta todavía no tiene pedidos asignados.</p> }
+            </div>
+          } @else {
+            @let customers = driverCustomers;
+            @if (!closed && !showAllCustomers) {
+              <div class="driver-stage-toolbar">
+                <div class="driver-stages" role="group" aria-label="Etapas de reparto">
+                  @for (stage of driverStages; track stage.id) {
+                    @let active = driverStage === stage.id;
+                    <button type="button" class="driver-stage" [class.active]="active" [attr.aria-pressed]="active"
+                      [attr.aria-label]="stage.label" [attr.aria-description]="customers.stages[stage.id].length + ' clientes pendientes'"
+                      (click)="selectDriverStage(stage.id)">
+                      <span>{{ active ? stage.label : stage.short }}</span>
+                      <span class="driver-stage-count">{{ customers.stages[stage.id].length }}</span>
+                    </button>
                   }
-                }
-                @for (line of stop.assignments; track line.id) {
-                  <section class="delivery-line" data-testid="delivery-line"><div class="delivery-toolbar"><strong>{{ line.productName }}</strong><span class="delivery-state">{{ status(line) }}</span></div>
-                    @if (line.hasOrderChanges) { <div class="delivery-notice">El pedido cambió después de la asignación. Revisa la cantidad vigente antes de continuar.</div> }
-                    <dl class="delivery-quantities"><div><dt>Pedido vigente</dt><dd>{{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Asignado a esta vuelta</dt><dd>{{ quantity(line.assignedQuantity - line.releasedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Contado</dt><dd>{{ quantity(line.countedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Cargado</dt><dd>{{ quantity(line.loadedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Entregado en esta vuelta</dt><dd>{{ quantity(line.deliveredQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Pendiente del pedido</dt><dd>{{ quantity(line.pendingQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div></dl>
-                    @if (line.custodyQuantity > 0) { <div class="delivery-custody">Bajo custodia: <strong>{{ quantity(line.custodyQuantity) }} {{ unitLabel(line.unitCode) }}</strong></div> }
-                    @if (line.returnedQuantity > 0 || line.transferredOutQuantity > 0 || line.transferredInQuantity > 0) { <small>Devuelto {{ quantity(line.returnedQuantity) }} · Transferido a otra vuelta {{ quantity(line.transferredOutQuantity) }} · Recibido {{ quantity(line.transferredInQuantity) }} {{ unitLabel(line.unitCode) }}</small> }
-                    <div class="delivery-actions">
-                      @if (canOperate) {
-                        @if (line.countedQuantity === null && line.transferredInQuantity === 0 && line.status !== 'Released' && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="primary" [attr.aria-label]="'Registrar conteo ' + line.customerName + ' ' + line.productName" (click)="open('count', line)">Registrar conteo</button> }
-                        @if (line.countedQuantity !== null && line.loadedQuantity === null && line.transferredInQuantity === 0 && line.status !== 'Released' && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="primary" [attr.aria-label]="'Confirmar carga ' + line.customerName + ' ' + line.productName" (click)="open('load', line)">Confirmar carga</button> }
-                        @if (line.custodyQuantity > 0) { <button type="button" class="primary" [attr.aria-label]="'Registrar entrega ' + line.customerName + ' ' + line.productName" (click)="open('deliver', line)">Registrar entrega</button><button type="button" class="secondary" [attr.aria-label]="'Registrar devolución ' + line.customerName + ' ' + line.productName" (click)="open('return', line)">Registrar devolución</button> }
+                </div>
+              </div>
+            }
+            @if (customers.visible.length) {
+              <div class="driver-customers">
+                @for (customer of customers.visible; track customer.id) {
+                  @let expanded = expandedCustomerId === customer.id;
+                  <article class="driver-customer" data-testid="delivery-customer">
+                    <div class="driver-customer-row">
+                      <button type="button" class="driver-customer-name" [attr.aria-label]="customer.name"
+                        [attr.aria-expanded]="expanded" [attr.aria-controls]="'driver-customer-' + customer.id"
+                        (click)="expandedCustomerId = expanded ? null : customer.id">
+                        <span class="driver-chevron" aria-hidden="true"></span>
+                        <strong>{{ customer.name }}</strong>
+                      </button>
+                      @if (customer.summary) {
+                        <span class="driver-amount">{{ customer.summary }}</span>
                       }
-                      @if (management && !closed && !recovery) { <button type="button" class="secondary" (click)="open('instructions', line)">Actualizar indicaciones</button>
-                        @if (line.custodyQuantity > 0) { <button type="button" class="secondary" (click)="open('transfer', line)">Transferir carga</button> }
-                        @if ((line.countedQuantity !== null || line.loadedQuantity !== null || line.transferredInQuantity > 0) && line.status !== 'Released') { <button type="button" class="secondary" (click)="open('adjust', line)">Corregir registro</button> }
-                        @if (line.loadedQuantity === null && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="secondary" (click)="open('release', line)">Liberar reserva</button> }
+                      @if (canOperate && customer.lines.length) {
+                        <button type="button" class="driver-quick-action" [disabled]="loading || saving"
+                          [attr.aria-label]="driverStageLabel + ' para ' + customer.name"
+                        [attr.aria-description]="customer.lines.length > 1 ? 'Elegir entre ' + customer.lines.length + ' partidas' : null"
+                          [attr.aria-expanded]="customer.lines.length > 1 ? expanded : null"
+                          [attr.aria-controls]="customer.lines.length > 1 ? 'driver-customer-' + customer.id : null"
+                          (click)="useDriverAction(customer)">
+                          <span aria-hidden="true">{{ customer.lines.length > 1 ? customer.lines.length : '›' }}</span>
+                        </button>
                       }
                     </div>
-                  </section>
+                    <div [id]="'driver-customer-' + customer.id" [hidden]="!expanded">
+                      @if (expanded) {
+                        <div class="driver-customer-detail">
+                          @for (stop of customer.stops; track stop.orderId) {
+                            <ng-container [ngTemplateOutlet]="stopDetail" [ngTemplateOutletContext]="{ $implicit: stop }" />
+                          }
+                        </div>
+                      }
+                    </div>
+                  </article>
                 }
-              </article>
-            } @empty { <p class="delivery-empty">Esta vuelta todavía no tiene pedidos asignados.</p> }
-          </div>
+              </div>
+            } @else {
+              <p class="delivery-empty" role="status">
+                {{ stops.length ? 'No hay clientes pendientes en esta etapa.' : 'Esta vuelta todavía no tiene pedidos asignados.' }}
+              </p>
+            }
+          }
         }
       } @else { <div class="delivery-empty">{{ management ? 'Crea una vuelta para asignar pedidos y cantidades.' : 'Todavía no tienes una ruta asignada para esta fecha. Consulta con el responsable de reparto.' }}</div> }
     </section>
   }
 </section>
+
+<ng-template #stopDetail let-stop>
+  <article class="delivery-stop" data-testid="delivery-stop" [class.delivery-complete]="stopStatus(stop) === 'Entregado completo'" [class.delivery-partial]="stopStatus(stop) === 'Entrega parcial' || stopStatus(stop) === 'Incidencia por aclarar' || stopStatus(stop) === 'No entregado' || stopStatus(stop) === 'Mi parte entregada; pedido con pendientes'">
+    <div class="delivery-toolbar"><div class="delivery-stop-name"><span class="delivery-position">{{ stop.position ?? '·' }}</span><div><h4>{{ stop.customerName }}</h4><small>Pedido #{{ stop.reference.sequenceNumber }}</small></div></div><span class="delivery-state">{{ stopStatus(stop) }}</span></div>
+    <div class="delivery-toolbar">@if (management) { @if (orderForStop(stop); as order) { <button type="button" class="secondary" (click)="open('location', null, order)" [disabled]="!!recovery">Actualizar ubicación para próximas vueltas</button> } }<span class="delivery-schedule">{{ schedule(stop.reference) }}</span>@if (mapsUrl(stop.reference.mapsUrl); as url) { <a class="delivery-map" [href]="url" target="_blank" rel="noopener noreferrer">Abrir Google Maps</a> } @else { <span class="delivery-muted">Ubicación por completar</span> }</div>
+    @if (stop.reference.address) { <p>{{ stop.reference.address }}</p> }
+    <details class="delivery-instructions"><summary>Instrucciones de entrega</summary><div class="stack"><p>{{ storeKeyLabel(stop.reference.hasStoreKey) }}</p><p>{{ paymentTermLabel(stop.reference.paymentTermCode) }}</p>@if (stop.reference.internalDeliveryInstructions) { <p>{{ stop.reference.internalDeliveryInstructions }}</p> }@if (stop.reference.deliveryNotes) { <p>{{ stop.reference.deliveryNotes }}</p> }<small>Estas instrucciones pertenecen al cliente. Las observaciones del recorrido se guardan en la bitácora.</small></div></details>
+    @if (stop.assignments.length && orderForStop(stop); as original) { <section class="delivery-original" aria-label="Pedido del cliente y avance global"><h5>Pedido del cliente · Avance general</h5>@for (originalLine of original.lines; track originalLine.orderLineId) { <div><strong>{{ originalLine.productName }}</strong><span>Pedido {{ quantity(originalLine.requestedQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Entregado {{ quantity(originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }} · Pendiente {{ quantity(originalLine.requestedQuantity - originalLine.deliveredQuantity) }} {{ unitLabel(originalLine.unitCode) }}</span></div> }</section> }
+    @if (hasOtherPendingLines(stop)) { <div class="delivery-notice">El pedido conserva otras partidas pendientes fuera de esta vuelta.</div> }
+    @if (stop.plannedOrder; as planned) {
+      @for (line of planned.lines; track line.orderLineId) {
+        <section class="delivery-line" data-testid="delivery-planned-line">
+          <div class="delivery-toolbar"><strong>{{ line.productName }}</strong><span class="delivery-state">Por preparar</span></div>
+          <span>Pedido {{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }}</span>
+          @if (canOperate && (management || (!showAllCustomers && driverStage === 'count'))) {
+            <div class="delivery-actions"><button type="button" class="primary" [disabled]="!management && (loading || saving)" [attr.aria-label]="'Registrar conteo ' + stop.customerName + ' ' + line.productName" (click)="open('planned-count', null, planned, line)">Registrar conteo</button></div>
+          }
+        </section>
+      }
+    }
+    @for (line of stop.assignments; track line.id) {
+      <section class="delivery-line" data-testid="delivery-line"><div class="delivery-toolbar"><strong>{{ line.productName }}</strong><span class="delivery-state">{{ status(line) }}</span></div>
+        @if (line.hasOrderChanges) { <div class="delivery-notice">El pedido cambió después de la asignación. Revisa la cantidad vigente antes de continuar.</div> }
+        <dl class="delivery-quantities"><div><dt>Pedido vigente</dt><dd>{{ quantity(line.requestedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Asignado a esta vuelta</dt><dd>{{ quantity(line.assignedQuantity - line.releasedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Contado</dt><dd>{{ quantity(line.countedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Cargado</dt><dd>{{ quantity(line.loadedQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Entregado en esta vuelta</dt><dd>{{ quantity(line.deliveredQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div><div><dt>Pendiente del pedido</dt><dd>{{ quantity(line.pendingQuantity) }} {{ unitLabel(line.unitCode) }}</dd></div></dl>
+        @if (line.custodyQuantity > 0) { <div class="delivery-custody">Bajo custodia: <strong>{{ quantity(line.custodyQuantity) }} {{ unitLabel(line.unitCode) }}</strong></div> }
+        @if (line.returnedQuantity > 0 || line.transferredOutQuantity > 0 || line.transferredInQuantity > 0) { <small>Devuelto {{ quantity(line.returnedQuantity) }} · Transferido a otra vuelta {{ quantity(line.transferredOutQuantity) }} · Recibido {{ quantity(line.transferredInQuantity) }} {{ unitLabel(line.unitCode) }}</small> }
+        <div class="delivery-actions">
+          @if (canOperate && (management || !showAllCustomers)) {
+            @let stage = assignmentStage(line);
+            @if (stage === 'count' && (management || driverStage === stage)) { <button type="button" class="primary" [disabled]="!management && (loading || saving)" [attr.aria-label]="'Registrar conteo ' + line.customerName + ' ' + line.productName" (click)="open('count', line)">Registrar conteo</button> }
+            @if (stage === 'load' && (management || driverStage === stage)) { <button type="button" class="primary" [disabled]="!management && (loading || saving)" [attr.aria-label]="'Confirmar carga ' + line.customerName + ' ' + line.productName" (click)="open('load', line)">Confirmar carga</button> }
+            @if (stage === 'deliver' && (management || driverStage === stage)) { <button type="button" class="primary" [disabled]="!management && (loading || saving)" [attr.aria-label]="'Registrar entrega ' + line.customerName + ' ' + line.productName" (click)="open('deliver', line)">Registrar entrega</button><button type="button" class="secondary" [disabled]="!management && (loading || saving)" [attr.aria-label]="'Registrar devolución ' + line.customerName + ' ' + line.productName" (click)="open('return', line)">Registrar devolución</button> }
+          }
+          @if (management && !closed && !recovery) { <button type="button" class="secondary" (click)="open('instructions', line)">Actualizar indicaciones</button>
+            @if (line.custodyQuantity > 0) { <button type="button" class="secondary" (click)="open('transfer', line)">Transferir carga</button> }
+            @if ((line.countedQuantity !== null || line.loadedQuantity !== null || line.transferredInQuantity > 0) && line.status !== 'Released') { <button type="button" class="secondary" (click)="open('adjust', line)">Corregir registro</button> }
+            @if (line.loadedQuantity === null && line.assignedQuantity > line.releasedQuantity) { <button type="button" class="secondary" (click)="open('release', line)">Liberar reserva</button> }
+          }
+        </div>
+      </section>
+    }
+  </article>
+</ng-template>
 
 <dialog #deliveryDialog class="delivery-dialog" aria-labelledby="delivery-dialog-title" (cancel)="closeEditor($event)">
   @if (editor; as edit) {

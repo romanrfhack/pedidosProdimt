@@ -4,7 +4,12 @@ import { deliveryDate, deliveryFixture, partialAssignmentId, secondDeliveryTripI
 type Fixture = ReturnType<typeof deliveryFixture>;
 const api = 'http://127.0.0.1:5088';
 const activeDialog = (page: Page) => page.getByRole('dialog');
-const partialStop = (page: Page) => page.getByTestId('delivery-stop').filter({ hasText: 'Cliente Reparto Uno' });
+const partialCustomer = 'Cliente Reparto Uno';
+const compositeCustomer = 'Cliente Compuesto';
+const stage = (page: Page, label: string) => page.getByRole('button', { name: label, exact: true });
+const customerRow = (page: Page, customer: string) => page.getByTestId('delivery-customer')
+  .filter({ has: page.getByRole('button', { name: customer, exact: true }) });
+const partialStop = (page: Page) => customerRow(page, partialCustomer).getByTestId('delivery-stop');
 
 async function board(page: Page, state: Fixture, admin = false) {
   await state.install(page);
@@ -17,7 +22,8 @@ async function board(page: Page, state: Fixture, admin = false) {
 }
 
 async function openDelivery(page: Page) {
-  await partialStop(page).getByRole('button', { name: /Registrar entrega/ }).click();
+  await stage(page, 'Registrar entrega').click();
+  await customerRow(page, partialCustomer).getByRole('button', { name: `Registrar entrega para ${partialCustomer}`, exact: true }).click();
   const dialog = activeDialog(page);
   await expect(dialog.getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('25');
   return dialog;
@@ -27,6 +33,15 @@ test.beforeEach(async ({ request }) => { await request.post(`${api}/__test/reset
 
 test('entrega parcial conserva pedido de 50, carga de 25, entrega de 20 y saldo de 30 con 5 en custodia', async ({ page }) => {
   const state = deliveryFixture(); await board(page, state);
+  await expect(stage(page, 'Registrar conteo')).toHaveAttribute('aria-pressed', 'true');
+  await expect(stage(page, 'Registrar conteo').getByText('Registrar conteo', { exact: true })).toBeVisible();
+  for (const [label, abbreviation] of [['Confirmar carga', 'CC'], ['Registrar entrega', 'RE']]) {
+    const inactiveStage = stage(page, label);
+    await expect(inactiveStage).toHaveAttribute('aria-pressed', 'false');
+    await expect(inactiveStage.getByText(label, { exact: true })).toBeHidden();
+    await expect(inactiveStage.getByText(abbreviation, { exact: true })).toBeVisible();
+  }
+  await expect(customerRow(page, partialCustomer)).toHaveCount(0);
   const dialog = await openDelivery(page);
   await dialog.getByLabel('Cantidad (kg)', { exact: true }).fill('20');
   await dialog.getByRole('button', { name: 'Guardar entrega', exact: true }).click();
@@ -37,6 +52,9 @@ test('entrega parcial conserva pedido de 50, carga de 25, entrega de 20 y saldo 
   await dialog.getByLabel('Observaciones', { exact: true }).fill('No pagó; se dejó una caja.');
   await dialog.getByRole('button', { name: 'Guardar entrega', exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  await expect(stage(page, 'Registrar entrega')).toHaveAttribute('aria-pressed', 'true');
+  await expect(stage(page, 'Registrar entrega').getByText('Registrar entrega', { exact: true })).toBeVisible();
+  await expect(customerRow(page, compositeCustomer)).toHaveCount(0);
   expect(state.writes).toHaveLength(1);
   expect(state.writes[0].path).toBe(`/api/delivery/assignments/${partialAssignmentId}/deliver`);
   expect(state.writes[0].body).toMatchObject({ quantity: 20, reason: 'El cliente recibió menos.',
@@ -45,21 +63,61 @@ test('entrega parcial conserva pedido de 50, carga de 25, entrega de 20 y saldo 
   expect(assignment.requestedQuantity).toBe(50); expect(assignment.loadedQuantity).toBe(25);
   expect(assignment.deliveredQuantity).toBe(20); expect(assignment.pendingQuantity).toBe(30); expect(assignment.custodyQuantity).toBe(5);
   expect(state.orders[0].lines[0].availableQuantity).toBe(25);
+  const details = customerRow(page, partialCustomer).getByRole('button', { name: partialCustomer, exact: true });
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await expect(partialStop(page)).toBeHidden();
+  await details.click();
   await expect(partialStop(page)).toContainText(/parcial/i);
-  await expect(partialStop(page)).toContainText(/30/);
+  await expect(partialStop(page).locator('.delivery-quantities')).toContainText('30 kg');
+  await expect(partialStop(page).locator('.delivery-custody')).toContainText('5 kg');
 });
 
-test('cantidades compuestas 10+2 conservan partidas y conteo independiente', async ({ page }) => {
-  const state = deliveryFixture(); await board(page, state);
-  const stop = page.getByTestId('delivery-stop').filter({ hasText: 'Cliente Compuesto' });
+test('conteo planeado y partidas de distintas unidades conservan cantidades independientes', async ({ page }) => {
+  const state = deliveryFixture();
+  state.orders[1].lines[1].unitCode = 'piece';
+  state.trip.assignments[2].unitCode = 'piece';
+  const plannedCustomer = 'Cliente Planeado';
+  state.trip.plannedOrders = [{
+    ...state.orders[0], orderId: '53000000-0000-0000-0000-000000000003', customerId: 'customer-delivery-planned',
+    customerName: plannedCustomer, sequenceNumber: 3, routeStopOrder: 3,
+    lines: [{ orderLineId: '54000000-0000-0000-0000-000000000004', productId: 'product-planned',
+      productName: 'Tortilla planeada', unitCode: 'piece', requestedQuantity: 6, deliveredQuantity: 0,
+      reservedQuantity: 0, availableQuantity: 6 }]
+  }];
+  await board(page, state);
+
+  const planned = customerRow(page, plannedCustomer);
+  await expect(planned.getByText('6 piezas', { exact: true })).toBeVisible();
+  await planned.getByRole('button', { name: `Registrar conteo para ${plannedCustomer}`, exact: true }).click();
+  const plannedDialog = activeDialog(page);
+  await expect(plannedDialog.getByLabel('Cantidad (piezas)', { exact: true })).toHaveValue('6');
+  await expect(plannedDialog.getByText('Pedido vigente 6 piezas · Disponible para contar 6 piezas', { exact: true })).toBeVisible();
+  await plannedDialog.getByRole('button', { name: 'Cerrar', exact: true }).click();
+  await expect(plannedDialog).toHaveCount(0);
+  await expect(planned.getByText('6 piezas', { exact: true })).toBeVisible();
+  expect(state.writes).toHaveLength(0);
+
+  const row = customerRow(page, compositeCustomer);
+  const details = row.getByRole('button', { name: compositeCustomer, exact: true });
+  const stop = row.getByTestId('delivery-stop');
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await expect(stop).toBeHidden();
+  await expect(row.getByText('10 kg · 2 piezas', { exact: true })).toBeVisible();
+  await row.getByRole('button', { name: `Registrar conteo para ${compositeCustomer}`, exact: true }).click();
+  await expect(activeDialog(page)).toHaveCount(0);
+  await expect(details).toHaveAttribute('aria-expanded', 'true');
   const a = stop.getByTestId('delivery-line').filter({ hasText: 'Producto A' });
   const b = stop.getByTestId('delivery-line').filter({ hasText: 'Producto B' });
+  await expect(a).toBeVisible();
+  await expect(b).toBeVisible();
   await a.getByRole('button', { name: /Registrar conteo/ }).click();
   await expect(activeDialog(page).getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('10');
   await activeDialog(page).getByRole('button', { name: 'Guardar conteo', exact: true }).click();
   await expect(activeDialog(page)).toHaveCount(0);
+  await expect(a.getByRole('button', { name: /Registrar conteo/ })).toHaveCount(0);
+  await expect(a.getByRole('button', { name: /Confirmar carga/ })).toHaveCount(0);
   await b.getByRole('button', { name: /Registrar conteo/ }).click();
-  await expect(activeDialog(page).getByLabel('Cantidad (kg)', { exact: true })).toHaveValue('2');
+  await expect(activeDialog(page).getByLabel('Cantidad (piezas)', { exact: true })).toHaveValue('2');
   await activeDialog(page).getByRole('button', { name: 'Guardar conteo', exact: true }).click();
   await expect(activeDialog(page)).toHaveCount(0);
   const counted = state.trip.assignments.filter((item: any) => item.customerName === 'Cliente Compuesto');
@@ -67,26 +125,39 @@ test('cantidades compuestas 10+2 conservan partidas y conteo independiente', asy
   expect(counted.map((item: any) => item.countedQuantity)).toEqual([10, 2]);
   expect(state.writes.map(item => item.body.quantity)).toEqual([10, 2]);
   expect(state.writes[0].path).not.toEqual(state.writes[1].path);
+  await expect(row).toHaveCount(0);
+  await stage(page, 'Confirmar carga').click();
+  await expect(stage(page, 'Confirmar carga')).toHaveAttribute('aria-pressed', 'true');
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await details.click();
+  await expect(a.getByRole('button', { name: /Confirmar carga/ })).toBeEnabled();
+  await expect(b.getByRole('button', { name: /Confirmar carga/ })).toBeEnabled();
 });
 
 test('surtir una partida no completa el pedido cuando otra partida sigue sin asignar', async ({ page }) => {
   const state = deliveryFixture();
   state.trip.assignments = state.trip.assignments.filter((item: any) => item.productName !== 'Producto B');
   await board(page, state);
-  const stop = page.getByTestId('delivery-stop').filter({ hasText: 'Cliente Compuesto' });
-  const line = stop.getByTestId('delivery-line').filter({ hasText: 'Producto A' });
-  await line.getByRole('button', { name: /Registrar conteo/ }).click();
+  const row = customerRow(page, compositeCustomer);
+  const stop = row.getByTestId('delivery-stop');
+  await row.getByRole('button', { name: `Registrar conteo para ${compositeCustomer}`, exact: true }).click();
   await activeDialog(page).getByRole('button', { name: 'Guardar conteo', exact: true }).click();
   await expect(activeDialog(page)).toHaveCount(0);
-  await line.getByRole('button', { name: /Confirmar carga/ }).click();
+  await stage(page, 'Confirmar carga').click();
+  await row.getByRole('button', { name: `Confirmar carga para ${compositeCustomer}`, exact: true }).click();
   await activeDialog(page).getByRole('button', { name: 'Confirmar carga', exact: true }).click();
   await expect(activeDialog(page)).toHaveCount(0);
-  await line.getByRole('button', { name: /Registrar entrega/ }).click();
+  await stage(page, 'Registrar entrega').click();
+  await row.getByRole('button', { name: `Registrar entrega para ${compositeCustomer}`, exact: true }).click();
   await activeDialog(page).getByRole('button', { name: 'Guardar entrega', exact: true }).click();
   await expect(activeDialog(page)).toHaveCount(0);
   const assigned = state.trip.assignments.find((item: any) => item.productName === 'Producto A');
   expect(assigned.pendingQuantity).toBe(0); expect(assigned.orderIsComplete).toBe(false);
   expect(state.orders[1].lines[1].deliveredQuantity).toBe(0);
+  await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: 'Todas las paradas', exact: true }).click();
+  await row.getByRole('button', { name: compositeCustomer, exact: true }).click();
+  await expect(stop).toBeVisible();
   await expect(stop).not.toHaveClass(/delivery-complete/);
   await expect(stop).toContainText(/otras partidas.*pendientes/i);
   await expect(page.locator('.delivery-trip-summary')).toContainText(/0\s*\/\s*2/);
@@ -103,14 +174,20 @@ test('intento con entrega de cero conserva mercancía y muestra No entregado', a
   expect(state.trip.assignments[0].deliveredQuantity).toBe(0);
   expect(state.trip.assignments[0].custodyQuantity).toBe(25);
   expect(state.trip.assignments[0].pendingQuantity).toBe(50);
+  await customerRow(page, partialCustomer).getByRole('button', { name: partialCustomer, exact: true }).click();
   await expect(partialStop(page).locator('.delivery-state').first()).toHaveText('No entregado');
   await expect(partialStop(page).locator('.delivery-custody')).toContainText('25 kg');
 });
 
 test('permiso de lectura oculta mutaciones y bloquea la gestión de reparto', async ({ page }) => {
   const state = deliveryFixture(); state.setPermissions(['delivery.read.own']); await board(page, state);
-  await expect(page.getByTestId('delivery-stop')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: /Registrar conteo|Confirmar carga|Registrar entrega|Registrar devolución/ })).toHaveCount(0);
+  await stage(page, 'Registrar entrega').click();
+  const row = customerRow(page, partialCustomer);
+  await row.getByRole('button', { name: partialCustomer, exact: true }).click();
+  await expect(partialStop(page)).toBeVisible();
+  await expect(row.getByRole('button', { name: /Registrar conteo|Confirmar carga|Registrar entrega|Registrar devolución/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Todas las paradas', exact: true }).click();
+  await expect(page.getByTestId('delivery-customer')).toHaveCount(2);
   await page.goto('/admin/reparto');
   await expect(page).toHaveURL(/\/admin\/sin-acceso/);
   expect(state.writes).toHaveLength(0);

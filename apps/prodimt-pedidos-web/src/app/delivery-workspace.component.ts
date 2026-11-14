@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -26,11 +27,27 @@ interface DeliveryStop {
   orderId: string; customerName: string; position: number | null;
   reference: DeliveryOrder | DeliveryAssignment; assignments: DeliveryAssignment[]; plannedOrder: DeliveryOrder | null;
 }
+type DeliveryStage = 'count' | 'load' | 'deliver';
+
+interface DriverStageLine {
+  kind: DeliveryStage | 'planned-count';
+  assignment: DeliveryAssignment | null;
+  order: DeliveryOrder | null;
+  line: DeliveryLine | null;
+}
+
+interface DriverCustomer {
+  id: string;
+  name: string;
+  stops: DeliveryStop[];
+  lines: DriverStageLine[];
+  summary: string;
+}
 
 @Component({
-  selector: 'app-delivery-workspace', imports: [FormsModule, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent],
+  selector: 'app-delivery-workspace', imports: [FormsModule, NgTemplateOutlet, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent],
   templateUrl: './delivery-workspace.component.html',
-  styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css']
+  styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css', './driver-stages.component.css']
 })
 export class DeliveryWorkspaceComponent {
   private readonly api = inject(DeliveryApiService);
@@ -52,6 +69,14 @@ export class DeliveryWorkspaceComponent {
   protected selectedTripId = '';
   protected selectedStopId: string | null = null;
   protected showHistory = false;
+  protected readonly driverStages = [
+    { id: 'count', label: 'Registrar conteo', short: 'RC' },
+    { id: 'load', label: 'Confirmar carga', short: 'CC' },
+    { id: 'deliver', label: 'Registrar entrega', short: 'RE' }
+  ] as const;
+  protected driverStage: DeliveryStage = 'count';
+  protected showAllCustomers = false;
+  protected expandedCustomerId: string | null = null;
   protected loading = false;
   protected saving = false;
   protected error: string | null = null;
@@ -105,11 +130,14 @@ export class DeliveryWorkspaceComponent {
       })
     ).subscribe({
       next: value => {
+        const previousDate = this.dashboard?.date;
         this.dashboard = value; this.date = value.date;
         if (!value.trips.some(trip => trip.id === this.selectedTripId)) {
           const populated = value.trips.find(trip => trip.plannedOrders?.length || trip.assignments.some(line => line.status !== 'Released'));
           this.selectedTripId = populated?.id ?? value.trips[0]?.id ?? '';
+          if (!this.management) this.selectTrip();
         }
+        if (!this.management && previousDate && previousDate !== value.date) this.selectTrip();
         if (!preserveStop) this.selectedStopId = null;
         this.loading = false; this.detector.detectChanges();
       },
@@ -143,6 +171,87 @@ export class DeliveryWorkspaceComponent {
   }
   protected get selectedStop(): DeliveryStop | null { return this.stops.find(stop => stop.orderId === this.selectedStopId) ?? null; }
   protected get visibleStops(): DeliveryStop[] { return this.selectedStop ? [this.selectedStop] : this.stops; }
+  protected assignmentStage(line: DeliveryAssignment): DeliveryStage | null {
+    if (line.custodyQuantity > 0) return 'deliver';
+    if (line.transferredInQuantity > 0 || line.status === 'Released' || line.assignedQuantity <= line.releasedQuantity) return null;
+    if (line.countedQuantity === null) return 'count';
+    return line.loadedQuantity === null ? 'load' : null;
+  }
+
+  protected get driverCustomers() {
+    const customers = new Map<string, DriverCustomer>();
+    const stages: Record<DeliveryStage, DriverCustomer[]> = { count: [], load: [], deliver: [] };
+    for (const stop of this.stops) {
+      const id = stop.reference.customerId;
+      const customer = customers.get(id) ?? { id, name: stop.customerName, stops: [], lines: [], summary: '' };
+      customer.stops.push(stop);
+      customers.set(id, customer);
+    }
+
+    for (const customer of customers.values()) {
+      const lines: Record<DeliveryStage, DriverStageLine[]> = { count: [], load: [], deliver: [] };
+      for (const stop of customer.stops) {
+        const order = stop.plannedOrder;
+        for (const line of order?.lines ?? []) {
+          lines.count.push({ kind: 'planned-count', assignment: null, order, line });
+        }
+        for (const assignment of stop.assignments) {
+          const kind = this.assignmentStage(assignment);
+          if (kind) lines[kind].push({ kind, assignment, order: null, line: null });
+        }
+      }
+      for (const stage of this.driverStages) {
+        const pending = lines[stage.id];
+        if (pending.length) stages[stage.id].push({ ...customer, lines: pending, summary: this.driverQuantitySummary(pending) });
+      }
+    }
+    return { stages, visible: this.showAllCustomers || this.closed ? [...customers.values()] : stages[this.driverStage] };
+  }
+
+  protected get driverStageLabel(): string {
+    return this.driverStages.find(stage => stage.id === this.driverStage)!.label;
+  }
+
+  private driverQuantitySummary(lines: DriverStageLine[]): string {
+    const amounts = new Map<string, number>();
+    for (const { kind, assignment, line } of lines) {
+      const unit = unitLabel(assignment?.unitCode ?? line?.unitCode);
+      let amount = line?.availableQuantity ?? 0;
+      if (assignment) {
+        const reserved = assignment.assignedQuantity - assignment.releasedQuantity;
+        amount = kind === 'count' ? reserved : kind === 'load'
+          ? Math.min(assignment.countedQuantity ?? 0, reserved) : assignment.custodyQuantity;
+      }
+      amounts.set(unit, (amounts.get(unit) ?? 0) + amount);
+    }
+    return [...amounts].map(([unit, amount]) => `${this.quantity(amount)} ${unit}`).join(' · ');
+  }
+
+  protected selectDriverStage(stage: DeliveryStage): void {
+    if (this.driverStage !== stage || this.showAllCustomers) this.expandedCustomerId = null;
+    this.driverStage = stage;
+    this.showAllCustomers = false;
+  }
+
+  protected showStops(): void {
+    this.showHistory = false;
+    if (this.showAllCustomers) this.selectDriverStage(this.driverStage);
+  }
+
+  protected showCustomerList(): void {
+    this.showHistory = false;
+    if (!this.showAllCustomers) this.expandedCustomerId = null;
+    this.showAllCustomers = true;
+  }
+
+  protected useDriverAction(customer: DriverCustomer): void {
+    if (customer.lines.length === 1) {
+      const { kind, assignment, order, line } = customer.lines[0];
+      this.open(kind, assignment, order, line);
+    } else {
+      this.expandedCustomerId = customer.id;
+    }
+  }
   protected get pendingOrders(): DeliveryOrder[] {
     const plannedLines = new Set((this.dashboard?.trips ?? []).flatMap(trip =>
       (trip.plannedOrders ?? []).flatMap(order => order.lines.map(line => line.orderLineId))));
@@ -164,7 +273,13 @@ export class DeliveryWorkspaceComponent {
   }
   protected get eventList() { return [...(this.trip?.events ?? [])].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)); }
   protected get completedStops(): number { return this.stops.filter(stop => stop.assignments[0]?.orderIsComplete === true).length; }
-  protected selectTrip(): void { this.selectedStopId = null; this.showHistory = false; }
+  protected selectTrip(): void {
+    this.selectedStopId = null;
+    this.showHistory = false;
+    this.expandedCustomerId = null;
+    this.showAllCustomers = false;
+    this.driverStage = 'count';
+  }
   protected quantity(value: number | null): string { return value === null ? '—' : new Intl.NumberFormat('es-MX', { maximumFractionDigits: 3 }).format(value); }
   protected tripLabel(trip: DeliveryTrip): string {
     return `${trip.routeName} · Vuelta ${trip.tripNumber} · ${trip.driverName} · ${trip.routeCode}`;

@@ -1,5 +1,11 @@
 # Estado vigente de PRODIMT
 
+## Mi reparto por etapas
+
+En el código de `/reparto`, el chofer puede filtrar los clientes de su vuelta por conteo, carga y entrega. La etapa activa muestra el nombre completo y las demás muestran RC, CC o RE. Cada etapa indica cuántos clientes tienen partidas pendientes. Las filas plegadas muestran cantidades por unidad. El botón rápido abre el diálogo de una partida o despliega las partidas para elegir. «Todas las paradas» permite consultar el detalle de clientes que ya salieron de las listas por etapa.
+
+El ajuste usa las operaciones de reparto existentes. La última versión instalada que confirmó el usuario es `delivery-auto-89ed72778f30`, con las 20 migraciones aplicadas y la API activa. La vista por etapas está pendiente de publicación y aceptación en el teléfono del repartidor.
+
 ## Vuelta inicial automática y suplencia diaria
 
 El release operativo `capture-routes-1b49aaeefebd` confirmó salud y evidencia de instalación el 7 de noviembre. La rama local sobre `0820087` prepara Vuelta 1 al registrar o aceptar un pedido con ruta activa y chofer habilitado para la fecha de servicio operativa. Las paradas se muestran por preparar. Confirmar el conteo genera la reserva y libera las diferencias para otra vuelta. La salida detiene nuevas incorporaciones y el saldo continúa en Pendientes de asignar.

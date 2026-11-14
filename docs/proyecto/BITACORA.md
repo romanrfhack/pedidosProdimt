@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 14 de noviembre de 2026 — Vista compacta de Mi reparto
+
+La vista del repartidor agrupa por cliente y conserva cada pedido y partida en el detalle. Los filtros muestran clientes pendientes en la etapa y conservan la selección después de guardar. Se reutilizaron los diálogos de conteo, carga, entrega y devolución. La gestión administrativa continúa con el recorrido por pedido.
+
+Se actualizaron las pruebas de navegador de la vista y el escenario C2 de entrega parcial para pasar por las tres etapas. Compilación de producción, tipado E2E, 49 pruebas de componentes y 240 casos de Chromium con API simulada correctos. Se verificó además la apertura directa para una partida planeada y el desglose de kg y piezas. La ejecución de C2 con API y SQL Server reales queda pendiente en WSL.
+
 ## 13 de noviembre de 2026 — Validación de reparto en WSL
 
 El candidato `df79c83` pasó los 43 casos HTTP con SQL Server. Playwright con la API real pasó dos de tres casos y la limpieza quedó verificada. El recorrido de entrega parcial pulsó «Registrar conteo» después de solicitar una recarga de reparto y no encontró el diálogo. Durante la recarga, la pantalla conserva las paradas anteriores y el editor bloquea la apertura. La prueba ahora espera el HTTP 200 de la fecha solicitada y la habilitación de «Consultar reparto» antes de abrir el conteo. Se conserva la comprobación de 25 kg y queda pendiente validar el nuevo commit en WSL.
