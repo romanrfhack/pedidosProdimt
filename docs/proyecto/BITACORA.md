@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 14 de noviembre de 2026 — Ticket diario
+
+El libro de cobranza tiene dos formatos de ticket y tablas `Ticket1` y `Ticket2` en `Listado`. El adeudo del ticket se obtiene de las hojas diarias y el corte semanal presenta sus propios saldos. Para el ticket en PRODIMT se reutilizan las partidas e importes del pedido y se acepta un adeudo verificado sólo para la impresión actual. El logo proviene del libro. El QR queda pendiente de confirmar su destino.
+
+Compilación de producción y TypeScript E2E correctos. Pasaron 51 pruebas de componentes y 15 casos de navegador con API simulada, incluido Mostrador. Se comprobó una página por ticket en los PDF de 58 y 80 mm. Falta validar el acceso de la cuenta operativa y la impresión física. Candidato local, sin publicación.
+
 ## 13 de noviembre de 2026 — Validación de reparto en WSL
 
 El candidato `df79c83` pasó los 43 casos HTTP con SQL Server. Playwright con la API real pasó dos de tres casos y la limpieza quedó verificada. El recorrido de entrega parcial pulsó «Registrar conteo» después de solicitar una recarga de reparto y no encontró el diálogo. Durante la recarga, la pantalla conserva las paradas anteriores y el editor bloquea la apertura. La prueba ahora espera el HTTP 200 de la fecha solicitada y la habilitación de «Consultar reparto» antes de abrir el conteo. Se conserva la comprobación de 25 kg y queda pendiente validar el nuevo commit en WSL.

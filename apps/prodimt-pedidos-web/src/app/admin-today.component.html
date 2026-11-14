@@ -68,6 +68,9 @@
             </div>
             <div class="review-actions order-actions">
               <button type="button" class="secondary compact" [disabled]="!!loadingDetailOrderId || correcting" [attr.aria-expanded]="selectedDetail?.id === order.id" (click)="loadDetail(order)">Ver detalle</button>
+              @if (isDailyTicketOrder(order)) {
+                <a class="order-ticket-link" [routerLink]="correcting ? null : ['/admin/pedidos', order.id, 'ticket']" [attr.aria-disabled]="correcting ? 'true' : null">Ver ticket</a>
+              }
             </div>
                 @if (getSelectedDetail(order); as detail) {
                   <section class="detail-panel">
