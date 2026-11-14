@@ -24,6 +24,7 @@ export const routes: Routes = [
   { path: 'admin/horarios', loadComponent: () => import('./admin-ordering-schedules.component').then(m => m.AdminOrderingSchedulesComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage'] } },
   { path: 'admin/seguridad', loadComponent: () => import('./admin-security.component').then(m => m.AdminSecurityComponent), canActivate: [permissionGuard], data: { permissions: ['security.manage'] } },
   { path: 'admin/pedidos', component: AdminTodayComponent, canActivate: [permissionGuard], canDeactivate: [adminTodayDraftGuard], data: { permissions: ['orders.read', 'orders.capture'] } },
+  { path: 'admin/pedidos/:orderId/ticket', loadComponent: () => import('./admin-daily-ticket.component').then(m => m.AdminDailyTicketComponent), canActivate: [permissionGuard], data: { permissions: ['orders.read', 'orders.capture'] } },
   { path: 'admin/pendientes', component: AdminPendingComponent, canActivate: [permissionGuard], data: { permissions: ['orders.review'] } },
   { path: 'admin/clientes-pendientes', component: AdminPendingCustomersComponent, canActivate: [permissionGuard], data: { permissions: ['orders.capture'] } },
   { path: 'admin/productos-por-configurar', loadComponent: () => import('./admin-product-setups.component').then(m => m.AdminProductSetupsComponent), canActivate: [permissionGuard], data: { permissions: ['customers.manage','pricing.manage'] } },

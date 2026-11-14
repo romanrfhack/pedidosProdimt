@@ -6,6 +6,12 @@ En el código de `/reparto`, el chofer puede filtrar los clientes de su vuelta p
 
 El ajuste usa las operaciones de reparto existentes. La última versión instalada que confirmó el usuario es `delivery-auto-89ed72778f30`, con las 20 migraciones aplicadas y la API activa. La vista por etapas está pendiente de publicación y aceptación en el teléfono del repartidor.
 
+## Ticket diario en Pedidos
+
+El candidato agrega «Ver ticket» a pedidos registrados o aceptados de clientes. Reúne las partidas con cantidad positiva del mismo cliente y fecha de servicio, utiliza el precio y el importe aplicados en el pedido y muestra el consumo en MXN. La vista reutiliza los permisos de consulta o captura de pedidos y permite imprimir en rollos de 58 y 80 mm desde el diálogo del navegador.
+
+Mientras se concilia la fuente de saldos, el adeudo anterior puede capturarse para la impresión actual. El total sólo aparece con adeudo explícito y precios completos. El candidato no genera movimientos de cuenta. Quedan pendientes el cruce de tarifas y saldos del Excel con el catálogo operativo, la prueba en la térmica de Mostrador y las notas semanales.
+
 ## Vuelta inicial automática y suplencia diaria
 
 El release operativo `capture-routes-1b49aaeefebd` confirmó salud y evidencia de instalación el 7 de noviembre. La rama local sobre `0820087` prepara Vuelta 1 al registrar o aceptar un pedido con ruta activa y chofer habilitado para la fecha de servicio operativa. Las paradas se muestran por preparar. Confirmar el conteo genera la reserva y libera las diferencias para otra vuelta. La salida detiene nuevas incorporaciones y el saldo continúa en Pendientes de asignar.

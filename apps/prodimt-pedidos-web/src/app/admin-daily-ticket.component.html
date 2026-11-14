@@ -1,0 +1,63 @@
+<section class="daily-ticket-view">
+  <div class="ticket-toolbar no-print">
+    <a class="secondary" routerLink="/admin/pedidos" [queryParams]="state()?.date ? { date: state()?.date } : null">Volver a Pedidos</a>
+    @if (state()?.ticket) {
+      <label>Ancho del rollo
+        <select [value]="paperWidth()" (change)="paperWidth.set($any($event.target).value === '58' ? 58 : 80)">
+          <option value="80">80 mm</option>
+          <option value="58">58 mm</option>
+        </select>
+      </label>
+      <button class="primary" type="button" (click)="print()" [disabled]="invalidPriorBalance()">Imprimir ticket</button>
+    }
+  </div>
+
+  @if (state(); as result) {
+    @if (result.error) { <p class="alert error no-print" role="alert">{{ result.error }}</p> }
+    @if (result.ticket; as ticket) {
+      <div class="ticket-balance-editor no-print">
+        <label for="ticket-balance">Adeudo anterior verificado (MXN)</label>
+        <input id="ticket-balance" type="text" inputmode="decimal" autocomplete="off"
+          [ngModel]="priorBalanceInput()" (ngModelChange)="priorBalanceInput.set($event)"
+          aria-describedby="ticket-balance-help" [attr.aria-invalid]="invalidPriorBalance()">
+        <small id="ticket-balance-help">
+          @if (invalidPriorBalance()) { Captura un importe positivo o cero, con hasta dos decimales. }
+          @else { Captura 0 si verificaste que no hay adeudo. Este importe se usa solo para imprimir. }
+        </small>
+      </div>
+      <article class="thermal-ticket" [class.narrow]="paperWidth() === 58" aria-label="Ticket diario">
+        <header>
+          <img src="tortillas-taqueras-ticket.png" width="360" height="102" alt="Tortillas Taqueras">
+          <p>Tel. 55 1809 4684<br>WhatsApp 55 2699 5416</p>
+          <h2>Ticket diario</h2>
+          <time [attr.datetime]="ticket.date">{{ formatDate(ticket.date) }}</time>
+        </header>
+
+        <p class="ticket-customer">Cliente <strong>{{ ticket.customerName }}</strong></p>
+        <table aria-label="Productos del pedido">
+          <thead><tr><th scope="col">Cant.</th><th scope="col">Producto</th><th scope="col">P. unit.</th><th scope="col">Importe</th></tr></thead>
+          <tbody>
+            @for (line of ticket.lines; track line.id) {
+              <tr>
+                <td>{{ quantity.format(line.quantity) }}<small>{{ unitLabel(line.unitCode) }}</small></td>
+                <td>{{ line.productName }}</td>
+                <td>{{ line.unitPrice == null ? '—' : priceText(line.unitPrice) }}</td>
+                <td>{{ line.lineAmount == null ? '—' : priceText(line.lineAmount) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <dl class="ticket-totals">
+          <div><dt>Adeudo anterior</dt><dd>{{ priorBalance() == null ? 'Sin capturar' : priceText(priorBalance()) }}</dd></div>
+          <div><dt>Consumo del día</dt><dd>{{ ticket.consumption == null ? 'Pendiente' : priceText(ticket.consumption) }}</dd></div>
+          <div class="ticket-total"><dt>Total</dt><dd>{{ total() == null ? 'Pendiente' : priceText(total()) }}</dd></div>
+        </dl>
+        @if (ticket.hasUnpricedLines) { <p>Hay productos con precio pendiente.</p> }
+        <p class="ticket-footer">Importes en MXN</p>
+      </article>
+    }
+  } @else {
+    <p class="notice no-print" role="status">Cargando ticket…</p>
+  }
+</section>

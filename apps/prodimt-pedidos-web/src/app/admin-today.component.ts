@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { AdminOrderCorrectionComponent } from './admin-order-correction.component';
 import { AdminOperationsApiService, OperationsChange } from './admin-operations-api.service';
 import { AuthService } from './auth.service';
+import { isDailyTicketOrder } from './daily-ticket';
 
 type OrderListFilter = 'all' | 'registered' | 'review' | 'noOrder' | 'rejected' | 'late' | 'changes';
 
@@ -21,6 +22,7 @@ type OrderListFilter = 'all' | 'registered' | 'review' | 'noOrder' | 'rejected' 
   templateUrl: './admin-today.component.html'
 })
 export class AdminTodayComponent {
+  protected readonly isDailyTicketOrder = isDailyTicketOrder;
   protected readonly priceText = priceText;
   protected readonly unitLabel = unitLabel;
   private readonly data = inject(OrderDataService);

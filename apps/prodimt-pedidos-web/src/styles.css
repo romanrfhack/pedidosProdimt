@@ -531,6 +531,8 @@ button.compact {
 
 @media print {
   @page { margin: 12mm; }
+  @page prodimt-ticket { margin: 2mm; }
+  body:has(.daily-ticket-view) { min-width: 0; page: prodimt-ticket; }
   html { background: #fff; }
   body { background: #fff; font-size: 10pt; }
   .app-shell__header,
