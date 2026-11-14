@@ -146,8 +146,16 @@ jobs:
           persist-credentials: false
           fetch-depth: 0 # Verify the installed R5 ancestry; never fetch GitHub main in the runner.
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        id: dotnet
         with:
           dotnet-version: '10.0.x'
+      - name: Select installed .NET 10 SDK
+        env:
+          TEST_DOTNET_VERSION: ${{ steps.dotnet.outputs.dotnet-version }}
+        run: |
+          (cd -- "$(dirname -- "$GITHUB_WORKSPACE")" &&
+            dotnet new globaljson --sdk-version "$TEST_DOTNET_VERSION" --roll-forward latestPatch)
+          dotnet --version
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
