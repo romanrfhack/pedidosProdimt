@@ -11,6 +11,8 @@ public sealed class InMemoryMachineWorkspaceRepository : IMachineWorkspaceReposi
         Task.FromResult<IReadOnlyList<Guid>>([]);
     public Task<IReadOnlyList<MachineProductionNotice>> GetNoticesAsync(Guid machineId, DateOnly date, CancellationToken token) =>
         Task.FromResult<IReadOnlyList<MachineProductionNotice>>([]);
+    public Task<IReadOnlyList<MachineProductionNotice>> GetDayNoticesAsync(DateOnly date, CancellationToken token) =>
+        Task.FromResult<IReadOnlyList<MachineProductionNotice>>([]);
     public Task ReplaceOperatorsAsync(Guid machineId, IReadOnlyList<Guid> userIds, CancellationToken token) =>
         throw new NotSupportedException();
     public Task AddNoticeAsync(MachineProductionNotice notice, CancellationToken token) =>

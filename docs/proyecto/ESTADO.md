@@ -2,7 +2,7 @@
 
 ## Responsable de Máquina
 
-Implementación local sobre `759c68f`. Vista compacta de producción con totales, captura, avisos de liberación y lotes sin cliente. Equipo fijo por vigencia y ajustes diarios con alcance por máquina. Migración aditiva 20 → 21. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
+Candidato de integración sobre `759c68f`, PR #11. Vista compacta de producción con totales, captura, avisos de liberación y lotes sin cliente. Equipo fijo por vigencia y ajustes diarios con alcance por máquina. Migración aditiva 20 → 21. El candidato inicial pasó SQL Server/HTTP, C2 y smoke Production en GitHub. El instalador propio y el lanzador WSL realizan inventario, respaldo y actualización coordinada. La instalación operativa sigue pendiente de conectividad al VPS. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
 
 ## Mi reparto por etapas
 

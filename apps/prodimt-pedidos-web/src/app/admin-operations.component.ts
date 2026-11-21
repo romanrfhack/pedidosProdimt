@@ -7,7 +7,7 @@ import { EffectivePermissionsService } from './effective-permissions.service';
 import { AdminCatalogApiService, AdminProductCatalogApiResponse } from './admin-catalog-api.service';
 import {
   AcknowledgeChangeRequest, AdminOperationsApiService, OperationsChange, OperationsChanges, OperationsPlan,
-  ProductionAllocation, ProductionBatch, ProductionCommandResponse, ProductionDashboard, ProductionLine, ProductionOrder
+  ProductionAllocation, ProductionBatch, ProductionCommandResponse, ProductionDashboard, ProductionLine, ProductionOrder, ProductionRelease
 } from './admin-operations-api.service';
 import { businessDateToday, unitLabel } from './operational-labels';
 import { AuthService } from './auth.service';
@@ -26,7 +26,7 @@ interface ProductionEditor {
   selector: 'app-admin-operations',
   imports: [FormsModule, RouterLink],
   templateUrl: './admin-operations.component.html',
-  styleUrls: ['./admin-operations.component.css', './admin-production-dialog.css']
+  styleUrls: ['./admin-operations.component.css', './admin-production-dialog.css', './admin-production-releases.css']
 })
 export class AdminOperationsComponent {
   private readonly api = inject(AdminOperationsApiService);
@@ -89,6 +89,21 @@ export class AdminOperationsComponent {
     this.destroyRef.onDestroy(() => {
       window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('beforeunload', this.beforeUnload); window.removeEventListener('storage', this.storageChanged); this.planRequest?.unsubscribe();
     });
+  }
+
+  protected get releaseGroups(): Array<{ machineId: string; label: string; quantity: number; releases: ProductionRelease[] }> {
+    const groups = new Map<string, { machineId: string; label: string; quantity: number; releases: ProductionRelease[] }>();
+    const releases = [...this.production?.releases ?? []].sort((first, second) => second.createdAt.localeCompare(first.createdAt));
+    for (const release of releases) {
+      let group = groups.get(release.machineId);
+      if (!group) {
+        group = { machineId: release.machineId, label: this.machineLabel(release.machineNumber, release.machineName), quantity: 0, releases: [] };
+        groups.set(release.machineId, group);
+      }
+      group.quantity += release.quantity;
+      group.releases.push(release);
+    }
+    return [...groups.values()];
   }
 
   canLeave(): boolean {

@@ -1,5 +1,9 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## 21 de noviembre de 2026 — Integración y despliegue de Responsable de Máquina
+
+El usuario autorizó expresamente integrar este ajuste a main y desplegarlo para validación operativa, incluyendo la creación del rol. Esa autorización amplía para este incremento las restricciones históricas de publicación que se conservan abajo. El usuario creará las cuentas. Aplicar la migración 20→21 y verificar el rol, permisos, salud y frontend mediante el instalador propio. Mantener evidencia verificable de instalación y de recuperación. La ausencia de conectividad SSH desde un entorno requiere completar la entrega del instalador y reportar el estado pendiente del destino.
+
 ## Estado posterior confirmado: C1 R5 instalado; C2 en trabajo
 
 La evidencia posterior del usuario y su log WSL confirman **C1 R5 instalado**:

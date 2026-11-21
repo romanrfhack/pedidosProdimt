@@ -31,6 +31,13 @@ public sealed class EfMachineWorkspaceRepository(PedidosDbContext db) : IMachine
         return day.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Take(30).ToArray();
     }
 
+    public async Task<IReadOnlyList<MachineProductionNotice>> GetDayNoticesAsync(DateOnly date, CancellationToken token)
+    {
+        var day = await db.Set<MachineProductionNotice>().AsNoTracking()
+            .Where(x => x.ServiceDate == date).ToArrayAsync(token);
+        return day.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToArray();
+    }
+
     public async Task AddNoticeAsync(MachineProductionNotice notice, CancellationToken token)
         => await db.Set<MachineProductionNotice>().AddAsync(notice, token);
 }

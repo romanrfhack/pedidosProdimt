@@ -81,6 +81,7 @@ export class MachineWorkspaceComponent {
   protected operators: MachineOperators | null = null;
   protected operatorIds = new Set<string>();
   protected pending: PendingMachineWrite | null = null;
+  protected pendingCount = 0;
   protected pendingError = '';
   protected storageError = '';
 
@@ -88,7 +89,7 @@ export class MachineWorkspaceComponent {
     if (this.saving || this.pending || this.hasDraft()) { event.preventDefault(); event.returnValue = ''; }
   };
   private readonly storageChanged = (event: StorageEvent) => {
-    if (event.key === null || event.key === this.storageKey) { this.readPending(); this.render(); }
+    if (event.key === null || event.key === this.storageKey || event.key.startsWith(this.storageKey + '.')) { this.readPending(); this.render(); }
   };
 
   constructor() {
@@ -468,9 +469,12 @@ export class MachineWorkspaceComponent {
     this.readPending();
     if (this.pending || this.storageError) return;
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(command));
+      const serialized = JSON.stringify(command);
+      const key = this.commandKey(command);
+      localStorage.setItem(key, serialized);
+      if (localStorage.getItem(key) !== serialized) throw new Error();
       this.readPending();
-      if (JSON.stringify(this.pending) !== JSON.stringify(command)) throw new Error();
+      if (this.storageError) throw new Error();
     } catch {
       this.storageError = 'No se pudo guardar la referencia en este navegador. La operación sigue sin enviarse.';
       return;
@@ -529,22 +533,41 @@ export class MachineWorkspaceComponent {
     this.storageError = '';
     try {
       if (!userId) throw new Error();
-      const raw = localStorage.getItem(this.storageKey);
+      const commands = new Map<string, PendingMachineWrite>();
       this.pending = null;
-      if (!raw) return;
-      const value = JSON.parse(raw) as PendingMachineWrite;
-      if (!value || value.userId !== userId || !machineWriteActions.has(value.action) ||
-        !/^[\w-]{1,128}$/.test(value.machineId) || !/^[a-f0-9-]{36}$/i.test(value.body?.operationId))
-        throw new Error();
-      this.pending = value;
+      this.pendingCount = 0;
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key !== this.storageKey && !key?.startsWith(this.storageKey + '.')) continue;
+        const value = JSON.parse(localStorage.getItem(key) ?? 'null') as PendingMachineWrite;
+        if (!value || value.userId !== userId || !machineWriteActions.has(value.action) ||
+          !/^[\w-]{1,128}$/.test(value.machineId) || !/^[a-f0-9-]{36}$/i.test(value.body?.operationId) ||
+          key !== this.storageKey && key !== this.commandKey(value))
+          throw new Error();
+        const existing = commands.get(value.body.operationId);
+        if (existing && JSON.stringify(existing) !== JSON.stringify(value)) throw new Error();
+        commands.set(value.body.operationId, value);
+      }
+      const recovered = [...commands.values()].sort((first, second) => first.body.operationId.localeCompare(second.body.operationId));
+      this.pending = recovered[0] ?? null;
+      this.pendingCount = recovered.length;
     } catch { this.storageError = 'No se pudo recuperar la referencia guardada. Revisa el almacenamiento del navegador antes de capturar nuevamente.'; }
   }
 
+  private commandKey(command: PendingMachineWrite): string { return this.storageKey + '.' + command.body.operationId; }
+
   private clearPending(command: PendingMachineWrite): void {
-    const previous = localStorage.getItem(this.storageKey);
-    if (previous && previous !== JSON.stringify(command)) throw new Error();
-    localStorage.removeItem(this.storageKey);
-    if (localStorage.getItem(this.storageKey) !== null) throw new Error();
+    const key = this.commandKey(command);
+    const serialized = JSON.stringify(command);
+    const previous = localStorage.getItem(key);
+    if (previous !== null && previous !== serialized) throw new Error();
+    const legacy = localStorage.getItem(this.storageKey);
+    if (legacy === serialized) {
+      localStorage.removeItem(this.storageKey);
+      if (localStorage.getItem(this.storageKey) !== null) throw new Error();
+    }
+    localStorage.removeItem(key);
+    if (localStorage.getItem(key) !== null) throw new Error();
     this.readPending();
   }
 

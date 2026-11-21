@@ -291,6 +291,11 @@ public sealed class ProductionManagementTests
         Assert.Equal(20, view.Orders.Single(x => x.OrderId == order).Lines.Single().ReleasedQuantity);
         Assert.Equal(2, view.Notices.Count);
         Assert.Equal(20, view.Notices.Sum(notice => notice.Quantity));
+        var dashboard = await fixture.Service.GetDashboardAsync(fixture.Date, null, Ct);
+        Assert.Equal(2, dashboard.Releases!.Count);
+        Assert.All(dashboard.Releases, notice => Assert.Equal(machine, notice.MachineId));
+        var excluded = await fixture.Service.GetDashboardAsync(fixture.Date, "R-TWO", Ct);
+        Assert.Empty(excluded.Releases!);
         var looseBatch = view.Batches.Single(x => x.Id == loose.Id);
         Assert.Equal(5, looseBatch.HandedOffQuantity);
         Assert.Equal(5, looseBatch.AvailableQuantity);
@@ -351,7 +356,7 @@ public sealed class ProductionManagementTests
             this.connection = connection; Db = db; Product = product; Machine = machine; Order = order;
             Service = new(new EfProductionRepository(db), new EfOrderRepository(db), new EfProductRepository(db),
                 new EfMachineRepository(db), new EfCustomerRepository(db), new EfOrderOperationStore(db), new EfAuditLogRepository(db), Clock,
-                new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(db), new EfMachineRepository(db), new EfCustomerRepository(db)));
+                new OrderChangeNoticePublisher(new EfOrderChangeNoticeRepository(db), new EfMachineRepository(db), new EfCustomerRepository(db)), new EfMachineWorkspaceRepository(db));
         }
         public static async Task<Fixture> CreateAsync()
         {

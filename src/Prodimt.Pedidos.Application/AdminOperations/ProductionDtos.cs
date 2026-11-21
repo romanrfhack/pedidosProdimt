@@ -2,7 +2,10 @@ namespace Prodimt.Pedidos.Application.AdminOperations;
 
 public sealed record ProductionDashboardResponse(DateOnly Date, string? RouteCode, string SummaryScope,
     IReadOnlyList<ProductionMachineResponse> Machines, IReadOnlyList<ProductionBatchResponse> Batches,
-    IReadOnlyList<ProductionOrderResponse> Orders, IReadOnlyList<ProductionAllocationResponse> Allocations);
+    IReadOnlyList<ProductionOrderResponse> Orders, IReadOnlyList<ProductionAllocationResponse> Allocations,
+    IReadOnlyList<MachineProductionReleaseResponse>? Releases = null);
+public sealed record MachineProductionReleaseResponse(Guid Id, Guid MachineId, int MachineNumber, string MachineName,
+    Guid OrderId, Guid OrderLineId, string CustomerName, string ProductName, decimal Quantity, DateTimeOffset CreatedAt);
 public sealed record ProductionMachineResponse(Guid MachineId, int MachineNumber, string MachineName,
     decimal AssignedQuantity, decimal ProducedQuantity, decimal PendingQuantity, decimal AllocatedQuantity,
     decimal AvailableQuantity, bool IsActive = true);

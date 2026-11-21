@@ -11,7 +11,7 @@ namespace Prodimt.Pedidos.Application.AdminOperations;
 public sealed partial class ProductionManagementService(IProductionRepository production, IOrderRepository orders,
     IProductRepository products, IMachineRepository machines, ICustomerRepository customers,
     IOrderOperationStore operations, IAuditLogRepository audit, IDateTimeProvider clock,
-    OrderChangeNoticePublisher? changeNotices = null)
+    OrderChangeNoticePublisher? changeNotices = null, IMachineWorkspaceRepository? machineWorkspace = null)
 {
     public async Task<ProductionDashboardResponse> GetDashboardAsync(DateOnly? date, string? routeCode,
         CancellationToken cancellationToken)
@@ -65,6 +65,13 @@ public sealed partial class ProductionManagementService(IProductionRepository pr
                 return new ProductionMachineResponse(machine.Id, machine.Number, machine.Name ?? $"Máquina {machine.Number}", demand.Sum(x => x.Quantity),
                     produced, pending, assigned, produced - assigned - output.Sum(x => HandedOff(x.Id)), machine.IsActive);
             }).ToArray();
+        var releases = machineWorkspace is null ? [] : (await machineWorkspace.GetDayNoticesAsync(serviceDate, cancellationToken))
+            .Where(notice => route is null || visibleOrderIds.Contains(notice.OrderId))
+            .Select(notice => new MachineProductionReleaseResponse(notice.Id, notice.MachineId,
+                machineLookup.GetValueOrDefault(notice.MachineId)?.Number ?? 0,
+                machineLookup.GetValueOrDefault(notice.MachineId)?.Name ?? "Máquina",
+                notice.OrderId, notice.OrderLineId, notice.CustomerName, notice.ProductName,
+                notice.Quantity, notice.CreatedAt)).ToArray();
         return new(serviceDate, route, "all-routes", summaries,
             batches.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(batch =>
             {
@@ -77,7 +84,7 @@ public sealed partial class ProductionManagementService(IProductionRepository pr
             allocations.Where(x => route is null || visibleOrderIds.Contains(x.OrderId))
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new ProductionAllocationResponse(
                     x.Id, x.BatchId, x.OrderId, x.OrderLineId, x.CustomerNameSnapshot, x.Quantity, x.CreatedAt,
-                    x.ReversedAt, x.ReverseReason, x.ReleasedQuantity)).ToArray());
+                    x.ReversedAt, x.ReverseReason, x.ReleasedQuantity)).ToArray(), releases);
     }
 
     public Task<ProductionCommandResponse> RegisterAsync(RegisterProductionRequest request, AdminActorContext actor,
