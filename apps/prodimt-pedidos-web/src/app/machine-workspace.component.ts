@@ -113,6 +113,12 @@ export class MachineWorkspaceComponent {
   protected get manageAccess(): boolean { return this.access.has('operations.machine.manage'); }
   protected get covered(): number { return this.currentTeam?.slots.filter(slot => slot.workerId).length ?? 0; }
   protected get canWrite(): boolean { return !!this.board && !this.loading && !this.saving && !this.pending && !this.storageError; }
+  protected get unallocatedInShipping(): number {
+    return this.sum(this.board?.batches?.map(lot => lot.handedOffQuantity) ?? []);
+  }
+  protected get unallocatedInMachine(): number {
+    return Math.max(0, this.sum([this.board?.totals.availableQuantity ?? 0, -this.unallocatedInShipping]));
+  }
   protected get availableLots(): WorkspaceLot[] { return this.board?.batches.filter(lot => lot.availableQuantity > 0) ?? []; }
   protected get coverageWorkers() {
     const current = this.currentTeam;
@@ -501,8 +507,8 @@ export class MachineWorkspaceComponent {
       await this.load(this.machineId);
       if (this.teamOpen && this.teamMode === 'fixed' && (command.action === 'team/regular' || command.action === 'workers')) await this.loadFixed();
     } catch (error) {
-      const known = first && error instanceof HttpErrorResponse &&
-        ([400, 403, 404].includes(error.status) || error.status === 409 && error.error?.retrySameOperation === false);
+      const known = error instanceof HttpErrorResponse &&
+        (error.status === 409 && error.error?.retrySameOperation === false || first && [400, 403, 404].includes(error.status));
       if (known) {
         try { this.clearPending(command); }
         catch { this.pendingError = 'Se recibió una respuesta, pero la referencia sigue guardada. Reintenta para comprobarla.'; }
@@ -513,7 +519,7 @@ export class MachineWorkspaceComponent {
       else if (known && command.action === 'team/regular') this.teamError = detail;
       else this.pendingError ||= detail;
       if (known && error instanceof HttpErrorResponse && [404, 409].includes(error.status)) {
-        // La respuesta rechazada no puede confirmar otro intento anterior.
+        // El servidor confirmó el rechazo definitivo de esta referencia.
         this.saving = false;
         this.closeDialog();
         this.pendingError = detail;

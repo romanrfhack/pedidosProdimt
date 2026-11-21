@@ -43,7 +43,9 @@
       <div><span>Pendientes de producir</span><strong>{{ qty(workspace.totals.pendingQuantity) }} kg</strong>
         <small>De pedidos asignados</small></div>
       <div><span>Sin cliente</span><strong>{{ qty(workspace.totals.availableQuantity) }} kg</strong>
-        <small>Incluidos en producidos</small></div>
+        <small>@if (unallocatedInShipping > 0) {
+          {{ qty(unallocatedInMachine) }} kg en máquina<br>{{ qty(unallocatedInShipping) }} kg en Embarques
+        } @else { Incluidos en producidos }</small></div>
     </section>
 
     <section class="machine-team" aria-labelledby="machine-team-title">

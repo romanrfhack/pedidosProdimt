@@ -139,3 +139,47 @@ test('los avisos de terminado agrupan máquinas, ordenan por última liberación
   assert.deepEqual(groups.map(group => [group.machineId, group.quantity, group.releases.map(entry => entry.id)]),
     [['M1', 4, ['c', 'a']], ['M2', 4, ['b']]]);
 });
+
+test('un reintento rechazado definitivamente retira su UUID y habilita una nueva captura', async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(prefix + '.' + firstId, JSON.stringify(command(firstId)));
+  let rejection = true;
+  const context = setup(storage, () => rejection
+    ? throwError(() => new HttpErrorResponse({ status: 409, error: { error: 'El pedido cambió.', retrySameOperation: false } }))
+    : of({ id: 'new-receipt' }));
+  await ready(context);
+  await context.view.send(context.view.pending, false);
+  assert.equal(storage.length, 0);
+  assert.equal(context.view.pending, null);
+  assert.equal(context.view.canWrite, true);
+  rejection = false;
+  await context.view.submit({ action: 'lots', body: body(secondId) });
+  assert.equal(context.view.pending, null);
+  assert.equal(storage.length, 0);
+  context.destroy();
+});
+
+test('un reintento ambiguo conserva su UUID y el bloqueo de nueva captura', async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(prefix + '.' + firstId, JSON.stringify(command(firstId)));
+  const context = setup(storage, () => throwError(() => new HttpErrorResponse({
+    status: 409, error: { error: 'La operación sigue procesándose.', retrySameOperation: true }
+  })));
+  await ready(context);
+  await context.view.send(context.view.pending, false);
+  assert.deepEqual(context.view.pending, command(firstId));
+  assert.equal(storage.length, 1);
+  assert.equal(context.view.canWrite, false);
+  context.destroy();
+});
+
+test('el total sin cliente conserva kilos entregados y muestra ubicación de ambos saldos', async () => {
+  const context = setup(new MemoryStorage());
+  await ready(context);
+  context.view.board.totals = { availableQuantity: 4.25 };
+  context.view.board.batches = [{ handedOffQuantity: 1.25 }, { handedOffQuantity: 0.5 }];
+  assert.equal(context.view.unallocatedInShipping, 1.75);
+  assert.equal(context.view.unallocatedInMachine, 2.5);
+  assert.equal(context.view.board.totals.availableQuantity, 4.25);
+  context.destroy();
+});
