@@ -6,6 +6,9 @@ public static class SecurityDefaults
 {
     public static readonly Guid AdministratorRoleId = Guid.Parse("18180000-0000-0000-0000-000000000001");
     public static readonly Guid DriverVanRoleId = Guid.Parse("22220000-0000-0000-0000-000000000001");
+    public static readonly Guid MachineOperatorRoleId = Guid.Parse("24240000-0000-0000-0000-000000000001");
+    public const string MachineOperatorRoleName = "Responsable de Máquina";
+    public const string MachineOperatorRoleDescription = "Captura producción y organiza el equipo de las máquinas asignadas.";
     public static readonly Guid InitialRevision = Guid.Parse("18180000-0000-0000-0000-000000000002");
     public static IReadOnlyList<SecurityPermission> Permissions => Definitions.Select((x, i) => new SecurityPermission
     {
@@ -34,6 +37,8 @@ public static class SecurityDefaults
         ("operations.allocate", "Asignar y revertir kilos de pedidos", "Operación"),
         ("delivery.read.own", "Consultar mi reparto", "Reparto"),
         ("delivery.operate.own", "Registrar mi conteo, carga y entregas", "Reparto"),
-        ("delivery.manage", "Administrar rutas y reparto", "Reparto")
+        ("delivery.manage", "Administrar rutas y reparto", "Reparto"),
+        ("operations.machine.work", "Operar las máquinas asignadas", "Operación"),
+        ("operations.machine.manage", "Administrar responsables y personal de máquinas", "Operación")
     ];
 }

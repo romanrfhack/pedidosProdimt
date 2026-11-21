@@ -2,13 +2,16 @@ namespace Prodimt.Pedidos.Application.AdminOperations;
 
 public sealed record ProductionDashboardResponse(DateOnly Date, string? RouteCode, string SummaryScope,
     IReadOnlyList<ProductionMachineResponse> Machines, IReadOnlyList<ProductionBatchResponse> Batches,
-    IReadOnlyList<ProductionOrderResponse> Orders, IReadOnlyList<ProductionAllocationResponse> Allocations);
+    IReadOnlyList<ProductionOrderResponse> Orders, IReadOnlyList<ProductionAllocationResponse> Allocations,
+    IReadOnlyList<MachineProductionReleaseResponse>? Releases = null);
+public sealed record MachineProductionReleaseResponse(Guid Id, Guid MachineId, int MachineNumber, string MachineName,
+    Guid OrderId, Guid OrderLineId, string CustomerName, string ProductName, decimal Quantity, DateTimeOffset CreatedAt);
 public sealed record ProductionMachineResponse(Guid MachineId, int MachineNumber, string MachineName,
     decimal AssignedQuantity, decimal ProducedQuantity, decimal PendingQuantity, decimal AllocatedQuantity,
     decimal AvailableQuantity, bool IsActive = true);
 public sealed record ProductionBatchResponse(Guid Id, DateOnly Date, Guid MachineId, int? MachineNumber,
     string? MachineName, Guid ProductId, string ProductName, string UnitCode, decimal Quantity,
-    decimal AllocatedQuantity, decimal AvailableQuantity, DateTimeOffset CreatedAt);
+    decimal AllocatedQuantity, decimal AvailableQuantity, DateTimeOffset CreatedAt, decimal HandedOffQuantity = 0);
 public sealed record ProductionOrderResponse(Guid OrderId, Guid? CustomerId, string CustomerName, int SequenceNumber,
     string? RouteCode, int? RouteStopOrder, int OrderVersion, string? InternalDeliveryInstructions,
     TimeOnly? RequestedDeliveryTime, TimeOnly? RequestedDeliveryWindowStart, TimeOnly? RequestedDeliveryWindowEnd,
@@ -17,7 +20,7 @@ public sealed record ProductionLineResponse(Guid OrderLineId, Guid ProductId, st
     string? UnitCode, decimal Quantity, Guid? AssignedMachineId, int? AssignedMachineNumber,
     string? AssignedMachineName, decimal AllocatedQuantity, decimal PendingAllocationQuantity, string? Notes);
 public sealed record ProductionAllocationResponse(Guid Id, Guid BatchId, Guid OrderId, Guid OrderLineId,
-    string CustomerName, decimal Quantity, DateTimeOffset CreatedAt, DateTimeOffset? ReversedAt, string? ReverseReason);
+    string CustomerName, decimal Quantity, DateTimeOffset CreatedAt, DateTimeOffset? ReversedAt, string? ReverseReason, decimal ReleasedQuantity = 0);
 public sealed record RegisterProductionRequest(Guid OperationId, DateOnly Date, Guid MachineId, Guid ProductId,
     decimal Quantity, string? Notes = null);
 public sealed record AllocateProductionRequest(Guid OperationId, Guid BatchId, Guid OrderId, Guid OrderLineId,

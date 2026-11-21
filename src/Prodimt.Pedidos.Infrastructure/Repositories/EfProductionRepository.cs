@@ -30,6 +30,13 @@ public sealed class EfProductionRepository(PedidosDbContext db) : IProductionRep
     public Task<bool> HasRecordedProductProductionAsync(Guid productId, CancellationToken cancellationToken)
         => db.ProductionBatches.AnyAsync(x => x.ProductId == productId, cancellationToken);
 
+    public async Task<IReadOnlyList<ProductionLotHandoff>> GetHandoffsByDateAsync(DateOnly date, CancellationToken cancellationToken)
+        => await db.Set<ProductionLotHandoff>().AsNoTracking().Where(x => db.ProductionBatches
+            .Any(batch => batch.Id == x.BatchId && batch.ServiceDate == date)).ToArrayAsync(cancellationToken);
+
+    public async Task AddHandoffAsync(ProductionLotHandoff handoff, CancellationToken cancellationToken)
+        => await db.Set<ProductionLotHandoff>().AddAsync(handoff, cancellationToken);
+
     public async Task AddBatchAsync(ProductionBatch batch, CancellationToken cancellationToken)
         => await db.ProductionBatches.AddAsync(batch, cancellationToken);
 

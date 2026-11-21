@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
+using Prodimt.Pedidos.Api;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Domain.Entities;
@@ -96,13 +98,16 @@ public sealed class AdminLoginRateLimitTests
     [InlineData("WindowSeconds", "0")]
     public async Task InvalidConfigurationFailsStartupInsteadOfDisablingProtection(string key, string value)
     {
-        await using var parent = new AuthApiAuthorizationTests.AuthApiFactory();
-        await using var factory = parent.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, configuration) =>
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                [$"Authentication:AdminLoginRateLimit:{key}"] = value
-            })));
-        Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [$"Authentication:AdminLoginRateLimit:{key}"] = value
+        });
+        builder.Services.AddAdminLoginRateLimiting();
+        using var host = builder.Build();
+        // Exercise the real ValidateOnStart registration without the test web host's
+        // asynchronous startup/disposal race masking the validation exception.
+        await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
     }
 
     [Theory]

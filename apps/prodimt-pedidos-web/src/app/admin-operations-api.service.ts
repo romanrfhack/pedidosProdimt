@@ -128,10 +128,15 @@ export interface ProductionAllocation {
   id: string; batchId: string; orderId: string; orderLineId: string; customerName: string;
   quantity: number; createdAt: string; reversedAt: string | null; reverseReason: string | null;
 }
+export interface ProductionRelease {
+  id: string; machineId: string; machineNumber: number; machineName: string;
+  orderId: string; orderLineId: string; customerName: string; productName: string;
+  quantity: number; createdAt: string;
+}
 export interface ProductionDashboard {
   date: string; routeCode: string | null; summaryScope: string;
   machines: ProductionMachine[]; batches: ProductionBatch[];
-  orders: ProductionOrder[]; allocations: ProductionAllocation[];
+  orders: ProductionOrder[]; allocations: ProductionAllocation[]; releases?: ProductionRelease[];
 }
 export interface ProductionCommandResponse { id: string; orderVersion: number | null; replayed: boolean; }
 export interface RegisterProductionRequest {

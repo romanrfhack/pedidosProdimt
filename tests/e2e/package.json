@@ -5,7 +5,8 @@
   "scripts": {
     "test": "playwright test",
     "test:real": "playwright test --config playwright.real.config.js",
-    "typecheck": "node ../../apps/prodimt-pedidos-web/node_modules/typescript/bin/tsc --project tsconfig.json"
+    "typecheck": "node ../../apps/prodimt-pedidos-web/node_modules/typescript/bin/tsc --project tsconfig.json",
+    "test:machine": "playwright test --config playwright.machine.config.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

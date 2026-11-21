@@ -46,6 +46,22 @@
         </div>
         <p class="production-help">El resumen incluye todas las rutas. La ruta filtra los pedidos; los kilos sin asignar todavía no pertenecen a un cliente.</p>
       </section>
+      @if (releaseGroups.length) {
+        <section class="stack production-releases" aria-labelledby="production-releases-heading" data-testid="production-releases">
+          <div class="section-heading"><h3 id="production-releases-heading">Producción liberada</h3><small>Todas las máquinas y rutas</small></div>
+          @for (group of releaseGroups; track group.machineId) {
+            <details class="production-release-group">
+              <summary><span>{{ group.label }}</span><span aria-live="polite">{{ quantity(group.quantity) }} kg liberados · {{ group.releases.length }} avisos</span></summary>
+              <p class="production-release-latest">{{ formatTimestamp(group.releases[0].createdAt) }} · Último aviso {{ group.releases[0].customerName }}</p>
+              <ul>
+                @for (release of group.releases; track release.id) {
+                  <li>{{ formatTimestamp(release.createdAt) }} · {{ release.customerName }} · {{ release.productName }} · {{ quantity(release.quantity) }} kg</li>
+                }
+              </ul>
+            </details>
+          }
+        </section>
+      }
       <section class="stack production-machine-filter no-print" aria-label="Máquinas a mostrar">
         <div class="section-heading"><h3>Máquinas a mostrar</h3><button class="production-text-action" type="button" (click)="selectAllMachines()">Seleccionar todas</button></div>
         <div class="production-chips">

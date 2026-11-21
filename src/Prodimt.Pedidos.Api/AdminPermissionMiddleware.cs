@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.Auth;
 using Prodimt.Pedidos.Application.Security;
 
@@ -46,6 +47,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
             "ordering-schedules" => "customers.manage",
             "security" or "users" => "security.manage",
             "operations" => OperationPermission(method, path, segments),
+            "machine-workspace" => MachineWorkspacePermission(method, segments),
             "product-setups" => get ? "customers.manage" : "pricing.manage",
             "daily-orders" or "import" => "imports.manage",
             "machines" => get ? "machines.read" : "machines.manage",
@@ -60,6 +62,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
     {
         var primary = RequiredPermission(method, path);
         if (primary is null) return [];
+        if (primary == MachineWorkspaceAccess.WorkPermission) return [primary, MachineWorkspaceAccess.ManagePermission];
         if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)) return [primary];
         if (path.TrimEnd('/').EndsWith("/orders/next-delivery-date", StringComparison.OrdinalIgnoreCase))
             return ["orders.capture", "tokens.manage"];
@@ -75,6 +78,24 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
             _ => [primary]
         };
     }
+    private static string MachineWorkspacePermission(string method, string[] segments)
+    {
+        var read = HttpMethods.IsGet(method) || HttpMethods.IsHead(method);
+        var post = HttpMethods.IsPost(method);
+        if (segments.Length == 4 && segments[3] == "machines" && read) return MachineWorkspaceAccess.WorkPermission;
+        if (segments.Length == 4 && segments[3] == "workers" && post) return MachineWorkspaceAccess.ManagePermission;
+        if (segments.Length == 6 && segments[3] == "machines" && Guid.TryParse(segments[4], out _)
+            && segments[5] == "operators" && (read || HttpMethods.IsPut(method))) return MachineWorkspaceAccess.ManagePermission;
+        if (segments.Length < 4 || !Guid.TryParse(segments[3], out _)) return "__unmapped__";
+        if (read && (segments.Length == 4 || (segments.Length == 5 && segments[4] == "team")))
+            return MachineWorkspaceAccess.WorkPermission;
+        if (post && segments.Length == 5 && segments[4] is "capture" or "lots" or "allocate" or "handoff" or "release")
+            return MachineWorkspaceAccess.WorkPermission;
+        if (post && segments.Length == 6 && segments[4] == "team" && segments[5] is "daily" or "regular")
+            return MachineWorkspaceAccess.WorkPermission;
+        return "__unmapped__";
+    }
+
     private static string OperationPermission(string method, string path, string[] segments)
     {
         if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method)) return "operations.read";
