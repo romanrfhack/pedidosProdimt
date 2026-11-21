@@ -398,6 +398,59 @@ public sealed class ProductionManagementSqlTests(SqlServerFixture database)
         Assert.Equal(12m, filtered.Machines.Single(x => x.MachineId == scene.MachineId).AvailableQuantity);
     }
 
+    [Fact]
+    public async Task MachineWorkspace_EndToEnd_RequiresRoleAndMachineAndPreservesCustody()
+    {
+        const string workspace = "/api/admin/machine-workspace";
+        var scene = await SeedAsync();
+        await using var host = database.CreateFactory();
+        using var admin = await SqlServerFixture.CreateAdminClientAsync(host);
+
+        var security = (await admin.GetFromJsonAsync<SecuritySnapshot>("/api/admin/security"))!;
+        var role = Assert.Single(security.Roles, x => x.Id == SecurityDefaults.MachineOperatorRoleId);
+        var name = "machine-operator-" + Guid.NewGuid().ToString("N");
+        using var created = await admin.PostAsJsonAsync("/api/admin/security/users",
+            new SaveSecurityUserRequest(security.Revision, name, "Responsable de prueba", SyntheticPassword, true, [role.Id], []));
+        created.EnsureSuccessStatusCode();
+        var operatorId = (await created.Content.ReadFromJsonAsync<SecuritySnapshot>())!.Users.Single(x => x.UserName == name).Id;
+        using var machineUser = host.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        using var login = await machineUser.PostAsJsonAsync("/api/auth/admin/login", new { userName = name, password = SyntheticPassword });
+        login.EnsureSuccessStatusCode();
+        machineUser.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            (await login.Content.ReadFromJsonAsync<AdminLoginResponse>())!.AccessToken);
+
+        var operatorsPath = $"{workspace}/machines/{scene.MachineId}/operators";
+        var assignment = (await admin.GetFromJsonAsync<MachineOperatorsResponse>(operatorsPath))!;
+        using var noMachine = await machineUser.GetAsync($"{workspace}/{scene.MachineId}");
+        Assert.Equal(HttpStatusCode.Forbidden, noMachine.StatusCode);
+        using var grant = await admin.PutAsJsonAsync(operatorsPath,
+            new ReplaceMachineOperatorsRequest(Guid.NewGuid(), [operatorId], assignment.Version));
+        grant.EnsureSuccessStatusCode();
+        var allowed = Assert.Single((await machineUser.GetFromJsonAsync<MachineWorkspaceMachine[]>(workspace + "/machines"))!);
+        Assert.Equal(scene.MachineId, allowed.Id);
+        using var otherMachine = await machineUser.GetAsync($"{workspace}/{scene.AlternativeMachineId}");
+        Assert.Equal(HttpStatusCode.Forbidden, otherMachine.StatusCode);
+        using var cannotManage = await machineUser.GetAsync(operatorsPath);
+        Assert.Equal(HttpStatusCode.Forbidden, cannotManage.StatusCode);
+
+        var path = $"{workspace}/{scene.MachineId}";
+        var capture = new MachineCaptureRequest(Guid.NewGuid(), scene.OrderId, scene.LineId, 20m, 1);
+        var saved = await Command(machineUser, path + "/capture", capture);
+        Assert.True((await Command(machineUser, path + "/capture", capture)).Replayed);
+        await Command(machineUser, path + "/release", new MachineReleaseRequest(Guid.NewGuid(),
+            scene.OrderId, null, null, saved.OrderVersion!.Value));
+        var lot = await Command(machineUser, path + "/lots", new MachineLotRequest(Guid.NewGuid(), scene.ProductId, 7m, ServiceDate));
+        var handoff = new MachineHandoffRequest(Guid.NewGuid(), lot.Id, 5m);
+        await Command(machineUser, path + "/handoff", handoff);
+        Assert.True((await Command(machineUser, path + "/handoff", handoff)).Replayed);
+
+        var board = (await machineUser.GetFromJsonAsync<MachineWorkspaceResponse>(path))!;
+        Assert.Equal(new MachineWorkspaceTotals(27m, 20m, 0m, 7m), board.Totals);
+        Assert.Equal(20m, Assert.Single(Assert.Single(board.Orders).Lines).ReleasedQuantity);
+        Assert.Equal(5m, board.Batches.Single(x => x.Id == lot.Id).HandedOffQuantity);
+        Assert.Equal(scene.LineId, Assert.Single(board.Notices).OrderLineId);
+    }
+
     private async Task<Scene> SeedAsync(decimal quantity = 20m, bool assigned = true,
         bool productRequiresMachine = true, bool lineRequiresMachine = true)
     {

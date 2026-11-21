@@ -10,6 +10,7 @@ public sealed class ProductionAllocation
     public Guid OrderLineId { get; set; }
     public string CustomerNameSnapshot { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
+    public decimal ReleasedQuantity { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
     public DateTimeOffset? ReversedAt { get; set; }

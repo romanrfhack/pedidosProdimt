@@ -609,3 +609,10 @@ button.compact {
 /* I22 keeps delivery within its own responsive workspace. */
 .app-shell__main:has(.delivery-page){width:min(100%,1920px);padding:16px clamp(12px,1.5vw,30px)}
 @media(min-width:1000px){body:has(.delivery-page) .app-shell__header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:10px clamp(16px,1.6vw,32px)}body:has(.delivery-page) .app-shell__header h1{font-size:1.2rem}body:has(.delivery-page) nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}body:has(.delivery-page) nav a,body:has(.delivery-page) nav button{min-height:34px;padding:6px 9px;font-size:.75rem}}
+
+@media (max-width: 650px) {
+  .app-shell__header--machine { gap: 8px; padding-block: 10px; }
+  .app-shell__header--machine h1 { font-size: 1.22rem; }
+  .app-shell__header--machine nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app-shell__header--machine nav > * { min-height: 44px; padding-inline: 4px; font-size: .82rem; }
+}

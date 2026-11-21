@@ -905,6 +905,201 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("Machines");
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineOperator", b =>
+                {
+                    b.Property<Guid>("MachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("MachineId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("MachineOperators", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineProductionNotice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("MachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("OrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly>("ServiceDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("MachineId", "ServiceDate");
+
+                    b.ToTable("MachineProductionNotices", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MachineProductionNotice_Quantity", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineTeamChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("MachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OtherMachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("OtherPosition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("PreviousWorkerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("TransferId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("WorkerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MachineId");
+
+                    b.HasIndex("OtherMachineId");
+
+                    b.HasIndex("PreviousWorkerId");
+
+                    b.HasIndex("WorkerId");
+
+                    b.HasIndex("Date", "MachineId", "Position", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("MachineTeamChanges", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MachineTeamChanges_OtherPosition", "[OtherPosition] IS NULL OR [OtherPosition] BETWEEN 1 AND 4");
+
+                            t.HasCheckConstraint("CK_MachineTeamChanges_Position", "[Position] BETWEEN 1 AND 4");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineTeamTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("FirstCollectorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("MachineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("OperatorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("PackerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SecondCollectorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirstCollectorId");
+
+                    b.HasIndex("OperatorId");
+
+                    b.HasIndex("PackerId");
+
+                    b.HasIndex("SecondCollectorId");
+
+                    b.HasIndex("MachineId", "EffectiveDate")
+                        .IsUnique();
+
+                    b.ToTable("MachineTeamTemplates", (string)null);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineWorker", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MachineWorkers", (string)null);
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1359,6 +1554,10 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("ReleasedQuantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("ReverseReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -1379,6 +1578,8 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.ToTable("ProductionAllocations", null, t =>
                         {
                             t.HasCheckConstraint("CK_ProductionAllocation_Quantity", "[Quantity] > 0");
+
+                            t.HasCheckConstraint("CK_ProductionAllocation_Release", "CAST([ReleasedQuantity] AS decimal(18,2)) >= 0 AND CAST([ReleasedQuantity] AS decimal(18,2)) <= CAST([Quantity] AS decimal(18,2)) AND ([ReversedAt] IS NULL OR CAST([ReleasedQuantity] AS decimal(18,2)) = 0)");
 
                             t.HasCheckConstraint("CK_ProductionAllocation_Reversal", "([ReversedAt] IS NULL AND [ReversedBy] IS NULL AND [ReverseReason] IS NULL) OR ([ReversedAt] IS NOT NULL AND [ReverseReason] IS NOT NULL)");
                         });
@@ -1437,6 +1638,36 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_ProductionBatch_Quantity", "[Quantity] > 0");
 
                             t.HasCheckConstraint("CK_ProductionBatch_Unit", "[UnitCode] = 'kg'");
+                        });
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.ProductionLotHandoff", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
+
+                    b.ToTable("ProductionLotHandoffs", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductionLotHandoff_Quantity", "[Quantity] > 0");
                         });
                 });
 
@@ -1799,6 +2030,89 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineOperator", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("MachineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineProductionNotice", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("MachineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineTeamChange", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("MachineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("OtherMachineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("PreviousWorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("WorkerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.MachineTeamTemplate", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("FirstCollectorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.Machine", null)
+                        .WithMany()
+                        .HasForeignKey("MachineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("OperatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("PackerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.MachineWorker", null)
+                        .WithMany()
+                        .HasForeignKey("SecondCollectorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.Order", b =>
                 {
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Customer", null)
@@ -1890,6 +2204,15 @@ namespace Prodimt.Pedidos.Infrastructure.Persistence.Migrations
                     b.HasOne("Prodimt.Pedidos.Domain.Entities.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Prodimt.Pedidos.Domain.Entities.ProductionLotHandoff", b =>
+                {
+                    b.HasOne("Prodimt.Pedidos.Domain.Entities.ProductionBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

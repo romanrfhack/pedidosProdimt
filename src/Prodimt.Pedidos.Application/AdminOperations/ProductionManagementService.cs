@@ -8,7 +8,7 @@ using Prodimt.Pedidos.Domain.Enums;
 
 namespace Prodimt.Pedidos.Application.AdminOperations;
 
-public sealed class ProductionManagementService(IProductionRepository production, IOrderRepository orders,
+public sealed partial class ProductionManagementService(IProductionRepository production, IOrderRepository orders,
     IProductRepository products, IMachineRepository machines, ICustomerRepository customers,
     IOrderOperationStore operations, IAuditLogRepository audit, IDateTimeProvider clock,
     OrderChangeNoticePublisher? changeNotices = null)
@@ -33,6 +33,9 @@ public sealed class ProductionManagementService(IProductionRepository production
         var batches = await production.GetBatchesByDateAsync(serviceDate, cancellationToken);
         var allocations = await production.GetAllocationsByDateAsync(serviceDate, cancellationToken);
         var active = allocations.Where(x => x.ReversedAt is null).ToArray();
+        var handoffs = (await production.GetHandoffsByDateAsync(serviceDate, cancellationToken))
+            .GroupBy(x => x.BatchId).ToDictionary(group => group.Key, group => group.Sum(x => x.Quantity));
+        decimal HandedOff(Guid batchId) => handoffs.GetValueOrDefault(batchId);
         decimal Allocated(Guid batchId) => active.Where(x => x.BatchId == batchId).Sum(x => x.Quantity);
         decimal ForLine(Guid lineId) => active.Where(x => x.OrderLineId == lineId).Sum(x => x.Quantity);
         var requiredLines = allOrders.SelectMany(x => x.Lines).Where(Required).ToArray();
@@ -60,7 +63,7 @@ public sealed class ProductionManagementService(IProductionRepository production
                 var produced = output.Sum(x => x.Quantity);
                 var assigned = output.Sum(x => Allocated(x.Id));
                 return new ProductionMachineResponse(machine.Id, machine.Number, machine.Name ?? $"Máquina {machine.Number}", demand.Sum(x => x.Quantity),
-                    produced, pending, assigned, produced - assigned, machine.IsActive);
+                    produced, pending, assigned, produced - assigned - output.Sum(x => HandedOff(x.Id)), machine.IsActive);
             }).ToArray();
         return new(serviceDate, route, "all-routes", summaries,
             batches.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(batch =>
@@ -69,12 +72,12 @@ public sealed class ProductionManagementService(IProductionRepository production
                 var allocated = Allocated(batch.Id);
                 return new ProductionBatchResponse(batch.Id, batch.ServiceDate, batch.MachineId, machine?.Number,
                     machine?.Name, batch.ProductId, batch.ProductNameSnapshot, batch.UnitCode, batch.Quantity,
-                    allocated, batch.Quantity - allocated, batch.CreatedAt);
+                    allocated, batch.Quantity - allocated - HandedOff(batch.Id), batch.CreatedAt, HandedOff(batch.Id));
             }).ToArray(), scopedOrders,
             allocations.Where(x => route is null || visibleOrderIds.Contains(x.OrderId))
                 .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new ProductionAllocationResponse(
                     x.Id, x.BatchId, x.OrderId, x.OrderLineId, x.CustomerNameSnapshot, x.Quantity, x.CreatedAt,
-                    x.ReversedAt, x.ReverseReason)).ToArray());
+                    x.ReversedAt, x.ReverseReason, x.ReleasedQuantity)).ToArray());
     }
 
     public Task<ProductionCommandResponse> RegisterAsync(RegisterProductionRequest request, AdminActorContext actor,
@@ -86,24 +89,34 @@ public sealed class ProductionManagementService(IProductionRepository production
         if (request.Notes?.Length > 500) throw new ArgumentException("Las notas admiten hasta 500 caracteres.");
         return ExecuteAsync("BATCH", request.OperationId, request, actor, async token =>
         {
-            await RequireMachineAsync(request.MachineId, token);
-            var product = await products.GetByIdAsync(request.ProductId, token)
-                ?? throw new KeyNotFoundException("No se encontró el producto.");
-            if (!product.IsActive || !product.RequiresMachine || product.MergedIntoProductId is not null || product.UnitCode != ProductUnitCodes.Kilogram)
-                throw new ArgumentException("Selecciona un producto activo que requiera máquina y tenga unidad kg.");
-            var batch = new ProductionBatch
-            {
-                Id = Guid.NewGuid(), ServiceDate = request.Date, MachineId = request.MachineId,
-                ProductId = product.Id, ProductNameSnapshot = product.Name, Quantity = request.Quantity,
-                UnitCode = ProductUnitCodes.Kilogram, CreatedAt = clock.Now, CreatedBy = actor.ActorId,
-                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
-            };
-            await production.AddBatchAsync(batch, token);
-            await AuditAsync(batch.Id, "ProductionBatchRegistered", actor,
-                "Producción física registrada.", new { batch.ServiceDate, batch.MachineId, batch.ProductId, batch.Quantity, batch.UnitCode }, token);
+            var batch = await RegisterBatchAsync(request, actor, token);
             return new(batch.Id, null);
         }, cancellationToken);
     }
+
+    private async Task<ProductionBatch> RegisterBatchAsync(RegisterProductionRequest request, AdminActorContext actor,
+        CancellationToken token)
+    {
+        await RequireMachineAsync(request.MachineId, token);
+        var product = await products.GetByIdAsync(request.ProductId, token)
+            ?? throw new KeyNotFoundException("No se encontró el producto.");
+        if (!CanProduce(product))
+            throw new ArgumentException("Selecciona un producto activo que requiera máquina y tenga unidad kg.");
+        var batch = new ProductionBatch
+        {
+            Id = Guid.NewGuid(), ServiceDate = request.Date, MachineId = request.MachineId,
+            ProductId = product.Id, ProductNameSnapshot = product.Name, Quantity = request.Quantity,
+            UnitCode = ProductUnitCodes.Kilogram, CreatedAt = clock.Now, CreatedBy = actor.ActorId,
+            Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
+        };
+        await production.AddBatchAsync(batch, token);
+        await AuditAsync(batch.Id, "ProductionBatchRegistered", actor, "Producción física registrada.",
+            new { batch.ServiceDate, batch.MachineId, batch.ProductId, batch.Quantity, batch.UnitCode }, token);
+        return batch;
+    }
+
+    private static bool CanProduce(Product product) => product.IsActive && product.RequiresMachine
+        && product.MergedIntoProductId is null && product.UnitCode == ProductUnitCodes.Kilogram;
 
     public Task<ProductionCommandResponse> AllocateAsync(AllocateProductionRequest request, AdminActorContext actor,
         CancellationToken cancellationToken)
@@ -111,31 +124,41 @@ public sealed class ProductionManagementService(IProductionRepository production
         ValidateQuantity(request.Quantity);
         return ExecuteAsync("ALLOCATE", request.OperationId, request, actor, async token =>
         {
-            var batch = await production.GetBatchByIdAsync(request.BatchId, token)
-                ?? throw new KeyNotFoundException("No se encontró el lote producido.");
+            var batch = await RequireBatchAsync(request.BatchId, token);
             var order = await RequireOrderAsync(request.OrderId, request.ExpectedOrderVersion, token);
             var line = await RequireLineAsync(order, request.OrderLineId, token);
-            if (order.OrderDate != batch.ServiceDate || line.ProductId != batch.ProductId ||
-                line.UnitCode != batch.UnitCode || line.AssignedMachineId != batch.MachineId)
-                throw new ArgumentException("El lote y el pedido deben compartir fecha, máquina, producto y unidad.");
-            var dateAllocations = await production.GetAllocationsByDateAsync(batch.ServiceDate, token);
-            var active = dateAllocations.Where(x => x.ReversedAt is null).ToArray();
-            if (request.Quantity > batch.Quantity - active.Where(x => x.BatchId == batch.Id).Sum(x => x.Quantity))
-                throw new CustomerOrderConflictException("El lote no tiene suficientes kilos disponibles. Actualiza el panel.");
-            if (request.Quantity > line.Quantity - active.Where(x => x.OrderLineId == line.Id).Sum(x => x.Quantity))
-                throw new CustomerOrderConflictException("La cantidad supera los kilos pendientes de asignar al pedido.");
-            var allocation = new ProductionAllocation
-            {
-                Id = Guid.NewGuid(), BatchId = batch.Id, OrderId = order.Id, OrderLineId = line.Id,
-                Quantity = request.Quantity, CustomerNameSnapshot = await CustomerNameAsync(order, token),
-                CreatedAt = clock.Now, CreatedBy = actor.ActorId
-            };
-            await production.AddAllocationAsync(allocation, token);
-            order.Version++;
-            await AuditAsync(allocation.Id, "ProductionAllocated", actor, "Kilos producidos asignados al pedido.",
-                new { allocation.BatchId, allocation.OrderId, allocation.OrderLineId, allocation.Quantity }, token);
-            return new(allocation.Id, order.Version);
+            return await AllocateBatchAsync(batch, order, line, request.Quantity, actor, token);
         }, cancellationToken);
+    }
+
+    private async Task<ProductionBatch> RequireBatchAsync(Guid batchId, CancellationToken token)
+        => await production.GetBatchByIdAsync(batchId, token)
+            ?? throw new KeyNotFoundException("No se encontró el lote producido.");
+
+    private async Task<ProductionCommandResponse> AllocateBatchAsync(ProductionBatch batch, Order order, OrderLine line,
+        decimal quantity, AdminActorContext actor, CancellationToken token)
+    {
+        if (order.OrderDate != batch.ServiceDate || line.ProductId != batch.ProductId ||
+            line.UnitCode != batch.UnitCode || line.AssignedMachineId != batch.MachineId)
+            throw new ArgumentException("El lote y el pedido deben compartir fecha, máquina, producto y unidad.");
+        var dateAllocations = await production.GetAllocationsByDateAsync(batch.ServiceDate, token);
+        var active = dateAllocations.Where(x => x.ReversedAt is null).ToArray();
+        var handedOff = await GetHandedOffAsync(batch, token);
+        if (quantity > batch.Quantity - handedOff - active.Where(x => x.BatchId == batch.Id).Sum(x => x.Quantity))
+            throw new CustomerOrderConflictException("El lote no tiene suficientes kilos disponibles en máquina. Actualiza el panel.");
+        if (quantity > line.Quantity - active.Where(x => x.OrderLineId == line.Id).Sum(x => x.Quantity))
+            throw new CustomerOrderConflictException("La cantidad supera los kilos pendientes de asignar al pedido.");
+        var allocation = new ProductionAllocation
+        {
+            Id = Guid.NewGuid(), BatchId = batch.Id, OrderId = order.Id, OrderLineId = line.Id,
+            Quantity = quantity, CustomerNameSnapshot = await CustomerNameAsync(order, token),
+            CreatedAt = clock.Now, CreatedBy = actor.ActorId
+        };
+        await production.AddAllocationAsync(allocation, token);
+        order.Version++;
+        await AuditAsync(allocation.Id, "ProductionAllocated", actor, "Kilos producidos asignados al pedido.",
+            new { allocation.BatchId, allocation.OrderId, allocation.OrderLineId, allocation.Quantity }, token);
+        return new(allocation.Id, order.Version);
     }
 
     public Task<ProductionCommandResponse> ReverseAsync(Guid allocationId, ReverseProductionAllocationRequest request,
@@ -146,6 +169,8 @@ public sealed class ProductionManagementService(IProductionRepository production
         {
             var allocation = await production.GetAllocationByIdAsync(allocationId, token)
                 ?? throw new KeyNotFoundException("No se encontró la asignación de producción.");
+            if (allocation.ReleasedQuantity > 0)
+                throw new CustomerOrderConflictException("La asignación ya tiene kilos liberados para Embarques.");
             if (allocation.ReversedAt is not null)
                 throw new CustomerOrderConflictException("Esta asignación ya fue revertida. Actualiza el panel.");
             var order = await orders.GetByIdAsync(allocation.OrderId, token)

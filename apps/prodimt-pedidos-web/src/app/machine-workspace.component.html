@@ -1,0 +1,359 @@
+<section class="page machine-page" aria-labelledby="machine-title">
+  <header class="machine-head">
+    <div class="page-title">
+      <p class="eyebrow">Responsable de Máquina</p>
+      <h2 id="machine-title">{{ board?.machine?.name || 'Mi máquina' }}</h2>
+      @if (board) { <p class="machine-meta">Jornada del {{ serviceDate(board.date) }}</p> }
+    </div>
+    <div class="machine-actions">
+      @if (machines.length > 1) {
+        <label><span class="machine-meta">Máquina</span>
+          <select #machinePicker [ngModel]="machineId" (ngModelChange)="changeMachine($event, machinePicker)" [disabled]="saving || loading">
+            @for (machine of machines; track machine.id) { <option [value]="machine.id">{{ machine.name }}</option> }
+          </select>
+        </label>
+      }
+      @if (manageAccess && board) {
+        <button class="secondary compact" type="button" (click)="openOperators()" [disabled]="!canWrite">Cuentas responsables</button>
+      }
+    </div>
+  </header>
+
+  @if (error) {
+    <div class="alert error" role="alert">{{ error }} <button type="button" class="secondary compact" (click)="loadMachines()" [disabled]="loading">Volver a consultar</button></div>
+  }
+  @if (storageError) { <p class="alert error" role="alert">{{ storageError }}</p> }
+  @if (pending && !dialog) {
+    <div class="alert warning machine-head">
+      <span role="status">{{ pendingError || 'Hay una operación sin confirmar. Puedes comprobarla con la referencia guardada.' }}</span>
+      <button type="button" class="secondary compact" (click)="retry()" [disabled]="saving || !!storageError">Reintentar operación</button>
+    </div>
+  } @else if (pendingError && !dialog) { <p class="alert error" role="alert">{{ pendingError }}</p> }
+  @if (message) { <p class="machine-message" role="status">{{ message }}</p> }
+
+  @if (loading && !board) { <p class="machine-meta" role="status">Consultando la producción…</p> }
+  @if (!loading && !error && !machines.length) {
+    <p class="notice">Esta cuenta aún no está asignada a una máquina. Solicita la asignación a administración.</p>
+  }
+
+  @if (board; as workspace) {
+    <section class="machine-totals" aria-label="Totales de la máquina">
+      <div><span>Producidos</span><strong>{{ qty(workspace.totals.producedQuantity) }} kg</strong>
+        <small>{{ qty(workspace.totals.allocatedQuantity) }} kg vinculados</small></div>
+      <div><span>Pendientes de producir</span><strong>{{ qty(workspace.totals.pendingQuantity) }} kg</strong>
+        <small>De pedidos asignados</small></div>
+      <div><span>Sin cliente</span><strong>{{ qty(workspace.totals.availableQuantity) }} kg</strong>
+        <small>Incluidos en producidos</small></div>
+    </section>
+
+    <section class="machine-team" aria-labelledby="machine-team-title">
+      <div class="machine-head">
+        <div>
+          <h3 id="machine-team-title">Equipo de hoy</h3>
+          @if (currentTeam) { <span class="machine-meta" [class.machine-gap]="covered < 4">{{ covered }}/4 plazas cubiertas</span> }
+          @else if (teamLoading) { <span class="machine-meta">Consultando plazas…</span> }
+        </div>
+        <button class="secondary compact" type="button" (click)="toggleTeam()" [disabled]="saving"
+          [attr.aria-expanded]="teamOpen" aria-controls="machine-roster">{{ teamOpen ? 'Ocultar equipo' : 'Configurar equipo' }}</button>
+      </div>
+      <div id="machine-roster" [hidden]="!teamOpen">
+        @if (teamOpen) {
+          <div class="machine-actions machine-team-tabs" aria-label="Configuración del equipo">
+            <button type="button" [class.primary]="teamMode === 'daily'" [class.secondary]="teamMode !== 'daily'" class="compact"
+              [attr.aria-pressed]="teamMode === 'daily'" (click)="setTeamMode('daily')" [disabled]="saving || fixedLoading">Equipo de hoy</button>
+            <button type="button" [class.primary]="teamMode === 'fixed'" [class.secondary]="teamMode !== 'fixed'" class="compact"
+              [attr.aria-pressed]="teamMode === 'fixed'" (click)="setTeamMode('fixed')" [disabled]="saving || fixedLoading">Equipo fijo</button>
+            @if (currentTeam?.canManageWorkers) { <button type="button" class="secondary compact" (click)="openWorker()" [disabled]="!canWrite">Agregar trabajador</button> }
+          </div>
+          @if (teamError) {
+            <p class="alert error" role="alert">{{ teamError }}</p>
+            @if (teamMode === 'daily' && !currentTeam) {
+              <button type="button" class="secondary compact" (click)="loadTeam(machineId)" [disabled]="teamLoading">Reconsultar equipo</button>
+            }
+          }
+          @if (teamMode === 'daily' && currentTeam; as team) {
+            <ul class="machine-slots">
+              @for (slot of team.slots; track slot.position) {
+                <li>
+                  <strong>{{ slot.label }}</strong>
+                  <div>{{ slot.workerName || 'Vacante' }}
+                    <small>{{ teamStatus(slot) }}@if (slot.regularWorkerName && slot.regularWorkerId !== slot.workerId) {
+                      · Titular {{ slot.regularWorkerName }}
+                    }</small>
+                  </div>
+                  <button class="secondary compact" type="button" (click)="adjust(slot)"
+                    [disabled]="!canWrite || !team.canEditDaily" [attr.aria-label]="'Ajustar ' + slot.label">Ajustar</button>
+                </li>
+              }
+            </ul>
+            @if (team.history.length) {
+              <details class="machine-changes">
+                <summary>Movimientos del día</summary>
+                <ul>
+                  @for (entry of team.history; track $index) {
+                    <li>{{ time(entry.createdAt) }} · {{ entry.label }} · {{ teamAction(entry.action) }}
+                      @if (entry.workerName) { · {{ entry.workerName }} }
+                      @if (entry.otherMachineId) { · {{ machineName(entry.otherMachineId) }} }
+                      @if (entry.actorName) { · {{ entry.actorName }} }
+                    </li>
+                  }
+                </ul>
+              </details>
+            }
+          }
+          @if (teamMode === 'fixed') {
+            <label class="machine-date">
+              <span>Vigente desde</span>
+              <input #fixedDateInput type="date" [ngModel]="fixedDate" (ngModelChange)="changeFixedDate($event, fixedDateInput)"
+                [min]="currentTeam?.today || workspace.date" [disabled]="fixedLoading || saving || !!pending">
+            </label>
+            @if (fixedLoading) { <p class="machine-meta" role="status">Consultando la plantilla para esa fecha…</p> }
+            @if (fixedTeam; as team) {
+              <ul class="machine-slots fixed-slots">
+                @for (slot of team.slots; track slot.position) {
+                  <li><label [attr.for]="'machine-slot-' + slot.position">{{ slot.label }}</label>
+                    <select [id]="'machine-slot-' + slot.position" [(ngModel)]="fixedWorkers[slot.position]" [disabled]="!canWrite">
+                      <option value="">Vacante</option>
+                      @for (worker of team.workers; track worker.id) {
+                        @if (worker.isActive || worker.id === slot.regularWorkerId) {
+                          <option [value]="worker.id">{{ worker.name }}</option>
+                        }
+                      }
+                    </select>
+                  </li>
+                }
+              </ul>
+              <button type="button" class="primary compact" (click)="saveFixed()" [disabled]="!canWrite || !hasFixedDraft()">Guardar equipo fijo</button>
+            } @else if (teamError && !fixedLoading) {
+              <button type="button" class="secondary compact" (click)="loadFixed()">Reconsultar equipo fijo</button>
+            }
+          }
+        }
+      </div>
+    </section>
+
+    <section class="machine-orders" aria-labelledby="machine-orders-title">
+      <div class="machine-head machine-table-heading">
+        <h3 id="machine-orders-title">Pedidos de mi máquina</h3>
+        <button type="button" class="secondary compact" (click)="openLots()">Lotes sin cliente</button>
+      </div>
+      @if (customers.length) {
+        <div class="machine-row machine-columns" aria-hidden="true">
+          <span>Cliente</span>
+          <span class="machine-numeric machine-desktop">Pedido</span><span class="machine-numeric machine-desktop">Producido</span>
+          <span class="machine-numeric machine-desktop">Pendiente</span><span class="machine-numeric machine-mobile">Hecho / pedido</span>
+          <span class="machine-desktop">Estado</span><span class="machine-numeric">Acciones</span>
+        </div>
+        <ul class="machine-lines" aria-label="Producción por cliente">
+          @for (customer of customers; track customer.id) {
+            <li class="machine-row" [class.machine-row-ready]="customer.ready" data-testid="machine-customer">
+              <button class="machine-customer-name" type="button" (click)="openCustomer(customer)" [title]="customer.name"
+                [attr.aria-label]="'Vista rápida de ' + customer.name">{{ customer.name }}</button>
+              <span class="machine-numeric machine-desktop" [attr.aria-label]="'Pedido ' + qty(customer.requested) + ' kilos'">{{ qty(customer.requested) }} kg</span>
+              <span class="machine-numeric machine-desktop" [attr.aria-label]="'Producido ' + qty(customer.produced) + ' kilos'">{{ qty(customer.produced) }} kg</span>
+              <span class="machine-numeric machine-desktop" [attr.aria-label]="'Pendiente ' + qty(customer.pending) + ' kilos'">{{ qty(customer.pending) }} kg</span>
+              <span class="machine-numeric machine-mobile" [attr.aria-label]="qty(customer.produced) + ' producidos de ' + qty(customer.requested) + ' kilos'">{{ qty(customer.produced) }} / {{ qty(customer.requested) }}</span>
+              <span class="badge machine-desktop" [class.success]="customer.ready" [class.warning]="customer.complete && !customer.ready"
+                [class.neutral]="!customer.complete">{{ status(customer) }}</span>
+              <div class="machine-actions machine-row-actions">
+                <button type="button" class="secondary compact machine-desktop" (click)="openCustomer(customer)"
+                  [attr.aria-label]="'Ver detalle de ' + customer.name">Ver</button>
+                <button type="button" class="primary compact" (click)="openCapture(customer)" [disabled]="!canWrite || customer.pending <= 0"
+                  [attr.aria-label]="'Registrar kilos para ' + customer.name">+ kg</button>
+                <button type="button" class="compact" [class.primary]="customer.complete && !customer.ready" [class.secondary]="!customer.complete || customer.ready"
+                  (click)="openRelease(customer)" [disabled]="!canWrite || !customer.complete || customer.ready"
+                  [attr.aria-label]="(customer.ready ? 'Listo: ' : 'Marcar listo: ') + customer.name">
+                  @if (customer.ready) { <span class="machine-desktop">✓ Listo</span><span class="machine-mobile">✓</span> }
+                  @else { Listo }
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      } @else { <p class="machine-meta machine-empty">No hay pedidos asignados a esta máquina para la jornada.</p> }
+    </section>
+    @if (workspace.notices.length) {
+      <details class="machine-changes">
+        <summary>Liberaciones del día ({{ workspace.notices.length }})</summary>
+        <ul>
+          @for (notice of workspace.notices; track notice.id + notice.orderLineId) {
+            <li>{{ time(notice.createdAt) }} · {{ notice.customerName }} · {{ notice.productName }} · {{ qty(notice.quantity) }} kg</li>
+          }
+        </ul>
+      </details>
+    }
+  }
+</section>
+
+<dialog #editor class="production-dialog" aria-labelledby="machine-dialog-title" (cancel)="closeDialog($event)">
+  @if (dialog; as view) {
+    <div class="machine-dialog-body">
+      @switch (view.kind) {
+        @case ('customer') {
+          <h3 id="machine-dialog-title">Vista rápida · {{ view.customer.name }}</h3>
+          @for (order of view.customer.orders; track order.orderId) {
+            <section class="machine-details">
+              <div class="machine-head">
+                <strong>Pedido #{{ order.sequenceNumber }}</strong>
+                @if (orderCanRelease(order)) {
+                  <button type="button" class="primary compact" (click)="openOrderRelease(view.customer, order)" [disabled]="!canWrite"
+                    [attr.aria-label]="'Marcar listo pedido ' + order.sequenceNumber">Marcar listo</button>
+                }
+              </div>
+              @for (line of order.lines; track line.orderLineId) {
+                <div class="machine-item">
+                  <strong>{{ line.productName }}</strong>
+                  <div>{{ qty(line.allocatedQuantity) }} de {{ qty(line.quantity) }} kg producidos</div>
+                  <small>{{ qty(line.pendingQuantity) }} kg pendientes · {{ qty(line.releasedQuantity) }} kg liberados</small>
+                  <div class="machine-actions">
+                    @if (line.pendingQuantity > 0) {
+                      <button type="button" class="primary compact" (click)="openLine(view.customer, order, line, 'capture')"
+                        [disabled]="!canWrite" [attr.aria-label]="'Registrar kilos de ' + line.productName">+ kg</button>
+                    }
+                    @if (lineCanRelease(line)) {
+                      <button type="button" class="secondary compact" (click)="openLine(view.customer, order, line, 'release')"
+                        [disabled]="!canWrite" [attr.aria-label]="'Liberar kilos de ' + line.productName">Liberar kilos</button>
+                    }
+                  </div>
+                </div>
+              }
+            </section>
+          }
+          <div class="production-dialog-actions"><button type="button" class="secondary" (click)="closeDialog()">Cerrar</button></div>
+        }
+        @case ('lots') {
+          <h3 id="machine-dialog-title">Lotes sin cliente</h3>
+          <div class="machine-actions"><button type="button" class="primary compact" (click)="openNewLot()" [disabled]="!canWrite">Registrar lote</button></div>
+          @for (lot of availableLots; track lot.id) {
+            <div class="machine-item">
+              <strong>{{ lot.productName }}</strong>
+              <small>{{ time(lot.createdAt) }} · Lote {{ lot.id.slice(0, 8) }}</small>
+              <div>{{ qty(lotBalance(lot)) }} kg en máquina · {{ qty(lot.handedOffQuantity) }} kg en Embarques</div>
+              <div class="machine-actions">
+                <button type="button" class="secondary compact" (click)="openLotAction(lot, 'allocate')"
+                  [disabled]="!canWrite || !lotChoices(lot).length">Vincular kilos</button>
+                <button type="button" class="secondary compact" (click)="openLotAction(lot, 'handoff')"
+                  [disabled]="!canWrite || lotBalance(lot) <= 0">Entregar a Embarques</button>
+              </div>
+            </div>
+          } @empty { <p class="machine-meta">Sin kilos pendientes de vincular.</p> }
+          <div class="production-dialog-actions"><button type="button" class="secondary" (click)="closeDialog()">Cerrar</button></div>
+        }
+        @case ('quantity') {
+          <h3 id="machine-dialog-title">{{ view.title }}</h3>
+          @if (view.customer) { <p class="machine-meta">{{ view.customer.name }}</p> }
+          @if (view.item) { <p class="machine-meta">Pedido #{{ view.item.order.sequenceNumber }} · {{ view.item.line.productName }}</p> }
+          @if (view.lot) { <p class="machine-meta">{{ view.lot.productName }} · Lote {{ view.lot.id.slice(0, 8) }}</p> }
+          <form class="machine-dialog-body" (ngSubmit)="confirmQuantity(view)">
+            @if (view.action === 'lots') {
+              <label><span>Producto</span>
+                <select name="product" [(ngModel)]="productId" [disabled]="!!pending || saving">
+                  <option value="">Selecciona un producto</option>
+                  @for (product of board?.products || []; track product.id) { <option [value]="product.id">{{ product.name }}</option> }
+                </select>
+              </label>
+            }
+            @if (view.choices?.length) {
+              <label><span>Partida del pedido</span>
+                <select name="line" [(ngModel)]="lineId" [disabled]="!!pending || saving">
+                  @for (item of view.choices; track item.line.orderLineId) {
+                    <option [value]="item.line.orderLineId">{{ item.order.customerName }} · #{{ item.order.sequenceNumber }} · {{ item.line.productName }}</option>
+                  }
+                </select>
+              </label>
+            }
+            <label><span>Kilos</span><input name="amount" inputmode="decimal" autocomplete="off" [(ngModel)]="amount"
+              [disabled]="!!pending || saving" aria-describedby="machine-quantity-limit" required></label>
+            @let limit = quantityLimit(view);
+            <small id="machine-quantity-limit">{{ limit === null ? 'Hasta dos decimales' : 'Máximo ' + qty(limit) + ' kg' }}</small>
+            <div class="production-dialog-actions">
+              <button type="button" class="secondary" (click)="backFromQuantity(view)" [disabled]="!!pending || saving">Volver</button>
+              <button type="submit" class="primary" [disabled]="!canWrite">Guardar</button>
+            </div>
+          </form>
+        }
+        @case ('ready') {
+          <h3 id="machine-dialog-title">Marcar listo</h3>
+          <p>{{ view.customer.name }} · Pedido #{{ view.order.sequenceNumber }}</p>
+          <p>Liberar para Embarques las partidas de esta máquina.</p>
+          <div class="production-dialog-actions">
+            <button type="button" class="secondary" (click)="openCustomer(view.customer)" [disabled]="!!pending || saving">Volver</button>
+            <button type="button" class="primary" (click)="confirmReady(view.order)" [disabled]="!canWrite">Marcar listo</button>
+          </div>
+        }
+        @case ('daily') {
+          <h3 id="machine-dialog-title">Ajustar {{ view.slot.label }}</h3>
+          <p>{{ view.slot.workerName || 'Plaza vacante' }} · Solo por hoy</p>
+          <form class="machine-dialog-body" (ngSubmit)="saveDaily(view.slot)">
+            <label><span>Movimiento</span>
+              <select name="action" [(ngModel)]="dailyAction" [disabled]="!!pending || saving">
+                @if (view.slot.workerId) { <option value="absence">Marcar ausencia</option> }
+                @else { <option value="cover">Asignar suplente</option> }
+                @if (view.slot.workerId && currentTeam?.destinations?.length) { <option value="move">Mover a otra máquina</option> }
+                @if (view.slot.status !== 'regular' && view.slot.status !== 'vacant') { <option value="reset">Quitar ajuste del día</option> }
+              </select>
+            </label>
+            @if (dailyAction === 'cover') {
+              <label><span>Suplente</span>
+                <select name="worker" [(ngModel)]="workerId" [disabled]="!!pending || saving">
+                  <option value="">Selecciona una persona</option>
+                  @for (worker of coverageWorkers; track worker.id) { <option [value]="worker.id">{{ worker.name }}</option> }
+                </select>
+              </label>
+            }
+            @if (dailyAction === 'move') {
+              <label><span>Máquina de destino</span>
+                <select name="destination" [(ngModel)]="destinationId" [disabled]="!!pending || saving">
+                  <option value="">Selecciona una máquina</option>
+                  @for (machine of currentTeam?.destinations || []; track machine.id) { <option [value]="machine.id">{{ machine.name }}</option> }
+                </select>
+              </label>
+              <label><span>Plaza de destino</span>
+                <select name="destinationPosition" [(ngModel)]="destinationPosition" [disabled]="!!pending || saving">
+                  @for (slot of currentTeam?.slots || []; track slot.position) { <option [ngValue]="slot.position">{{ slot.label }}</option> }
+                </select>
+              </label>
+            }
+            <div class="production-dialog-actions">
+              <button type="button" class="secondary" (click)="closeDialog()" [disabled]="!!pending || saving">Cerrar</button>
+              <button type="submit" class="primary" [disabled]="!canWrite">Guardar ajuste</button>
+            </div>
+          </form>
+        }
+        @case ('worker') {
+          <h3 id="machine-dialog-title">Agregar trabajador</h3>
+          <form class="machine-dialog-body" (ngSubmit)="saveWorker()">
+            <label><span>Nombre</span><input name="workerName" [(ngModel)]="workerName" maxlength="120" [disabled]="!!pending || saving" required></label>
+            <div class="production-dialog-actions">
+              <button type="button" class="secondary" (click)="closeDialog()" [disabled]="!!pending || saving">Cerrar</button>
+              <button type="submit" class="primary" [disabled]="!canWrite">Agregar trabajador</button>
+            </div>
+          </form>
+        }
+        @case ('operators') {
+          <h3 id="machine-dialog-title">Cuentas responsables</h3>
+          <p class="machine-meta">Selecciona quién puede abrir esta máquina con el rol Responsable de Máquina.</p>
+          @if (operators; as choices) {
+            @for (user of choices.users; track user.id) {
+              <label class="inline-check">
+                <input type="checkbox" [ngModel]="operatorIds.has(user.id)" (ngModelChange)="toggleOperator(user.id, $event)" [disabled]="!!pending || saving">
+                <span>{{ user.displayName }}</span>
+              </label>
+            } @empty { <p class="notice">Primero asigna el rol Responsable de Máquina a una cuenta en Seguridad.</p> }
+          } @else if (!dialogError) { <p class="machine-meta" role="status">Consultando cuentas…</p> }
+          <div class="production-dialog-actions">
+            <button type="button" class="secondary" (click)="closeDialog()" [disabled]="!!pending || saving">Cerrar</button>
+            <button type="button" class="primary" (click)="saveOperators()" [disabled]="!canWrite || !operators">Guardar responsables</button>
+          </div>
+        }
+      }
+      @if (dialogError) { <p class="alert error" role="alert">{{ dialogError }}</p> }
+      @if (pending) {
+        <div class="machine-actions production-dialog-actions">
+          <button type="button" class="secondary" (click)="closeDialog()" [disabled]="saving">Cerrar y conservar referencia</button>
+          <button type="button" class="primary" (click)="retry()" [disabled]="saving || !!storageError">Reintentar operación</button>
+        </div>
+      }
+    </div>
+  }
+</dialog>

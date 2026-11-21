@@ -126,8 +126,8 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
             await db.Database.ExecuteSqlInterpolatedAsync($"EXEC sys.sp_addextendedproperty @name=N'C2Owner', @value={configuration.RunId}");
             await db.Database.MigrateAsync();
             var migrations = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-            Assert.Equal(20, migrations.Length);
-            Assert.Equal("20261108143413_AddDeliveryTripDepartureAndDayDrivers", migrations[^1]);
+            Assert.Equal(21, migrations.Length);
+            Assert.Equal("20261117145405_AddMachineWorkspace", migrations[^1]);
             var admin = AdminUser.Create("c2-admin", "Administración C2 sintética", new PasswordHashService().HashPassword(Password), Clock.Now);
             db.AdminUsers.Add(admin);
             db.SecurityUserRoles.Add(new() { UserId = admin.Id, RoleId = SecurityDefaults.AdministratorRoleId });
@@ -149,11 +149,14 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
         // Reproduce the installed broad base grants and the operational table DENYs.
         // AuditLogs deliberately remains 1111 (F24 is outside C2).
         foreach (var table in new[] { "CustomerProductPriceRevisions", "ProductConsolidationOperations",
-            "CustomerProductSetupOrders", "ProductionBatches", "DeliveryEvents" })
+            "CustomerProductSetupOrders", "ProductionBatches", "DeliveryEvents",
+            "MachineTeamChanges", "MachineWorkers", "MachineProductionNotices", "ProductionLotHandoffs" })
             await SetupSql($"DENY UPDATE,DELETE ON dbo.[{table}] TO [{Login}]");
         foreach (var table in new[] { "CustomerProductPriceBooks", "CustomerProductSetupRequests", "ProductionAllocations",
-            "DeliveryRoutes", "DeliveryRouteDayDrivers", "CustomerDeliveryLocations", "DeliveryTrips", "DeliveryAssignments", "RouteOrderSchedules" })
+            "DeliveryRoutes", "DeliveryRouteDayDrivers", "CustomerDeliveryLocations", "DeliveryTrips", "DeliveryAssignments",
+            "RouteOrderSchedules", "MachineTeamTemplates" })
             await SetupSql($"DENY DELETE ON dbo.[{table}] TO [{Login}]");
+        await SetupSql($"DENY UPDATE ON dbo.MachineOperators TO [{Login}]");
         await VerifyPermissions();
     }
 
@@ -170,7 +173,9 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
         }
         foreach (var (table, mask) in new[] { ("AuditLogs", "1111"), ("RouteOrderSchedules", "1110"),
             ("DeliveryEvents", "1100"), ("ProductionBatches", "1100"), ("DeliveryAssignments", "1110"), ("DeliveryRouteDayDrivers", "1110"),
-            ("CustomerProductPriceRevisions", "1100"), ("Orders", "1111"), ("OrderOperations", "1111"), ("OrderAuditLogs", "1111") })
+            ("CustomerProductPriceRevisions", "1100"), ("Orders", "1111"), ("OrderOperations", "1111"), ("OrderAuditLogs", "1111"),
+            ("MachineOperators", "1101"), ("MachineTeamTemplates", "1110"), ("MachineTeamChanges", "1100"),
+            ("MachineWorkers", "1100"), ("MachineProductionNotices", "1100"), ("ProductionLotHandoffs", "1100") })
         {
             command.CommandText = "SELECT " + string.Join(',', new[] { "SELECT", "INSERT", "UPDATE", "DELETE" }
                 .Select(op => $"HAS_PERMS_BY_NAME('dbo.{table}','OBJECT','{op}')"));

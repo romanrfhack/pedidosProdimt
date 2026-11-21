@@ -11,6 +11,8 @@ public interface IProductionRepository
     Task<ProductionAllocation?> GetAllocationByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> HasActiveProductAllocationsAsync(Guid productId, CancellationToken cancellationToken);
     Task<bool> HasRecordedProductProductionAsync(Guid productId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ProductionLotHandoff>> GetHandoffsByDateAsync(DateOnly date, CancellationToken cancellationToken);
+    Task AddHandoffAsync(ProductionLotHandoff handoff, CancellationToken cancellationToken);
     Task AddBatchAsync(ProductionBatch batch, CancellationToken cancellationToken);
     Task AddAllocationAsync(ProductionAllocation allocation, CancellationToken cancellationToken);
 }

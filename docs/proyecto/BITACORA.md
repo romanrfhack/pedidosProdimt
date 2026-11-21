@@ -1,5 +1,9 @@
 # Bitácora de trabajo
 
+## 17 de noviembre de 2026 — Responsable de Máquina
+
+Se integra `/admin/maquina` con el modelo de lotes y partidas, el rol de sistema y la asignación explícita de máquinas. Se agrega bitácora de liberaciones y custodia, equipo fijo y movimientos de jornada. [Contrato y validación](RESPONSABLE-DE-MAQUINA.md).
+
 ## 14 de noviembre de 2026 — Vista compacta de Mi reparto
 
 La vista del repartidor agrupa por cliente y conserva cada pedido y partida en el detalle. Los filtros muestran clientes pendientes en la etapa y conservan la selección después de guardar. Se reutilizaron los diálogos de conteo, carga, entrega y devolución. La gestión administrativa continúa con el recorrido por pedido.

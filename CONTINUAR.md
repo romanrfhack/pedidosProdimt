@@ -1,5 +1,9 @@
 # Continuar PRODIMT
 
+## Responsable de Máquina
+
+El candidato local `codex/responsable-de-maquina` parte de `759c68f` y agrega la vista y el rol de Responsable de Máquina, el equipo fijo con ajustes del día y la migración 21. [Activación y recorrido](docs/proyecto/RESPONSABLE-DE-MAQUINA.md). Falta ejecutar el caso HTTP/SQL Server en una base descartable y validar el despliegue.
+
 C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
 y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.
 Fuente probada `5e7d8e836f0951aefc613e0363d740b26ec59153`.

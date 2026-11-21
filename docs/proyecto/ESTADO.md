@@ -1,5 +1,9 @@
 # Estado vigente de PRODIMT
 
+## Responsable de Máquina
+
+Implementación local sobre `759c68f`. Vista compacta de producción con totales, captura, avisos de liberación y lotes sin cliente. Equipo fijo por vigencia y ajustes diarios con alcance por máquina. Migración aditiva 20 → 21. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
+
 ## Mi reparto por etapas
 
 En el código de `/reparto`, el chofer puede filtrar los clientes de su vuelta por conteo, carga y entrega. La etapa activa muestra el nombre completo y las demás muestran RC, CC o RE. Cada etapa indica cuántos clientes tienen partidas pendientes. Las filas plegadas muestran cantidades por unidad. El botón rápido abre el diálogo de una partida o despliega las partidas para elegir. «Todas las paradas» permite consultar el detalle de clientes que ya salieron de las listas por etapa.

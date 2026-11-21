@@ -12,7 +12,17 @@ public sealed class EfSecurityStore(PedidosDbContext db) : ISecurityStore
 {
     public async Task<IReadOnlyList<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
+        if (db.Database.CurrentTransaction is not null)
+            return await LoadPermissionsAsync(userId, cancellationToken);
+
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var result = await LoadPermissionsAsync(userId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<IReadOnlyList<string>> LoadPermissionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
         await LockAsync("Shared", cancellationToken);
         var activeUsers = db.AdminUsers.Where(x => x.Id == userId && x.IsActive && !x.IsDeleted).Select(x => x.Id);
         var inherited = from userRole in db.SecurityUserRoles
@@ -25,9 +35,7 @@ public sealed class EfSecurityStore(PedidosDbContext db) : ISecurityStore
                      join permission in db.SecurityPermissions on grant.PermissionId equals permission.Id
                      where activeUsers.Contains(grant.UserId) && permission.IsActive
                      select permission.Key;
-        var result = await inherited.Union(direct).OrderBy(x => x).ToArrayAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return result;
+        return await inherited.Union(direct).OrderBy(x => x).ToArrayAsync(cancellationToken);
     }
 
     public Task<bool> IsSystemAdministratorAsync(Guid userId, CancellationToken cancellationToken) =>
@@ -40,11 +48,19 @@ public sealed class EfSecurityStore(PedidosDbContext db) : ISecurityStore
 
     public async Task<SecurityData> ReadAsync(CancellationToken cancellationToken)
     {
+        if (db.Database.CurrentTransaction is not null)
+            return await ReadLockedAsync(cancellationToken);
+
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-        await LockAsync("Shared", cancellationToken);
-        var data = await LoadAsync(false, cancellationToken);
+        var data = await ReadLockedAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return data;
+    }
+
+    private async Task<SecurityData> ReadLockedAsync(CancellationToken cancellationToken)
+    {
+        await LockAsync("Shared", cancellationToken);
+        return await LoadAsync(false, cancellationToken);
     }
 
     public async Task<T> ExecuteAsync<T>(Guid expectedRevision, Func<SecurityData, T> mutation,

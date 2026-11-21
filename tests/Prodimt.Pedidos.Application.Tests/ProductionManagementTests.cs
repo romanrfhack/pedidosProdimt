@@ -6,10 +6,12 @@ using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOperations;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
+using Prodimt.Pedidos.Application.Security;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 using Prodimt.Pedidos.Domain.Services;
 using Prodimt.Pedidos.Infrastructure.Persistence;
+using Prodimt.Pedidos.Infrastructure.Persistence.Security;
 using Prodimt.Pedidos.Infrastructure.Repositories;
 
 namespace Prodimt.Pedidos.Application.Tests;
@@ -241,6 +243,91 @@ public sealed class ProductionManagementTests
     [InlineData("/api/admin/operations/unknown-write", "__unmapped__")]
     public void ProductionWritesRequireTheirOwnPermission(string path, string expected)
         => Assert.Equal(expected, AdminPermissionMiddleware.RequiredPermission("POST", path));
+
+    [Fact]
+    public async Task WorkspaceCaptureReleaseAndHandoffKeepOneTraceablePhysicalBalance()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (actor, access, repository) = await SeedMachineOperatorAsync(fixture);
+        var machine = fixture.Machine.Id;
+        var order = fixture.Order.Id;
+        var line = fixture.Line.Id;
+
+        var excessive = new MachineCaptureRequest(Guid.NewGuid(), order, line, 21, 1);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() =>
+            fixture.Service.CaptureForMachineAsync(machine, excessive, access, actor, Ct));
+        Assert.Equal(0, await fixture.Db.ProductionBatches.CountAsync());
+
+        var capture = excessive with { OperationId = Guid.NewGuid(), Quantity = 18 };
+        var assigned = await fixture.Service.CaptureForMachineAsync(machine, capture, access, actor, Ct);
+        Assert.True((await fixture.Service.CaptureForMachineAsync(machine, capture, access, actor, Ct)).Replayed);
+        Assert.Equal(1, await fixture.Db.ProductionBatches.CountAsync());
+        Assert.Equal(1, await fixture.Db.ProductionAllocations.CountAsync());
+
+        var complete = new MachineReleaseRequest(Guid.NewGuid(), order, null, null, 2);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() =>
+            fixture.Service.ReleaseMachineProductionAsync(machine, complete, access, repository, actor, Ct));
+        var partial = complete with { OperationId = Guid.NewGuid(), OrderLineId = line, Quantity = 5 };
+        await fixture.Service.ReleaseMachineProductionAsync(machine, partial, access, repository, actor, Ct);
+        Assert.True((await fixture.Service.ReleaseMachineProductionAsync(machine, partial, access, repository, actor, Ct)).Replayed);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() =>
+            fixture.Service.ReverseAsync(assigned.Id, new(Guid.NewGuid(), "Corregir kilos"), Actor, Ct));
+
+        var loose = await fixture.Service.RegisterMachineLotAsync(machine,
+            new(Guid.NewGuid(), fixture.Product.Id, 7, fixture.Date), access, actor, Ct);
+        var handoff = new MachineHandoffRequest(Guid.NewGuid(), loose.Id, 5);
+        await fixture.Service.HandoffMachineLotAsync(machine, handoff, access, actor, Ct);
+        Assert.True((await fixture.Service.HandoffMachineLotAsync(machine, handoff, access, actor, Ct)).Replayed);
+        var allocation = new AllocateProductionRequest(Guid.NewGuid(), loose.Id, order, line, 3, 2);
+        await Assert.ThrowsAsync<CustomerOrderConflictException>(() =>
+            fixture.Service.AllocateAsync(allocation, Actor, Ct));
+        await fixture.Service.AllocateMachineLotAsync(machine,
+            allocation with { OperationId = Guid.NewGuid(), Quantity = 2 }, access, actor, Ct);
+        await fixture.Service.ReleaseMachineProductionAsync(machine,
+            complete with { OperationId = Guid.NewGuid(), ExpectedOrderVersion = 3 }, access, repository, actor, Ct);
+
+        var view = await fixture.Service.GetMachineWorkspaceAsync(machine, access, repository, actor, Ct);
+        Assert.Equal(new MachineWorkspaceTotals(25, 20, 15, 5), view.Totals);
+        Assert.Equal(20, view.Orders.Single(x => x.OrderId == order).Lines.Single().ReleasedQuantity);
+        Assert.Equal(2, view.Notices.Count);
+        Assert.Equal(20, view.Notices.Sum(notice => notice.Quantity));
+        var looseBatch = view.Batches.Single(x => x.Id == loose.Id);
+        Assert.Equal(5, looseBatch.HandedOffQuantity);
+        Assert.Equal(5, looseBatch.AvailableQuantity);
+    }
+
+    [Fact]
+    public async Task WorkspaceAssignmentIsRecheckedBeforeReplayingTheReceipt()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var (actor, access, repository) = await SeedMachineOperatorAsync(fixture);
+        var other = new Machine { Id = Guid.NewGuid(), Number = 2, IsActive = true };
+        fixture.Db.Machines.Add(other);
+        await fixture.Db.SaveChangesAsync();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Service.GetMachineWorkspaceAsync(other.Id, access, repository, actor, Ct));
+
+        var request = new MachineCaptureRequest(Guid.NewGuid(), fixture.Order.Id, fixture.Line.Id, 4, 1);
+        await fixture.Service.CaptureForMachineAsync(fixture.Machine.Id, request, access, actor, Ct);
+        await repository.ReplaceOperatorsAsync(fixture.Machine.Id, [], Ct);
+        await fixture.Db.SaveChangesAsync();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Service.CaptureForMachineAsync(fixture.Machine.Id, request, access, actor, Ct));
+    }
+
+    private static async Task<(AdminActorContext Actor, MachineWorkspaceAccess Access, IMachineWorkspaceRepository Repository)>
+        SeedMachineOperatorAsync(Fixture fixture)
+    {
+        var user = AdminUser.Create("maquina.prueba", "Maquinista", "test-hash", fixture.Clock.Now);
+        var permission = SecurityDefaults.Permissions.Single(x => x.Key == MachineWorkspaceAccess.WorkPermission);
+        fixture.Db.AddRange(user, permission,
+            new SecurityUserPermission { UserId = user.Id, PermissionId = permission.Id },
+            new MachineOperator { MachineId = fixture.Machine.Id, UserId = user.Id });
+        await fixture.Db.SaveChangesAsync();
+        var repository = new EfMachineWorkspaceRepository(fixture.Db);
+        return (new(user.Id.ToString(), user.DisplayName),
+            new(new EfSecurityStore(fixture.Db), new EfMachineRepository(fixture.Db), repository), repository);
+    }
 
     private sealed class Clock : IDateTimeProvider
     {

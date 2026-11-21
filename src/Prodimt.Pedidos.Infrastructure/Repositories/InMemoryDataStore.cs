@@ -129,6 +129,7 @@ public sealed class InMemoryDataStore
 
     public List<Order> Orders { get; } = [];
 
+    public List<ProductionLotHandoff> ProductionLotHandoffs { get; } = [];
     public List<ProductionBatch> ProductionBatches { get; } = [];
     public List<ProductionAllocation> ProductionAllocations { get; } = [];
 

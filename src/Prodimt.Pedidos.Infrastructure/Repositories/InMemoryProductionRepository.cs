@@ -38,6 +38,19 @@ public sealed class InMemoryProductionRepository(InMemoryDataStore store) : IPro
     {
         lock (store.SyncRoot) return Task.FromResult(store.ProductionBatches.Any(x => x.ProductId == productId));
     }
+    public Task<IReadOnlyList<ProductionLotHandoff>> GetHandoffsByDateAsync(DateOnly date, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot)
+        {
+            var ids = store.ProductionBatches.Where(batch => batch.ServiceDate == date).Select(batch => batch.Id).ToHashSet();
+            return Task.FromResult<IReadOnlyList<ProductionLotHandoff>>(store.ProductionLotHandoffs.Where(x => ids.Contains(x.BatchId)).ToArray());
+        }
+    }
+    public Task AddHandoffAsync(ProductionLotHandoff handoff, CancellationToken cancellationToken)
+    {
+        lock (store.SyncRoot) store.ProductionLotHandoffs.Add(handoff);
+        return Task.CompletedTask;
+    }
     public Task AddBatchAsync(ProductionBatch batch, CancellationToken cancellationToken)
     {
         lock (store.SyncRoot) store.ProductionBatches.Add(batch);

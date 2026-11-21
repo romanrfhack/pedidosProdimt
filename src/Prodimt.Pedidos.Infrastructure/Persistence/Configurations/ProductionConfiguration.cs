@@ -32,6 +32,7 @@ public sealed class ProductionAllocationConfiguration : IEntityTypeConfiguration
         builder.ToTable("ProductionAllocations", table =>
         {
             table.HasCheckConstraint("CK_ProductionAllocation_Quantity", "[Quantity] > 0");
+            table.HasCheckConstraint("CK_ProductionAllocation_Release", "CAST([ReleasedQuantity] AS decimal(18,2)) >= 0 AND CAST([ReleasedQuantity] AS decimal(18,2)) <= CAST([Quantity] AS decimal(18,2)) AND ([ReversedAt] IS NULL OR CAST([ReleasedQuantity] AS decimal(18,2)) = 0)");
             table.HasCheckConstraint("CK_ProductionAllocation_Reversal",
                 "([ReversedAt] IS NULL AND [ReversedBy] IS NULL AND [ReverseReason] IS NULL) OR ([ReversedAt] IS NOT NULL AND [ReverseReason] IS NOT NULL)");
         });
@@ -41,6 +42,7 @@ public sealed class ProductionAllocationConfiguration : IEntityTypeConfiguration
         builder.Property(x => x.CreatedBy).HasMaxLength(120);
         builder.Property(x => x.ReversedBy).HasMaxLength(120);
         builder.Property(x => x.ReverseReason).HasMaxLength(500);
+        builder.Property(x => x.ReleasedQuantity).HasPrecision(18, 2);
         builder.HasIndex(x => new { x.BatchId, x.ReversedAt });
         builder.HasIndex(x => new { x.OrderId, x.OrderLineId, x.ReversedAt });
         builder.HasOne<ProductionBatch>().WithMany().HasForeignKey(x => x.BatchId).OnDelete(DeleteBehavior.Restrict);

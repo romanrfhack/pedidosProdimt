@@ -9,17 +9,18 @@ import { AuthService } from './auth.service';
   selector: 'app-root',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
-    <header class="app-shell__header">
+    <header class="app-shell__header" [class.app-shell__header--machine]="machineOnly">
       <div>
         <p class="eyebrow">PRODIMT</p>
-        <h1>{{ deliveryOnly ? 'Mi reparto' : 'Pedidos' }}</h1>
+        <h1>{{ deliveryOnly ? 'Mi reparto' : machineOnly ? 'Mi máquina' : 'Pedidos' }}</h1>
       </div>
       <nav aria-label="Navegacion principal">
-        @if (!deliveryOnly) { <a routerLink="/cliente" routerLinkActive="active">Cliente</a> }
+        @if (!deliveryOnly && !machineOnly) { <a routerLink="/cliente" routerLinkActive="active">Cliente</a> }
         @if (auth.isAdminSession()) {
           @if (access.has('delivery.manage')) { <a routerLink="/admin/reparto" routerLinkActive="active">Reparto</a> }
           @else if (access.any(['delivery.read.own','delivery.operate.own'])) { <a routerLink="/reparto" routerLinkActive="active">Mi reparto</a> }
-          @else { <a routerLink="/personal/reparto" routerLinkActive="active">Reparto</a> }
+          @else if (!machineOnly) { <a routerLink="/personal/reparto" routerLinkActive="active">Reparto</a> }
+          @if (access.any(['operations.machine.work','operations.machine.manage'])) { <a routerLink="/admin/maquina" routerLinkActive="active">Mi máquina</a> }
           @if (access.any(['orders.read', 'orders.capture'])) { <a routerLink="/admin/pedidos" routerLinkActive="active">Pedidos</a> }
           @if (access.any(['operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate'])) { <a routerLink="/admin/operacion" routerLinkActive="active">Operación</a> }
           @if (access.has('orders.review')) { <a routerLink="/admin/pendientes" routerLinkActive="active">Por confirmar</a> }
@@ -30,7 +31,7 @@ import { AuthService } from './auth.service';
           @if (access.any(['customers.manage','pricing.manage'])) { <a routerLink="/admin/productos-por-configurar" routerLinkActive="active" aria-label="Productos por configurar">Configurar productos @if (setups.pendingCount(); as count) { <span class="setup-nav-count">{{ count }}</span> }</a> }
           @if (access.has('customers.manage')) { <a routerLink="/admin/horarios" routerLinkActive="active">Horarios</a> }
           @if (access.has('security.manage')) { <a routerLink="/admin/seguridad" routerLinkActive="active">Seguridad</a> }
-          <a routerLink="/admin/cambiar-contrasena" routerLinkActive="active">Cambiar contraseña</a>
+          <a routerLink="/admin/cambiar-contrasena" routerLinkActive="active">{{ machineOnly ? 'Contraseña' : 'Cambiar contraseña' }}</a>
         }
         @if (auth.session()) {
           <button type="button" class="nav-action" (click)="logout()">Salir</button>
@@ -61,7 +62,11 @@ export class AppComponent {
     this.destroyRef.onDestroy(() => { clearInterval(timer); this.document.removeEventListener('visibilitychange', refresh); this.setups.clearCount(); });
   }
 
-  protected get deliveryOnly(): boolean { return this.access.any(['delivery.read.own','delivery.operate.own']) && !this.access.has('delivery.manage') && !this.access.any(['orders.read','orders.capture','operations.read','security.manage']); }
+  protected get deliveryOnly(): boolean { return this.access.any(['delivery.read.own','delivery.operate.own']) && !this.access.has('delivery.manage') && !this.access.any(['orders.read','orders.capture','operations.read','security.manage','operations.machine.work','operations.machine.manage']); }
+
+  protected get machineOnly(): boolean {
+    return this.access.has('operations.machine.work') && !this.access.any(['operations.machine.manage','orders.read','orders.capture','orders.review','operations.read','operations.acknowledge','operations.assign','operations.produce','operations.allocate','delivery.read.own','delivery.operate.own','delivery.manage','security.manage','customers.read','customers.manage','products.read','products.manage','machines.read','machines.manage','tokens.manage','pricing.manage','imports.manage']);
+  }
 
   protected logout(): void {
     this.auth.logout();
