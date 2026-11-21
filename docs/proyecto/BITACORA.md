@@ -2,7 +2,7 @@
 
 ## 21 de noviembre de 2026 — Integración y paquete de Responsable de Máquina
 
-El usuario autorizó main y despliegue, incluyendo el rol. Se publicó el PR #11 y el candidato inicial pasó los trabajos remotos de backend, SQL Server con HTTP, C2 y smoke Production en la ejecución 44923736526. La revisión amplía los avisos de Operación y conserva capturas simultáneas por UUID en el navegador. Localmente pasaron 21 pruebas focales .NET, 56 de componentes, 8 de navegador y 19 de instalación. El SQL 20→21 coincide con el modelo.
+El usuario autorizó main y despliegue, incluyendo el rol. Se publicó el PR #11 y el candidato inicial pasó los trabajos remotos de backend, SQL Server con HTTP, C2 y smoke Production en la ejecución 44923736526. La revisión amplía los avisos de Operación y conserva capturas simultáneas por UUID en el navegador. La ejecución 44924364512 detectó una carrera del host de pruebas de validación de configuración de login. Se comprueba ahora ValidateOnStart con un IHost real, conservando el requisito OptionsValidationException y evitando que la disposición del WebApplicationFactory lo oculte. Localmente pasaron 21 pruebas focales .NET, 56 de componentes, 8 de navegador y 19 de instalación. El SQL 20→21 coincide con el modelo.
 
 Se agrega instalador propio con inventario de lectura, verificación de base, respaldo SQL verificado y recuperación hacia delante. El transporte SSH al VPS está bloqueado desde este entorno por falta de ruta TCP. La salud pública devuelve ok. La instalación operativa se completará con el paquete desde WSL y su reporte verificable.
 
