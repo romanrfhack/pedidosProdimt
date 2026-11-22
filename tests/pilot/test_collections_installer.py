@@ -464,6 +464,63 @@ class CollectionsInstallerLifecycleTests(unittest.TestCase):
                 instance.preservation_after[field] = initial
         self.assertEqual(original, saved.read_bytes())
 
+    def test_preservation_comparison_rejects_missing_null_or_malformed_snapshot_sections(self):
+        for corruption in ("missing-auth-hash", "null-auth-hash", "short-auth-hash",
+                           "string-array-section", "null-array-section", "unexpected-section"):
+            with self.subTest(corruption=corruption):
+                before, after = preservation_snapshots()
+                for snapshot in (before, after):
+                    if corruption == "missing-auth-hash":
+                        snapshot.pop("user_permissions_hash")
+                    elif corruption == "null-auth-hash":
+                        snapshot["user_permissions_hash"] = None
+                    elif corruption == "short-auth-hash":
+                        snapshot["user_permissions_hash"] = "abc"
+                    elif corruption == "string-array-section":
+                        snapshot["columns_metadata"] = "[]"
+                    elif corruption == "null-array-section":
+                        snapshot["sql_permissions"] = None
+                    else:
+                        snapshot["unexpected_metadata"] = []
+                with self.assertRaises(I.InstallError):
+                    I.verify_preservation(before, after)
+
+    def test_native_sql_json_parser_and_real_preservation_guard_share_the_same_contract(self):
+        def load(filename):
+            spec = importlib.util.spec_from_file_location("preservation_transport_" + filename.replace("-", "_"),
+                ROOT / "scripts/pilot" / filename)
+            value = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(value)
+            return value
+        native = load("install-quick-capture-update.py")
+        inspector = load("inspect-native.py")
+        instance = self.installer()
+        instance.snapshot = self.backups / "collections-update-20261122T100000Z-aaaaaaaaaaaa"
+        instance.snapshot.mkdir(mode=0o700)
+        instance.inspector = inspector
+        instance.sql_json = native.Installer.sql_json.__get__(instance, type(instance))
+        snapshot, _ = preservation_snapshots()
+        snapshot["columns_metadata"] = [{"table_name": "Orders", "default_definition": "N'Ñá\\label'"}]
+        transport_queries = []
+
+        def sql_run(query, timeout=30):
+            transport_queries.append(query)
+            body = json.dumps(snapshot, ensure_ascii=False)
+            # sqlcmd can wrap the JSON column at arbitrary column positions.
+            return "ProdimtInspectionJson\n---------------------\n" + "\n".join(body[start:start + 73]
+                for start in range(0, len(body), 73)) + "\n"
+        instance.sql_run = sql_run
+        instance.preserve_database(capture=True)
+        saved = instance.snapshot / "database-preservation.json"
+        self.assertEqual(snapshot, json.loads(saved.read_text()))
+        self.assertTrue(transport_queries[0].startswith("SELECT (SELECT"))
+        self.assertTrue(transport_queries[0].endswith("AS ProdimtInspectionJson;"))
+        before = saved.read_bytes()
+        snapshot.pop("user_permissions_hash")
+        with self.assertRaisesRegex(I.InstallError, "^database_preservation_metadata_invalid$"):
+            instance.preserve_database(capture=True)
+        self.assertEqual(before, saved.read_bytes())
+
     def test_existing_custom_roles_grants_and_user_auth_cannot_be_rewritten(self):
         before, after = preservation_snapshots()
         I.verify_preservation(before, after)
