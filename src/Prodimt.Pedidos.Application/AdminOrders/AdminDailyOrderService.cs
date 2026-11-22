@@ -24,7 +24,8 @@ public sealed class AdminDailyOrderService(
     IDateTimeProvider clock,
     IOrderOperationStore operationStore,
     OrderChangeNoticePublisher changeNotices,
-    ICommercialCatalogRepository? commercial = null)
+    ICommercialCatalogRepository? commercial = null,
+    Prodimt.Pedidos.Application.Collections.CollectionService? collections = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly OrderStatus[] ActiveStatuses = [OrderStatus.Submitted, OrderStatus.Accepted, OrderStatus.PendingAdminReview];
@@ -73,6 +74,7 @@ public sealed class AdminDailyOrderService(
                     order.ExternalOrderKey = item.Key;
                     order.SourcePayloadHash = item.PayloadHash;
                     await orders.AddAsync(order, token);
+                    if (collections is not null) await collections.ReconcileOrderAsync(order, actor, token);
                     dayOrders.Add(order);
                     await auditLogs.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.DailyOrderImported,
                         clock.Now, AuditActorType.Admin, "Pedido importado desde un lote diario revisado.",

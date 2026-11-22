@@ -1,8 +1,16 @@
 # Continuar PRODIMT
 
+## Cobranza de reparto y Mostrador
+
+Implementación local en `codex/cobranza-rutas`, sobre `0d64f5bd2aef`. [Contrato y límites](docs/proyecto/COBRANZA-REPARTO.md). El usuario confirmó ticket del pedido completo del día más adeudos anteriores, pago editable y aplicación primero al día, luego a deuda anterior y excedente a favor. Sólo `cash_on_delivery`. Se agrega Caja y cobranza, adeudos por cliente y cinco tablas con migración aditiva 21→22. La fuente todavía no está integrada a main ni instalada.
+
+Pasan 547 pruebas .NET (dominio/SQLite/InMemory), 108 con SQL Server real, 68 de componentes, nueve de navegador de cobranza, 241 de la suite general, ocho de Máquina y ocho guardas C2. Modelo EF alineado; compilaciones .NET/Angular correctas. Los 632 casos Python conservan cuatro omisiones históricas y cero fallos. El caso de actualización también verifica permisos SQL de sólo SELECT/INSERT para las cinco tablas. [Evidencia del candidato](docs/validation/2026-11-22-cobranza.md). No inferir deudas de entregas anteriores sin registro financiero ni ejecutar nuevamente el instalador de Máquina para instalar cobranza.
+
 ## Responsable de Máquina
 
-El candidato local `codex/responsable-de-maquina` parte de `759c68f` y agrega la vista y el rol de Responsable de Máquina, el equipo fijo con ajustes del día y la migración 21. [Activación y recorrido](docs/proyecto/RESPONSABLE-DE-MAQUINA.md). Falta ejecutar el caso HTTP/SQL Server en una base descartable y validar el despliegue.
+Instalación confirmada por el log del usuario recibido el 22 de noviembre. El PR #11 quedó integrado a `main` en `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53` y el instalador reportó `updated/completed`, 21 migraciones, `schema_verified=true`, `health_verified=true`, `frontend_verified=true` y `recovery_pending=false`. API y frontend activos corresponden a `machine-workspace-0d64f5bd2aef`. Incluye el rol Responsable de Máquina y el equipo fijo con ajustes del día. [Activación y recorrido](docs/proyecto/RESPONSABLE-DE-MAQUINA.md).
+
+La evidencia anterior acredita instalación y salud. La aceptación funcional de las cuentas y equipos sigue con el usuario. La cobranza se documenta arriba y todavía requiere su propio despliegue. Los estados de preparación históricos de los apartados siguientes conservan su fecha.
 
 C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
 y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.

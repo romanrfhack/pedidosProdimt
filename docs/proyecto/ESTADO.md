@@ -2,13 +2,15 @@
 
 ## Responsable de Máquina
 
-Candidato de integración sobre `759c68f`, PR #11. Vista compacta de producción con totales, captura, avisos de liberación y lotes sin cliente. Equipo fijo por vigencia y ajustes diarios con alcance por máquina. Migración aditiva 20 → 21. El candidato inicial pasó SQL Server/HTTP, C2 y smoke Production en GitHub. El instalador propio y el lanzador WSL realizan inventario, respaldo y actualización coordinada. La instalación operativa sigue pendiente de conectividad al VPS. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
+El log del usuario confirma la instalación de `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53`, integrado a `main` mediante PR #11. Resultado `updated/completed`, 21 migraciones y releases API/frontend `machine-workspace-0d64f5bd2aef`. El reporte verifica esquema, salud y frontend, con `recovery_pending=false`. La vista compacta incluye totales, captura, avisos de liberación y lotes sin cliente, además del rol Responsable de Máquina, equipo fijo por vigencia y ajustes diarios. La aceptación funcional de usuarios y equipos continúa pendiente. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
+
+La cobranza solicitada después de esta instalación está implementada en la rama local `codex/cobranza-rutas`. [Contrato y validación](COBRANZA-REPARTO.md). El ticket usa todo el pedido del día; los cobros editables cubren el día, adeudos y saldo a favor. Mostrador registra el efectivo recibido con usuario, hora y diferencias. Pasan 547 pruebas .NET, 108 SQL Server reales, 68 componentes y 258 de navegador (nueve cobranza, 241 generales y ocho Máquina). [Evidencia](../validation/2026-11-22-cobranza.md). Integración a main y despliegue de este incremento pendientes.
 
 ## Mi reparto por etapas
 
 En el código de `/reparto`, el chofer puede filtrar los clientes de su vuelta por conteo, carga y entrega. La etapa activa muestra el nombre completo y las demás muestran RC, CC o RE. Cada etapa indica cuántos clientes tienen partidas pendientes. Las filas plegadas muestran cantidades por unidad. El botón rápido abre el diálogo de una partida o despliega las partidas para elegir. «Todas las paradas» permite consultar el detalle de clientes que ya salieron de las listas por etapa.
 
-El ajuste usa las operaciones de reparto existentes. La última versión instalada que confirmó el usuario es `delivery-auto-89ed72778f30`, con las 20 migraciones aplicadas y la API activa. La vista por etapas está pendiente de publicación y aceptación en el teléfono del repartidor.
+El ajuste usa las operaciones de reparto existentes y está incluido en la fuente instalada `0d64f5bd2aef`, con 21 migraciones. La aceptación en el teléfono del repartidor continúa pendiente.
 
 ## Ticket diario en Pedidos
 

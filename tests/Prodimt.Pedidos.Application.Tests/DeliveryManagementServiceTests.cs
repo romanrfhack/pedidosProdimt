@@ -412,6 +412,24 @@ public sealed class DeliveryManagementServiceTests
     }
 
     [Fact]
+    public async Task DeliveryWithoutCollectionRetainsTheHashOfPreCollectionReceipts()
+    {
+        await using var f = await Fixture.CreateAsync();
+        var id = await f.LoadAsync(25);
+        var a = await f.AssignmentAsync(id);
+        var request = new RecordDeliveryStageRequest(Guid.NewGuid(), a.Version, a.CurrentOrderVersion, 25);
+        await f.Service.RecordAsync(id, "deliver", request, f.DriverActor, false, Ct);
+        var legacyPayload = new { id, request = new { request.OperationId, request.ExpectedVersion,
+            request.ExpectedOrderVersion, request.Quantity, request.Reason, request.Notes,
+            request.RemainderDisposition, request.AcknowledgeOrderChange } };
+        var legacyHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(legacyPayload)));
+        var operationKey = $"DELIVERY:{f.Driver.Id:N}:deliver:{request.OperationId:N}";
+        var receipt = await f.Db.OrderOperations.AsNoTracking().SingleAsync(x => x.OperationKey == operationKey, Ct);
+        Assert.Equal(legacyHash, receipt.PayloadHash);
+    }
+
+    [Fact]
     public async Task DurableDeliveryReceiptSurvivesANewDbContextAndServiceInstance()
     {
         await using var f = await Fixture.CreateAsync();

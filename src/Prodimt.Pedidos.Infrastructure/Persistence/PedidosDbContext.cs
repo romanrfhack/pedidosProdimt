@@ -43,6 +43,12 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public DbSet<DeliveryAssignment> DeliveryAssignments => Set<DeliveryAssignment>();
     public DbSet<DeliveryEvent> DeliveryEvents => Set<DeliveryEvent>();
 
+    public DbSet<CollectionCharge> CollectionCharges => Set<CollectionCharge>();
+    public DbSet<CollectionChargeValuation> CollectionChargeValuations => Set<CollectionChargeValuation>();
+    public DbSet<CollectionPayment> CollectionPayments => Set<CollectionPayment>();
+    public DbSet<CollectionCashReceipt> CollectionCashReceipts => Set<CollectionCashReceipt>();
+    public DbSet<CollectionCashReceiptLine> CollectionCashReceiptLines => Set<CollectionCashReceiptLine>();
+
     public DbSet<OrderAuditLog> OrderAuditLogs => Set<OrderAuditLog>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -66,6 +72,10 @@ public sealed class PedidosDbContext(DbContextOptions<PedidosDbContext> options)
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ChangeTracker.DetectChanges();
+        if (ChangeTracker.Entries().Any(x => x.Entity is CollectionCharge or CollectionChargeValuation or
+                CollectionPayment or CollectionCashReceipt or CollectionCashReceiptLine &&
+                x.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Los movimientos de cobranza conservan su historial inmutable.");
         if (ChangeTracker.Entries<DeliveryEvent>().Any(x => x.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Los movimientos de reparto conservan su historial inmutable.");
         var guarded = Model.FindEntityType(typeof(ProductionAllocation)) is not null &&

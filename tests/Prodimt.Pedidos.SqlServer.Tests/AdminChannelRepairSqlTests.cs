@@ -79,6 +79,10 @@ public sealed class AdminChannelRepairSqlTests : IAsyncLifetime
             Assert.Equal(2,await db.CustomerFrequentProducts.CountAsync());
             Assert.Equal(1,await db.AdminUsers.CountAsync());
         }
+        // The repair contract above is deliberately exercised on schema 19.
+        // Run the current API only after upgrading that repaired database to its schema.
+        await using (var currentSchema = database.CreateDbContext())
+            await currentSchema.Database.MigrateAsync();
         using var savedResponse = await client.PostAsJsonAsync(url+"/capture",request);
         savedResponse.EnsureSuccessStatusCode();
         var saved = (await savedResponse.Content.ReadFromJsonAsync<SubmitOrderCaptureResponse>(JsonOptions))!;

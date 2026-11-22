@@ -13,7 +13,8 @@ public sealed class CustomerOrderService(
     IOrderAuditLogRepository auditLogs,
     IDateTimeProvider dateTimeProvider,
     IMachineRepository machines,
-    ICommercialCatalogRepository? commercial = null, OrderSchedulingService? scheduling = null)
+    ICommercialCatalogRepository? commercial = null, OrderSchedulingService? scheduling = null,
+    Prodimt.Pedidos.Application.Collections.CollectionService? collections = null)
 {
     public async Task<CustomerOrderTodayResponse> GetTodayAsync(Guid customerId, CancellationToken cancellationToken)
     {
@@ -81,6 +82,7 @@ public sealed class CustomerOrderService(
             customer);
 
         await orders.AddAsync(order, cancellationToken);
+        if (collections is not null) await collections.ReconcileOrderAsync(order, null, cancellationToken);
         await AddSubmittedOrderAuditLogsAsync(order, hasExistingOrder, cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 

@@ -1,5 +1,17 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Cobranza en reparto y recepción en Mostrador
+
+Se implementa localmente el registro de cobros al entregar pedidos `cash_on_delivery`, ticket del pedido completo del día, adeudos y saldo a favor. El usuario aclara que los abonos cubren primero el ticket del día y después adeudos anteriores. Cinco tablas conservan cargos, valoración de precios pendientes, pagos, recepciones y su aplicación al efectivo. Se integra el registro financiero con el recibo transaccional de entrega, correcciones explícitas de pedidos y resolución de precios, sin convertir entregas históricas desconocidas en deudas.
+
+Se agregan permisos separados, recepción en Caja con chofer/receptor/hora/diferencia, adeudos por cliente y recuperación de comandos monetarios. Pasan 547 pruebas .NET y 108 SQL Server reales. La actualización 21→22 conserva el rol personalizado, rechaza identificadores ambiguos y verifica los permisos DML de inserción del login de aplicación. Angular compila; pasan 68 componentes, nueve casos nuevos de navegador, 241 generales, ocho de Máquina, ocho guardas C2 y 632 casos Python (cuatro omisiones históricas). [Evidencia y límites](../validation/2026-11-22-cobranza.md). No se publica ni despliega esta cobranza con la autorización anterior limitada al incremento de Máquina.
+
+## 22 de noviembre de 2026 — Instalación de Responsable de Máquina confirmada
+
+El usuario compartió el reporte del instalador para la fuente `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53`, integrada a `main` mediante PR #11. El resultado fue `updated/completed`, con 21 migraciones y API/frontend `machine-workspace-0d64f5bd2aef`. Se reportaron `schema_verified=true`, `health_verified=true`, `frontend_verified=true` y `recovery_pending=false`. Esta evidencia confirma la instalación operativa del rol, la vista y el equipo de Máquina. La aceptación funcional de cuentas, captura y plantilla sigue pendiente con el usuario.
+
+El trabajo nuevo de cobranza se inicia después de esta base instalada. Sus cambios requieren pruebas y una instalación propia.
+
 ## 21 de noviembre de 2026 — Integración y paquete de Responsable de Máquina
 
 El usuario autorizó main y despliegue, incluyendo el rol. Se publicó el PR #11 y el candidato inicial pasó los trabajos remotos de backend, SQL Server con HTTP, C2 y smoke Production en la ejecución 44923736526. La revisión amplía los avisos de Operación y conserva capturas simultáneas por UUID en el navegador. La ejecución 44924364512 detectó una carrera del host de pruebas de validación de configuración de login. Se comprueba ahora ValidateOnStart con un IHost real, conservando el requisito OptionsValidationException y evitando que la disposición del WebApplicationFactory lo oculte. Localmente pasaron 21 pruebas focales .NET, 56 de componentes, 8 de navegador y 19 de instalación. El SQL 20→21 coincide con el modelo.

@@ -26,6 +26,7 @@ public sealed class SqlServerCollection : ICollectionFixture<SqlServerFixture>;
 public sealed class SqlServerFixture : IAsyncLifetime
 {
     public bool LegacyCaptureSchema { get; init; }
+    public string? InitialMigration { get; init; }
     // These credentials exist only in a newly created disposable test database.
     private const string AdminPassword = "Sql-test-only-admin-2026!";
     private readonly string _databaseName = $"ProdimtI02Test_{Guid.NewGuid():N}";
@@ -69,6 +70,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
 
         await using var db = CreateDbContext();
         if (LegacyCaptureSchema) await db.GetService<IMigrator>().MigrateAsync("20261028202031_AddCustomerCaptureAliases");
+        else if (InitialMigration is not null) await db.GetService<IMigrator>().MigrateAsync(InitialMigration);
         else await db.Database.MigrateAsync();
         db.SalesChannels.Add(new SalesChannel
         {

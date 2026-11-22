@@ -616,3 +616,5 @@ button.compact {
   .app-shell__header--machine nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .app-shell__header--machine nav > * { min-height: 44px; padding-inline: 4px; font-size: .82rem; }
 }
+
+body:has(.cash-page) .app-shell__main { width: min(100%, 1440px); }

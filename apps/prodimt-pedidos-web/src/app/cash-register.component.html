@@ -1,0 +1,150 @@
+<section class="page stack cash-page" aria-labelledby="cash-title">
+  <header class="cash-heading">
+    <div class="page-title"><p class="eyebrow">Mostrador</p><h2 id="cash-title">Caja y cobranza</h2></div>
+    <form class="cash-query" (ngSubmit)="load()">
+      <label>Fecha<input type="date" name="cashDate" [(ngModel)]="date" (ngModelChange)="queryChanged()" [disabled]="saving || !!dialog"></label>
+      <label>Ruta<input name="cashRoute" [(ngModel)]="routeCode" (ngModelChange)="queryChanged()" placeholder="Todas las rutas" maxlength="80" [disabled]="saving || !!dialog"></label>
+      <button type="submit" class="primary" [disabled]="loading || saving || !!dialog">{{ loading ? 'Consultando…' : 'Consultar' }}</button>
+    </form>
+  </header>
+  @if (error) { <p class="alert error" role="alert">{{ error }}</p> }
+  @if (success) { <p class="cash-success" role="status">{{ success }}</p> }
+  @if (storageError) { <p class="alert error" role="alert">{{ storageError }}</p> }
+  @if (pending && !dialog) {
+    <div class="cash-pending"><p role="status">Recepción pendiente de confirmación · {{ money(pending.body.receivedAmount) }}</p>
+      <button type="button" class="secondary" (click)="retry()" [disabled]="saving || !!storageError || !canReceive">Reintentar recepción</button></div>
+  }
+
+  @if (dashboard; as day) {
+    <div class="cash-actions cash-section-tabs" aria-label="Sección de caja">
+      <button type="button" [class.primary]="section === 'cash'" [class.secondary]="section !== 'cash'" (click)="section = 'cash'" [attr.aria-pressed]="section === 'cash'">Recepción de rutas</button>
+      <button type="button" [class.primary]="section === 'accounts'" [class.secondary]="section !== 'accounts'" (click)="section = 'accounts'" [attr.aria-pressed]="section === 'accounts'">Adeudos por cliente</button>
+    </div>
+    @if (section === 'cash') {
+      <section class="cash-totals" aria-label="Totales de caja">
+        <div><span>Cobrado por los choferes</span><strong>{{ money(day.expectedAmount) }}</strong></div>
+        <div><span>Recibido de estas vueltas</span><strong>{{ money(day.receivedAmount) }}</strong></div>
+        <div><span>Pendiente de recibir</span><strong>{{ money(day.pendingAmount) }}</strong></div>
+        <div><span>Mi caja del día consultado</span><strong>{{ money(day.myReceivedAmount) }}</strong></div>
+      </section>
+    <section class="cash-trips" aria-labelledby="cash-trips-title">
+      <h3 id="cash-trips-title">Rutas que salieron · {{ day.date }}</h3>
+      <div class="cash-trip-row cash-trip-labels" aria-hidden="true">
+        <span>Ruta y vuelta</span><span>Chofer</span><span>Salida</span><span>Cobrado</span><span>Recibido</span><span>Pendiente</span><span>Acciones</span>
+      </div>
+      @for (trip of day.trips; track trip.tripId) {
+        <article class="cash-trip-row" data-testid="cash-trip">
+          <div><strong>{{ trip.routeName }}</strong><small>{{ trip.routeCode }} · Vuelta {{ trip.tripNumber }}</small></div>
+          <div><span class="cash-mobile-label">Chofer</span>{{ trip.driverName }}</div>
+          <div><span class="cash-mobile-label">Salida</span>@if (trip.departedAt) { <time [attr.datetime]="trip.departedAt">{{ timestamp(trip.departedAt) }}</time> } @else { Sin salida }</div>
+          <div class="cash-numeric"><span class="cash-mobile-label">Cobrado</span>{{ money(trip.expectedAmount) }}</div>
+          <div class="cash-numeric"><span class="cash-mobile-label">Recibido</span>{{ money(trip.receivedAmount) }}
+            @let receipt = latestReceipt(trip);
+            @if (receipt) { <small>Última recepción {{ receiptTime(receipt.createdAt) }}</small> }
+          </div>
+          <div class="cash-numeric"><span class="cash-mobile-label">Pendiente</span>{{ money(trip.pendingAmount) }}
+            @if (trip.difference) { <small>{{ differenceLabel(trip.difference) }} {{ differenceMoney(trip.difference) }}</small> }</div>
+          <div class="cash-actions">
+            @if (canReceive) { <button type="button" class="primary compact" (click)="receive(trip)" [disabled]="!canWrite || trip.pendingAmount <= 0">Recibir efectivo</button> }
+            <button type="button" class="secondary compact" (click)="showCollections(trip)" [disabled]="saving">Cobros</button>
+            @if (trip.receipts.length) { <button type="button" class="secondary compact" (click)="history(trip)" [disabled]="saving">Recibos</button> }
+          </div>
+        </article>
+      } @empty { <p class="cash-empty">Todavía no hay vueltas con salida registrada para esta consulta.</p> }
+    </section>
+    @if (day.difference) { <p class="cash-difference">{{ differenceLabel(day.difference) }} acumulado de recepción {{ differenceMoney(day.difference) }}</p> }
+    } @else {
+      <section class="cash-totals" aria-label="Totales de adeudos">
+        <div><span>Cargado en esta fecha</span><strong>{{ money(customerTotals.charged) }}</strong></div>
+        <div><span>Cobrado en esta fecha</span><strong>{{ money(customerTotals.paid) }}</strong></div>
+        <div><span>Adeudo acumulado</span><strong>{{ money(customerTotals.balance) }}</strong></div>
+        <div><span>Saldo a favor</span><strong>{{ money(customerTotals.credit) }}</strong></div>
+      </section>
+      <h3>Clientes de la consulta · {{ day.date }}</h3>
+      <table class="cash-table cash-customers"><thead><tr><th>Cliente</th><th>Cargado</th><th>Cobrado</th><th>Adeudo</th><th></th></tr></thead><tbody>
+        @for (customer of day.customers; track customer.customerId) {
+          <tr data-testid="cash-customer"><td>{{ customer.customerName }}@if (customer.pricePending) { <small>Precio pendiente</small> }</td>
+            <td>{{ money(customer.dayChargeAmount) }}</td><td>{{ money(customer.dayPaidAmount) }}</td><td>{{ money(customer.balance) }}</td>
+            <td><button type="button" class="secondary compact" (click)="showAccount(customer)">Ver cuenta</button></td></tr>
+        } @empty { <tr><td colspan="5">Sin clientes para esta consulta.</td></tr> }
+      </tbody></table>
+    }
+
+  } @else if (loading) { <p class="notice" role="status">Consultando rutas y cobros…</p> }
+</section>
+
+<dialog #cashDialog class="cash-dialog" aria-labelledby="cash-dialog-title" (cancel)="close($event)">
+  @if (dialog; as view) {
+    <div class="cash-dialog-heading"><h3 id="cash-dialog-title">{{ view.kind === 'receipt' ? 'Recibir efectivo' : view.kind === 'collections' ? 'Cobros de la vuelta' : view.kind === 'account' ? 'Cuenta del cliente' : 'Recepciones registradas' }}</h3>
+      <button type="button" class="secondary compact" (click)="close()" [disabled]="saving">Cerrar</button></div>
+    @if (view.kind === 'account') { <p class="cash-dialog-trip">{{ view.customer.customerName }}</p> }
+    @else { <p class="cash-dialog-trip">{{ view.trip.routeName }} · Vuelta {{ view.trip.tripNumber }} · {{ view.trip.driverName }}</p> }
+    @if (view.kind === 'receipt') {
+      <form (ngSubmit)="saveReceipt(view.trip)" class="cash-receipt-form">
+        <p>Pendiente de esta vuelta <strong>{{ money(view.trip.pendingAmount) }}</strong></p>
+        <label>Importe declarado a entregar (MXN)<input name="declaredAmount" inputmode="decimal" autocomplete="off"
+          [(ngModel)]="declared" (ngModelChange)="declaredChanged()" [disabled]="saving || !!pending"></label>
+        <label>Efectivo recibido (MXN)<input name="receivedAmount" inputmode="decimal" autocomplete="off"
+          [(ngModel)]="received" (ngModelChange)="receivedChanged()" [disabled]="saving || !!pending"></label>
+        <p>{{ differenceLabel(receiptDifference) }} {{ differenceMoney(receiptDifference) }}</p>
+        <label for="cash-receipt-reason">Motivo de la diferencia {{ receiptDifference === 0 ? '(opcional)' : '' }}</label>
+        <input id="cash-receipt-reason" type="text" name="receiptReason" [value]="reason" (input)="reasonChanged($event)" maxlength="500" [disabled]="saving || !!pending">
+        <button type="submit" class="primary" [disabled]="!canWrite">Confirmar recepción</button>
+      </form>
+    }
+    @if (view.kind === 'history') {
+      <ul class="cash-receipts">
+        @for (receipt of view.trip.receipts; track receipt.id) {
+          <li><strong>{{ money(receipt.receivedAmount) }}</strong><span>{{ receipt.receiverName }} · {{ timestamp(receipt.createdAt) }}</span>
+            <small>Declarado {{ money(receipt.expectedAmount) }} · {{ differenceLabel(receipt.difference) }} {{ differenceMoney(receipt.difference) }}</small>
+            @if (receipt.reason) { <p>{{ receipt.reason }}</p> }</li>
+        }
+      </ul>
+    }
+    @if (view.kind === 'collections') {
+      @if (detailLoading) { <p class="notice" role="status">Consultando cobros…</p> }
+      @if (tripCollections; as summary) {
+        <table class="cash-table"><thead><tr><th>Cliente</th><th>Cobrado</th></tr></thead><tbody>
+          @for (customer of summary.customers; track customer.customerId) {
+            <tr><td>{{ customer.customerName }}</td><td>{{ money(customer.paidAmount) }}</td></tr>
+          } @empty { <tr><td colspan="2">Sin cobros registrados.</td></tr> }
+        </tbody><tfoot><tr><th>Total</th><td>{{ money(summary.paidAmount) }}</td></tr></tfoot></table>
+      }
+    }
+    @if (view.kind === 'account') {
+      @if (detailLoading) { <p class="notice" role="status">Consultando cuenta…</p> }
+      @if (account; as current) {
+        <dl class="cash-account-totals">
+          <div><dt>Cargos</dt><dd>{{ money(current.chargesTotal) }}</dd></div>
+          <div><dt>Pagos</dt><dd>{{ money(current.paidTotal) }}</dd></div>
+          <div><dt>Adeudo</dt><dd>{{ money(current.balance) }}</dd></div>
+          @if (current.creditBalance) { <div><dt>A favor</dt><dd>{{ money(current.creditBalance) }}</dd></div> }
+        </dl>
+        @if (current.pricePending) { <p class="notice">Hay artículos con precio pendiente por resolver.</p> }
+        <h4>Artículos por fecha</h4>
+        <ul class="cash-account-history">
+          @for (charge of current.charges; track charge.id) {
+            <li><strong>{{ charge.date }} · {{ charge.productName }}</strong>
+              <span>{{ quantity(charge.quantity) }} {{ unitLabel(charge.unitCode) }} × {{ price(charge.unitPrice) }} · {{ money(charge.amount) }}</span>
+              <small>{{ charge.isCredit ? 'Ajuste a favor' : charge.recorded ? 'Cargo registrado' : 'Ticket pendiente de registrar' }} · {{ charge.routeCode }} · Vuelta {{ charge.tripNumber }} · {{ charge.driverName }}</small>
+            </li>
+          } @empty { <li>Sin cargos registrados.</li> }
+        </ul>
+        <h4>Historial de pagos</h4>
+        <ul class="cash-account-history">
+          @for (payment of current.payments; track payment.id) {
+            <li><strong>{{ money(payment.amount) }}</strong>
+              <span>{{ timestamp(payment.createdAt) }} · {{ payment.actorName || payment.driverName }}</span>
+              <small>{{ payment.routeCode }} · Vuelta {{ payment.tripNumber }} · Servicio {{ payment.serviceDate }}</small>
+            </li>
+          } @empty { <li>Sin pagos registrados.</li> }
+        </ul>
+      }
+    }
+    @if (dialogError) { <p class="alert error" role="alert">{{ dialogError }}</p> }
+    @if (pending) {
+      <div class="cash-actions"><button type="button" class="secondary" (click)="close()" [disabled]="saving">Cerrar y conservar referencia</button>
+        <button type="button" class="primary" (click)="retry()" [disabled]="saving || !!storageError">Reintentar recepción</button></div>
+    }
+  }
+</dialog>

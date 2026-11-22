@@ -18,7 +18,8 @@ public sealed class AdminOrderService(
     IDateTimeProvider dateTimeProvider,
     OrderChangeNoticePublisher changeNotices,
     ICommercialCatalogRepository? commercial = null,
-    OrderSchedulingService? scheduling = null)
+    OrderSchedulingService? scheduling = null,
+    Prodimt.Pedidos.Application.Collections.CollectionService? collections = null)
 {
     private static readonly JsonSerializerOptions MetadataJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -155,6 +156,7 @@ public sealed class AdminOrderService(
         }
 
         await orders.AddAsync(order, cancellationToken);
+        if (collections is not null) await collections.ReconcileOrderAsync(order, actor, cancellationToken);
         await AddAdminSubmittedAuditLogsAsync(order, hasExistingOrder, request.InternalNotes, actor, cancellationToken);
         await orders.SaveChangesAsync(cancellationToken);
 

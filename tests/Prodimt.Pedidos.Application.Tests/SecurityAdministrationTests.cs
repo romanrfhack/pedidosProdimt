@@ -94,8 +94,9 @@ public sealed class SecurityAdministrationTests
         using var manager = await ManagerAsync(factory);
         var state = await SnapshotAsync(manager);
         const string counterRole = "Administración - Mostrador";
-        state = await SaveAsync(manager, "roles", null, new SaveSecurityRoleRequest(state.Revision, counterRole, "", true,
-            [Permission(state, "orders.read"), Permission(state, "orders.capture")]));
+        var seededCounter = Assert.Single(state.Roles, x => x.Name == counterRole);
+        Assert.Contains(Permission(state, "orders.read"), seededCounter.PermissionIds);
+        Assert.Contains(Permission(state, "orders.capture"), seededCounter.PermissionIds);
         state = await CreateUserAsync(manager, state, "counter-orders", [state.Roles.Single(x => x.Name == counterRole).Id],
             [Permission(state, "orders.review"), Permission(state, "imports.manage")]);
         using var counter = Client(factory);
@@ -318,12 +319,12 @@ public sealed class SecurityAdministrationTests
         var role = state.Roles.Single(x => x.Id == SecurityDefaults.DriverVanRoleId);
         Assert.True(role.IsSystem);
         Assert.Equal("Repartidor - Camioneta", role.Name);
-        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own" },
+        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own", "operations.collections.work" },
             state.Permissions.Where(x => role.PermissionIds.Contains(x.Id)).Select(x => x.Key).OrderBy(x => x));
         state = await CreateUserAsync(manager, state, "driver-van", [role.Id], []);
         using var driver = Client(factory);
         Bearer(driver, await LoginAsync(driver, "driver-van"));
-        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own" }, (await PermissionsAsync(driver)).OrderBy(x => x));
+        Assert.Equal(new[] { "delivery.operate.own", "delivery.read.own", "operations.collections.work" }, (await PermissionsAsync(driver)).OrderBy(x => x));
         Assert.Equal(HttpStatusCode.OK, (await driver.GetAsync("/api/delivery")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await driver.GetAsync("/api/admin/delivery")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await driver.GetAsync("/api/admin/orders/today")).StatusCode);

@@ -18,12 +18,16 @@ public sealed class InMemorySecurityStore : ISecurityStore
             Roles = [new SecurityRole { Id = SecurityDefaults.AdministratorRoleId, Name = "Administrador", Description = "Administración completa y recuperación", IsActive = true, IsSystem = true },
                 new SecurityRole { Id = SecurityDefaults.DriverVanRoleId, Name = "Repartidor - Camioneta", Description = "Consulta y operación de sus vueltas asignadas", IsActive = true, IsSystem = true },
                 new SecurityRole { Id = SecurityDefaults.MachineOperatorRoleId, Name = SecurityDefaults.MachineOperatorRoleName,
-                    Description = SecurityDefaults.MachineOperatorRoleDescription, IsActive = true, IsSystem = true }],
+                    Description = SecurityDefaults.MachineOperatorRoleDescription, IsActive = true, IsSystem = true },
+                new SecurityRole { Id = SecurityDefaults.CounterCashierRoleId, Name = SecurityDefaults.CounterCashierRoleName,
+                    Description = "Recepción y consulta de la cobranza entregada por los repartidores", IsActive = true, IsSystem = true }],
             Permissions = SecurityDefaults.Permissions.ToList(),
             UserRoles = dataStore.AdminUsers.Select(x => new SecurityUserRole { UserId = x.Id, RoleId = SecurityDefaults.AdministratorRoleId }).ToList(),
             RolePermissions = SecurityDefaults.Permissions.Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.AdministratorRoleId, PermissionId = x.Id })
-                .Concat(SecurityDefaults.Permissions.Where(x => x.Key is "delivery.read.own" or "delivery.operate.own")
+                .Concat(SecurityDefaults.Permissions.Where(x => x.Key is "delivery.read.own" or "delivery.operate.own" or "operations.collections.work")
                     .Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.DriverVanRoleId, PermissionId = x.Id }))
+                .Concat(SecurityDefaults.Permissions.Where(x => x.Key is "orders.read" or "orders.capture" or "operations.collections.read" or "operations.collections.receive")
+                    .Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.CounterCashierRoleId, PermissionId = x.Id }))
                 .Append(new SecurityRolePermission { RoleId = SecurityDefaults.MachineOperatorRoleId,
                     PermissionId = SecurityDefaults.Permissions.Single(x => x.Key == "operations.machine.work").Id }).ToList()
         };

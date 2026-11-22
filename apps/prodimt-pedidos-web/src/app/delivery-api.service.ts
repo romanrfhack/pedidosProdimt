@@ -82,16 +82,59 @@ export class DeliveryApiService {
     return this.http.request<DeliveryCommandResult>(command.method, `${environment.apiBaseUrl}${command.path}`, { body: command.body });
   }
   remember(userId: string, command: DeliveryPendingCommand): void {
-    sessionStorage.setItem(this.storageKey(userId), JSON.stringify(command));
+    if (!this.validCommand(command)) throw new Error('La operación guardada no es válida.');
+    const pending = this.pendingCommands(userId);
+    const serialized = JSON.stringify(command);
+    const previousCommand = pending.find(value => value.operationId === command.operationId);
+    if (previousCommand && JSON.stringify(previousCommand) !== serialized) throw new Error('La referencia guardada tiene datos diferentes.');
+    if (!previousCommand && pending.length) throw new Error('Hay otra operación sin confirmar. Recupera su resultado antes de registrar más entregas.');
+    if (Object.hasOwn(command.body, 'collectedAmount')) {
+      const key = this.financialPrefix(userId) + command.operationId;
+      const previous = localStorage.getItem(key);
+      if (previous !== null && previous !== serialized) throw new Error('La referencia guardada cambió. Conserva este navegador para revisar el resultado.');
+      localStorage.setItem(key, serialized);
+      if (localStorage.getItem(key) !== serialized) throw new Error('No se pudo guardar la referencia de cobro.');
+    }
+    sessionStorage.setItem(this.storageKey(userId), serialized);
   }
   pending(userId: string): DeliveryPendingCommand | null {
-    try {
-      const command = JSON.parse(sessionStorage.getItem(this.storageKey(userId)) ?? 'null') as DeliveryPendingCommand | null;
-      if (!command || !['POST', 'PUT'].includes(command.method) || !command.body || typeof command.body !== 'object'
-        || command.operationId !== command.body['operationId'] || !/^\/api\/(?:admin\/)?delivery(?:\/|$)/.test(command.path)) return null;
-      return command;
-    } catch { return null; }
+    return this.pendingCommands(userId)[0] ?? null;
   }
-  clear(userId: string): void { try { sessionStorage.removeItem(this.storageKey(userId)); } catch { /* A retained receipt can be safely replayed. */ } }
+  clear(userId: string, command?: DeliveryPendingCommand): void {
+    const legacyKey = this.storageKey(userId), previous = sessionStorage.getItem(legacyKey);
+    if (!command) { sessionStorage.removeItem(legacyKey); return; }
+    const serialized = JSON.stringify(command);
+    if (previous === serialized) sessionStorage.removeItem(legacyKey);
+    if (Object.hasOwn(command.body, 'collectedAmount')) {
+      const key = this.financialPrefix(userId) + command.operationId;
+      const stored = localStorage.getItem(key);
+      if (stored !== null && stored !== serialized) throw new Error('La referencia de cobro cambió.');
+      localStorage.removeItem(key);
+      if (localStorage.getItem(key) !== null) throw new Error('No se pudo retirar la referencia confirmada.');
+    }
+  }
+  private pendingCommands(userId: string): DeliveryPendingCommand[] {
+    const commands = new Map<string, DeliveryPendingCommand>();
+    const add = (raw: string, key?: string) => {
+      const command = JSON.parse(raw) as DeliveryPendingCommand;
+      if (!this.validCommand(command) || key && key !== this.financialPrefix(userId) + command.operationId) throw new Error('No se pudo recuperar una referencia de reparto.');
+      const previous = commands.get(command.operationId);
+      if (previous && JSON.stringify(previous) !== JSON.stringify(command)) throw new Error('La referencia de reparto tiene datos diferentes.');
+      commands.set(command.operationId, command);
+    };
+    const session = sessionStorage.getItem(this.storageKey(userId));
+    if (session) add(session);
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key?.startsWith(this.financialPrefix(userId))) add(localStorage.getItem(key) ?? 'null', key);
+    }
+    return [...commands.values()].sort((first, second) => first.operationId.localeCompare(second.operationId));
+  }
+  private validCommand(command: DeliveryPendingCommand): boolean {
+    return !!command && ['POST', 'PUT'].includes(command.method) && !!command.body && typeof command.body === 'object'
+      && command.operationId === command.body['operationId'] && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(command.operationId)
+      && /^\/api\/(?:admin\/)?delivery(?:\/|$)/.test(command.path);
+  }
+  private financialPrefix(userId: string): string { return `prodimt.delivery.collection.pending.v1.${userId}.`; }
   private storageKey(userId: string): string { return `prodimt.delivery.pending.v1.${userId}`; }
 }

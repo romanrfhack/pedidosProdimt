@@ -3,14 +3,17 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, DestroyRef, ElementRef, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { Subscription, catchError, of, switchMap } from 'rxjs';
+import { Subscription, catchError, of, switchMap, timeout } from 'rxjs';
 import { DeliveryApiService, DeliveryAssignment, DeliveryDashboard, DeliveryInstructions, DeliveryLine, DeliveryOrder,
   DeliveryPendingCommand, DeliveryRoute, DeliveryTrip, safeDeliveryMapsUrl } from './delivery-api.service';
+import { priceText } from './commercial-catalog-api.service';
 import { AuthService } from './auth.service';
 import { EffectivePermissionsService } from './effective-permissions.service';
 import { businessDateToday, paymentTermLabel, storeKeyLabel, unitLabel } from './operational-labels';
 import { AdminOrderingSchedulesComponent } from './admin-ordering-schedules.component';
 import { DeliveryRouteCustomersComponent } from './delivery-route-customers.component';
+import { CollectionApiService, collectionMoney, parseCollectionAmount, type CollectionPreview } from './collection-api.service';
+import { DeliveryCollectionsComponent } from './delivery-collections.component';
 
 type EditorKind = 'count' | 'planned-count' | 'load' | 'deliver' | 'return' | 'route' | 'day-driver' | 'trip'
   | 'assign' | 'location' | 'depart' | 'close' | 'transfer' | 'adjust' | 'release' | 'instructions';
@@ -22,6 +25,8 @@ interface DeliveryEditor {
   targetTripId: string; mapsUrl: string; address: string; adjustStage: string;
   acknowledgeOrderChange: boolean; isActive: boolean; error: string | null; conflict: boolean;
   locked: boolean; command: DeliveryPendingCommand | null;
+  collectionPreview: CollectionPreview | null; collectionAmount: string; collectionDirty: boolean;
+  collectionLoading: boolean; collectionError: string | null;
 }
 interface DeliveryStop {
   orderId: string; customerName: string; position: number | null;
@@ -45,12 +50,13 @@ interface DriverCustomer {
 }
 
 @Component({
-  selector: 'app-delivery-workspace', imports: [FormsModule, NgTemplateOutlet, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent],
+  selector: 'app-delivery-workspace', imports: [FormsModule, NgTemplateOutlet, RouterLink, AdminOrderingSchedulesComponent, DeliveryRouteCustomersComponent, DeliveryCollectionsComponent],
   templateUrl: './delivery-workspace.component.html',
-  styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css', './driver-stages.component.css']
+  styleUrls: ['./delivery-workspace.component.css', './delivery-trip.component.css', './delivery-dialog.component.css', './driver-stages.component.css', './delivery-collection-editor.css']
 })
 export class DeliveryWorkspaceComponent {
   private readonly api = inject(DeliveryApiService);
+  private readonly collections = inject(CollectionApiService);
   private readonly auth = inject(AuthService);
   protected readonly access = inject(EffectivePermissionsService);
   private readonly route = inject(ActivatedRoute);
@@ -61,6 +67,8 @@ export class DeliveryWorkspaceComponent {
   @ViewChild(DeliveryRouteCustomersComponent) private routeCustomers?: DeliveryRouteCustomersComponent;
   protected readonly management = this.route.snapshot.data['deliveryManagement'] === true;
   protected readonly unitLabel = unitLabel;
+  protected readonly money = collectionMoney;
+  protected readonly price = priceText;
   protected readonly storeKeyLabel = storeKeyLabel;
   protected readonly paymentTermLabel = paymentTermLabel;
   protected readonly mapsUrl = safeDeliveryMapsUrl;
@@ -84,20 +92,27 @@ export class DeliveryWorkspaceComponent {
   protected preparationWarning: string | null = null;
   protected editor: DeliveryEditor | null = null;
   protected recovery: DeliveryPendingCommand | null = null;
+  protected storageError: string | null = null;
   protected get routeSettingsBusy(): boolean { return !!(this.routeSchedule?.isSaving || this.routeCustomers?.isSaving); }
   private get routeSettingsDirty(): boolean { return !!(this.routeSchedule?.hasRouteDraft || this.routeCustomers?.hasDrafts); }
   private read: Subscription | null = null;
   private write: Subscription | null = null;
+  private collectionRead: Subscription | null = null;
+  private collectionTimer: ReturnType<typeof setTimeout> | null = null;
+  private collectionGeneration = 0;
   private readonly beforeUnload = (event: BeforeUnloadEvent) => {
     if (this.editor || this.recovery || this.saving) { event.preventDefault(); event.returnValue = ''; }
   };
 
   constructor() {
     const user = this.access.userId();
-    if (user) this.recovery = this.api.pending(user);
+    if (user) {
+      try { this.recovery = this.api.pending(user); }
+      catch { this.storageError = 'No se pudo recuperar una operación guardada. Revisa el almacenamiento antes de registrar otra entrega.'; }
+    }
     this.load();
     window.addEventListener('beforeunload', this.beforeUnload);
-    this.destroy.onDestroy(() => { this.read?.unsubscribe(); this.write?.unsubscribe(); window.removeEventListener('beforeunload', this.beforeUnload); });
+    this.destroy.onDestroy(() => { this.read?.unsubscribe(); this.write?.unsubscribe(); this.cancelCollectionPreview(); window.removeEventListener('beforeunload', this.beforeUnload); });
   }
 
   canLeave(): boolean {
@@ -114,7 +129,7 @@ export class DeliveryWorkspaceComponent {
     this.read?.unsubscribe();
     this.read = this.api.getDashboard(this.date || null, this.management).pipe(
       switchMap(board => {
-        if (!prepare || this.recovery || this.editor || !board.canPrepare || !this.canManageTrip) return of(board);
+        if (!prepare || this.recovery || this.editor || !board.canPrepare || !this.canManageTrip || this.storageError) return of(board);
         const operationId = crypto.randomUUID();
         return this.api.execute({
           operationId, path: this.deliveryPath + '/prepare', method: 'POST',
@@ -262,7 +277,7 @@ export class DeliveryWorkspaceComponent {
   }
   protected get routeCodes(): string[] { return [...new Set([...(this.dashboard?.routes.map(route => route.code) ?? []), ...(this.dashboard?.orders.map(order => order.routeCode).filter((code): code is string => !!code) ?? [])])].sort(); }
   protected get closed(): boolean { return !!this.trip?.closedAt || this.trip?.status.toLowerCase() === 'closed'; }
-  protected get canOperate(): boolean { return this.canManageTrip && !this.closed && !this.recovery; }
+  protected get canOperate(): boolean { return this.canManageTrip && !this.closed && !this.recovery && !this.storageError; }
   protected get canDepart(): boolean {
     return !!this.dashboard?.operationalDate && this.canOperate && this.trip?.departedAt === null
       && this.trip.date === businessDateToday();
@@ -404,7 +419,7 @@ export class DeliveryWorkspaceComponent {
   }
 
   protected open(kind: EditorKind, assignment: DeliveryAssignment | null = null, order: DeliveryOrder | null = null, line: DeliveryLine | null = null, route: DeliveryRoute | null = null): void {
-    if (this.saving || this.editor || this.recovery || this.loading) return;
+    if (this.saving || this.editor || this.recovery || this.loading || this.storageError) return;
     const titles: Record<EditorKind, string> = { count: 'Registrar conteo', 'planned-count': 'Registrar conteo', load: 'Confirmar carga',
       deliver: 'Registrar entrega', return: 'Registrar devolución', route: route ? 'Editar ruta' : 'Nueva ruta',
       'day-driver': this.dayDriverLabel, trip: 'Nueva vuelta', assign: 'Asignar a vuelta', location: 'Ubicación del cliente',
@@ -414,12 +429,83 @@ export class DeliveryWorkspaceComponent {
       reason: '', notes: '', remainderDisposition: '', routeCode: route?.code ?? this.routeCodes[0] ?? '', routeName: route?.name ?? '',
       driverUserId: (kind === 'day-driver' ? route?.dayDriverUserId : route?.defaultDriverUserId) ?? '',
       tripNumber: 1, targetTripId: '', mapsUrl: order?.mapsUrl ?? '', address: order?.address ?? '',
-      adjustStage: assignment && assignment.transferredInQuantity > 0 ? 'deliver' : assignment?.loadedQuantity === null ? 'count' : 'load', acknowledgeOrderChange: false, isActive: route?.isActive ?? true, error: null, conflict: false, locked: false, command: null };
+      adjustStage: assignment && assignment.transferredInQuantity > 0 ? 'deliver' : assignment?.loadedQuantity === null ? 'count' : 'load', acknowledgeOrderChange: false, isActive: route?.isActive ?? true, error: null, conflict: false, locked: false, command: null, collectionPreview: null, collectionAmount: '', collectionDirty: false, collectionLoading: false, collectionError: null };
     if (this.quantityRequired) this.editor.quantity = Math.min(this.expectedQuantity, this.quantityLimit);
     this.editor.targetTripId = this.targetTrips.find(trip => trip.id === this.selectedTripId)?.id ?? this.targetTrips[0]?.id ?? '';
     if (kind === 'trip') { this.editor.routeCode = this.activeRoutes[0]?.code ?? ''; this.routeChanged(); }
     this.detector.detectChanges(); this.dialog?.nativeElement.showModal();
+    if (this.collectionEnabled) this.refreshCollectionPreview();
   }
+  protected get collectionEnabled(): boolean {
+    return this.editor?.kind === 'deliver' && this.editor.assignment?.paymentTermCode === 'cash_on_delivery'
+      && this.access.has('operations.collections.work');
+  }
+  protected get collectionReady(): boolean {
+    return !this.collectionEnabled || !!this.editor?.collectionPreview && !this.editor.collectionLoading && !this.editor.collectionError;
+  }
+  protected get collectionBalanceAfter(): number | null {
+    const preview = this.editor?.collectionPreview;
+    const amount = parseCollectionAmount(this.editor?.collectionAmount ?? '');
+    if (!preview || preview.amountDue === null || amount === null) return null;
+    return Math.max(0, Math.round((preview.amountDue - amount) * 100) / 100);
+  }
+  protected get collectionCreditAfter(): number | null {
+    const preview = this.editor?.collectionPreview;
+    const amount = parseCollectionAmount(this.editor?.collectionAmount ?? '');
+    if (!preview || preview.amountDue === null || amount === null) return null;
+    return Math.round((Math.max(0, amount - preview.amountDue) + (preview.creditBalance ?? 0)) * 100) / 100;
+  }
+  protected collectionEdited(): void { if (this.editor) this.editor.collectionDirty = true; }
+  protected noPayment(): void {
+    if (!this.editor) return;
+    this.editor.collectionAmount = '0';
+    this.editor.collectionDirty = true;
+  }
+  protected deliveryQuantityChanged(): void {
+    if (!this.collectionEnabled) return;
+    this.cancelCollectionPreview();
+    if (!this.editor) return;
+    this.editor.collectionPreview = null;
+    this.editor.collectionLoading = true;
+    this.editor.collectionError = null;
+    this.collectionTimer = setTimeout(() => this.refreshCollectionPreview(), 250);
+  }
+  protected refreshCollectionPreview(): void {
+    this.cancelCollectionPreview();
+    const editor = this.editor;
+    if (!this.collectionEnabled || !editor?.assignment || editor.locked) return;
+    if (editor.quantity === null || !Number.isFinite(editor.quantity) || editor.quantity < 0 || editor.quantity > this.quantityLimit) {
+      editor.collectionLoading = false;
+      editor.collectionPreview = null;
+      editor.collectionError = 'Captura primero una cantidad de entrega válida.';
+      return;
+    }
+    const generation = ++this.collectionGeneration;
+    editor.collectionLoading = true;
+    editor.collectionError = null;
+    this.collectionRead = this.collections.preview(editor.assignment.id, editor.quantity, this.management).pipe(timeout(15_000)).subscribe({
+      next: preview => {
+        if (this.editor !== editor || generation !== this.collectionGeneration) return;
+        editor.collectionPreview = preview;
+        editor.collectionLoading = false;
+        if (!editor.collectionDirty) editor.collectionAmount = preview.suggestedAmount === null ? '' : String(preview.suggestedAmount);
+        this.detector.detectChanges();
+      },
+      error: error => {
+        if (this.editor !== editor || generation !== this.collectionGeneration) return;
+        editor.collectionLoading = false;
+        editor.collectionError = this.errorMessage(error, 'No se pudo consultar el saldo y el ticket de este cliente.');
+        this.detector.detectChanges();
+      }
+    });
+  }
+  private cancelCollectionPreview(): void {
+    this.collectionGeneration++;
+    this.collectionRead?.unsubscribe();
+    if (this.collectionTimer !== null) clearTimeout(this.collectionTimer);
+    this.collectionTimer = null;
+  }
+
   protected adjustStageChanged(): void { if (this.editor) this.editor.quantity = this.expectedQuantity; }
   protected routeChanged(): void {
     const editor = this.editor;
@@ -432,22 +518,23 @@ export class DeliveryWorkspaceComponent {
     event?.preventDefault();
     if (this.saving || this.routeSettingsBusy || this.editor?.locked) return;
     if (this.routeSettingsDirty && !window.confirm('Hay cambios de horario o clientes sin guardar. ¿Cerrar y descartar esos borradores?')) return;
-    this.dialog?.nativeElement.close(); this.editor = null;
+    this.cancelCollectionPreview(); this.dialog?.nativeElement.close(); this.editor = null;
   }
 
   protected save(): void {
     const editor = this.editor;
-    if (!editor || this.saving || this.routeSettingsBusy || editor.conflict) return;
+    if (!editor || this.saving || this.routeSettingsBusy || editor.conflict || !this.collectionReady || this.storageError) return;
     if (editor.kind === 'route' && this.routeSettingsDirty) {
       editor.error = 'Guarda o descarta los cambios de horario y clientes antes de guardar los datos de la ruta.';
       return;
     }
+    const firstAttempt = !editor.command;
     if (!editor.command) {
       const command = this.command(editor);
       if (!command) return;
       editor.command = command;
     }
-    this.execute(editor.command);
+    this.execute(editor.command, firstAttempt);
   }
 
   private command(editor: DeliveryEditor): DeliveryPendingCommand | null {
@@ -468,6 +555,16 @@ export class DeliveryWorkspaceComponent {
       path = `${this.deliveryPath}/assignments/${assignment.id}/${editor.kind}`;
       fields = { expectedVersion: assignment.version, expectedOrderVersion: assignment.currentOrderVersion, quantity: editor.quantity,
         reason: editor.reason.trim() || null, notes: editor.notes.trim() || null, remainderDisposition: editor.remainderDisposition || null, acknowledgeOrderChange: editor.acknowledgeOrderChange };
+      if (editor.kind === 'deliver' && this.collectionEnabled) {
+        const preview = editor.collectionPreview;
+        if (!preview || editor.collectionLoading || editor.collectionError) { editor.error = 'Consulta el saldo del cliente antes de guardar la entrega.'; return null; }
+        if (preview.paymentTermCode === 'cash_on_delivery') {
+          const amount = parseCollectionAmount(editor.collectionAmount);
+          if (amount === null) { editor.error = 'Captura un importe cobrado mayor o igual a cero, con máximo dos decimales.'; return null; }
+          fields['collectedAmount'] = amount;
+          fields['collectionVersion'] = preview.version;
+        }
+      }
     } else if (editor.kind === 'planned-count' && trip && editor.order && editor.line) {
       path = `${this.deliveryPath}/trips/${trip.id}/planned-count`;
       fields = { orderId: editor.order.orderId, orderLineId: editor.line.orderLineId, expectedOrderVersion: editor.order.orderVersion,
@@ -513,28 +610,45 @@ export class DeliveryWorkspaceComponent {
         this.quantityRequired ? `${this.quantity(editor.quantity)} ${this.quantityUnit}` : ''].filter(Boolean).join(' · ') };
   }
 
-  private execute(command: DeliveryPendingCommand): void {
+  private execute(command: DeliveryPendingCommand, firstAttempt = false): void {
     const user = this.access.userId();
     if (!user || this.saving) return;
     try { this.api.remember(user, command); }
-    catch { if (this.editor) this.editor.error = 'No se pudo conservar la referencia de esta operación en el navegador. Libera espacio antes de guardar.'; return; }
+    catch (error) {
+      if (this.editor) this.editor.error = error instanceof Error ? error.message : 'No se pudo conservar la referencia de esta operación en el navegador.';
+      try { this.recovery = this.api.pending(user); } catch { this.storageError = 'No se pudo comprobar la referencia guardada.'; }
+      return;
+    }
     this.saving = true; this.error = null;
     if (this.editor) { this.editor.locked = true; this.editor.error = null; }
     this.write = this.api.execute(command).subscribe({
       next: result => {
-        this.api.clear(user); this.recovery = null; this.saving = false;
-        this.dialog?.nativeElement.close(); this.editor = null;
+        try { this.api.clear(user, command); this.recovery = this.api.pending(user); }
+        catch {
+          this.saving = false;
+          this.recovery = command;
+          const message = 'El resultado fue recibido, pero la referencia sigue guardada. Reintenta para comprobarlo antes de registrar otra entrega.';
+          if (this.editor) this.editor.error = message; else this.error = message;
+          this.detector.detectChanges();
+          return;
+        }
+        this.saving = false;
+        this.cancelCollectionPreview(); this.dialog?.nativeElement.close(); this.editor = null;
         this.success = result.replayed ? 'Operación recuperada sin duplicar registros.' : 'Registro guardado. La hora y el responsable quedaron en la bitácora.';
         this.load(true, command.path === '/api/admin/delivery/routes' || command.path === '/api/admin/delivery/routes/day-driver');
         this.detector.detectChanges();
       },
       error: error => {
         this.saving = false;
-        const confirmedRejection = error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500;
+        const financial = Object.hasOwn(command.body, 'collectedAmount');
+        const confirmedRejection = error instanceof HttpErrorResponse && (financial
+          ? error.status === 409 && error.error?.retrySameOperation === false || firstAttempt && [400, 403, 404].includes(error.status)
+          : error.status >= 400 && error.status < 500);
         const message = confirmedRejection ? this.errorMessage(error, 'No se pudo guardar el registro.')
           : 'No se recibió confirmación del servidor. Conservamos la captura y su referencia; reintenta la misma operación para comprobar el resultado.';
         if (confirmedRejection) {
-          this.api.clear(user); this.recovery = null;
+          try { this.api.clear(user, command); this.recovery = this.api.pending(user); }
+          catch { this.recovery = command; this.storageError = 'No se pudo retirar la referencia guardada. Conserva este navegador para revisar el resultado.'; }
           if (this.editor) { this.editor.locked = false; this.editor.command = null; this.editor.operationId = crypto.randomUUID(); this.editor.conflict = error.status === 409; }
         } else this.recovery = command;
         if (this.editor) this.editor.error = message; else this.error = message;
@@ -565,7 +679,9 @@ export class DeliveryWorkspaceComponent {
         }
         if (editor.route) editor.route = value.routes.find(route => route.code === editor.route?.code) ?? editor.route;
         editor.conflict = false; editor.acknowledgeOrderChange = false;
-        editor.error = 'Datos actuales consultados. Revisa las cantidades y vuelve a confirmar; tu borrador se conservó.'; this.detector.detectChanges();
+        editor.error = 'Datos actuales consultados. Revisa las cantidades y vuelve a confirmar; tu borrador se conservó.';
+        if (this.collectionEnabled) this.refreshCollectionPreview();
+        this.detector.detectChanges();
       }, error: error => { this.loading = false; editor.error = this.errorMessage(error, 'No se pudieron consultar los datos actuales.'); this.detector.detectChanges(); }
     });
   }

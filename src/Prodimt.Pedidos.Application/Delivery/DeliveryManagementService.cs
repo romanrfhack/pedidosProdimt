@@ -3,6 +3,7 @@ using System.Text.Json;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.AdminOrders;
 using Prodimt.Pedidos.Application.CustomerOrders;
+using Prodimt.Pedidos.Application.Collections;
 using Prodimt.Pedidos.Domain.Entities;
 using Prodimt.Pedidos.Domain.Enums;
 
@@ -11,7 +12,7 @@ namespace Prodimt.Pedidos.Application.Delivery;
 /// <summary>Delivery quantities are a separate ledger; they never replace the customer's order.</summary>
 public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrderRepository orders,
     ICustomerRepository customers, IAdminUserRepository users, IOrderOperationStore operations,
-    IAuditLogRepository audit, IDateTimeProvider clock)
+    IAuditLogRepository audit, IDateTimeProvider clock, CollectionService? collections = null)
 {
     public async Task<DeliveryDashboardResponse> DashboardAsync(DateOnly? date, string? routeCode,
         AdminActorContext actor, bool manage, CancellationToken token)
@@ -294,6 +295,10 @@ public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrd
         Quantity(request.Quantity, true);
         var reason = Optional(request.Reason, 500); var notes = Optional(request.Notes, 2000);
         if (stage is not ("count" or "load" or "deliver" or "return")) throw new ArgumentException("La etapa de reparto no es válida.");
+        if (stage != "deliver" && (request.CollectedAmount is not null || request.CollectionVersion is not null))
+            throw new ArgumentException("El cobro se registra al entregar el pedido.");
+        if (request.CollectedAmount is not null && collections is null)
+            throw new NotSupportedException("La cobranza requiere persistencia transaccional.");
         // Authorize before reading a durable receipt too: a former manager must not
         // replay an operation for another driver's trip through the own endpoint.
         if (!manage)
@@ -301,7 +306,12 @@ public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrd
             var scoped = await delivery.GetAssignmentAsync(id, token) ?? throw new KeyNotFoundException("No se encontró la asignación.");
             await RequireTripAsync(scoped.TripId, actor, false, false, token);
         }
-        return await ExecuteAsync(stage, request.OperationId, new { id, request }, actor, async ct =>
+        // Preserve the hash of durable receipts written before collection fields existed.
+        object payload = request.CollectedAmount is null && request.CollectionVersion is null
+            ? new { id, request = (object)new { request.OperationId, request.ExpectedVersion, request.ExpectedOrderVersion,
+                request.Quantity, request.Reason, request.Notes, request.RemainderDisposition, request.AcknowledgeOrderChange } }
+            : new { id, request = (object)request };
+        return await ExecuteAsync(stage, request.OperationId, payload, actor, async ct =>
         {
             var item = await RequireAssignmentAsync(id, actor, manage, ct);
             Version(item.Version, request.ExpectedVersion);
@@ -369,8 +379,11 @@ public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrd
                 if (item.CustodyQuantity == 0) item.HasUnresolvedIncident = false;
             }
             item.Version++; trip.Version++;
-            await EventAsync(item.TripId, item.Id, stage switch { "load" => "Loaded", "deliver" => "Delivered", _ => "Returned" },
+            var movement = await EventAsync(item.TripId, item.Id, stage switch { "load" => "Loaded", "deliver" => "Delivered", _ => "Returned" },
                 request.Quantity, previous, reason, notes, actor, ct);
+            if (stage == "deliver" && collections is not null)
+                await collections.RecordDeliveryAsync(item, trip, order, line!, movement.Id, request.Quantity,
+                    request.CollectedAmount, request.CollectionVersion, actor, manage, ct);
             if (stage == "load" && previous != request.Quantity)
                 await EventAsync(item.TripId, item.Id, "UnloadedReservationReleased", previous - request.Quantity, null,
                     reason, "Saldo no cargado disponible para otra vuelta.", actor, ct);
@@ -505,8 +518,12 @@ public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrd
             }
             if (item.CustodyQuantity == 0) item.HasUnresolvedIncident = false;
             item.Version++; var trip = (await delivery.GetTripAsync(item.TripId, ct))!; trip.Version++;
-            await EventAsync(item.TripId, item.Id, request.Stage switch { "count" => "CountAdjusted", "load" => "LoadAdjusted", _ => "DeliveredAdjusted" }, request.Quantity,
+            var movement = await EventAsync(item.TripId, item.Id, request.Stage switch { "count" => "CountAdjusted", "load" => "LoadAdjusted", _ => "DeliveredAdjusted" }, request.Quantity,
                 previous, reason, "Corrección autorizada; el movimiento anterior permanece en bitácora.", actor, ct);
+            if (request.Stage == "deliver" && collections is not null)
+                await collections.RecordDeliveryAdjustmentAsync(item, trip, order,
+                    order.Lines.Single(x => x.Id == item.OrderLineId), movement.Id,
+                    request.Quantity - previous, reason, actor, ct);
             return new(item.Id, item.Version);
         }, token);
     }
@@ -748,14 +765,16 @@ public sealed class DeliveryManagementService(IDeliveryRepository delivery, IOrd
         var result = await operations.ExecuteAsync($"DELIVERY:{userId:N}:{action}:{operationId:N}", hash, clock.Now, mutation, token);
         return result.Result with { Replayed = result.Replayed };
     }
-    private async Task EventAsync(Guid tripId, Guid? assignmentId, string type, decimal? quantity, decimal? previous,
+    private async Task<DeliveryEvent> EventAsync(Guid tripId, Guid? assignmentId, string type, decimal? quantity, decimal? previous,
         string? reason, string? notes, AdminActorContext? actor, CancellationToken token)
     {
-        await delivery.AddEventAsync(new DeliveryEvent { Id = Guid.NewGuid(), TripId = tripId, AssignmentId = assignmentId,
+        var movement = new DeliveryEvent { Id = Guid.NewGuid(), TripId = tripId, AssignmentId = assignmentId,
             Type = type, Quantity = quantity, PreviousQuantity = previous, Reason = reason, Notes = notes,
-            ActorId = actor?.ActorId, ActorName = actor is null ? "Sistema" : actor.ActorDisplayName, OccurredAt = clock.Now }, token);
+            ActorId = actor?.ActorId, ActorName = actor is null ? "Sistema" : actor.ActorDisplayName, OccurredAt = clock.Now };
+        await delivery.AddEventAsync(movement, token);
         await AuditAsync((assignmentId ?? tripId).ToString(), "Delivery" + type, actor,
             new { tripId, assignmentId, quantity, previous }, token);
+        return movement;
     }
     private Task AuditAsync(string id, string type, AdminActorContext? actor, object metadata, CancellationToken token)
         => audit.AddAsync(AuditLog.Create("Delivery", id, type, clock.Now, actor is null ? AuditActorType.System : AuditActorType.Admin,
