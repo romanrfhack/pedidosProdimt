@@ -146,6 +146,16 @@ class CollectionsInstallerLifecycleTests(unittest.TestCase):
         scoped = patch.object(I, "regular", side_effect=lambda path, *args: Path(path).read_bytes())
         scoped.start()
         self.addCleanup(scoped.stop)
+        # Only native ownership is emulated. Modes, hashes, snapshots, symlinks
+        # and durable proof contents remain real inside the isolated directory.
+        original_stat = Path.stat
+        def root_owned(path, *args, **kwargs):
+            values = list(original_stat(path, *args, **kwargs))
+            values[4] = 0
+            return os.stat_result(values)
+        scoped = patch.object(Path, "stat", root_owned)
+        scoped.start()
+        self.addCleanup(scoped.stop)
 
     def installer(self, migrated=False):
         instance = I.make_installer(Path("synthetic-package.zip"))
@@ -165,7 +175,7 @@ class CollectionsInstallerLifecycleTests(unittest.TestCase):
         instance.migration_verified = migrated
         instance.preflight = lambda: self.events.append("preflight")
         instance.database_backup = lambda: self.events.append("verified-backup")
-        instance.verify_new_schema = lambda: self.events.append("verify-schema")
+        instance.verify_new_schema = lambda **kwargs: self.events.append("verify-schema")
         instance.app_json = lambda query: [{"MigrationId": name} for name in instance.database_history]
 
         def stage():
@@ -284,6 +294,153 @@ class CollectionsInstallerLifecycleTests(unittest.TestCase):
         self.assertFalse(instance.state["changes_made"])
         for mutation in ("stage", "stop", "migrate", "activate-new"):
             self.assertNotIn(mutation, self.events)
+
+    def test_exposed_new_api_writes_survive_same_package_forward_recovery(self):
+        initial = self.installer()
+
+        def fail_after_legitimate_login_and_audit(new):
+            if new:
+                initial.preservation_after["users_hash"] = "d" * 64
+                initial.preservation_after["unchanged_counts"][0]["row_count"] += 1
+                raise I.InstallError("health_failed_after_new_api_writes")
+
+        command = self.runtime.command
+        def verify_proof_before_service_start(arguments, **kwargs):
+            if arguments[1] == "start":
+                marker = json.loads(initial.marker.read_text())
+                proof_path = initial.snapshot / "preservation-verified.json"
+                self.assertIs(marker["preservationVerified"], True)
+                self.assertEqual(0o600, proof_path.stat().st_mode & 0o777)
+                proof = json.loads(proof_path.read_text())
+                self.assertEqual(I.EXPECTED_SOURCE, proof["source"])
+                self.assertEqual(I.EXPECTED_PAYLOAD_SHA256, proof["payload"])
+                self.assertEqual("full-before-activation", proof["kind"])
+                self.assertEqual(self.after, proof["migration_ids"])
+                self.assertEqual(I.sha((initial.snapshot / "database-preservation.json").read_bytes()), proof["baselineSha256"])
+            return command(arguments, **kwargs)
+        self.runtime.command = verify_proof_before_service_start
+        initial.health = fail_after_legitimate_login_and_audit
+        with self.assertRaisesRegex(I.InstallError, "^health_failed_after_new_api_writes$"):
+            initial.apply()
+        initial.rollback()
+        self.assertTrue(initial.state["recovery_pending"])
+        self.assertTrue(initial.marker.exists())
+        first_ddl_count = self.events.count("migrate")
+        self.runtime.command = command
+
+        resumed = self.installer(migrated=True)
+        resumed.preservation_after = json.loads(json.dumps(initial.preservation_after))
+        resumed.verify_backup = lambda: self.events.append("verify-backup")
+        resumed.preflight = lambda: type(resumed).preflight(resumed)
+        original_stat = Path.stat
+
+        def root_owned(path, *args, **kwargs):
+            values = list(original_stat(path, *args, **kwargs))
+            values[4] = 0
+            return os.stat_result(values)
+
+        with patch.object(Path, "stat", root_owned):
+            resumed.apply()
+        self.assertEqual(first_ddl_count, self.events.count("migrate"))
+        self.assertEqual("updated", resumed.state["status"])
+        self.assertFalse(resumed.state["recovery_pending"])
+        self.assertFalse(resumed.marker.exists())
+        self.assertEqual("d" * 64, resumed.preservation_after["users_hash"])
+        self.assertEqual(5, resumed.preservation_after["unchanged_counts"][0]["row_count"])
+
+    def test_missing_or_forged_proof_cannot_enable_post_exposure_shortcut(self):
+        for corruption in ("missing-proof", "wrong-source", "wrong-baseline-hash", "wrong-history", "string-flag"):
+            with self.subTest(corruption=corruption):
+                # Each scenario has a separate filesystem and pinned source.
+                scenario = CollectionsInstallerLifecycleTests(methodName="runTest")
+                scenario.setUp()
+                try:
+                    initial = scenario.installer()
+                    initial.health = lambda new: (_ for _ in ()).throw(I.InstallError("incomplete-health"))
+                    with self.assertRaises(I.InstallError):
+                        initial.apply()
+                    initial.rollback()
+                    marker = json.loads(initial.marker.read_text())
+                    marker["preservationVerified"] = "true" if corruption == "string-flag" else True
+                    initial.marker.write_text(json.dumps(marker))
+                    proof_path = initial.snapshot / "preservation-verified.json"
+                    if corruption == "missing-proof":
+                        proof_path.unlink()
+                    else:
+                        proof = json.loads(proof_path.read_text())
+                        if corruption == "wrong-source":
+                            proof["source"] = "e" * 40
+                        elif corruption == "wrong-baseline-hash":
+                            proof["baselineSha256"] = "e" * 64
+                        elif corruption == "wrong-history":
+                            proof["migration_ids"] = scenario.before
+                        proof_path.write_text(json.dumps(proof))
+                    resumed = scenario.installer(migrated=True)
+                    resumed.process = lambda _: scenario.fail("Stopped recovery must not require a running API.")
+                    resumed.http = lambda _: scenario.fail("Stopped recovery must not require a healthy API.")
+                    original_stat = Path.stat
+                    def root_owned(path, *args, **kwargs):
+                        values = list(original_stat(path, *args, **kwargs)); values[4] = 0
+                        return os.stat_result(values)
+                    with patch.object(Path, "stat", root_owned), self.assertRaises((I.InstallError, OSError)):
+                        type(resumed).preflight(resumed)
+                finally:
+                    scenario.doCleanups()
+
+    def test_absent_preservation_flag_still_requires_full_mutable_data_comparison(self):
+        initial = self.installer()
+        initial.health = lambda new: (_ for _ in ()).throw(I.InstallError("incomplete-health"))
+        with self.assertRaises(I.InstallError):
+            initial.apply()
+        initial.rollback()
+        marker = json.loads(initial.marker.read_text())
+        marker.pop("preservationVerified", None)
+        initial.marker.write_text(json.dumps(marker))
+        resumed = self.installer(migrated=True)
+        resumed.preservation_after["users_hash"] = "d" * 64
+        resumed.verify_backup = lambda: self.events.append("verify-backup")
+        resumed.preflight = lambda: type(resumed).preflight(resumed)
+        original_stat = Path.stat
+        def root_owned(path, *args, **kwargs):
+            values = list(original_stat(path, *args, **kwargs)); values[4] = 0
+            return os.stat_result(values)
+        with patch.object(Path, "stat", root_owned), self.assertRaises(I.InstallError):
+            resumed.apply()
+        self.assertTrue(resumed.marker.exists())
+        self.assertNotEqual("updated", resumed.state["status"])
+
+    def test_trusted_recovery_still_checks_static_schema_and_sql_permissions(self):
+        before, after = preservation_snapshots()
+        after["users_hash"] = "d" * 64
+        after["unchanged_counts"][0]["row_count"] = 5
+        I.verify_preservation(before, after, static_only=True)
+        for field in ("columns_metadata", "indexes_metadata", "sql_permissions"):
+            with self.subTest(field=field):
+                changed = json.loads(json.dumps(after))
+                changed[field] = [{"unexpected": "change"}]
+                with self.assertRaisesRegex(I.InstallError, "^existing_database_metadata_or_permissions_changed$"):
+                    I.verify_preservation(before, changed, static_only=True)
+
+    def test_preservation_proof_requires_root_ownership_and_private_mode(self):
+        instance = self.installer()
+        instance.snapshot = self.backups / "collections-update-20261122T100000Z-aaaaaaaaaaaa"
+        instance.snapshot.mkdir(mode=0o700)
+        I.write_private(instance.snapshot / "database-preservation.json", json.dumps(instance.preservation_before).encode())
+        proof = instance.snapshot / "preservation-verified.json"
+        I.write_private(proof, json.dumps(instance.preservation_proof()).encode())
+        instance.verify_preservation_proof()
+        proof.chmod(0o644)
+        with self.assertRaisesRegex(I.InstallError, "^preservation_proof_invalid$"):
+            instance.verify_preservation_proof()
+        proof.chmod(0o600)
+        original_stat = Path.stat
+        def untrusted_owner(path, *args, **kwargs):
+            values = list(original_stat(path, *args, **kwargs))
+            if path == proof:
+                values[4] = 1000
+            return os.stat_result(values)
+        with patch.object(Path, "stat", untrusted_owner), self.assertRaisesRegex(I.InstallError, "^preservation_proof_invalid$"):
+            instance.verify_preservation_proof()
 
     def test_existing_schema_permissions_and_row_counts_are_preserved(self):
         instance = self.installer()

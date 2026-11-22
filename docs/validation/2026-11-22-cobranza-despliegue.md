@@ -14,10 +14,12 @@ Después de activar se verifican salud, frontend por HTTPS, endpoints protegidos
 
 Una interrupción anterior al DDL puede devolver los enlaces anteriores. Tras una migración confirmada se recupera hacia delante con exactamente el mismo paquete, sin repetir el DDL ni restaurar automáticamente la base. El marcador conserva la referencia privada necesaria incluso si la API quedó detenida. La repetición correcta devuelve `already_current` después de verificar el release.
 
+La comparación completa de datos y seguridad se acredita antes de activar la API mediante evidencia privada vinculada a fuente, payload, hash del snapshot e historia 22. Si después la API registra operaciones y falla la comprobación de salud, el reintento conserva esas escrituras legítimas y comprueba sólo estructura y permisos SQL, sin exigir los conteos o usuarios anteriores. Evidencia ausente, incompleta o de otra fuente nunca permite omitir la comparación inicial. Una repetición `already_current` tampoco revierte cambios lógicos de roles realizados por administración.
+
 ## Validación de esta entrega
 
 - Implementación funcional ya validada con 547 pruebas .NET, 108 SQL Server reales, 68 componentes y 258 navegador. [Detalle](2026-11-22-cobranza.md).
-- 27 controles Python nuevos de instalación, payload y WSL correctos. Suite completa 659 casos, cuatro omisiones históricas y cero fallos.
+- 32 controles Python nuevos de instalación, payload y WSL correctos. Suite completa 664 casos, cuatro omisiones históricas y cero fallos. Incluyen la regresión de recuperación después de que la API nueva haya registrado auditoría y cambios legítimos de usuario.
 - Dos pruebas nuevas en SQL Server 2022 Developer real ejecutan las consultas exactas de esquema, preservación y veinte permisos como usuario de aplicación, y `verify_preservation` con Mostrador nuevo y personalizado. Los casos elevan la suite SQL a 110.
 - Los cinco trabajos de CI del PR se verifican antes del merge; el estado vigente se consulta en el PR. No se transforma una validación local en un pase remoto.
 

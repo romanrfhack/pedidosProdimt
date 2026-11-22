@@ -1,5 +1,9 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Recuperación después de exponer la API de cobranza
+
+La revisión final reproduce un caso en el que la API nueva registra auditoría y actualiza el usuario antes de fallar la comprobación de salud. Comparar después esos datos con el snapshot anterior podía bloquear el reintento. El instalador nuevo guarda antes de activar una evidencia privada de preservación completa, vinculada a fuente, payload, snapshot e historia. Con evidencia válida la recuperación comprueba estructura/permisos SQL y conserva los datos legítimos; sin evidencia válida no omite comprobaciones. No repite DDL ni restaura la base. Las 32 regresiones nuevas pasan y Python total suma 664 casos, cuatro omisiones históricas. No cambia el backend, frontend ni SQL de cobranza.
+
 ## 22 de noviembre de 2026 — Integración autorizada y paquete de cobranza
 
 El usuario autoriza main y despliegue. Se abre PR #12 y se añade instalador propio sobre `machine-workspace-0d64f5bd2aef`, 21→22, con bases y hashes fijados, respaldo COPY_ONLY/CHECKSUM verificado, marcador durable y recuperación hacia delante. Se preservan tablas previas, conteos, índices, permisos SQL, filas de seguridad existentes y hashes de usuarios/asignaciones; sólo se admiten los anexos de seguridad previstos. El reporte final consulta las 22 migraciones y hashes de DLL activas, en lugar del preflight anterior.

@@ -244,8 +244,13 @@ def preservation_query():
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
 
 
-def verify_preservation(before, after):
+def verify_preservation(before, after, *, static_only=False):
     """Permit only the migration's explicit security additions, retaining every old row."""
+    if static_only:
+        require(all(before.get(key) == after.get(key) for key in
+            ('columns_metadata', 'indexes_metadata', 'sql_permissions')),
+            'existing_database_metadata_or_permissions_changed')
+        return
     security = {'security_roles', 'security_permissions', 'security_grants'}
     require(set(before) == set(after) and all(before[key] == after[key] for key in set(before) - security),
         'existing_database_metadata_or_permissions_changed')
@@ -313,6 +318,7 @@ def make_installer(package, base_frontend=None):
             self.stop_requested = False
             self.base_frontend = manifest["basePair"][1] or base_frontend
             self.migration_verified = False
+            self.preservation_verified = False
             self.sql_login = self.sql_password = ''
 
         def app_json(self, query):
@@ -350,6 +356,8 @@ def make_installer(package, base_frontend=None):
                 self.recovery = json.loads(regular(self.marker))
                 require(self.recovery.get('source') == EXPECTED_SOURCE and self.recovery.get('payload') == EXPECTED_PAYLOAD_SHA256,
                         'another_update_recovery_pending')
+                require(type(self.recovery.get('preservationVerified', False)) is bool,
+                    'preservation_proof_invalid')
                 self.snapshot = Path(self.recovery['snapshot'])
                 require(self.snapshot.parent == BACKUPS and re.fullmatch(r'collections-update-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}',
                         self.snapshot.name), 'recovery_snapshot_invalid')
@@ -407,7 +415,7 @@ def make_installer(package, base_frontend=None):
                 return
             if not self.recovery and current == self.new:
                 require(history == manifest['migrationsAfter'], 'current_migration_mismatch')
-                self.verify_new_schema()
+                self.verify_new_schema(logical_setup_required=False)
                 for part in self.new:
                     self.verify_stage(part)
                 self.health(True)
@@ -423,6 +431,11 @@ def make_installer(package, base_frontend=None):
             if not self.recovery:
                 require(history == manifest['migrationsBefore'], 'untracked_migration_state')
             self.migration_verified = history == manifest['migrationsAfter']
+            if self.recovery and self.recovery.get('preservationVerified', False):
+                require(self.migration_verified, 'preservation_proof_migration_mismatch')
+                self.verify_preservation_proof()
+                self.preservation_verified = True
+                self.state['preservation_verified_before_activation'] = True
             if self.migration_verified:
                 self.verify_new_schema()
             else:
@@ -496,9 +509,14 @@ def make_installer(package, base_frontend=None):
             self.sql_run("RESTORE VERIFYONLY FROM DISK=N'" + str(path) + "' WITH CHECKSUM;", timeout=300)
             self.state['verified_database_backup'] = str(path)
 
-        def verify_new_schema(self):
-            require(self.app_json(schema_query()) == dict(tables_count=5, checks_count=6,
-                receiver_present=1, permissions_count=3), 'collections_schema_unexpected')
+        def verify_new_schema(self, *, logical_setup_required=True):
+            actual = self.app_json(schema_query())
+            if self.preservation_verified or not logical_setup_required:
+                require(isinstance(actual, dict) and actual.get('receiver_present') in (0, 1),
+                    'collections_schema_unexpected')
+                actual = dict(actual, receiver_present=1)
+            require(actual == dict(tables_count=5, checks_count=6, receiver_present=1, permissions_count=3),
+                'collections_schema_unexpected')
             require(self.app_json(permission_query()) == expected_permissions(), 'collections_permissions_unexpected')
             self.state['schema_verified'] = True
 
@@ -525,10 +543,35 @@ def make_installer(package, base_frontend=None):
             if capture:
                 require(before == value, 'existing_database_metadata_or_permissions_changed')
             else:
-                verify_preservation(before, value)
+                verify_preservation(before, value, static_only=self.preservation_verified)
                 self.state.update(existing_schema_preserved=True, existing_sql_permissions_preserved=True,
-                    existing_row_counts_preserved=True, existing_security_rows_preserved=True,
-                    existing_user_auth_preserved=True)
+                    preservation_verified_before_activation=self.preservation_verified)
+                if self.preservation_verified:
+                    self.state['mutable_data_revalidation_skipped_after_activation'] = True
+                else:
+                    self.state.update(existing_row_counts_preserved=True, existing_security_rows_preserved=True,
+                        existing_user_auth_preserved=True)
+
+        def preservation_proof(self):
+            return dict(source=EXPECTED_SOURCE, payload=EXPECTED_PAYLOAD_SHA256,
+                baselineSha256=sha(regular(self.snapshot / 'database-preservation.json')),
+                migration_ids=manifest['migrationsAfter'], kind='full-before-activation')
+
+        def verify_preservation_proof(self):
+            path = self.snapshot / 'preservation-verified.json'
+            require(path.exists() and not path.is_symlink(), 'preservation_proof_missing')
+            meta = path.stat()
+            require(meta.st_uid == 0 and meta.st_mode & 0o7777 == 0o600
+                and json.loads(regular(path)) == self.preservation_proof(), 'preservation_proof_invalid')
+
+        def record_preservation_proof(self):
+            path = self.snapshot / 'preservation-verified.json'
+            if not path.exists():
+                write_private(path, json.dumps(self.preservation_proof(), sort_keys=True).encode())
+            self.verify_preservation_proof()
+            self.preservation_verified = True
+            self.write_marker()
+            self.state['preservation_verified_before_activation'] = True
 
         def refresh_report(self):
             current = self.current_links()
@@ -545,7 +588,7 @@ def make_installer(package, base_frontend=None):
         def write_marker(self):
             data = dict(source=EXPECTED_SOURCE, payload=EXPECTED_PAYLOAD_SHA256, snapshot=str(self.snapshot),
                         previous={part: path.name for part, path in self.old.items()},
-                        migrationVerified=self.migration_verified)
+                        migrationVerified=self.migration_verified, preservationVerified=self.preservation_verified)
             target = self.marker.with_name('.collections-marker-' + uuid.uuid4().hex)
             descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(descriptor, 'w') as stream:
@@ -616,6 +659,8 @@ def make_installer(package, base_frontend=None):
                 self.state['database_migrations_run'] = True
                 self.write_marker()
             self.preserve_database()
+            if not self.preservation_verified:
+                self.record_preservation_proof()
             self.state['phase'] = 'activate-releases'
             self.switch(self.new)
             runtime.command(['systemctl', 'start', SERVICE], timeout=45)
