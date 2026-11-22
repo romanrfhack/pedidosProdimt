@@ -27,7 +27,7 @@ public sealed record CompleteProductSetupResponse(Guid Id, int Version, DateTime
 public sealed class CustomerProductSetupService(ICustomerRepository customers, IProductRepository products,
     ICustomerProductSetupRepository setups, ICommercialCatalogRepository commercial,
     IOrderAuditLogRepository orderAudit, IAuditLogRepository catalogAudit, IOrderOperationStore operations,
-    IDateTimeProvider clock)
+    IDateTimeProvider clock, Prodimt.Pedidos.Application.Collections.CollectionService? collections = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     public Task<int> CountOpenAsync(CancellationToken token) => setups.CountOpenAsync(token);
@@ -151,6 +151,8 @@ public sealed class CustomerProductSetupService(ICustomerRepository customers, I
                     if (target.UnitPriceSnapshot is not null) throw new CatalogConflictException("La partida ya recibió un precio. Revisa de nuevo.");
                     target.UnitPriceSnapshot = line.ProposedPrice; target.CurrencyCodeSnapshot = "MXN";
                     target.PriceRevisionId = line.RevisionId; target.PriceEffectiveFrom = line.EffectiveFrom;
+                    if (collections is not null)
+                        await collections.ReconcilePendingPricesAsync(order, target, actor, inner);
                     order.Version = checked(order.Version + 1);
                     await orderAudit.AddAsync(OrderAuditLog.Create(order, OrderAuditEventType.OrderLineInitialPriceResolved,
                         now, AuditActorType.Admin, "Precio inicial pendiente completado con tarifa por fecha de servicio.",

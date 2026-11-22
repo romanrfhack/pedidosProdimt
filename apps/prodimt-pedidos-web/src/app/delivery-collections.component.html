@@ -1,0 +1,20 @@
+<button type="button" class="secondary" (click)="show()" [disabled]="blocked">Cobranza de ruta</button>
+<dialog #summaryDialog class="delivery-dialog" aria-labelledby="route-collections-title">
+  <div class="delivery-dialog-header">
+    <h2 id="route-collections-title">Cobranza de ruta</h2>
+    <button type="button" class="secondary" (click)="close()">Cerrar</button>
+  </div>
+  <div class="route-collections-body">
+    @if (loading) { <p class="delivery-muted" role="status">Consultando cobros…</p> }
+    @if (error) { <p class="alert error" role="alert">{{ error }}</p><button type="button" class="secondary" (click)="show()">Reintentar consulta</button> }
+    @if (state; as summary) {
+      <p>{{ tripLabel }}</p>
+      <table><thead><tr><th>Cliente</th><th>Cobrado</th></tr></thead><tbody>
+        @for (customer of summary.customers; track customer.customerId) {
+          <tr><td>{{ customer.customerName }}</td><td>{{ money(customer.paidAmount) }}</td></tr>
+        } @empty { <tr><td colspan="2">Aún no hay cobros registrados en esta vuelta.</td></tr> }
+      </tbody><tfoot><tr><th>Total cobrado</th><td>{{ money(summary.paidAmount) }}</td></tr></tfoot></table>
+      <small>Importes en MXN · {{ money(summary.pendingCashAmount) }} por entregar a Caja</small>
+    }
+  </div>
+</dialog>

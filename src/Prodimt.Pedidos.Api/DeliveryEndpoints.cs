@@ -28,7 +28,8 @@ public static class DeliveryEndpoints
         foreach (var stage in new[] { "count", "load", "deliver", "return" })
             own.MapPost("/assignments/{id:guid}/" + stage, (Guid id, RecordDeliveryStageRequest request, HttpContext context,
                 DeliveryManagementService service, SecurityService security, CancellationToken ct)
-                => OwnAsync(context, security, true, async _ => Results.Ok(await service.RecordAsync(id, stage, request, Actor(context.User), false, ct))));
+                => OwnAsync(context, security, true, _ => RecordWithCollectionAccessAsync(context, security, request,
+                    async () => Results.Ok(await service.RecordAsync(id, stage, request, Actor(context.User), false, ct)))));
         own.MapPost("/trips/{id:guid}/close", (Guid id, CloseDeliveryTripRequest request, HttpContext context,
             DeliveryManagementService service, SecurityService security, CancellationToken ct)
             => OwnAsync(context, security, true, async _ => Results.Ok(await service.CloseAsync(id, request, Actor(context.User), false, ct))));
@@ -55,8 +56,10 @@ public static class DeliveryEndpoints
         admin.MapPost("/trips/{id:guid}/depart", (Guid id, DepartDeliveryTripRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.DepartAsync(id, request, Actor(user), true, ct))));
         foreach (var stage in new[] { "count", "load", "deliver", "return" })
-            admin.MapPost("/assignments/{id:guid}/" + stage, (Guid id, RecordDeliveryStageRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
-                => ExecuteAsync(async () => Results.Ok(await service.RecordAsync(id, stage, request, Actor(user), true, ct))));
+            admin.MapPost("/assignments/{id:guid}/" + stage, (Guid id, RecordDeliveryStageRequest request, HttpContext context,
+                DeliveryManagementService service, SecurityService security, CancellationToken ct)
+                => RecordWithCollectionAccessAsync(context, security, request,
+                    () => ExecuteAsync(async () => Results.Ok(await service.RecordAsync(id, stage, request, Actor(context.User), true, ct)))));
         admin.MapPost("/trips/{id:guid}/close", (Guid id, CloseDeliveryTripRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.CloseAsync(id, request, Actor(user), true, ct))));
         admin.MapPost("/assignments/{id:guid}/release", (Guid id, ReleaseDeliveryAssignmentRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
@@ -68,6 +71,17 @@ public static class DeliveryEndpoints
         admin.MapPost("/assignments/{id:guid}/adjust", (Guid id, AdjustDeliveryRequest request, ClaimsPrincipal user, DeliveryManagementService service, CancellationToken ct)
             => ExecuteAsync(async () => Results.Ok(await service.AdjustAsync(id, request, Actor(user), ct))));
         return endpoints;
+    }
+    private static async Task<IResult> RecordWithCollectionAccessAsync(HttpContext context, SecurityService security,
+        RecordDeliveryStageRequest request, Func<Task<IResult>> action)
+    {
+        if (request.CollectedAmount is not null)
+        {
+            if (!Guid.TryParse(context.User.FindFirstValue(ProdimtAuthClaims.UserId), out var id)) return Results.Unauthorized();
+            if (!(await security.GetPermissionsAsync(id, context.RequestAborted)).Contains("operations.collections.work"))
+                return Results.Json(new { error = "No tienes permiso para registrar cobranza." }, statusCode: 403);
+        }
+        return await action();
     }
     private static async Task<IResult> OwnAsync(HttpContext context, SecurityService security, bool write, Func<bool, Task<IResult>> action)
     {
@@ -85,7 +99,7 @@ public static class DeliveryEndpoints
     {
         try { return await action(); }
         catch (UnauthorizedAccessException) { return Results.Json(new { error = "Esta vuelta pertenece a otro repartidor." }, statusCode: 403); }
-        catch (CustomerOrderConflictException ex) { return Results.Conflict(new { error = ex.Message }); }
+        catch (CustomerOrderConflictException ex) { return Results.Conflict(new { error = ex.Message, retrySameOperation = ex.RetrySameOperation }); }
         catch (CatalogConflictException ex) { return Results.Conflict(new { error = ex.Message }); }
         catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
         catch (KeyNotFoundException ex) { return Results.NotFound(new { error = ex.Message }); }

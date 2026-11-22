@@ -126,8 +126,8 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
             await db.Database.ExecuteSqlInterpolatedAsync($"EXEC sys.sp_addextendedproperty @name=N'C2Owner', @value={configuration.RunId}");
             await db.Database.MigrateAsync();
             var migrations = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-            Assert.Equal(21, migrations.Length);
-            Assert.Equal("20261117145405_AddMachineWorkspace", migrations[^1]);
+            Assert.Equal(22, migrations.Length);
+            Assert.EndsWith("_AddDeliveryCollections", migrations[^1], StringComparison.Ordinal);
             var admin = AdminUser.Create("c2-admin", "Administración C2 sintética", new PasswordHashService().HashPassword(Password), Clock.Now);
             db.AdminUsers.Add(admin);
             db.SecurityUserRoles.Add(new() { UserId = admin.Id, RoleId = SecurityDefaults.AdministratorRoleId });
@@ -150,7 +150,8 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
         // AuditLogs deliberately remains 1111 (F24 is outside C2).
         foreach (var table in new[] { "CustomerProductPriceRevisions", "ProductConsolidationOperations",
             "CustomerProductSetupOrders", "ProductionBatches", "DeliveryEvents",
-            "MachineTeamChanges", "MachineWorkers", "MachineProductionNotices", "ProductionLotHandoffs" })
+            "MachineTeamChanges", "MachineWorkers", "MachineProductionNotices", "ProductionLotHandoffs",
+            "CollectionCharges", "CollectionChargeValuations", "CollectionPayments", "CollectionCashReceipts", "CollectionCashReceiptLines" })
             await SetupSql($"DENY UPDATE,DELETE ON dbo.[{table}] TO [{Login}]");
         foreach (var table in new[] { "CustomerProductPriceBooks", "CustomerProductSetupRequests", "ProductionAllocations",
             "DeliveryRoutes", "DeliveryRouteDayDrivers", "CustomerDeliveryLocations", "DeliveryTrips", "DeliveryAssignments",
@@ -175,7 +176,9 @@ public sealed class C2Database(C2Configuration configuration) : IAsyncDisposable
             ("DeliveryEvents", "1100"), ("ProductionBatches", "1100"), ("DeliveryAssignments", "1110"), ("DeliveryRouteDayDrivers", "1110"),
             ("CustomerProductPriceRevisions", "1100"), ("Orders", "1111"), ("OrderOperations", "1111"), ("OrderAuditLogs", "1111"),
             ("MachineOperators", "1101"), ("MachineTeamTemplates", "1110"), ("MachineTeamChanges", "1100"),
-            ("MachineWorkers", "1100"), ("MachineProductionNotices", "1100"), ("ProductionLotHandoffs", "1100") })
+            ("MachineWorkers", "1100"), ("MachineProductionNotices", "1100"), ("ProductionLotHandoffs", "1100"),
+            ("CollectionCharges", "1100"), ("CollectionChargeValuations", "1100"), ("CollectionPayments", "1100"),
+            ("CollectionCashReceipts", "1100"), ("CollectionCashReceiptLines", "1100") })
         {
             command.CommandText = "SELECT " + string.Join(',', new[] { "SELECT", "INSERT", "UPDATE", "DELETE" }
                 .Select(op => $"HAS_PERMS_BY_NAME('dbo.{table}','OBJECT','{op}')"));

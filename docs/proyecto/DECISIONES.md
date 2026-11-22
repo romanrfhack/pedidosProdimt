@@ -1,5 +1,11 @@
 # Decisiones vigentes
 
+## 22 de noviembre de 2026 — Cobranza de reparto
+
+El usuario amplía el alcance anterior para registrar pagos reales de clientes `cash_on_delivery` durante la entrega y recibir la cobranza de las rutas en Mostrador. Confirma **pedido completo del día más deuda registrada anterior**, independientemente de que la entrega física sea parcial. El importe recibido se puede editar, incluido cero; aplica primero al día de servicio, luego a adeudos anteriores y conserva el excedente a favor. Los precios, productos y cantidades quedan fijados por pedido y revisión.
+
+El pago del cliente y la recepción del dinero en Mostrador son hechos separados. Los faltantes/sobrantes de caja no modifican la deuda del cliente. No se infiere el estado de pago de entregas previas sin registro. Los movimientos conservan su historia y referencias de reintento. [Contrato, evidencia y límites](COBRANZA-REPARTO.md). La nueva implementación todavía no está instalada.
+
 ## 7 de noviembre de 2026 — C2 validado localmente
 
 El usuario limita esta continuación a WSL y SQL Server sintético. El gate

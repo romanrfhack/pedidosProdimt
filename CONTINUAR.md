@@ -1,8 +1,16 @@
 # Continuar PRODIMT
 
+## Cobranza de reparto y Mostrador
+
+El usuario autorizó integrar a main y desplegar el 22 de noviembre. La entrega se sigue en el [PR #12](https://github.com/romanrfhack/pedidosProdimt/pull/12), sobre `0d64f5bd2aef`. [Contrato y límites](docs/proyecto/COBRANZA-REPARTO.md). El ticket incluye el pedido completo del día y adeudos anteriores; el pago editable cubre primero el día, luego deuda anterior y excedente a favor. Sólo `cash_on_delivery`. Se agregan Caja, adeudos y cinco tablas mediante migración 21→22. [Instalador propio y estado del destino](docs/validation/2026-11-22-cobranza-despliegue.md). La instalación sigue pendiente de ejecutar desde WSL porque SSH directo no tiene ruta al VPS.
+
+Pasan 547 pruebas .NET (dominio/SQLite/InMemory), 108 con SQL Server real más dos nuevas de consultas nativas, 68 de componentes, nueve de navegador de cobranza, 241 generales, ocho de Máquina y ocho guardas C2. Modelo EF alineado; compilaciones .NET/Angular correctas. Python tiene 664 casos, cuatro omisiones históricas y cero fallos, incluidas 32 regresiones de instalación. Las consultas nativas verifican esquema, veinte permisos DML y preservación en SQL Server real. La recuperación conserva escrituras legítimas tras iniciar la API usando prueba privada de preservación anterior a la activación. [Evidencia funcional](docs/validation/2026-11-22-cobranza.md). No inferir deudas históricas ni ejecutar el instalador de Máquina para instalar cobranza.
+
 ## Responsable de Máquina
 
-El candidato local `codex/responsable-de-maquina` parte de `759c68f` y agrega la vista y el rol de Responsable de Máquina, el equipo fijo con ajustes del día y la migración 21. [Activación y recorrido](docs/proyecto/RESPONSABLE-DE-MAQUINA.md). Falta ejecutar el caso HTTP/SQL Server en una base descartable y validar el despliegue.
+Instalación confirmada por el log del usuario recibido el 22 de noviembre. El PR #11 quedó integrado a `main` en `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53` y el instalador reportó `updated/completed`, 21 migraciones, `schema_verified=true`, `health_verified=true`, `frontend_verified=true` y `recovery_pending=false`. API y frontend activos corresponden a `machine-workspace-0d64f5bd2aef`. Incluye el rol Responsable de Máquina y el equipo fijo con ajustes del día. [Activación y recorrido](docs/proyecto/RESPONSABLE-DE-MAQUINA.md).
+
+La evidencia anterior acredita instalación y salud. La aceptación funcional de las cuentas y equipos sigue con el usuario. La cobranza se documenta arriba y todavía requiere su propio despliegue. Los estados de preparación históricos de los apartados siguientes conservan su fecha.
 
 C2, 7 de noviembre: **gate local completo correcto**, F13 **43/43 HTTP/SQL Server**
 y F14 **3/3 navegador/API/SQL**, limpieza verificada, `recoveryPending=false`.

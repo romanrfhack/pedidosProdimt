@@ -1,5 +1,27 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Recuperación después de exponer la API de cobranza
+
+La revisión final reproduce un caso en el que la API nueva registra auditoría y actualiza el usuario antes de fallar la comprobación de salud. Comparar después esos datos con el snapshot anterior podía bloquear el reintento. El instalador nuevo guarda antes de activar una evidencia privada de preservación completa, vinculada a fuente, payload, snapshot e historia. Con evidencia válida la recuperación comprueba estructura/permisos SQL y conserva los datos legítimos; sin evidencia válida no omite comprobaciones. No repite DDL ni restaura la base. Las 32 regresiones nuevas pasan y Python total suma 664 casos, cuatro omisiones históricas. No cambia el backend, frontend ni SQL de cobranza.
+
+## 22 de noviembre de 2026 — Integración autorizada y paquete de cobranza
+
+El usuario autoriza main y despliegue. Se abre PR #12 y se añade instalador propio sobre `machine-workspace-0d64f5bd2aef`, 21→22, con bases y hashes fijados, respaldo COPY_ONLY/CHECKSUM verificado, marcador durable y recuperación hacia delante. Se preservan tablas previas, conteos, índices, permisos SQL, filas de seguridad existentes y hashes de usuarios/asignaciones; sólo se admiten los anexos de seguridad previstos. El reporte final consulta las 22 migraciones y hashes de DLL activas, en lugar del preflight anterior.
+
+Pasan 27 controles nuevos Python de instalador/payload/WSL y dos casos SQL Server reales de consultas nativas con Mostrador canónico y personalizado. Python total 659, cuatro omisiones históricas y cero fallos. La conexión SSH directa al VPS devuelve Network is unreachable; la ejecución de destino se entrega por WSL y no se afirma instalada sin el reporte. [Contrato de instalación](../validation/2026-11-22-cobranza-despliegue.md).
+
+## 22 de noviembre de 2026 — Cobranza en reparto y recepción en Mostrador
+
+Se implementa localmente el registro de cobros al entregar pedidos `cash_on_delivery`, ticket del pedido completo del día, adeudos y saldo a favor. El usuario aclara que los abonos cubren primero el ticket del día y después adeudos anteriores. Cinco tablas conservan cargos, valoración de precios pendientes, pagos, recepciones y su aplicación al efectivo. Se integra el registro financiero con el recibo transaccional de entrega, correcciones explícitas de pedidos y resolución de precios, sin convertir entregas históricas desconocidas en deudas.
+
+Se agregan permisos separados, recepción en Caja con chofer/receptor/hora/diferencia, adeudos por cliente y recuperación de comandos monetarios. Pasan 547 pruebas .NET y 108 SQL Server reales. La actualización 21→22 conserva el rol personalizado, rechaza identificadores ambiguos y verifica los permisos DML de inserción del login de aplicación. Angular compila; pasan 68 componentes, nueve casos nuevos de navegador, 241 generales, ocho de Máquina, ocho guardas C2 y 632 casos Python (cuatro omisiones históricas). [Evidencia y límites](../validation/2026-11-22-cobranza.md). No se publica ni despliega esta cobranza con la autorización anterior limitada al incremento de Máquina.
+
+## 22 de noviembre de 2026 — Instalación de Responsable de Máquina confirmada
+
+El usuario compartió el reporte del instalador para la fuente `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53`, integrada a `main` mediante PR #11. El resultado fue `updated/completed`, con 21 migraciones y API/frontend `machine-workspace-0d64f5bd2aef`. Se reportaron `schema_verified=true`, `health_verified=true`, `frontend_verified=true` y `recovery_pending=false`. Esta evidencia confirma la instalación operativa del rol, la vista y el equipo de Máquina. La aceptación funcional de cuentas, captura y plantilla sigue pendiente con el usuario.
+
+El trabajo nuevo de cobranza se inicia después de esta base instalada. Sus cambios requieren pruebas y una instalación propia.
+
 ## 21 de noviembre de 2026 — Integración y paquete de Responsable de Máquina
 
 El usuario autorizó main y despliegue, incluyendo el rol. Se publicó el PR #11 y el candidato inicial pasó los trabajos remotos de backend, SQL Server con HTTP, C2 y smoke Production en la ejecución 44923736526. La revisión amplía los avisos de Operación y conserva capturas simultáneas por UUID en el navegador. La ejecución 44924364512 detectó una carrera del host de pruebas de validación de configuración de login. Se comprueba ahora ValidateOnStart con un IHost real, conservando el requisito OptionsValidationException y evitando que la disposición del WebApplicationFactory lo oculte. Localmente pasaron 21 pruebas focales .NET, 56 de componentes, 8 de navegador y 19 de instalación. El SQL 20→21 coincide con el modelo.

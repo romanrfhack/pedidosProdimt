@@ -44,6 +44,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         return segments[2] switch
         {
             "delivery" => "delivery.manage",
+            "collections" => CollectionPermission(method, segments),
             "ordering-schedules" => "customers.manage",
             "security" or "users" => "security.manage",
             "operations" => OperationPermission(method, path, segments),
@@ -63,6 +64,7 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
         var primary = RequiredPermission(method, path);
         if (primary is null) return [];
         if (primary == MachineWorkspaceAccess.WorkPermission) return [primary, MachineWorkspaceAccess.ManagePermission];
+        if (primary == "operations.collections.read") return [primary, "operations.collections.receive"];
         if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method)) return [primary];
         if (path.TrimEnd('/').EndsWith("/orders/next-delivery-date", StringComparison.OrdinalIgnoreCase))
             return ["orders.capture", "tokens.manage"];
@@ -77,6 +79,18 @@ public sealed class AdminPermissionMiddleware(RequestDelegate next)
             "customers.manage" when path.Contains("/product-setups", StringComparison.OrdinalIgnoreCase) => ["customers.manage", "pricing.manage"],
             _ => [primary]
         };
+    }
+    private static string CollectionPermission(string method, string[] segments)
+    {
+        var read = HttpMethods.IsGet(method) || HttpMethods.IsHead(method);
+        if (read && segments.Length == 4 && segments[3] == "cashier") return "operations.collections.read";
+        if (read && segments.Length == 5 && segments[3] == "customers" && Guid.TryParse(segments[4], out _))
+            return "operations.collections.read";
+        if (read && segments.Length == 5 && segments[3] == "trips" && Guid.TryParse(segments[4], out _))
+            return "operations.collections.read";
+        if (HttpMethods.IsPost(method) && segments.Length == 4 && segments[3] == "receipts")
+            return "operations.collections.receive";
+        return "__unmapped__";
     }
     private static string MachineWorkspacePermission(string method, string[] segments)
     {

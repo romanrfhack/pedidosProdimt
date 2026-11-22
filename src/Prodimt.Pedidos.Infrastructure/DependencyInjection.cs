@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Prodimt.Pedidos.Application.Abstractions;
 using Prodimt.Pedidos.Application.Security;
+using Prodimt.Pedidos.Application.Collections;
 using Prodimt.Pedidos.Infrastructure.Persistence.Security;
 using Prodimt.Pedidos.Infrastructure.Authentication;
 using Prodimt.Pedidos.Infrastructure.Persistence;
@@ -40,6 +41,7 @@ public static class DependencyInjection
             services.AddSingleton<IMachineWorkspaceRepository, InMemoryMachineWorkspaceRepository>();
             services.AddSingleton<IMachineTeamRepository, InMemoryMachineTeamRepository>();
             services.AddSingleton<IDeliveryRepository, InMemoryDeliveryRepository>();
+            services.AddSingleton<ICollectionRepository, InMemoryCollectionRepository>();
             services.AddSingleton<IOrderOperationStore, InMemoryOrderOperationStore>();
             services.AddSingleton<IOrderChangeNoticeRepository, InMemoryOrderChangeNoticeRepository>();
             services.AddSingleton<IOrderAuditLogRepository, InMemoryOrderAuditLogRepository>();
@@ -68,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<IMachineWorkspaceRepository, EfMachineWorkspaceRepository>();
         services.AddScoped<IMachineTeamRepository, EfMachineTeamRepository>();
         services.AddScoped<IDeliveryRepository, EfDeliveryRepository>();
+        services.AddScoped<ICollectionRepository, EfCollectionRepository>();
         services.AddScoped<IOrderOperationStore, EfOrderOperationStore>();
         services.AddScoped<IOrderChangeNoticeRepository, EfOrderChangeNoticeRepository>();
         services.AddScoped<IOrderAuditLogRepository, EfOrderAuditLogRepository>();

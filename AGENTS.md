@@ -1,5 +1,9 @@
 # AGENTS.md — PRODIMT Pedidos
 
+## 22 de noviembre de 2026 — Integración y despliegue de cobranza
+
+El usuario autorizó expresamente integrar a main y desplegar la cobranza de reparto y recepción en Mostrador ya implementada en `codex/cobranza-rutas`. Esta autorización amplía las restricciones históricas de publicación para este incremento. La base instalada confirmada es `machine-workspace-0d64f5bd2aef`, API/frontend, con 21 migraciones. Preparar instalador propio de cobranza 21→22, con respaldo verificado y recuperación hacia delante, conservando cuentas, permisos anteriores, precios, tokens y configuración. Verificar salud, esquema, permisos y assets. No usar el instalador anterior de Máquina para instalar cobranza. Si el entorno no puede acceder por SSH, entregar el paquete instalable y el comando WSL, dejando explícita la instalación pendiente hasta obtener evidencia del destino.
+
 ## 21 de noviembre de 2026 — Integración y despliegue de Responsable de Máquina
 
 El usuario autorizó expresamente integrar este ajuste a main y desplegarlo para validación operativa, incluyendo la creación del rol. Esa autorización amplía para este incremento las restricciones históricas de publicación que se conservan abajo. El usuario creará las cuentas. Aplicar la migración 20→21 y verificar el rol, permisos, salud y frontend mediante el instalador propio. Mantener evidencia verificable de instalación y de recuperación. La ausencia de conectividad SSH desde un entorno requiere completar la entrega del instalador y reportar el estado pendiente del destino.

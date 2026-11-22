@@ -7,6 +7,7 @@
     </form>
   </header>
 
+  @if (storageError) { <div class="alert error" role="alert">{{ storageError }}</div> }
   @if (error) { <div class="alert error" role="alert">{{ error }}</div> }
   @if (success) { <div class="alert success" role="status">{{ success }}</div> }
   @if (preparationWarning) { <p class="delivery-notice" role="status">{{ preparationWarning }}</p> }
@@ -75,6 +76,9 @@
     <section class="delivery-trip-area stack" data-testid="delivery-trip">
       <div class="delivery-toolbar"><h3>{{ management ? 'Recorridos del día' : 'Mi ruta' }}</h3>@if (board.trips.length > 1) { <label class="delivery-trip-picker">Ruta y vuelta<select [(ngModel)]="selectedTripId" (ngModelChange)="selectTrip()" [disabled]="!!editor || !!recovery" aria-label="Ruta y vuelta">@for (item of board.trips; track item.id) { <option [value]="item.id">{{ tripLabel(item) }}</option> }</select></label> }</div>
       @if (trip; as current) {
+        @if (access.has('operations.collections.work')) {
+          <app-delivery-collections [tripId]="current.id" [tripLabel]="tripLabel(current)" [management]="management" [blocked]="!!editor || saving || loading"></app-delivery-collections>
+        }
         <div class="delivery-trip-summary"><div><strong>{{ current.routeName }} · Vuelta {{ current.tripNumber }}</strong><span>{{ current.routeCode }} · {{ current.driverName }} · {{ closed ? 'Cerrada' : current.departedAt ? 'En recorrido' : 'Abierta' }}</span></div><div><strong>{{ completedStops }} / {{ stops.length }}</strong><span>pedidos completos</span></div></div>
         <div class="delivery-toolbar">
           <div class="delivery-actions" [class.driver-trip-navigation]="!management">
@@ -245,7 +249,48 @@
         @if (edit.kind === 'assign' && edit.line) { <div class="delivery-reference">Disponible sin reservar: {{ quantity(edit.line.availableQuantity) }} {{ quantityUnit }}</div> }
         @if (edit.kind === 'planned-count' && edit.line) { <div class="delivery-reference">Pedido vigente {{ quantity(edit.line.requestedQuantity) }} {{ quantityUnit }} · Disponible para contar {{ quantity(quantityLimit) }} {{ quantityUnit }}</div> }
         @if (edit.kind === 'adjust') { <label>Etapa a corregir<select name="adjustStage" [(ngModel)]="edit.adjustStage" (ngModelChange)="adjustStageChanged()"><option value="count" [disabled]="!!edit.assignment && (edit.assignment.transferredInQuantity > 0 || edit.assignment.loadedQuantity !== null)">Conteo</option><option value="load" [disabled]="!!edit.assignment && (edit.assignment.transferredInQuantity > 0 || edit.assignment.loadedQuantity === null)">Carga</option><option value="deliver">Cantidad entregada registrada</option></select></label><p class="delivery-muted">La corrección agrega un registro con el valor anterior y el motivo; conserva los eventos históricos. @if (edit.adjustStage === 'deliver') { Captura el total entregado corregido de esta asignación, no una entrega adicional. }</p> }
-        @if (quantityRequired) { <label>{{ edit.kind === 'assign' ? 'Cantidad a asignar' : 'Cantidad' }} ({{ quantityUnit }})<input [name]="'deliveryQuantity'" type="number" inputmode="decimal" min="0" step="0.001" [(ngModel)]="edit.quantity"></label> }
+        @if (quantityRequired) { <label>{{ edit.kind === 'assign' ? 'Cantidad a asignar' : 'Cantidad' }} ({{ quantityUnit }})<input [name]="'deliveryQuantity'" type="number" inputmode="decimal" min="0" step="0.001" [(ngModel)]="edit.quantity" (ngModelChange)="deliveryQuantityChanged()"></label> }
+        @if (collectionEnabled) {
+          <section class="delivery-collection" aria-labelledby="delivery-collection-heading" data-testid="delivery-collection">
+            <h3 id="delivery-collection-heading">Cobro contraentrega</h3>
+            @if (edit.collectionLoading) { <p class="delivery-muted" role="status">Consultando ticket y saldo…</p> }
+            @if (edit.collectionError) {
+              <p class="alert error" role="alert">{{ edit.collectionError }}</p>
+              <button type="button" class="secondary compact" (click)="refreshCollectionPreview()">Reconsultar saldo</button>
+            }
+            @if (edit.collectionPreview; as preview) {
+              <dl class="delivery-collection-totals">
+                <div><dt>Adeudo anterior</dt><dd>{{ money(preview.priorBalance) }}</dd></div>
+                <div><dt>Ticket del día</dt><dd>{{ money(preview.ticketTotal) }}</dd></div>
+                <div><dt>Cobrado previamente</dt><dd>{{ money(preview.collectedAmount) }}</dd></div>
+                <div><dt>Total a cobrar</dt><dd>{{ money(preview.amountDue) }}</dd></div>
+                @if (preview.creditBalance) { <div><dt>Saldo a favor</dt><dd>{{ money(preview.creditBalance) }}</dd></div> }
+              </dl>
+              <details class="delivery-ticket-detail"><summary>Ver desglose del ticket</summary>
+                <table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Importe</th></tr></thead><tbody>
+                  @for (item of preview.ticketLines; track $index) {
+                    <tr><td>{{ item.productName }}</td><td>{{ quantity(item.quantity) }} {{ unitLabel(item.unitCode) }}</td>
+                      <td>{{ price(item.unitPrice) }}</td><td>{{ money(item.amount) }}</td></tr>
+                  }
+                </tbody></table>
+              </details>
+              @if (preview.pricePending) {
+                <p class="delivery-muted">Falta precio para calcular el ticket y el saldo. Captura el importe real recibido o marca «No pagó».</p>
+              }
+              @if (preview.paymentTermCode === 'cash_on_delivery') {
+                <label for="delivery-collected-amount">Importe cobrado (MXN)</label>
+                <div class="delivery-collection-input">
+                  <input id="delivery-collected-amount" name="collectedAmount" type="text" inputmode="decimal" autocomplete="off"
+                    [(ngModel)]="edit.collectionAmount" (ngModelChange)="collectionEdited()" aria-describedby="delivery-collection-balance">
+                  <button type="button" class="secondary" (click)="noPayment()">No pagó</button>
+                </div>
+                <small id="delivery-collection-balance">Saldo después del cobro {{ money(collectionBalanceAfter) }}
+                  @if (collectionCreditAfter) { · A favor {{ money(collectionCreditAfter) }} }
+                </small>
+              } @else { <p class="delivery-muted">{{ paymentTermLabel(preview.paymentTermCode) }}</p> }
+            }
+          </section>
+        }
         @if (hasDifference) { <div class="delivery-notice">Se registrará una diferencia respecto a {{ quantity(expectedQuantity) }} {{ quantityUnit }}. @if (deliveryRemainder > 0) { Quedan {{ quantity(deliveryRemainder) }} {{ quantityUnit }} de esta carga sin entregar. }</div> }
         @if (reasonRequired) { <label>{{ edit.kind === 'day-driver' ? 'Motivo del cambio' : 'Motivo de la diferencia' }}<input name="deliveryReason" [(ngModel)]="edit.reason" maxlength="500" required></label> }
         @if (deliveryRemainder > 0) { <label>Producto cargado que no se entregó<select name="remainderDisposition" [(ngModel)]="edit.remainderDisposition"><option value="">Indica dónde quedó</option><option value="in-vehicle">Permanece en mi camioneta</option><option value="unresolved">Diferencia por aclarar con el responsable</option></select></label> }
@@ -258,7 +303,7 @@
       </fieldset>
       @if (edit.error) { <div class="alert error" role="alert">{{ edit.error }}</div> }
       @if (edit.conflict) { <button type="button" class="secondary" (click)="reviewConflict()" [disabled]="loading">{{ loading ? 'Consultando…' : 'Revisar datos actuales' }}</button> }
-      <div class="delivery-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || routeSettingsBusy || edit.locked">Cancelar</button><button type="submit" class="primary" [disabled]="saving || routeSettingsBusy || edit.conflict">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : submitLabel }}</button></div>
+      <div class="delivery-dialog-actions"><button type="button" class="secondary" (click)="closeEditor()" [disabled]="saving || routeSettingsBusy || edit.locked">Cancelar</button><button type="submit" class="primary" [disabled]="saving || routeSettingsBusy || edit.conflict || !collectionReady">{{ saving ? 'Guardando…' : edit.locked ? 'Reintentar operación' : submitLabel }}</button></div>
       <p class="delivery-muted">La hora y el responsable se registran en el servidor al guardar.</p>
     </form>
     @if (edit.kind === 'route' && edit.route && access.has('customers.manage')) {

@@ -7,7 +7,7 @@ using Prodimt.Pedidos.Domain.Enums;
 namespace Prodimt.Pedidos.Application.AdminOperations;
 
 public sealed class OrderChangeNoticePublisher(IOrderChangeNoticeRepository notices, IMachineRepository machines,
-    ICustomerRepository customers)
+    ICustomerRepository customers, Prodimt.Pedidos.Application.Collections.CollectionService? collections = null)
 {
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     public sealed record DemandLine(Guid ProductId, string ProductName, string? UnitCode, decimal Quantity,
@@ -22,6 +22,8 @@ public sealed class OrderChangeNoticePublisher(IOrderChangeNoticeRepository noti
     public async Task PublishAsync(Order order, IReadOnlyList<DemandLine> before, string kind, string reason,
         AdminActorContext? actor, DateTimeOffset occurredAt, CancellationToken cancellationToken)
     {
+        if (collections is not null)
+            await collections.ReconcileOrderAsync(order, actor, cancellationToken);
         var after = Capture(order);
         var keys = before.Concat(after).Select(line => (line.MachineId, line.ProductId, line.UnitCode)).Distinct().ToArray();
         var changes = keys.Select(key =>

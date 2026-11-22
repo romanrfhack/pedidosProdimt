@@ -6,7 +6,8 @@
     "test": "playwright test",
     "test:real": "playwright test --config playwright.real.config.js",
     "typecheck": "node ../../apps/prodimt-pedidos-web/node_modules/typescript/bin/tsc --project tsconfig.json",
-    "test:machine": "playwright test --config playwright.machine.config.js"
+    "test:machine": "playwright test --config playwright.machine.config.js",
+    "test:collections": "playwright test --config playwright.collections.config.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

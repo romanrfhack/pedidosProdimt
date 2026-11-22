@@ -45,7 +45,7 @@ public sealed record AssignDeliveryLineRequest(Guid OperationId, Guid OrderId, G
     int ExpectedTripVersion, int ExpectedOrderVersion);
 public sealed record RecordDeliveryStageRequest(Guid OperationId, int ExpectedVersion, int ExpectedOrderVersion,
     decimal Quantity, string? Reason = null, string? Notes = null, string? RemainderDisposition = null,
-    bool AcknowledgeOrderChange = false);
+    bool AcknowledgeOrderChange = false, decimal? CollectedAmount = null, string? CollectionVersion = null);
 public sealed record CloseDeliveryTripRequest(Guid OperationId, int ExpectedVersion, string? Notes = null);
 public sealed record TransferDeliveryRequest(Guid OperationId, int ExpectedVersion, Guid TargetTripId,
     int ExpectedTargetTripVersion, decimal Quantity, string Reason);

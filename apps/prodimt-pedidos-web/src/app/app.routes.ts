@@ -18,6 +18,7 @@ export const routes: Routes = [
   { path: 'admin/login', component: AdminLoginComponent },
   { path: 'personal/reparto', loadComponent: () => import('./delivery-onboarding.component').then(m => m.DeliveryOnboardingComponent), canActivate: [adminAuthGuard] },
   { path: 'reparto', loadComponent: () => import('./driver-delivery.component').then(m => m.DriverDeliveryComponent), canActivate: [permissionGuard], canDeactivate: [deliveryDraftGuard], data: { permissions: ['delivery.read.own', 'delivery.operate.own'] } },
+  { path: 'admin/caja', loadComponent: () => import('./cash-register.component').then(m => m.CashRegisterComponent), canActivate: [permissionGuard], canDeactivate: [deliveryDraftGuard], data: { permissions: ['operations.collections.read','operations.collections.receive'] } },
   { path: 'admin/reparto', loadComponent: () => import('./admin-delivery.component').then(m => m.AdminDeliveryComponent), canActivate: [permissionGuard], canDeactivate: [deliveryDraftGuard], data: { permissions: ['delivery.manage'], deliveryManagement: true } },
   { path: 'admin/cambiar-contrasena', component: AdminPasswordComponent, canActivate: [adminAuthGuard] },
   { path: 'admin/sin-acceso', component: AdminAccessDeniedComponent, canActivate: [adminAuthGuard] },

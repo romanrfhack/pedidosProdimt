@@ -263,10 +263,16 @@ public static class PedidosDevelopmentSeeder
                 Name = SecurityDefaults.MachineOperatorRoleName, Description = SecurityDefaults.MachineOperatorRoleDescription,
                 IsActive = true, IsSystem = true });
             dbContext.SecurityPermissions.AddRange(SecurityDefaults.Permissions);
+            dbContext.SecurityRoles.Add(new SecurityRole { Id = SecurityDefaults.CounterCashierRoleId,
+                Name = SecurityDefaults.CounterCashierRoleName, Description = "Recepción de cobranza de repartidores",
+                IsActive = true, IsSystem = true });
+            dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions
+                .Where(x => x.Key is "orders.read" or "orders.capture" or "operations.collections.read" or "operations.collections.receive")
+                .Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.CounterCashierRoleId, PermissionId = x.Id }));
             dbContext.SecurityRolePermissions.Add(new SecurityRolePermission { RoleId = SecurityDefaults.MachineOperatorRoleId,
                 PermissionId = SecurityDefaults.Permissions.Single(x => x.Key == "operations.machine.work").Id });
             dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions
-                .Where(x => x.Key is "delivery.read.own" or "delivery.operate.own")
+                .Where(x => x.Key is "delivery.read.own" or "delivery.operate.own" or "operations.collections.work")
                 .Select(x => new SecurityRolePermission { RoleId = SecurityDefaults.DriverVanRoleId, PermissionId = x.Id }));
             dbContext.SecurityRolePermissions.AddRange(SecurityDefaults.Permissions.Select(x =>
                 new SecurityRolePermission { RoleId = SecurityDefaults.AdministratorRoleId, PermissionId = x.Id }));
