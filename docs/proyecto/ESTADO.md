@@ -1,20 +1,20 @@
 # Estado vigente de PRODIMT
 
-## Instalación de cobranza — corrección v2
+## Cobranza instalada — 22 migraciones
 
-El intento del usuario con `ccc419330104` falla antes de la migración por `database_preservation_metadata_invalid`. Su reporte confirma restauración de la salud anterior, ambos releases `machine-workspace-0d64f5bd2aef`, 21 migraciones, configuración conservada y ninguna recuperación pendiente. La causa se reproduce con permisos directos vacíos: falta una huella en el JSON. El instalador v2 normaliza las colecciones vacías y mantiene el validador estricto. Reutiliza el mismo payload CCC; instalación de cobranza aún pendiente. [Evidencia y ejecución v2](../validation/2026-11-22-cobranza-metadata-v2.md).
+El reporte del usuario confirma `updated/completed` con aplicación `ccc4193301043ec1935fb575d516319598fe94d0`, instalador `collections-preservation-v2`, ambos releases `collections-ccc419330104` y 22 migraciones. Los cuatro hashes DLL coinciden exactamente con el payload. Salud, esquema, frontend y respaldo verificados; configuración, tablas previas, permisos y autenticación conservados; `recovery_pending=false`. [Evidencia instalada](../validation/2026-11-22-cobranza-installed.md). La aceptación funcional en cuentas de chofer y Mostrador sigue pendiente. [El rechazo anterior y su corrección v2](../validation/2026-11-22-cobranza-metadata-v2.md) conservan su alcance histórico.
 
 ## Responsable de Máquina
 
 El log del usuario confirma la instalación de `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53`, integrado a `main` mediante PR #11. Resultado `updated/completed`, 21 migraciones y releases API/frontend `machine-workspace-0d64f5bd2aef`. El reporte verifica esquema, salud y frontend, con `recovery_pending=false`. La vista compacta incluye totales, captura, avisos de liberación y lotes sin cliente, además del rol Responsable de Máquina, equipo fijo por vigencia y ajustes diarios. La aceptación funcional de usuarios y equipos continúa pendiente. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).
 
-La cobranza solicitada después de esta instalación se entrega en el [PR #12](https://github.com/romanrfhack/pedidosProdimt/pull/12), con integración y despliegue autorizados. [Contrato](COBRANZA-REPARTO.md). El ticket usa todo el pedido del día; los cobros editables cubren el día, adeudos y saldo a favor. Mostrador registra el efectivo recibido con usuario, hora y diferencias. Pasan 547 pruebas .NET, 108 SQL Server reales más dos de consultas nativas, 68 componentes y 258 de navegador. [Evidencia funcional](../validation/2026-11-22-cobranza.md). El instalador propio 21→22 tiene 27 regresiones nuevas y conserva datos, configuración y permisos. [Despliegue desde WSL y recuperación](../validation/2026-11-22-cobranza-despliegue.md). Aún no hay evidencia de instalación de cobranza en el VPS.
+La aplicación de [PR #12](https://github.com/romanrfhack/pedidosProdimt/pull/12) y el instalador corregido de [PR #13](https://github.com/romanrfhack/pedidosProdimt/pull/13) completan la instalación vigente de arriba. [Contrato](COBRANZA-REPARTO.md). Ticket completo del día, abonos al día/adeudos/saldo a favor y recepción en Mostrador con usuario, hora y diferencias. [Validación funcional](../validation/2026-11-22-cobranza.md), [corrección y pruebas nativas](../validation/2026-11-22-cobranza-metadata-v2.md) y [recuperación](../validation/2026-11-22-cobranza-despliegue.md). La versión de Máquina queda incluida en Cobranza.
 
 ## Mi reparto por etapas
 
 En el código de `/reparto`, el chofer puede filtrar los clientes de su vuelta por conteo, carga y entrega. La etapa activa muestra el nombre completo y las demás muestran RC, CC o RE. Cada etapa indica cuántos clientes tienen partidas pendientes. Las filas plegadas muestran cantidades por unidad. El botón rápido abre el diálogo de una partida o despliega las partidas para elegir. «Todas las paradas» permite consultar el detalle de clientes que ya salieron de las listas por etapa.
 
-El ajuste usa las operaciones de reparto existentes y está incluido en la fuente instalada `0d64f5bd2aef`, con 21 migraciones. La aceptación en el teléfono del repartidor continúa pendiente.
+El ajuste usa las operaciones de reparto existentes y está conservado en la fuente instalada `ccc419330104`, con 22 migraciones. La aceptación en el teléfono del repartidor continúa pendiente.
 
 ## Ticket diario en Pedidos
 

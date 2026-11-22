@@ -1,5 +1,9 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Cobranza v2 instalada
+
+El usuario ejecutó la revisión v2 y compartió `updated/completed`, fuente de aplicación CCC, releases API/frontend `collections-ccc419330104`, historia 22 con `AddDeliveryCollections` y los cuatro hashes de DLL exactos del payload. El reporte verifica salud, esquema, frontend y respaldo COPY_ONLY, preservación de entorno, columnas/tablas previas, permisos SQL, conteos, seguridad y autenticación. `database_automatically_restored=false`, `secret_values_printed=false`, `recovery_pending=false`. La instalación se acredita por el reporte del usuario; no hubo SSH independiente ni captura de pagos o recepciones desde este entorno. La aceptación funcional sigue con el usuario. [Evidencia instalada](../validation/2026-11-22-cobranza-installed.md).
+
 ## 22 de noviembre de 2026 — Inspección de preservación con permisos directos vacíos
 
 El usuario ejecuta el paquete CCC: preflight correcto, fallo `database_preservation_metadata_invalid` en `stop-service`, sin migración ni restauración automática de base; salud anterior restablecida y `recovery_pending=false`. La reproducción con SQL Server 2022 y el transporte real sqlcmd/ODBC acredita que un `FOR JSON` escalar vacío produce NULL y se omite `user_permissions_hash`. Las dos pruebas nativas anteriores comparaban snapshots igualmente incompletos sin invocar el guard completo; esa cobertura era insuficiente.
