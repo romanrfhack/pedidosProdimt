@@ -46,7 +46,10 @@ public sealed class CollectionsInstallerSqlTests
                     """);
             }
 
-            var preservation = await ReadJsonAsync(database, contract.GetProperty("preservation").GetString()!);
+            var preservationQuery = contract.GetProperty("preservation").GetString()!;
+            var preservation = await ReadJsonAsync(database, "SELECT (" + preservationQuery.TrimEnd().TrimEnd(';') + ") AS ProdimtInspectionJson;");
+            AssertPreservationShape(preservation);
+            await ValidateNativeMetadataAsync(preservation);
             Assert.DoesNotContain(privateHash, preservation.GetRawText(), StringComparison.Ordinal);
             Assert.DoesNotContain(catalog.CustomerCode, preservation.GetRawText(), StringComparison.Ordinal);
             foreach (var section in new[] { "columns_metadata", "indexes_metadata", "sql_permissions", "unchanged_counts" })
@@ -71,6 +74,8 @@ public sealed class CollectionsInstallerSqlTests
             Assert.Equal(20, permissions.EnumerateObject().Count());
 
             var after = await ReadJsonAsync(database, contract.GetProperty("preservation").GetString()!);
+            AssertPreservationShape(after);
+            await ValidateNativeMetadataAsync(after);
             await VerifyPreservationAsync(preservation, after);
             Assert.DoesNotContain(privateHash, after.GetRawText(), StringComparison.Ordinal);
             Assert.DoesNotContain(catalog.CustomerCode, after.GetRawText(), StringComparison.Ordinal);
@@ -95,6 +100,55 @@ public sealed class CollectionsInstallerSqlTests
         finally
         {
             await database.DisposeAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativePreservationGuardAcceptsEmptyUserSecurityTables(bool removeUsers)
+    {
+        var contract = await NativeContractAsync();
+        var database = new SqlServerFixture { InitialMigration = "20261117145405_AddMachineWorkspace" };
+        try
+        {
+            await database.InitializeAsync();
+            await using (var db = database.CreateDbContext())
+            {
+                await db.Database.ExecuteSqlRawAsync("DELETE FROM dbo.SecurityUserPermissions; DELETE FROM dbo.SecurityUserRoles;");
+                if (removeUsers) await db.Database.ExecuteSqlRawAsync("DELETE FROM dbo.AdminUsers;");
+            }
+            var query = contract.GetProperty("preservation").GetString()!;
+            var snapshot = await ReadJsonAsync(database, "SELECT (" + query.TrimEnd().TrimEnd(';') + ") AS ProdimtInspectionJson;");
+            AssertPreservationShape(snapshot);
+            await ValidateNativeMetadataAsync(snapshot);
+            var emptyHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.Unicode.GetBytes("[]")));
+            Assert.Equal(emptyHash, snapshot.GetProperty("user_roles_hash").GetString());
+            Assert.Equal(emptyHash, snapshot.GetProperty("user_permissions_hash").GetString());
+            if (removeUsers) Assert.Equal(emptyHash, snapshot.GetProperty("users_hash").GetString());
+            else Assert.NotEqual(emptyHash, snapshot.GetProperty("users_hash").GetString());
+        }
+        finally
+        {
+            await database.DisposeAsync();
+        }
+    }
+
+    private static void AssertPreservationShape(JsonElement snapshot)
+    {
+        var arrays = new[] { "columns_metadata", "indexes_metadata", "sql_permissions", "unchanged_counts",
+            "security_roles", "security_permissions", "security_grants" };
+        var hashes = new[] { "users_hash", "user_roles_hash", "user_permissions_hash" };
+        var shape = string.Join(", ", snapshot.EnumerateObject().Select(x => x.Name + ":" + x.Value.ValueKind));
+        Assert.True(snapshot.EnumerateObject().Count() == 10, "Native preservation metadata has unexpected fields. Shape only: " + shape);
+        foreach (var name in arrays)
+            Assert.True(snapshot.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array,
+                "Native preservation array missing or invalid: " + name + ". Shape only: " + shape);
+        foreach (var name in hashes)
+        {
+            Assert.True(snapshot.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String,
+                "Native preservation hash missing or invalid: " + name + ". Shape only: " + shape);
+            Assert.Matches("^[A-Fa-f0-9]{64}$", value.GetString()!);
         }
     }
 
@@ -144,6 +198,23 @@ public sealed class CollectionsInstallerSqlTests
         await process.WaitForExitAsync();
         Assert.True(process.ExitCode == 0, error);
         Assert.Equal("preservation_verified", output.Trim());
+    }
+
+    private static async Task ValidateNativeMetadataAsync(JsonElement snapshot)
+    {
+        var start = NativePython();
+        start.RedirectStandardInput = true;
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("import json,runpy,sys;m=runpy.run_path(sys.argv[1]);m['validate_preservation_metadata'](json.load(sys.stdin));print('metadata_verified')");
+        start.ArgumentList.Add(NativeScriptPath());
+        using var process = Process.Start(start)!;
+        await process.StandardInput.WriteAsync(snapshot.GetRawText());
+        process.StandardInput.Close();
+        var output = await process.StandardOutput.ReadToEndAsync();
+        var error = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        Assert.True(process.ExitCode == 0, error);
+        Assert.Equal("metadata_verified", output.Trim());
     }
 
     private static string NativeScriptPath()

@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Inspección de preservación con permisos directos vacíos
+
+El usuario ejecuta el paquete CCC: preflight correcto, fallo `database_preservation_metadata_invalid` en `stop-service`, sin migración ni restauración automática de base; salud anterior restablecida y `recovery_pending=false`. La reproducción con SQL Server 2022 y el transporte real sqlcmd/ODBC acredita que un `FOR JSON` escalar vacío produce NULL y se omite `user_permissions_hash`. Las dos pruebas nativas anteriores comparaban snapshots igualmente incompletos sin invocar el guard completo; esa cobertura era insuficiente.
+
+Se normalizan las tres colecciones de seguridad vacías a `N'[]'` antes de calcular SHA256 y se comparte el guard estricto de diez campos entre inspección, comparación y pruebas. Pasan cuatro casos SQL reales, incluidas tablas de usuarios/asignaciones vacías, y la ruta nativa acepta v2 donde CCC reproduce el error. Python suma 675 casos con cuatro omisiones históricas y cero fallos. El reempaquetador fija el ZIP y payload originales y comprueba que aplicación, SQL y recursos sigan intactos. [Entrega v2](../validation/2026-11-22-cobranza-metadata-v2.md).
+
 ## 22 de noviembre de 2026 — Recuperación después de exponer la API de cobranza
 
 La revisión final reproduce un caso en el que la API nueva registra auditoría y actualiza el usuario antes de fallar la comprobación de salud. Comparar después esos datos con el snapshot anterior podía bloquear el reintento. El instalador nuevo guarda antes de activar una evidencia privada de preservación completa, vinculada a fuente, payload, snapshot e historia. Con evidencia válida la recuperación comprueba estructura/permisos SQL y conserva los datos legítimos; sin evidencia válida no omite comprobaciones. No repite DDL ni restaura la base. Las 32 regresiones nuevas pasan y Python total suma 664 casos, cuatro omisiones históricas. No cambia el backend, frontend ni SQL de cobranza.

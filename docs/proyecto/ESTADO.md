@@ -1,5 +1,9 @@
 # Estado vigente de PRODIMT
 
+## Instalación de cobranza — corrección v2
+
+El intento del usuario con `ccc419330104` falla antes de la migración por `database_preservation_metadata_invalid`. Su reporte confirma restauración de la salud anterior, ambos releases `machine-workspace-0d64f5bd2aef`, 21 migraciones, configuración conservada y ninguna recuperación pendiente. La causa se reproduce con permisos directos vacíos: falta una huella en el JSON. El instalador v2 normaliza las colecciones vacías y mantiene el validador estricto. Reutiliza el mismo payload CCC; instalación de cobranza aún pendiente. [Evidencia y ejecución v2](../validation/2026-11-22-cobranza-metadata-v2.md).
+
 ## Responsable de Máquina
 
 El log del usuario confirma la instalación de `0d64f5bd2aefbd9e5db6dd57080cc0c949ec0c53`, integrado a `main` mediante PR #11. Resultado `updated/completed`, 21 migraciones y releases API/frontend `machine-workspace-0d64f5bd2aef`. El reporte verifica esquema, salud y frontend, con `recovery_pending=false`. La vista compacta incluye totales, captura, avisos de liberación y lotes sin cliente, además del rol Responsable de Máquina, equipo fijo por vigencia y ajustes diarios. La aceptación funcional de usuarios y equipos continúa pendiente. [Operación, permisos y activación](RESPONSABLE-DE-MAQUINA.md).

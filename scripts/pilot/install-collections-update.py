@@ -28,6 +28,7 @@ SERVICE = 'prodimt-pedidos-api.service'
 DOMAIN = 'pedidos.prodimt.site'
 MIGRATION = '20261122201338_AddDeliveryCollections'
 FEATURE = 'delivery-collections-v1'
+INSTALLER_REVISION = 'collections-preservation-v2'
 BASE_RELEASE = 'machine-workspace-0d64f5bd2aef'
 BASE_MIGRATIONS = (
     '20260527190837_InitialCreate',
@@ -236,16 +237,28 @@ def preservation_query():
  JSON_QUERY((SELECT RoleId,PermissionId FROM dbo.SecurityRolePermissions ORDER BY RoleId,PermissionId
  FOR JSON PATH)) AS security_grants,
  CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),
- (SELECT * FROM dbo.AdminUsers ORDER BY Id FOR JSON PATH,INCLUDE_NULL_VALUES))),2) AS users_hash,
+ COALESCE((SELECT * FROM dbo.AdminUsers ORDER BY Id FOR JSON PATH,INCLUDE_NULL_VALUES),N'[]'))),2) AS users_hash,
  CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),
- (SELECT * FROM dbo.SecurityUserRoles ORDER BY UserId,RoleId FOR JSON PATH,INCLUDE_NULL_VALUES))),2) AS user_roles_hash,
+ COALESCE((SELECT * FROM dbo.SecurityUserRoles ORDER BY UserId,RoleId FOR JSON PATH,INCLUDE_NULL_VALUES),N'[]'))),2) AS user_roles_hash,
  CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),
- (SELECT * FROM dbo.SecurityUserPermissions ORDER BY UserId,PermissionId FOR JSON PATH,INCLUDE_NULL_VALUES))),2) AS user_permissions_hash
- FOR JSON PATH,WITHOUT_ARRAY_WRAPPER;"""
+ COALESCE((SELECT * FROM dbo.SecurityUserPermissions ORDER BY UserId,PermissionId FOR JSON PATH,INCLUDE_NULL_VALUES),N'[]'))),2) AS user_permissions_hash
+ FOR JSON PATH,WITHOUT_ARRAY_WRAPPER,INCLUDE_NULL_VALUES;"""
+
+
+def validate_preservation_metadata(value):
+    arrays = frozenset(('columns_metadata', 'indexes_metadata', 'sql_permissions', 'unchanged_counts',
+                        'security_roles', 'security_permissions', 'security_grants'))
+    hashes = frozenset(('users_hash', 'user_roles_hash', 'user_permissions_hash'))
+    require(isinstance(value, dict) and set(value) == arrays | hashes
+            and all(isinstance(value[key], list) for key in arrays)
+            and all(isinstance(value[key], str) and re.fullmatch('[A-Fa-f0-9]{64}', value[key]) for key in hashes),
+            'database_preservation_metadata_invalid')
 
 
 def verify_preservation(before, after, *, static_only=False):
     """Permit only the migration's explicit security additions, retaining every old row."""
+    validate_preservation_metadata(before)
+    validate_preservation_metadata(after)
     if static_only:
         require(all(before.get(key) == after.get(key) for key in
             ('columns_metadata', 'indexes_metadata', 'sql_permissions')),
@@ -311,6 +324,7 @@ def make_installer(package, base_frontend=None):
                         for part in ('backend', 'frontend')}
             self.old = {}
             self.state = dict(status='planned', phase='inventory', source_commit=EXPECTED_SOURCE,
+                              installer_revision=INSTALLER_REVISION,
                               changes_made=False, database_migrations_run=False,
                               database_automatically_restored=False, secret_values_printed=False,
                               health_verified=False, recovery_pending=False)
@@ -529,13 +543,7 @@ def make_installer(package, base_frontend=None):
 
         def preserve_database(self, capture=False):
             value = self.sql_json(preservation_query())
-            require(isinstance(value, dict) and set(value) == {'columns_metadata', 'indexes_metadata',
-                'sql_permissions', 'unchanged_counts', 'security_roles', 'security_permissions', 'security_grants',
-                'users_hash', 'user_roles_hash', 'user_permissions_hash'} and
-                all(isinstance(value[key], list) for key in value if not key.endswith('_hash')) and
-                all(isinstance(value[key], str) and re.fullmatch('[A-Fa-f0-9]{64}', value[key])
-                    for key in value if key.endswith('_hash')),
-                'database_preservation_metadata_invalid')
+            validate_preservation_metadata(value)
             path = self.snapshot / 'database-preservation.json'
             if capture and not path.exists():
                 write_private(path, json.dumps(value, sort_keys=True).encode())
