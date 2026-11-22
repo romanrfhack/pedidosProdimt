@@ -1,5 +1,11 @@
 # Bitácora de trabajo
 
+## 22 de noviembre de 2026 — Integración autorizada y paquete de cobranza
+
+El usuario autoriza main y despliegue. Se abre PR #12 y se añade instalador propio sobre `machine-workspace-0d64f5bd2aef`, 21→22, con bases y hashes fijados, respaldo COPY_ONLY/CHECKSUM verificado, marcador durable y recuperación hacia delante. Se preservan tablas previas, conteos, índices, permisos SQL, filas de seguridad existentes y hashes de usuarios/asignaciones; sólo se admiten los anexos de seguridad previstos. El reporte final consulta las 22 migraciones y hashes de DLL activas, en lugar del preflight anterior.
+
+Pasan 27 controles nuevos Python de instalador/payload/WSL y dos casos SQL Server reales de consultas nativas con Mostrador canónico y personalizado. Python total 659, cuatro omisiones históricas y cero fallos. La conexión SSH directa al VPS devuelve Network is unreachable; la ejecución de destino se entrega por WSL y no se afirma instalada sin el reporte. [Contrato de instalación](../validation/2026-11-22-cobranza-despliegue.md).
+
 ## 22 de noviembre de 2026 — Cobranza en reparto y recepción en Mostrador
 
 Se implementa localmente el registro de cobros al entregar pedidos `cash_on_delivery`, ticket del pedido completo del día, adeudos y saldo a favor. El usuario aclara que los abonos cubren primero el ticket del día y después adeudos anteriores. Cinco tablas conservan cargos, valoración de precios pendientes, pagos, recepciones y su aplicación al efectivo. Se integra el registro financiero con el recibo transaccional de entrega, correcciones explícitas de pedidos y resolución de precios, sin convertir entregas históricas desconocidas en deudas.
